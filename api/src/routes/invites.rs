@@ -336,7 +336,7 @@ async fn auto_register_event_attendance(
 
     let invite = invite.accept(&state.db, &user).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let cookie = create_session_cookie(&user, &state)?;
 
     event
         .schedule_event_reminders(

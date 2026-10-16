@@ -80,8 +80,7 @@ pub async fn create(
             user_id.to_owned().into(),
             conversation_id.to_owned().into(),
             create_request.content.into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

@@ -376,6 +376,12 @@ impl ComhairleWebSocketService {
         })
     }
 
+    fn required_redis_service(&self) -> Result<&ComhairleWebSocketServiceRedis, ComhairleError> {
+        self.redis_service
+            .as_ref()
+            .ok_or(ComhairleError::NoRedisServiceConfigured)
+    }
+
     pub async fn start_pubsub_subscriber(
         &self,
     ) -> Result<tokio::task::JoinHandle<()>, ComhairleError> {
@@ -384,7 +390,7 @@ impl ComhairleWebSocketService {
                 "Redis pub/sub is not configured".to_string(),
             ));
         }
-        let redis_service = self.redis_service.as_ref().unwrap();
+        let redis_service = self.required_redis_service()?;
         // Create a DEDICATED connection just for listening
         let client = redis::Client::open(redis_service.redis_url.as_str())
             .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
@@ -415,7 +421,9 @@ impl ComhairleWebSocketService {
                         authenticated_only,
                     } => {
                         // PREVENT ECHO: Skip if we sent this message!
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
@@ -436,15 +444,16 @@ impl ComhairleWebSocketService {
                         user_id,
                         message,
                     } => {
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
-                        if let Ok(ws_message) = serde_json::from_value(message) {
-                            if let Ok(user_uuid) = Uuid::parse_str(&user_id) {
-                                let _ =
-                                    self_clone.send_to_user_local(&user_uuid, &ws_message).await;
-                            }
+                        if let Ok(ws_message) = serde_json::from_value(message)
+                            && let Ok(user_uuid) = Uuid::parse_str(&user_id)
+                        {
+                            let _ = self_clone.send_to_user_local(&user_uuid, &ws_message).await;
                         }
                     }
                     WebsocketPubSubMessage::SendToConnections {
@@ -452,7 +461,9 @@ impl ComhairleWebSocketService {
                         connection_ids,
                         message,
                     } => {
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
@@ -474,12 +485,12 @@ impl ComhairleWebSocketService {
                     } => {
                         // Deliberately NO echo-skip: the publishing instance did not deliver
                         // locally (see `broadcast_to_room`), so it must also forward here.
-                        if let Ok(ws_message) = serde_json::from_value(message) {
-                            if let Ok(room_uuid) = Uuid::parse_str(&room_id) {
-                                let _ = self_clone
-                                    .send_to_room_members_local(&domain, &room_uuid, &ws_message)
-                                    .await;
-                            }
+                        if let Ok(ws_message) = serde_json::from_value(message)
+                            && let Ok(room_uuid) = Uuid::parse_str(&room_id)
+                        {
+                            let _ = self_clone
+                                .send_to_room_members_local(&domain, &room_uuid, &ws_message)
+                                .await;
                         }
                     }
                 }
@@ -498,7 +509,7 @@ impl ComhairleWebSocketService {
                 "Redis pub/sub is not configured".to_string(),
             ));
         }
-        let redis_service = self.redis_service.as_ref().unwrap();
+        let redis_service = self.required_redis_service()?;
         let mut conn = redis_service.redis_publisher.clone();
         if let Ok(payload) = serde_json::to_string(message) {
             use redis::AsyncCommands;
@@ -1054,7 +1065,7 @@ mod tests {
             redis_url = "redis://localhost:6379/".to_string();
         } else {
             // Try to start a temporary server for local development
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| RedisServer::new())) {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(RedisServer::new)) {
                 Ok(server) => {
                     let addr = server.connection_info().addr().to_string();
                     redis_url = format!("redis://{}/", addr);
@@ -1062,10 +1073,10 @@ mod tests {
                     // Wait for the Redis server to start up
                     for attempt in 0..5 {
                         std::thread::sleep(std::time::Duration::from_millis(100));
-                        if let Ok(client) = redis::Client::open(redis_url.as_str()) {
-                            if client.get_connection().is_ok() {
-                                break;
-                            }
+                        if let Ok(client) = redis::Client::open(redis_url.as_str())
+                            && client.get_connection().is_ok()
+                        {
+                            break;
                         }
                         if attempt == 4 {
                             return;
@@ -1153,29 +1164,23 @@ mod tests {
         // Check if connection 1 received the message (from its own broadcast)
         if let Ok(msg) =
             tokio::time::timeout(std::time::Duration::from_millis(100), receiver_1.recv()).await
+            && let Some(msg) = msg
+            && let Ok(ws_msg) =
+                serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
         {
-            if let Some(msg) = msg {
-                if let Ok(ws_msg) =
-                    serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
-                {
-                    // Message should be received via the channel
-                    assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
-                }
-            }
+            // Message should be received via the channel
+            assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
         }
 
         // Check if service_2's connections received the broadcast via Redis pub/sub
         // The message should have been published to Redis and received by the subscriber
         if let Ok(msg) =
             tokio::time::timeout(std::time::Duration::from_millis(500), receiver_2.recv()).await
+            && let Some(msg) = msg
+            && let Ok(ws_msg) =
+                serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
         {
-            if let Some(msg) = msg {
-                if let Ok(ws_msg) =
-                    serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
-                {
-                    assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
-                }
-            }
+            assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
         }
 
         // Verify the message was received by both services
@@ -1198,10 +1203,10 @@ mod tests {
         let redis_url = format!("redis://{}/", server.connection_info().addr());
         for _ in 0..5 {
             std::thread::sleep(std::time::Duration::from_millis(100));
-            if let Ok(client) = redis::Client::open(redis_url.as_str()) {
-                if client.get_connection().is_ok() {
-                    return Some((Some(server), redis_url));
-                }
+            if let Ok(client) = redis::Client::open(redis_url.as_str())
+                && client.get_connection().is_ok()
+            {
+                return Some((Some(server), redis_url));
             }
         }
         None

@@ -317,6 +317,7 @@ impl wiki_poll_service::WikiPollService for DummyWikiPollService {
     }
 }
 
+#[allow(clippy::unwrap_used, reason = "Safe to crash for dummy state creation")]
 pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
     unsafe {
         ComhairleState {
@@ -349,6 +350,7 @@ pub(crate) unsafe fn create_dummy_state() -> ComhairleState {
                 websocket_service: None,
                 whitelisted_domains: None,
                 worker_service: None,
+                sensemaker_model: None,
             },
             mailer: Arc::new(DummyMailer),
             websockets: Arc::new(DummyWebSocketService),

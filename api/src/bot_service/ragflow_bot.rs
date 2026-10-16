@@ -115,10 +115,10 @@ impl ComhairleRagBotService {
                 continue;
             };
             for reference in refs {
-                if reference.positions.is_none() {
-                    if let Some(positions) = positions_by_chunk.get(&reference.id) {
-                        reference.positions = Some(positions.clone());
-                    }
+                if reference.positions.is_none()
+                    && let Some(positions) = positions_by_chunk.get(&reference.id)
+                {
+                    reference.positions = Some(positions.clone());
                 }
             }
         }

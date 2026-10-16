@@ -4,6 +4,7 @@
 		"checkJs": true,
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
+		"lib": ["esnext"],
 		"resolveJsonModule": true,
 		"strict": true,
 		"useUnknownInCatchVariables": false

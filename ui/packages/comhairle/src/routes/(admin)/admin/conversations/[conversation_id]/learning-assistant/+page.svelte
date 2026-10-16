@@ -1,10 +1,4 @@
 <script lang="ts">
-	import type {
-		ChatInstructionsDto,
-		ComhairleChat,
-		ComhairleDocument,
-		ConversationWithTranslations
-	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
 	import PageHeader from '$lib/components/PageHeader.svelte';
@@ -31,54 +25,22 @@
 	import type { Option } from '$lib/components/ui/mutli-select/multi-select.svelte';
 	import { locales } from '$lib/paraglide/runtime';
 	import { getLanguageName } from '$lib/config/languages';
+	import { key } from '$lib/utils/invalidationKey';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import TabContent from '../TabContent.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
-	import { key } from '$lib/utils/invalidationKey';
-	import { permissions } from '$lib/permissions.svelte';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	const MAX_SIZE = 50 * MB;
 
-	type Props = {
-		data: {
-			documents: ComhairleDocument[];
-			conversation: ConversationWithTranslations;
-			chat: ComhairleChat;
-			chatInstructions: ChatInstructionsDto | null;
-		};
-	};
+	const { data } = $props();
+	let { conversation } = $derived(data);
 
-	let { data }: Props = $props();
-	let conversation = $derived(data.conversation);
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation.id)
 	);
-	let chat = $derived(data.chat);
-	let documents = $derived(data.documents);
-	let targetReadingAge = $derived(data.chatInstructions?.targetReadingAge ?? 9);
-
-	// The synced learn-step content is a knowledge-base document like any other, but it is
-	// managed via Sync (not the uploader), so keep it out of the uploaded-files lists and
-	// surface its own status instead.
-	const learnDoc = $derived(documents?.find((doc) => doc.name === LEARN_CONTENT_DOCUMENT_NAME));
-	const uploadedDocuments = $derived(
-		documents?.filter((doc) => doc.name !== LEARN_CONTENT_DOCUMENT_NAME) ?? []
-	);
-
-	const parsingDocuments = $derived(
-		uploadedDocuments.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
-	);
-	const parsedDocuments = $derived(
-		uploadedDocuments.filter(
-			(doc) =>
-				doc.parse_progress >= 1 ||
-				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
-		)
-	);
-
-	// Matches the participant-side gate exactly (parse_status === 'DONE'): the assistant only
-	// answers from fully parsed documents, so this is what decides whether enabling actually
-	// shows anything to participants.
-	const hasParsedDocs = $derived(documents?.some((doc) => doc.parse_status === 'DONE') ?? false);
 
 	// Writable derived: tracks the saved value but can be optimistically flipped on toggle and
 	// reverted if the save fails.
@@ -186,7 +148,6 @@
 			});
 
 			const blob = await generateLearnPdf(sections);
-			if (!canEdit) throw new Error('Conversation Edit access is required');
 
 			const media = new Media();
 			const formData = new FormData();
@@ -247,15 +208,6 @@
 			const name = getLanguageName(locale);
 			return { value: name, label: name };
 		})
-	);
-
-	let selectedCrossLanguages = $derived<Option[]>(
-		chat?.prompt?.cross_languages && chat.prompt.cross_languages.length
-			? allLanguageOptions.filter(
-					(langOption) =>
-						!!chat?.prompt?.cross_languages?.find((lang) => lang === langOption.value)
-				)
-			: []
 	);
 
 	async function handleCrossLanguagesChange(options: Option[]) {
@@ -357,151 +309,218 @@
 	description="Enable the Learning Assistant and manage the documents it answers from"
 />
 
-<div class="flex flex-col">
-	<!-- Enable toggle. Mirrors the Configure page's two-column row (label left, control right,
+<TabContent>
+	<div class="flex flex-col">
+		<!-- Enable toggle. Mirrors the Configure page's two-column row (label left, control right,
 		divider border) so this page reads like the rest of the admin form pages. -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
-			<label for="enable-learning-assistant" class="text-sm font-semibold">
-				Show Learning Assistant
-			</label>
-		</div>
-		<div class="flex-1 space-y-2">
-			<div class="flex items-start gap-3">
-				<Switch
-					id="enable-learning-assistant"
-					disabled={!canEdit}
-					class="mt-0.5"
-					checked={enabled}
-					onCheckedChange={saveEnabled}
-				/>
-				<p class="text-muted-foreground text-base">
-					Display a Q&amp;A Learning Assistant that answers participants' questions from
-					the documents below.
-				</p>
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+				<label for="enable-learning-assistant" class="text-sm font-semibold">
+					Show Learning Assistant
+				</label>
 			</div>
-			{#if enabled && !hasParsedDocs}
-				<Alert.Root>
-					<TriangleAlert />
-					<Alert.Description>
-						Upload and parse at least one document below, otherwise the Learning
-						Assistant won't appear to participants.
-					</Alert.Description>
-				</Alert.Root>
-			{/if}
+			<div class="flex-1 space-y-2">
+				<div class="flex items-start gap-3">
+					<Switch
+						id="enable-learning-assistant"
+						class="mt-0.5"
+						checked={enabled}
+						disabled={!canEdit}
+						onCheckedChange={saveEnabled}
+					/>
+					<p class="text-muted-foreground text-base">
+						Display a Q&amp;A Learning Assistant that answers participants' questions
+						from the documents below.
+					</p>
+				</div>
+				{#await data.streamedDocuments then documents}
+					{#if enabled && !(documents.ok?.some((doc) => doc.parse_status === 'DONE') ?? false)}
+						<Alert.Root>
+							<TriangleAlert />
+							<Alert.Description>
+								Upload and parse at least one document below, otherwise the Learning
+								Assistant won't appear to participants.
+							</Alert.Description>
+						</Alert.Root>
+					{/if}
+				{/await}
+			</div>
 		</div>
-	</div>
 
-	<!-- Learn content sync. Pushes the authored learn-step text into the knowledge base so the
+		<!-- Learn content sync. Pushes the authored learn-step text into the knowledge base so the
 		assistant can answer against what participants read. Manual by design (ADR-0010). -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
-			<p class="text-sm font-semibold">Learn content</p>
-		</div>
-		<div class="flex-1 space-y-4">
-			<p class="text-muted-foreground text-base">
-				Sync your learn-step pages into the knowledge base so the assistant can answer
-				questions about them. Changes to learn steps are not picked up automatically, so
-				re-sync after you finish editing.
-			</p>
-			<p class="text-muted-foreground text-base">
-				Re-syncing replaces the learning-material document, so sources cited in earlier
-				assistant answers will no longer open for participants.
-			</p>
-			<div class="flex flex-col gap-3">
-				<Button
-					variant="outline"
-					class="self-start"
-					onclick={syncLearnContent}
-					disabled={!canEdit || isSyncing}
-				>
-					<RefreshCw class={isSyncing ? 'animate-spin' : ''} />
-					{isSyncing ? 'Syncing...' : 'Sync learn content'}
-				</Button>
-				<LearnSyncStatus document={learnDoc} conversationId={conversation.id} />
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+				<p class="text-sm font-semibold">Learn content</p>
+			</div>
+			<div class="flex-1 space-y-4">
+				<p class="text-muted-foreground text-base">
+					Sync your learn-step pages into the knowledge base so the assistant can answer
+					questions about them. Changes to learn steps are not picked up automatically, so
+					re-sync after you finish editing.
+				</p>
+				<p class="text-muted-foreground text-base">
+					Re-syncing replaces the learning-material document, so sources cited in earlier
+					assistant answers will no longer open for participants.
+				</p>
+				<div class="flex flex-col gap-3">
+					<Button
+						variant="outline"
+						class="self-start"
+						onclick={syncLearnContent}
+						disabled={!canEdit || isSyncing}
+					>
+						<RefreshCw class={isSyncing ? 'animate-spin' : ''} />
+						{isSyncing ? 'Syncing...' : 'Sync learn content'}
+					</Button>
+					{#await data.streamedDocuments}
+						<Skeleton class="h-29.5 w-full" />
+					{:then documents}
+						{#if documents.err !== null}
+							<ErrorMessage>Error loading documents, please try again</ErrorMessage>
+						{:else if documents.ok.length === 0}
+							<span class="text-muted-foreground">No documents</span>
+						{:else}
+							<LearnSyncStatus
+								document={documents.ok.find(
+									(doc) => doc.name === LEARN_CONTENT_DOCUMENT_NAME
+								)}
+								conversationId={conversation.id}
+							/>
+						{/if}
+					{/await}
+				</div>
 			</div>
 		</div>
-	</div>
 
-	<!-- Documents (the knowledge base itself). -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
-			<p class="text-sm font-semibold">Documents</p>
+		<!-- Documents (the knowledge base itself). -->
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+				<p class="text-sm font-semibold">Documents</p>
+			</div>
+			<div class="flex-1 space-y-4">
+				<p class="text-muted-foreground text-base">
+					The knowledge base is a set of documents you can use to provide participants
+					information about the topic at hand. They also inform the helper bot and
+					elicitation bot steps.
+				</p>
+				<section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
+					<FileInput
+						name="files"
+						accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
+						maxSize={MAX_SIZE}
+						onfile={uploadFile}
+						multiple
+						disabled={!canEdit}
+					/>
+					<!-- FIX: Upload from Url functionality -->
+					<!-- <div> -->
+					<!-- 	<div class="text-muted-foreground my-2 text-sm">or upload from URL</div> -->
+					<!-- 	<div class="flex gap-2"> -->
+					<!-- 		<Input -->
+					<!-- 			class="flex-1" -->
+					<!-- 			type="text" -->
+					<!-- 			placeholder="Add file URL" -->
+					<!-- 			bind:value={urlInput} -->
+					<!-- 			disabled={isUploading} -->
+					<!-- 		/> -->
+					<!-- 		<Button -->
+					<!-- 			variant="outline" -->
+					<!-- 			onclick={uploadFromUrl} -->
+					<!-- 			disabled={isUploading || !urlInput.trim()} -->
+					<!-- 		> -->
+					<!-- 			Upload -->
+					<!-- 		</Button> -->
+					<!-- 	</div> -->
+					<!-- </div> -->
+				</section>
+				{#await data.streamedDocuments}
+					<Skeleton class="h-29.5 w-full" />
+				{:then documents}
+					{#if documents.err !== null}
+						<ErrorMessage>Error loading documents, please try again</ErrorMessage>
+					{:else if documents.ok.length === 0}
+						<span class="text-muted-foreground">No documents</span>
+					{:else}
+						{@const uploadedDocuments =
+							documents.ok.filter(
+								(doc) => doc.name !== LEARN_CONTENT_DOCUMENT_NAME
+							) ?? []}
+						{@const parsingDocuments = uploadedDocuments.filter(
+							(doc) => doc.parse_progress < 1 && doc.parse_progress > 0
+						)}
+						{@const parsedDocuments = uploadedDocuments.filter(
+							(doc) =>
+								doc.parse_progress >= 1 ||
+								(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
+						)}
+						{#if parsingDocuments?.length}
+							<ParsingFileList
+								documents={parsingDocuments}
+								{conversation}
+								editable={canEdit}
+							/>
+						{/if}
+						{#if parsedDocuments?.length}
+							<ParsedFileList
+								documents={parsedDocuments}
+								{conversation}
+								editable={canEdit}
+							/>
+						{/if}
+					{/if}
+				{/await}
+			</div>
 		</div>
-		<div class="flex-1 space-y-4">
-			<p class="text-muted-foreground text-base">
-				The knowledge base is a set of documents you can use to provide participants
-				information about the topic at hand. They also inform the helper bot and elicitation
-				bot steps.
-			</p>
-			<section class="mt-4 flex w-full flex-col gap-4 border-t pt-6">
-				<FileInput
-					name="files"
-					disabled={!canEdit}
-					accept=".jpeg,.jpg,.png,.pdf,.mp4,.txt"
-					maxSize={MAX_SIZE}
-					onfile={uploadFile}
-					multiple
-				/>
-				<!-- FIX: Upload from Url functionality -->
-				<!-- <div> -->
-				<!-- 	<div class="text-muted-foreground my-2 text-sm">or upload from URL</div> -->
-				<!-- 	<div class="flex gap-2"> -->
-				<!-- 		<Input -->
-				<!-- 			class="flex-1" -->
-				<!-- 			type="text" -->
-				<!-- 			placeholder="Add file URL" -->
-				<!-- 			bind:value={urlInput} -->
-				<!-- 			disabled={isUploading} -->
-				<!-- 		/> -->
-				<!-- 		<Button -->
-				<!-- 			variant="outline" -->
-				<!-- 			onclick={uploadFromUrl} -->
-				<!-- 			disabled={isUploading || !urlInput.trim()} -->
-				<!-- 		> -->
-				<!-- 			Upload -->
-				<!-- 		</Button> -->
-				<!-- 	</div> -->
-				<!-- </div> -->
-			</section>
-			{#if parsingDocuments?.length}
-				<ParsingFileList documents={parsingDocuments} {conversation} editable={canEdit} />
-			{/if}
-			{#if parsedDocuments?.length}
-				<ParsedFileList documents={parsedDocuments} {conversation} editable={canEdit} />
-			{/if}
-		</div>
-	</div>
 
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<div class="lg:w-50 lg:shrink-0 lg:pt-1">
-			<p class="text-sm font-semibold">Cross-language Search</p>
-		</div>
-		<div class="flex-1 space-y-4">
-			<p class="text-muted-foreground text-base">
-				Lets users ask questions in one language and still get answers from documents
-				written in another. Before searching, your question is translated into the
-				document's language(s), so nothing gets missed just because of a language mismatch.
-			</p>
-			<div class="flex max-w-md flex-col gap-3">
-				<MultiSelect
-					disabled={!canEdit}
-					defaultOptions={allLanguageOptions}
-					selected={selectedCrossLanguages}
-					onSelectedChange={handleCrossLanguagesChange}
-					placeholder="Select languages..."
-					ariaLabel="Supported languages"
-					emptyMessage="No languages found"
-					class="w-full"
-				/>
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<div class="lg:w-50 lg:shrink-0 lg:pt-1">
+				<p class="text-sm font-semibold">Cross-language Search</p>
+			</div>
+			<div class="flex-1 space-y-4">
+				<p class="text-muted-foreground text-base">
+					Lets users ask questions in one language and still get answers from documents
+					written in another. Before searching, your question is translated into the
+					document's language(s), so nothing gets missed just because of a language
+					mismatch.
+				</p>
+				<div class="flex max-w-md flex-col gap-3">
+					{#await data.streamedChat}
+						<Skeleton class="h-10 w-full" />
+					{:then chat}
+						{#if chat.err !== null}
+							{console.error(chat.err)}
+							<ErrorMessage>Could not load chat data, please try again</ErrorMessage>
+						{:else}
+							{@const crossLanguages = chat.ok.prompt?.cross_languages ?? []}
+							<MultiSelect
+								defaultOptions={allLanguageOptions}
+								disabled={!canEdit}
+								selected={crossLanguages.length > 0
+									? allLanguageOptions.filter(
+											(langOption) =>
+												!!crossLanguages.find(
+													(lang) => lang === langOption.value
+												)
+										)
+									: []}
+								onSelectedChange={handleCrossLanguagesChange}
+								placeholder="Select languages..."
+								ariaLabel="Supported languages"
+								emptyMessage="No languages found"
+								class="w-full"
+							/>
+						{/if}
+					{/await}
+				</div>
 			</div>
 		</div>
 	</div>
@@ -519,16 +538,27 @@
 				level between 5-18.
 			</p>
 			<div class="flex max-w-md flex-col gap-3">
-				<Input
-					name="target_reading_age"
-					disabled={!canEdit}
-					type="number"
-					min="5"
-					max="18"
-					bind:value={targetReadingAge}
-					oninput={updateChatInstructions}
-				/>
+				{#await data.streamedChatInstructions}
+					<Skeleton class="h-9 w-full" />
+				{:then chatInstructions}
+					{#if chatInstructions.err !== null}
+						{notifications.addFlash({
+							message: 'Could not load chat instructions, please try again',
+							priority: 'ERROR'
+						})}
+					{:else}
+						<Input
+							name="target_reading_age"
+							disabled={!canEdit}
+							type="number"
+							defaultValue={chatInstructions.ok.targetReadingAge ?? 9}
+							min="5"
+							max="18"
+							oninput={updateChatInstructions}
+						/>
+					{/if}
+				{/await}
 			</div>
 		</div>
 	</div>
-</div>
+</TabContent>

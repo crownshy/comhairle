@@ -712,12 +712,11 @@ async fn get_actor_roles_for_resource(
     let cache_key = role_list_cache_key(resource_type, resource_id, &actor_id);
     let version = actor_permission_version(&state.db, resource_type, resource_id, actor_id).await?;
 
-    if let Some(conn) = &state.redis_conn {
-        if let Some(cached_roles) = cache_get_role_list(conn.as_ref(), &cache_key).await
-            && cached_roles.version == version
-        {
-            return Ok(cached_roles.roles);
-        }
+    if let Some(conn) = &state.redis_conn
+        && let Some(cached_roles) = cache_get_role_list(conn.as_ref(), &cache_key).await
+        && cached_roles.version == version
+    {
+        return Ok(cached_roles.roles);
     }
 
     let mut transaction = state.db.begin().await?;

@@ -20,6 +20,8 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
+pub mod sensemakar_service;
+
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     Extension, Router,
@@ -152,12 +154,10 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
 
     // Setup CORS
     let mut allowed_origins = vec![
-        "http://localhost".parse::<HeaderValue>().unwrap(),
-        "http://localhost:3000".parse::<HeaderValue>().unwrap(),
-        "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-        "https://stage.comhairle.scot"
-            .parse::<HeaderValue>()
-            .unwrap(),
+        HeaderValue::from_static("http://localhost"),
+        HeaderValue::from_static("http://localhost:3000"),
+        HeaderValue::from_static("http://localhost:5173"),
+        HeaderValue::from_static("https://stage.comhairle.scot"),
     ];
 
     if let Some(whitelisted_domains) = &state.config.whitelisted_domains {
@@ -348,7 +348,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let (app, api) = build_app_and_spec(state).await;
 
     if args.export_api_spec {
-        let json = serde_json::to_string_pretty(&api).unwrap();
+        let json = serde_json::to_string_pretty(&api)?;
         fs::write("open-api-spec.json", json.as_bytes()).await?;
     }
 

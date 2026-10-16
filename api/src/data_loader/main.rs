@@ -1,3 +1,8 @@
+#![allow(
+    clippy::unwrap_used,
+    reason = "local fixture loader, panicking on bad data is acceptable"
+)]
+
 use clap::Parser;
 use comhairle::hash_pw;
 use comhairle::models::conversation::ConversationIden;

@@ -1,3 +1,22 @@
+import type { Locale } from '$lib/paraglide/runtime';
+
+// The HeyForm fork only ships i18next resources under these keys (see
+// heyform/packages/form-renderer/src/locales/index.ts), not our bare paraglide codes, so an
+// unmapped locale (e.g. 'ps') silently falls back to the fork's English default.
+const HEYFORM_LOCALE_MAP: Partial<Record<Locale, string>> = {
+	ar: 'ar-sy',
+	pt: 'pt-br',
+	zh: 'zh-cn',
+	ps: 'ps-af',
+	fa: 'fa-af',
+	// Dari has no dedicated bundle in the fork; fa-af is the closest supported match.
+	prs: 'fa-af'
+};
+
+export function toHeyFormLocale(locale: Locale): string {
+	return HEYFORM_LOCALE_MAP[locale] ?? locale;
+}
+
 export const HEYFORM_CHOICE_FIELD_KIND = [
 	'yes_no',
 	'multiple_choice',

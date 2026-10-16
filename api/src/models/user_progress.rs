@@ -94,8 +94,7 @@ pub async fn create(
             user_id.to_owned().into(),
             workflow_step_id.to_owned().into(),
             status.to_owned().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

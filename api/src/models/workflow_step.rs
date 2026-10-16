@@ -178,7 +178,7 @@ pub async fn launch(
     )
     .await?;
     let (primary_locale, supported_languages) =
-        conversation_locales(&state, &workflow_step.workflow_id).await?;
+        conversation_locales(state, &workflow_step.workflow_id).await?;
 
     // When a Polis poll goes live, seed the aux statement table from the new
     // live poll so moderation/theming has rows to work with immediately.
@@ -324,15 +324,15 @@ impl CreateWorkflowStep {
         ]
     }
 
-    pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![
+    pub fn try_values(&self) -> Result<Vec<sea_query::SimpleExpr>, ComhairleError> {
+        let activation_rule = serde_json::to_value(self.activation_rule.clone())?.into();
+
+        Ok(vec![
             self.step_order.into(),
-            serde_json::to_value(self.activation_rule.clone())
-                .unwrap()
-                .into(),
+            activation_rule,
             self.is_offline.into(),
             self.required.into(),
-        ]
+        ])
     }
 }
 
@@ -625,7 +625,7 @@ pub async fn create(
     .await?;
 
     let mut columns = new_workflow_step.columns();
-    let mut values = new_workflow_step.values();
+    let mut values = new_workflow_step.try_values()?;
 
     columns.push(WorkflowStepIden::Name);
     values.push(name_translation.id.into());
@@ -665,8 +665,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(WorkflowStepIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

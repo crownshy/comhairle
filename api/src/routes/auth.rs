@@ -4,7 +4,7 @@ use aide::axum::routing::{get_with, post_with};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
     Extension, RequestPartsExt,
-    extract::{FromRequestParts, Json, Path, State},
+    extract::{FromRequestParts, Json, State},
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
@@ -26,7 +26,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use sha2::Sha256;
-use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 use time::Duration;
 use tower::util::option_layer;
@@ -38,14 +37,13 @@ use crate::error::ComhairleError;
 use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
-    ActorId, ConversationPath, GrantRoleRequest, PermissionResource, PermissionRole, grant_role,
-    has_resource_permission, system::Role as SystemRole,
+    ActorId, GrantRoleRequest, PermissionRole, grant_role, has_resource_permission,
+    system::Role as SystemRole,
 };
 use crate::models::refresh_token::{self, CreateRefreshToken, RefreshFailure, RefreshToken};
 use crate::models::users::{
-    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-    create_guest_user, create_otp_user, create_user, get_guest_user_by_code, get_user_by_email,
-    get_user_by_id, get_user_resource_roles, set_signup_metadata, update_user,
+    self, UpdateUserRequest, User, UserAuthType, create_guest_user, create_otp_user, create_user,
+    get_guest_user_by_code, get_user_by_email, get_user_by_id, set_signup_metadata, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
@@ -275,10 +273,10 @@ pub fn generate_jwt<T: Serialize>(
     custom_claims: T,
     duration: Option<TimeDelta>,
     sub: Option<String>,
-) -> String {
+) -> Result<String, ComhairleError> {
     let expiration = chrono::Utc::now()
         .checked_add_signed(duration.unwrap_or_else(|| chrono::Duration::hours(24)))
-        .expect("valid timestamp")
+        .ok_or_else(|| ComhairleError::AuthJWTError("Expiry date out of rate".to_string()))?
         .timestamp() as usize;
 
     let claims = Claims {
@@ -293,7 +291,7 @@ pub fn generate_jwt<T: Serialize>(
         &claims,
         &EncodingKey::from_secret(secret.as_ref()),
     )
-    .unwrap()
+    .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))
 }
 
 /// Expected payload for a signin request  
@@ -357,7 +355,7 @@ async fn signup(
         .await?;
     }
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -381,7 +379,7 @@ async fn signup_guest(
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -414,7 +412,7 @@ async fn signup_otp(
 
     send_verification_email(&user, &state)?;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -451,7 +449,7 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -488,7 +486,7 @@ async fn login_guest(
         .user(&user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
     let session_cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -529,7 +527,7 @@ async fn login_otp(
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -579,7 +577,7 @@ async fn create_otp(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
-        .call();
+        .call()?;
 
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
 
@@ -625,7 +623,7 @@ async fn login_otp_token(
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let cookie = create_session_cookie(&user, &state)?;
 
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
 }
@@ -645,7 +643,7 @@ async fn resend_verification_email(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
     state
         .mailer
@@ -686,7 +684,7 @@ async fn verify_email_token(
         .user(&updated_user.clone())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
     let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
@@ -712,7 +710,7 @@ async fn password_reset_create(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let reset_link = format!(
         "{}/auth/password-reset/update?token={}",
         state.config.domain, token
@@ -777,8 +775,8 @@ async fn refresh_session(
     // Handles expired / re-used / invalid tokens
     let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
 
-    let session_cookie = create_session_cookie(&user, &state);
-    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
+    let session_cookie = create_session_cookie(&user, &state)?;
+    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token)?;
 
     let jar = jar.add(session_cookie).add(refresh_cookie);
 
@@ -806,134 +804,6 @@ pub fn user_id_from_session_token(token: &str, secret: &str) -> Option<String> {
     decode_jwt::<SessionClaims>(token, secret)
         .ok()
         .map(|data| data.claims.id)
-}
-
-/// An extractor to ensure that a required user has a role.
-/// If the user does not have the role then this will fail and
-/// return a Not Authorized response
-/// e.g.
-///     RequiredRole(role, _, _): RequiredRole<Conversation, Owner>
-#[derive(OperationIo)]
-pub struct RequiredRole<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple>(
-    UserResourceRole,
-    PhantomData<Kind>,
-    PhantomData<Roles>,
-);
-impl<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple> RequiredRole<Kind, Roles> {
-    pub fn new(user_resource_role: UserResourceRole) -> Self {
-        RequiredRole(user_resource_role, PhantomData, PhantomData)
-    }
-}
-
-impl<Resource: RequiredRoleResource, Roles: RequiredRoleRoleTuple>
-    FromRequestParts<Arc<ComhairleState>> for RequiredRole<Resource, Roles>
-{
-    type Rejection = ComhairleError;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let RequiredUser(user) = parts.extract_with_state::<RequiredUser, _>(state).await?;
-        let params = parts
-            .extract::<Path<ConversationPath>>()
-            .await
-            .map_err(|_| {
-                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
-            })?;
-
-        let roles = get_user_resource_roles(
-            Resource::to_enum(),
-            &params.conversation_id, // TODO: handle slug
-            &Roles::to_enum_vec(),
-            &user.id,
-            &state.db,
-        )
-        .await?;
-
-        match roles.first() {
-            Some(role) => Ok(RequiredRole::new(role.clone())),
-            None => Err(ComhairleError::UserNotAuthorized),
-        }
-    }
-}
-
-pub trait RequiredRoleRole: Default {
-    fn to_enum() -> Role;
-}
-
-pub trait RequiredRoleRoleTuple {
-    fn to_enum_vec() -> Vec<Role>;
-}
-
-impl RequiredRoleRoleTuple for () {
-    fn to_enum_vec() -> Vec<Role> {
-        Vec::new()
-    }
-}
-
-impl<Head: RequiredRoleRole, Tail: RequiredRoleRoleTuple> RequiredRoleRoleTuple for (Head, Tail) {
-    fn to_enum_vec() -> Vec<Role> {
-        let mut roles = Tail::to_enum_vec();
-        roles.push(Head::to_enum());
-        roles
-    }
-}
-
-impl<Head: RequiredRoleRole> RequiredRoleRoleTuple for (Head,) {
-    fn to_enum_vec() -> Vec<Role> {
-        <(Head, ())>::to_enum_vec()
-    }
-}
-
-#[derive(Default)]
-pub struct Owner {}
-impl RequiredRoleRole for Owner {
-    fn to_enum() -> Role {
-        Role::Owner
-    }
-}
-
-#[derive(Default)]
-pub struct Contributor {}
-impl RequiredRoleRole for Contributor {
-    fn to_enum() -> Role {
-        Role::Contributor
-    }
-}
-
-#[derive(Default)]
-pub struct Translator {}
-impl RequiredRoleRole for Translator {
-    fn to_enum() -> Role {
-        Role::Translator
-    }
-}
-#[derive(Default)]
-pub struct Moderator {}
-impl RequiredRoleRole for Moderator {
-    fn to_enum() -> Role {
-        Role::Moderator
-    }
-}
-
-pub trait RequiredRoleResource: Default {
-    fn to_enum() -> Resource;
-}
-
-#[derive(Default)]
-pub struct Organisation {}
-impl RequiredRoleResource for Organisation {
-    fn to_enum() -> Resource {
-        Resource::Organisation
-    }
-}
-#[derive(Default)]
-pub struct Conversation {}
-impl RequiredRoleResource for Conversation {
-    fn to_enum() -> Resource {
-        Resource::Conversation
-    }
 }
 
 /// Resolves a [`User`] from an incoming request by checking two authentication
@@ -972,30 +842,6 @@ async fn resolve_user_from_request(
             .ok_or(ComhairleError::UserRequired)
     }
 }
-/// Authorizes `user` to perform `action` on `resource`.
-///
-/// Access is granted if the user owns the resource, or if the user (or their
-/// organization) holds a role whose policy permits the action. Super admins are
-/// always permitted (handled by [`can_perform_action`]).
-///
-/// # Errors
-///
-/// * Returns [`ComhairleError::UserNotAuthorized`] if the user is not permitted.
-/// * Propagates [`ComhairleError`] from the underlying permission lookup.
-pub async fn authorize<R: PermissionResource>(
-    state: &Arc<ComhairleState>,
-    user: &User,
-    action: R::Action,
-    resource: &R,
-) -> Result<(), ComhairleError> {
-    if resource.owner_id() == Some(user.id)
-        || resource.can_perform_action(state, action, &user.id).await?
-    {
-        Ok(())
-    } else {
-        Err(ComhairleError::UserNotAuthorized)
-    }
-}
 
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
@@ -1012,7 +858,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&state, &user).await {
+        if is_user_admin(state, &user).await {
             Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)
@@ -1072,6 +918,14 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
+        if let Ok(TypedHeader(Authorization(bearer))) =
+            TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
+        {
+            let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
+            let user = users::get_user_by_id(&user_id, &state.db).await?;
+            return Ok(OptionalUser(Some(user)));
+        }
+
         let jar = parts
             .extract::<CookieJar>()
             .await
@@ -1132,7 +986,8 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     };
 
     // Fetch the user details from the database
-    let uuid = Uuid::parse_str(&token_data.claims.id).unwrap();
+    let uuid = Uuid::parse_str(&token_data.claims.id)
+        .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
@@ -1177,23 +1032,6 @@ pub async fn current_user(
     Ok((StatusCode::OK, Json(user)))
 }
 
-/// Handler for testing RequiresRole
-pub async fn test_requires_roles(
-    RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
-    RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
-    Ok((StatusCode::OK, Json(user)))
-}
-
-/// Handler for testing RequiredApiKeyUser
-pub async fn test_api_key(
-    RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
-    let user: UserDto = user.into();
-    Ok((StatusCode::OK, Json(user)))
-}
-
 fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
     let claims = EmailLinkClaims {
         email: user.email.clone(),
@@ -1203,7 +1041,7 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let verify_link = format!(
         "{}/auth/verify-user?token={}",
         state.config.domain, verification_token
@@ -1214,7 +1052,10 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
     Ok(())
 }
 
-pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+pub fn create_session_cookie<'a>(
+    user: &User,
+    state: &Arc<ComhairleState>,
+) -> Result<CookieBuilder<'a>, ComhairleError> {
     let claims = SessionClaims {
         username: user.username.clone(),
         sudo_user: None,
@@ -1226,21 +1067,21 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
         .user(user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
 
-    Cookie::build((AUTH_KEY, session_token))
+    Ok(Cookie::build((AUTH_KEY, session_token))
         .path("/")
         .secure(true)
         .http_only(true)
         .same_site(SameSite::None)
-        .max_age(Duration::days(7))
+        .max_age(Duration::days(7)))
 }
 
 fn build_refresh_token_cookie<'a>(
     state: &Arc<ComhairleState>,
     user: &User,
     token_record: &RefreshToken,
-) -> Cookie<'a> {
+) -> Result<Cookie<'a>, ComhairleError> {
     let refresh_token = generate_jwt()
         .user(user)
         .secret(&state.config.refresh_jwt_secret)
@@ -1248,15 +1089,15 @@ fn build_refresh_token_cookie<'a>(
             jti: token_record.id,
         })
         .duration(chrono::Duration::days(7))
-        .call();
+        .call()?;
 
-    Cookie::build((REFRESH_KEY, refresh_token))
+    Ok(Cookie::build((REFRESH_KEY, refresh_token))
         .path("/") // TODO: can this be more tightly scoped
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)
         .max_age(Duration::days(7))
-        .build()
+        .build())
 }
 
 async fn issue_refresh_token<'a>(
@@ -1282,7 +1123,7 @@ async fn issue_refresh_token<'a>(
     )
     .await
     {
-        Some(build_refresh_token_cookie(state, user, &token_record))
+        build_refresh_token_cookie(state, user, &token_record).ok()
     } else {
         warn!(
             "Failed to create refresh token database record for user {}",
@@ -1450,25 +1291,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
-        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
-        // in other endpoints, this can be removed and those auth requirements tested.
-        .api_route(
-            "/test_requires_roles/{conversation_id}",
-            get_with(test_requires_roles, |op| {
-                op.id("TestRequiresRoles")
-                    .summary("Test the requires roles")
-                    .response::<200, Json<UserDto>>()
-            }),
-        )
-        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
-        // in other endpoints, this can be removed and those auth requirements tested.
-        .api_route(
-            "/test_api_key_extraction",
-            get_with(test_api_key, |op| {
-                op.summary("Test the api key extraction")
-                    .response::<200, Json<UserDto>>()
-            }),
-        )
         .with_state(state)
 }
 
@@ -1482,10 +1304,7 @@ mod tests {
             api_key::CreateApiKeyRequest,
             model_test_helpers::setup_default_app_and_session,
             otp,
-            users::{
-                self, Resource, Role, UpdateUserRequest, User, UserAuthType,
-                add_user_resource_role, get_user_by_email,
-            },
+            users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email},
         },
         routes::{
             auth::{EmailLinkClaims, SessionClaims, generate_jwt},
@@ -1744,7 +1563,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, user, _) = session.verify_email_token(&app, token).await?;
         let user: UserDto = serde_json::from_value(user)?;
 
@@ -1797,7 +1616,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(
@@ -1854,7 +1673,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "user email already verified");
@@ -2171,7 +1990,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
 
         let updated_password = "UpdatedPassword123!";
         let (reset_status, _, _) = session
@@ -2238,7 +2057,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session
             .password_reset_update(&app, &token, "foo", "bar")
             .await?;
@@ -2287,7 +2106,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let password = "updated_password";
         let (status, _, _) = session
             .password_reset_update(&app, &token, password, password)
@@ -2298,56 +2117,6 @@ mod tests {
             StatusCode::INTERNAL_SERVER_ERROR,
             "guest users cannot reset password"
         );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    fn user_requires_roles(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool.clone()).call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let username = "test_user";
-        let password = crate::test_helpers::TEST_PASSWORD;
-        let email = "test_email";
-        let conversation_id = uuid::Uuid::parse_str("8438709B-C269-422E-B3F1-D173295F48CF")?;
-
-        let mut session = UserSession::new(username, password, email);
-        session.signup(&app).await?;
-        let url = format!("/auth/test_requires_roles/{conversation_id}");
-
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(
-            status,
-            StatusCode::FORBIDDEN,
-            "User without role should be forbidden"
-        );
-
-        add_user_resource_role(
-            Resource::Conversation,
-            &conversation_id,
-            Role::Translator,
-            &session.id.unwrap(),
-            &pool,
-        )
-        .await?;
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(
-            status,
-            StatusCode::FORBIDDEN,
-            "User with wrong role should be forbidden"
-        );
-
-        add_user_resource_role(
-            Resource::Conversation,
-            &conversation_id,
-            Role::Owner,
-            &session.id.unwrap(),
-            &pool,
-        )
-        .await?;
-        let (status, _, _) = session.get(&app, &url).await?;
-        assert_eq!(status, StatusCode::OK, "User with role should have access");
 
         Ok(())
     }
@@ -2381,7 +2150,7 @@ mod tests {
         );
 
         let (_, value) = session
-            .get_with_api_key(&app, "/auth/test_api_key_extraction", &api_key)
+            .get_with_api_key(&app, "/auth/current_user", &api_key)
             .await?;
         let extracted_user: UserDto = serde_json::from_value(value)?;
 
@@ -2531,7 +2300,7 @@ mod tests {
             .user(&user)
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
 
         // Try to reset with weak password
         let weak_password = "weak";
@@ -2730,7 +2499,7 @@ mod tests {
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(chrono::Duration::minutes(10))
-            .call();
+            .call()?;
 
         session.logout(&app).await?;
 
@@ -2773,7 +2542,7 @@ mod tests {
         )
         .await?;
 
-        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
+        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record)?;
 
         assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
         assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
@@ -2808,7 +2577,7 @@ mod tests {
         .await?;
 
         let token_cookie =
-            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
+            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record)?;
         let token_data =
             decode_jwt::<RefreshClaims>(token_cookie.value(), &state.config.refresh_jwt_secret)
                 .unwrap();
@@ -2924,7 +2693,7 @@ mod tests {
                 ..Default::default()
             })
             .duration(chrono::Duration::hours(-1))
-            .call();
+            .call()?;
 
         // Replace auth-token cookie with expired jwt
         session.cookies.as_mut().unwrap().insert(

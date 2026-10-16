@@ -81,6 +81,9 @@ impl PermissionUserFilter for Query<ListPermissionsByActionQuery> {
 
 /// Resolves the actor from the optional user_id / organization_id fields.
 ///
+/// Returns `None` if none of the fields are provided, leaving callers to decide
+/// whether an actor is required.
+///
 /// # Errors
 ///
 /// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
@@ -90,7 +93,6 @@ async fn resolve_actor(
     user_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     user_email: Option<String>,
-    allow_none: bool,
 ) -> Result<Option<ActorId>, ComhairleError> {
     match (user_id, organization_id, user_email) {
         (Some(uid), None, None) => Ok(Some(ActorId::User(uid))),
@@ -102,7 +104,7 @@ async fn resolve_actor(
 
             Ok(Some(ActorId::User(user.id)))
         }
-        (None, None, None) if allow_none => Ok(None),
+        (None, None, None) => Ok(None),
         _ => Err(ComhairleError::BadRequest(
             "Only one of user_id, organization_id or user_email can be provided".into(),
         )),
@@ -128,10 +130,13 @@ async fn grant(
         body.user_id,
         body.organization_id,
         body.user_email,
-        false,
     )
     .await?
-    .unwrap();
+    .ok_or_else(|| {
+        ComhairleError::BadRequest(
+            "One of user_id, organization_id or user_email is required".into(),
+        )
+    })?;
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &body.role_name);
@@ -175,9 +180,13 @@ async fn revoke(
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
-    let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
+    let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None)
         .await?
-        .unwrap();
+        .ok_or_else(|| {
+            ComhairleError::BadRequest(
+                "One of user_id, organization_id or user_email is required".into(),
+            )
+        })?;
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &query.role_name);
@@ -210,7 +219,7 @@ async fn list(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -269,7 +278,7 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -930,7 +939,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -995,7 +1004,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1010,7 +1019,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1056,7 +1065,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1067,14 +1076,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1139,7 +1148,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1151,14 +1160,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1166,14 +1175,14 @@ mod tests {
 
         for i in 0..3 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1246,7 +1255,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1265,7 +1274,7 @@ mod tests {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1278,7 +1287,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1330,7 +1339,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1374,7 +1383,7 @@ mod tests {
         )
         .await?;
 
-        assert!(permissions.records.len() > 0);
+        assert!(!permissions.records.is_empty());
 
         let permission = &permissions.records[0];
         assert_eq!(

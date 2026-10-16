@@ -259,8 +259,8 @@ impl ComhairleMailer for Mailer {
 
         let to = Mailbox::from_str(to)?;
         let message_builder = Message::builder()
-            .from("noreply@comhairle.scot".parse().unwrap())
-            .reply_to("invites@comhairle.scot".parse().unwrap())
+            .from("noreply@comhairle.scot".parse()?)
+            .reply_to("invites@comhairle.scot".parse()?)
             .to(to)
             .subject(subject);
 
@@ -599,7 +599,7 @@ impl ComhairleMailer for Mailer {
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(event_jwt_duration)
-            .call();
+            .call()?;
 
         let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
         let otp_link = format!(

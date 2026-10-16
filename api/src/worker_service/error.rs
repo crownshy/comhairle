@@ -23,6 +23,9 @@ pub enum WorkerServiceError {
     #[error("No categorization service configured")]
     NoCategorizationServiceError,
 
+    #[error("No sensemaker model configured")]
+    NoSensemakerModelConfigured,
+
     #[error("Serde json error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
@@ -57,14 +60,15 @@ pub enum WorkerServiceError {
     JobFailure(String),
 }
 
-impl Into<StatusCode> for &WorkerServiceError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&WorkerServiceError> for StatusCode {
+    fn from(val: &WorkerServiceError) -> Self {
+        match val {
             WorkerServiceError::NoWorkerServiceConfigured
             | WorkerServiceError::NoTranscriptionServiceConfigured
             | WorkerServiceError::NoBulkStorageServiceConfigured
             | WorkerServiceError::NoBotServiceConfigured
-            | WorkerServiceError::NoCategorizationServiceError => StatusCode::SERVICE_UNAVAILABLE,
+            | WorkerServiceError::NoCategorizationServiceError
+            | WorkerServiceError::NoSensemakerModelConfigured => StatusCode::SERVICE_UNAVAILABLE,
 
             WorkerServiceError::SerdeJsonError(_)
             | WorkerServiceError::DbError(_)
@@ -95,7 +99,10 @@ pub type Result<T> = std::result::Result<T, WorkerServiceError>;
 ///     .await?;
 /// ```
 ///
-#[allow(async_fn_in_trait)]
+#[allow(
+    async_fn_in_trait,
+    reason = "extension trait only called on concrete types, no Send-ness of the future is inferred"
+)]
 pub trait RecordWorkerError<T> {
     /// Records a job failure in the database and propagates the error.
     ///

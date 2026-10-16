@@ -12,7 +12,7 @@
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 	import * as Card from '$lib/components/ui/card';
-	import { ChevronDown } from '@lucide/svelte';
+	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
 	type AuthorFilter = 'all' | 'seed' | 'participant';
@@ -28,9 +28,11 @@
 		 * drop them and show every statement — a snapshot, not a broken widget.
 		 */
 		frozen?: boolean;
+		/** AI-generated summary text for this side (consensus or disagreement). */
+		summary?: string;
 	};
 
-	let { title, comments, groups, frozen = false }: Props = $props();
+	let { title, comments, groups, frozen = false, summary }: Props = $props();
 
 	const COLLAPSED_ROWS = 4;
 	let filter = $state<AuthorFilter>('all');
@@ -68,6 +70,23 @@
 			Click a theme to see all of the statements associated with it.
 		</p>
 	</header>
+
+	{#if summary}
+		<div class="flex flex-col gap-2 px-4 pt-3">
+			<span
+				class="bg-accent border-border text-primary flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+			>
+				<Sparkles class="size-4" />
+				AI Generated
+			</span>
+			<div class="bg-accent border-border rounded-[10px] border p-4">
+				<div class="flex items-start gap-2.5">
+					<Sparkles class="text-primary mt-0.5 size-4 shrink-0" />
+					<p class="text-primary text-base leading-7">{summary}</p>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Legend -->
 	<div class="text-foreground flex flex-wrap items-center gap-2 px-4 pt-4 text-xs font-medium">

@@ -156,6 +156,10 @@ pub struct GetConversationQuery {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(untagged)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "built once per request and serialized immediately"
+)]
 pub enum ConversationResponse {
     WithTranslations(ConversationWithTranslations),
     Localized(LocalizedConversationDto),
@@ -196,9 +200,13 @@ async fn get_conversation(
     }
 
     // Check if user is admin and withTranslations is requested
-    let should_return_with_translations = query.with_translations
-        && user.is_some()
-        && is_user_admin(&state, user.as_ref().unwrap()).await;
+    let should_return_with_translations = if query.with_translations
+        && let Some(user) = &user
+    {
+        is_user_admin(&state, user).await
+    } else {
+        false
+    };
 
     if should_return_with_translations {
         // Convert to ConversationWithTranslations
@@ -324,7 +332,7 @@ async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation = conversation::delete(&state, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
 
     Ok((StatusCode::OK, Json(conversation)))
@@ -689,11 +697,13 @@ async fn register_email_for_updates(
     ))
 }
 
+type CsvExportResponse = (StatusCode, [(String, String); 2], String);
+
 #[instrument(err(Debug), skip(state))]
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+) -> Result<CsvExportResponse, ComhairleError> {
     // Get all contacts who opted in
     let contacts =
         user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
@@ -762,7 +772,7 @@ async fn export_conversation_contacts(
 async fn export_conversation_demographics(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+) -> Result<CsvExportResponse, ComhairleError> {
     // Get demographic data for export
     let demographics =
         user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
@@ -790,32 +800,27 @@ async fn export_conversation_demographics(
                 profile
                     .demographics
                     .get("ethnicity")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("age")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("gender")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("zipcode")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile
                     .demographics
                     .get("political_party")
-                    .map(|d| d.value.clone())
-                    .flatten()
+                    .and_then(|d| d.value.clone())
                     .unwrap_or_default(),
                 profile.created_at.to_rfc3339(),
             ])?;
@@ -1444,7 +1449,7 @@ mod tests {
             .create_conversation(
                 &app,
                 json! ({
-                    "title" : format!("this is the target"),
+                    "title" : "this is the target".to_string(),
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
@@ -1452,7 +1457,7 @@ mod tests {
                     "is_public" : true,
                     "is_live" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug"),
+                    "slug" : "target_slug".to_string(),
                     "primary_locale" : "en",
                     "supported_languages" : ["en"]
                 }),
@@ -1959,6 +1964,90 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_be_able_to_delete_conversation_with_event_workflow(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::CREATED,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service.expect_create_chat().once().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live" : false,
+                    "is_invite_only" : false,
+                    "slug" : "event_workflow_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation_id = conversation.get("id").unwrap().as_str().unwrap().to_owned();
+
+        let (_, event, _) = session.create_random_event(&app, &conversation_id).await?;
+        let event_id = event.get("id").unwrap().as_str().unwrap().to_owned();
+        let (status, _, _) = session
+            .create_random_event_workflow(&app, &conversation_id, &event_id)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "Should create event workflow");
+
+        let (status, _, _) = session.delete_conversation(&app, &conversation_id).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "Should delete conversation with an event workflow attached"
+        );
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -2776,7 +2865,7 @@ mod tests {
                 actor_id: ActorId::User(other_user_session.id.unwrap()),
                 permission_triplet: system::Role::SuperAdmin.system_triplet()?,
                 granted_by: &owner_session.id.unwrap(),
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;

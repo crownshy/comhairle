@@ -300,20 +300,19 @@ impl PolisClient {
             "https://{}/api/v3/comments?conversation_id={poll_id}&moderation=true",
             self.base_url
         );
-        let comments: Vec<PolisComment> = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .map_err(|e| {
-            PolisError::FailedToGetComments(
-                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                e.to_string(),
-            )
-        })?;
+        let comments: Vec<PolisComment> =
+            self.client
+                .get(url)
+                .send()
+                .await?
+                .json()
+                .await
+                .map_err(|e| {
+                    PolisError::FailedToGetComments(
+                        e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                        e.to_string(),
+                    )
+                })?;
 
         Ok(comments)
     }
@@ -576,7 +575,7 @@ impl WikiPollService for PolisClient {
             password: password.clone(),
             password2: password,
             email,
-            gatekeeperTosPrivacy: true,
+            gatekeeper_tos_privacy: true,
         };
 
         let _res = self
@@ -929,7 +928,8 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    pub gatekeeperTosPrivacy: bool,
+    #[serde(rename = "gatekeeperTosPrivacy")]
+    pub gatekeeper_tos_privacy: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

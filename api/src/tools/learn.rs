@@ -68,11 +68,6 @@ async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, C
     })
 }
 
-// Keep public function for backwards compatibility
-pub async fn setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
-    learn_setup(setup_config).await
-}
-
 /// Zero-sized marker type for Learn tool implementation
 pub struct LearnTool;
 

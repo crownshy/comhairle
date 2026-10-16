@@ -9,6 +9,7 @@ test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
 	await Conversation.openTab(page, 'Learning Assistant', undefined);
+	await sleep(1);
 });
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
@@ -26,29 +27,34 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 
 	// Learn Content
 	await page.getByRole('button', { name: 'Sync learn content' }).click();
-	await sleep(1.5);
-	await expect(page.getByText('Processing synced learn')).toBeVisible();
-	await eventually(async () => {
-		await expect(page.getByText('Learn content synced and ready')).toBeVisible();
-	});
+	await eventually(() => expect(page.getByText('Processing synced learn')).toBeVisible());
+	await eventually(() => expect(page.getByText('Learn content synced and ready')).toBeVisible());
 
 	// Documents
+	// Can't do it, because can't upload documents?
 
 	// Cross-language Search
-	await page.getByRole('textbox', { name: 'Supported languages' }).click();
+	const SupportedLanguages = page.getByRole('textbox', { name: 'Supported languages' });
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'English' }).click();
+	await sleep(0.5);
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'Gaelic' }).click();
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(true);
-		expect(await exists(page.getByText('Gaelic'))).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(true);
+			expect(await exists(page.getByText('Gaelic'))).toBe(true);
+		})
+	);
 
 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	await page.getByRole('button', { name: 'Remove' }).first().click();
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(false);
-		expect(await exists(page.getByText('Gaelic'))).toBe(false);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(false);
+			expect(await exists(page.getByText('Gaelic'))).toBe(false);
+		})
+	);
 
 	// Target reading age
 	const TargetReadingAge = page.getByRole('spinbutton');

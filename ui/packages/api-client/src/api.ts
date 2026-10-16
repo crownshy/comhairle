@@ -204,6 +204,49 @@ export const PaginatedResults_for_LocalizedConversationDto = z
 export type PaginatedResults_for_LocalizedConversationDto = z.infer<
   typeof PaginatedResults_for_LocalizedConversationDto
 >;
+export const PermittedConversationDto = z
+  .object({
+    allowRevisitAfterFinishing: z.boolean(),
+    callToAction: z.union([z.string(), z.null()]).optional(),
+    chatBotId: z.union([z.string(), z.null()]).optional(),
+    description: z.string(),
+    enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    imageUrl: z.string(),
+    isComplete: z.boolean(),
+    isInviteOnly: z.boolean(),
+    isLive: z.boolean(),
+    isPublic: z.boolean(),
+    isShared: z.boolean(),
+    knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    metadata: z.unknown(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
+    shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
+    showThankyouPageFeedbackButton: z.boolean(),
+    slug: z.union([z.string(), z.null()]).optional(),
+    supportedLanguages: z.array(z.string()),
+    tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
+    title: z.string(),
+    videoUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type PermittedConversationDto = z.infer<typeof PermittedConversationDto>;
+export const PaginatedResults_for_PermittedConversationDto = z
+  .object({
+    records: z.array(PermittedConversationDto),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type PaginatedResults_for_PermittedConversationDto = z.infer<
+  typeof PaginatedResults_for_PermittedConversationDto
+>;
 export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export type OrganizationType = z.infer<typeof OrganizationType>;
 export const LocalizedOrganizationDto = z
@@ -665,6 +708,41 @@ export const ModerateStatementAuxBatchResponse = z
   .passthrough();
 export type ModerateStatementAuxBatchResponse = z.infer<
   typeof ModerateStatementAuxBatchResponse
+>;
+export const RequestSummaryRequest = z
+  .object({
+    additional_instructions: z.union([z.string(), z.null()]).optional(),
+    context: z.union([z.string(), z.null()]).optional(),
+    reading_age_target: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type RequestSummaryRequest = z.infer<typeof RequestSummaryRequest>;
+export const RequestSummaryResponse = z
+  .object({ job_id: z.string().uuid() })
+  .passthrough();
+export type RequestSummaryResponse = z.infer<typeof RequestSummaryResponse>;
+export const WikiPollConversationSummary = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    job_id: z.union([z.string(), z.null()]).optional(),
+    poll_data: z.unknown(),
+    result: z.unknown(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type WikiPollConversationSummary = z.infer<
+  typeof WikiPollConversationSummary
+>;
+export const PaginatedResults_for_WikiPollConversationSummary = z
+  .object({
+    records: z.array(WikiPollConversationSummary),
+    total: z.number().int(),
+  })
+  .passthrough();
+export type PaginatedResults_for_WikiPollConversationSummary = z.infer<
+  typeof PaginatedResults_for_WikiPollConversationSummary
 >;
 export const SplitStatementRequest = z
   .object({ replacements: z.array(z.string()) })
@@ -3438,6 +3516,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   is_complete,
   limit,
   PaginatedResults_for_LocalizedConversationDto,
+  PermittedConversationDto,
+  PaginatedResults_for_PermittedConversationDto,
   OrganizationType,
   LocalizedOrganizationDto,
   UserOrganizationAccess,
@@ -3493,6 +3573,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ModerateStatementAuxBatchRequest,
   ModerateBatchFailure,
   ModerateStatementAuxBatchResponse,
+  RequestSummaryRequest,
+  RequestSummaryResponse,
+  WikiPollConversationSummary,
+  PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
   FormField,
@@ -3976,20 +4060,6 @@ const endpoints = makeApi([
     response: UserDto,
   },
   {
-    method: "get",
-    path: "/auth/test_api_key_extraction",
-    alias: "getAuthtest_api_key_extraction",
-    requestFormat: "json",
-    response: UserDto,
-  },
-  {
-    method: "get",
-    path: "/auth/test_requires_roles/:conversation_id",
-    alias: "TestRequiresRoles",
-    requestFormat: "json",
-    response: UserDto,
-  },
-  {
     method: "post",
     path: "/auth/verify_email_token",
     alias: "VerifyEmailToken",
@@ -4017,6 +4087,11 @@ const endpoints = makeApi([
       },
       {
         name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "exclude_owner_id",
         type: "Query",
         schema: created_after,
       },
@@ -6924,6 +6999,61 @@ Use a raw HTTP request and process the response body incrementally.
     response: PolisStatementTranslation,
   },
   {
+    method: "post",
+    path: "/tools/polis/summary",
+    alias: "PolisRequestSummary",
+    description: `Fetches the current Polis report data for a workflow step and queues a background job that generates a group/consensus/ disagreement summary with the sensemaking worker. Returns the id of the job used to track progress (GET /jobs/{job_id}).`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: RequestSummaryRequest,
+      },
+    ],
+    response: z.object({ job_id: z.string().uuid() }).passthrough(),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/summary/history",
+    alias: "PolisListSummaries",
+    description: `Returns past wiki_poll_conversation_summary rows for the given workflow step, newest first, paginated.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PaginatedResults_for_WikiPollConversationSummary,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/summary/latest",
+    alias: "PolisGetLatestSummary",
+    description: `Returns the most recently generated wiki_poll_conversation_summary row for the given workflow step, or 404 if none exists yet.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: WikiPollConversationSummary,
+  },
+  {
     method: "get",
     path: "/tools/polis/vote_count",
     alias: "PolisGetUserVoteCount",
@@ -7108,6 +7238,14 @@ Create a response for prioritization tool proposal
       },
     ],
     response: Submissions,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions/csv",
+    alias: "HeyFormExportSubmissionsCsv",
+    description: `Downloads one row per respondent and one column per question, with choice ids resolved to their labels. Unaggregated, unlike /insights.`,
+    requestFormat: "json",
+    response: z.void(),
   },
   {
     method: "post",
@@ -7507,6 +7645,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: created_after,
       },
       {
+        name: "exclude_owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "is_complete",
         type: "Query",
         schema: is_complete,
@@ -7572,6 +7715,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: created_after,
       },
       {
+        name: "exclude_owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "is_complete",
         type: "Query",
         schema: is_complete,
@@ -7617,7 +7765,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: limit,
       },
     ],
-    response: PaginatedResults_for_LocalizedConversationDto,
+    response: PaginatedResults_for_PermittedConversationDto,
   },
   {
     method: "get",

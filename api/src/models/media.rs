@@ -22,7 +22,7 @@ use crate::{
 };
 
 /// File type to handle the incoming File from the HTTP Request
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct File {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -30,7 +30,7 @@ pub struct File {
 }
 
 /// Incoming form type from the upload request
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct UploadMediaForm {
     pub file: File,
     pub name: String,
@@ -200,8 +200,8 @@ impl MediaContentType {
                 file.filename.clone(),
             ));
         };
-        let extension = MediaContentType::try_from_extension(extension);
-        extension
+
+        MediaContentType::try_from_extension(extension)
     }
 }
 

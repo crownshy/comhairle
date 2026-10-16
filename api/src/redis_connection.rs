@@ -98,6 +98,7 @@ impl RedisConnection for RedisImpl {
 
 /// In-memory Redis mock backed by a `HashMap<String, String>`.
 #[cfg(test)]
+#[derive(Default)]
 pub struct MockRedis(Arc<Mutex<HashMap<String, String>>>);
 
 #[cfg(test)]
