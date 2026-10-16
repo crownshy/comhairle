@@ -840,8 +840,7 @@ pub async fn create_text_content<'connection>(
     let (sql, values) = Query::insert()
         .into_table(TextContentIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -995,8 +994,7 @@ pub async fn create_text_translation<'connection>(
     let (sql, values) = Query::insert()
         .into_table(TextTranslationIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

@@ -240,7 +240,7 @@ async fn get_jwt(
         .custom_claims(claims)
         .duration(chrono::Duration::hours(1))
         .sub(video_call_config.jwt_sub.to_owned())
-        .call();
+        .call()?;
 
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }

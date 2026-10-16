@@ -194,8 +194,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             password.into(),
             user.avatar_url.clone().into(),
             user.email.clone().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

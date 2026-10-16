@@ -40,8 +40,7 @@ pub async fn create(
             UserParticipationIden::UserId,
             UserParticipationIden::WorkflowId,
         ])
-        .values([user_id.to_owned().into(), workflow_id.to_owned().into()])
-        .unwrap()
+        .values([user_id.to_owned().into(), workflow_id.to_owned().into()])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
