@@ -59,30 +59,30 @@
 		>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content class="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
-			<Dialog.Title>
-				<div class="mr-8 mb-5 flex flex-row items-center justify-between">
-					<div class="flex flex-row items-center gap-1">
-						<span>Media library</span>
-						<Button
-							href="/admin/media-library"
-							variant="ghost"
-							size="sm"
-							title="Go to media library"
-							aria-label="Go to media library"
-						>
-							<SquareArrowOutUpLeft />
-						</Button>
-					</div>
+		<Dialog.Content class="flex max-h-[80vh] flex-col overflow-hidden sm:max-w-3xl">
+			<div class="mr-8 flex shrink-0 flex-row items-center justify-between">
+				<div class="flex flex-row items-center gap-1">
+					<Dialog.Title>Media library</Dialog.Title>
 					<Button
-						disabled={!selectedMedia}
-						onclick={() => {
-							if (!selectedMedia) return;
-							onconfirm(selectedMedia);
-							open = false;
-						}}>Select</Button
+						href="/admin/media-library"
+						variant="ghost"
+						size="sm"
+						title="Go to media library"
+						aria-label="Go to media library"
 					>
+						<SquareArrowOutUpLeft />
+					</Button>
 				</div>
+				<Button
+					disabled={!selectedMedia}
+					onclick={() => {
+						if (!selectedMedia) return;
+						onconfirm(selectedMedia);
+						open = false;
+					}}>Select</Button
+				>
+			</div>
+			<div class="min-h-0 overflow-y-auto">
 				{#if dataRequest !== null}
 					{#await dataRequest}
 						<Spinner />
@@ -113,7 +113,7 @@
 						{/if}
 					{/await}
 				{/if}
-			</Dialog.Title>
+			</div>
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
