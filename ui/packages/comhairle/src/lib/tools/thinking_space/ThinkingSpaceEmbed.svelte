@@ -14,6 +14,7 @@
 	} from './types';
 	import type { FlowMode } from './questionFlowState.svelte';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		workflowStepId: string;
@@ -28,6 +29,7 @@
 		progressStatus?: ProgressStatus;
 		onDone?: () => void;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -42,7 +44,8 @@
 		initialPermissionToShareWithOrganizers = null,
 		progressStatus = 'not_started',
 		onDone,
-		onCanContinueChange
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	let loaded = $state(false);
@@ -62,6 +65,11 @@
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
+	});
+
+	// QuestionFlow reports while it is mounted; the summary is the end of the step.
+	$effect(() => {
+		if (phase === 'summary') onSequenceChange?.({ progress: 1 });
 	});
 
 	let configIncomplete = $derived(
@@ -217,13 +225,13 @@
 	<div class="relative flex min-h-[600px] flex-col">
 		{#if phase === 'questions'}
 			<QuestionFlow
-				{topic}
 				{workflowStepId}
 				questions={rootQuestions}
 				followUpCount={followUpRoundsCount}
 				initialAnswers={answers}
 				mode={flowMode}
 				onComplete={handleQuestionFlowComplete}
+				{onSequenceChange}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
