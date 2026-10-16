@@ -273,10 +273,10 @@ pub fn generate_jwt<T: Serialize>(
     custom_claims: T,
     duration: Option<TimeDelta>,
     sub: Option<String>,
-) -> String {
+) -> Result<String, ComhairleError> {
     let expiration = chrono::Utc::now()
         .checked_add_signed(duration.unwrap_or_else(|| chrono::Duration::hours(24)))
-        .expect("valid timestamp")
+        .ok_or_else(|| ComhairleError::AuthJWTError("Expiry date out of rate".to_string()))?
         .timestamp() as usize;
 
     let claims = Claims {
@@ -291,7 +291,7 @@ pub fn generate_jwt<T: Serialize>(
         &claims,
         &EncodingKey::from_secret(secret.as_ref()),
     )
-    .unwrap()
+    .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))
 }
 
 /// Expected payload for a signin request  
@@ -355,7 +355,7 @@ async fn signup(
         .await?;
     }
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -379,7 +379,7 @@ async fn signup_guest(
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -412,7 +412,7 @@ async fn signup_otp(
 
     send_verification_email(&user, &state)?;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -449,7 +449,7 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -486,7 +486,7 @@ async fn login_guest(
         .user(&user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
     let session_cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -527,7 +527,7 @@ async fn login_otp(
 
     let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
 
-    let session_cookie = create_session_cookie(&user, &state);
+    let session_cookie = create_session_cookie(&user, &state)?;
     let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
     let mut jar = jar.add(session_cookie);
@@ -577,7 +577,7 @@ async fn create_otp(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
-        .call();
+        .call()?;
 
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
 
@@ -623,7 +623,7 @@ async fn login_otp_token(
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let cookie = create_session_cookie(&user, &state)?;
 
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
 }
@@ -643,7 +643,7 @@ async fn resend_verification_email(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
     state
         .mailer
@@ -684,7 +684,7 @@ async fn verify_email_token(
         .user(&updated_user.clone())
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
     let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
@@ -710,7 +710,7 @@ async fn password_reset_create(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let reset_link = format!(
         "{}/auth/password-reset/update?token={}",
         state.config.domain, token
@@ -775,8 +775,8 @@ async fn refresh_session(
     // Handles expired / re-used / invalid tokens
     let new_token = refresh_token::rotate(&state.db, jti, user_id, &client_ip, &user_agent).await?;
 
-    let session_cookie = create_session_cookie(&user, &state);
-    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token);
+    let session_cookie = create_session_cookie(&user, &state)?;
+    let refresh_cookie = build_refresh_token_cookie(&state, &user, &new_token)?;
 
     let jar = jar.add(session_cookie).add(refresh_cookie);
 
@@ -986,7 +986,8 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     };
 
     // Fetch the user details from the database
-    let uuid = Uuid::parse_str(&token_data.claims.id).unwrap();
+    let uuid = Uuid::parse_str(&token_data.claims.id)
+        .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
@@ -1040,7 +1041,7 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(15))
-        .call();
+        .call()?;
     let verify_link = format!(
         "{}/auth/verify-user?token={}",
         state.config.domain, verification_token
@@ -1051,7 +1052,10 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
     Ok(())
 }
 
-pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+pub fn create_session_cookie<'a>(
+    user: &User,
+    state: &Arc<ComhairleState>,
+) -> Result<CookieBuilder<'a>, ComhairleError> {
     let claims = SessionClaims {
         username: user.username.clone(),
         sudo_user: None,
@@ -1063,21 +1067,21 @@ pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> Co
         .user(user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .call();
+        .call()?;
 
-    Cookie::build((AUTH_KEY, session_token))
+    Ok(Cookie::build((AUTH_KEY, session_token))
         .path("/")
         .secure(true)
         .http_only(true)
         .same_site(SameSite::None)
-        .max_age(Duration::days(7))
+        .max_age(Duration::days(7)))
 }
 
 fn build_refresh_token_cookie<'a>(
     state: &Arc<ComhairleState>,
     user: &User,
     token_record: &RefreshToken,
-) -> Cookie<'a> {
+) -> Result<Cookie<'a>, ComhairleError> {
     let refresh_token = generate_jwt()
         .user(user)
         .secret(&state.config.refresh_jwt_secret)
@@ -1085,15 +1089,15 @@ fn build_refresh_token_cookie<'a>(
             jti: token_record.id,
         })
         .duration(chrono::Duration::days(7))
-        .call();
+        .call()?;
 
-    Cookie::build((REFRESH_KEY, refresh_token))
+    Ok(Cookie::build((REFRESH_KEY, refresh_token))
         .path("/") // TODO: can this be more tightly scoped
         .secure(true)
         .http_only(true)
         .same_site(SameSite::Strict)
         .max_age(Duration::days(7))
-        .build()
+        .build())
 }
 
 async fn issue_refresh_token<'a>(
@@ -1119,7 +1123,7 @@ async fn issue_refresh_token<'a>(
     )
     .await
     {
-        Some(build_refresh_token_cookie(state, user, &token_record))
+        build_refresh_token_cookie(state, user, &token_record).ok()
     } else {
         warn!(
             "Failed to create refresh token database record for user {}",
@@ -1559,7 +1563,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, user, _) = session.verify_email_token(&app, token).await?;
         let user: UserDto = serde_json::from_value(user)?;
 
@@ -1612,7 +1616,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(
@@ -1669,7 +1673,7 @@ mod tests {
             .user(&user)
             .secret(secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "user email already verified");
@@ -1986,7 +1990,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
 
         let updated_password = "UpdatedPassword123!";
         let (reset_status, _, _) = session
@@ -2053,7 +2057,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let (status, _, _) = session
             .password_reset_update(&app, &token, "foo", "bar")
             .await?;
@@ -2102,7 +2106,7 @@ mod tests {
             .user(&user)
             .secret(&secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
         let password = "updated_password";
         let (status, _, _) = session
             .password_reset_update(&app, &token, password, password)
@@ -2296,7 +2300,7 @@ mod tests {
             .user(&user)
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
-            .call();
+            .call()?;
 
         // Try to reset with weak password
         let weak_password = "weak";
@@ -2495,7 +2499,7 @@ mod tests {
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(chrono::Duration::minutes(10))
-            .call();
+            .call()?;
 
         session.logout(&app).await?;
 
@@ -2538,7 +2542,7 @@ mod tests {
         )
         .await?;
 
-        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record);
+        let token_cookie = build_refresh_token_cookie(&Arc::new(state), &user, &token_record)?;
 
         assert_eq!(token_cookie.name(), REFRESH_KEY, "incorrect name");
         assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
@@ -2573,7 +2577,7 @@ mod tests {
         .await?;
 
         let token_cookie =
-            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record);
+            build_refresh_token_cookie(&Arc::new(state.clone()), &user, &token_record)?;
         let token_data =
             decode_jwt::<RefreshClaims>(token_cookie.value(), &state.config.refresh_jwt_secret)
                 .unwrap();
@@ -2689,7 +2693,7 @@ mod tests {
                 ..Default::default()
             })
             .duration(chrono::Duration::hours(-1))
-            .call();
+            .call()?;
 
         // Replace auth-token cookie with expired jwt
         session.cookies.as_mut().unwrap().insert(

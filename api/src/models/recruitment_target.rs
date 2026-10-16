@@ -63,8 +63,7 @@ pub async fn create(
             create_request.metric.clone().into(),
             create_request.bucket.clone().into(),
             create_request.target_count.into(),
-        ])
-        .unwrap()
+        ])?
         .on_conflict(
             OnConflict::columns([
                 RecruitmentTargetIden::WorkflowId,

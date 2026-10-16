@@ -213,8 +213,7 @@ pub async fn create(
             create_recording.s3_key_prefix.clone().into(),
             create_recording.file_extension.extension().into(),
             AudioRecordingStatus::AwaitingUpload.to_string().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

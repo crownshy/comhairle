@@ -26,7 +26,7 @@ uuid = "1.14.0"
 [workspace.lints.clippy]
 allow_attributes_without_reason = "deny"
 # Deny panics
-# unwrap_used = "deny"
+unwrap_used = "deny"
 # expect_used = "deny"
 # indexing_slicing = "deny"
 # arithmetic_side_effects = "deny"

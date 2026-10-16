@@ -13,7 +13,7 @@ pub async fn generate_api_spec() -> Result<OpenApi, ComhairleError> {
 
     let (_, api_spec) = comhairle::build_app_and_spec(dummy_state.clone()).await;
 
-    let json = serde_json::to_string_pretty(&api_spec).unwrap();
+    let json = serde_json::to_string_pretty(&api_spec)?;
     tokio::fs::write("open-api-spec.json", json.as_bytes()).await?;
 
     // Prevent dropping dangling pointers from memory

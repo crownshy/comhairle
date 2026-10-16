@@ -1,3 +1,7 @@
+#![allow(
+    clippy::unwrap_used,
+    reason = "proc macro code runs at compile time; panic is a build error rather than a runtime crash"
+)]
 mod translation_helpers;
 
 use translation_helpers::{

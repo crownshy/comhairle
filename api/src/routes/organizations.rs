@@ -316,7 +316,7 @@ async fn add_member(
                 email: updated_user.email.clone(),
             })
             .duration(chrono::Duration::hours(24))
-            .call();
+            .call()?;
         let reset_link = format!(
             "{}/auth/password-reset/update?token={}",
             state.config.domain, token
