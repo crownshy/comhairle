@@ -6,14 +6,14 @@ use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
 use super::user_participation::UserParticipationIden;
 use super::workflow_step::WorkflowStepIden;
+use crate::error::ComhairleError;
 
 /// Defines the type of authentication has been used to create
 /// The user
@@ -342,20 +342,19 @@ pub async fn is_sealed(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
-        },
-        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
-    };
+    use std::error::Error;
+
+    use axum::Router;
 
     use super::*;
-
     use crate::models::conversation::{self, PartialConversation};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::users;
     use crate::models::users::User;
-    use axum::Router;
-    use std::error::Error;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     /// A conversation with one workflow of `step_count` steps and one participant. The app and
     /// session are kept so a test can add more steps afterwards.

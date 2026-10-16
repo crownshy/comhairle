@@ -1,32 +1,23 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use chrono::Utc;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        notification_delivery::{
-            self, NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
-        },
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-    },
-};
-
 use super::auth::RequiredUser;
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::notification_delivery::{
+    self, NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
+};
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
 
 pub mod dto;
 

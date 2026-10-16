@@ -4,11 +4,13 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "recruitment_target")]
@@ -192,11 +194,14 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comhair
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
+    use sqlx::PgPool;
+
     use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::routes::{conversations::dto::ConversationDto, workflows::dto::WorkflowDto};
-    use sqlx::PgPool;
-    use std::error::Error;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     async fn make_workflow(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(pool).await?;

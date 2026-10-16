@@ -1,36 +1,25 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with},
-};
-use axum::{
-    body::Body,
-    extract::{Json, Multipart, Path, Query, State},
-    http::StatusCode,
-    response::Response,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with};
+use axum::body::Body;
+use axum::extract::{Json, Multipart, Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::Response;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest},
-    error::ComhairleError,
-    models::{
-        conversation,
-        job::{self, CreateJob},
-        translations, user_participation, workflow, workflow_step,
-    },
-    routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
-    tools::{
-        ToolConfig,
-        learn::{LearnPageEntry, PageContent},
-    },
-    worker_service::process_documents::DocumentJob,
-};
+use crate::ComhairleState;
+use crate::bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest};
+use crate::error::ComhairleError;
+use crate::models::job::{self, CreateJob};
+use crate::models::{conversation, translations, user_participation, workflow, workflow_step};
+use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::tools::ToolConfig;
+use crate::tools::learn::{LearnPageEntry, PageContent};
+use crate::worker_service::process_documents::DocumentJob;
 
 /// Reserved knowledge-base document name for the auto-synced learn-step content.
 ///
@@ -603,17 +592,20 @@ curl -X POST \\
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+    use std::sync::Arc;
 
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::{MultipartBodyBuilder, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
-    use axum::{Router, body::Body, http::StatusCode};
+    use axum::Router;
+    use axum::body::Body;
+    use axum::http::StatusCode;
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_state};
 
     fn mock_bot_service_for_conversation(kb_id: String) -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();

@@ -2,15 +2,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        conversation::{Conversation, LocalizedConversation},
-        media::{FromWithMedia, MediaResolver},
-        pagination::PaginatedResults,
-        translations::TextContentId,
-    },
-    schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
-};
+use crate::models::conversation::{Conversation, LocalizedConversation};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::pagination::PaginatedResults;
+use crate::models::translations::TextContentId;
+use crate::schema_helpers::{example_bot_service_id, example_localized_text, example_uuid};
 
 /// Data transfer object (public API representation) for a Conversation.
 ///

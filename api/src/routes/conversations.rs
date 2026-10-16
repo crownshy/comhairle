@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
@@ -27,21 +28,16 @@ use crate::models::notification::{
 use crate::models::notification_delivery::{
     self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
 };
-use crate::models::organization;
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::conversation::{Action, Role};
 use crate::models::permissions::{
     self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action,
-    conversation::{Action, Role},
-    grant_role,
+    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action, grant_role,
 };
-use crate::models::user_conversation_preferences;
 use crate::models::user_participation::{self};
-use crate::models::user_profile;
+use crate::models::{organization, user_conversation_preferences, user_profile};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::translations::LocaleExtractor;
-
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
 pub mod dto;
 
@@ -1033,6 +1029,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::StatusCode;
+    use serde_json::json;
+    use sqlx::PgPool;
+
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
@@ -1040,24 +1045,18 @@ mod tests {
     use crate::models::demographics::{
         CreateConversationDemographics, create_conversation_demographics,
     };
+    use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
-        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole,
-        conversation::Role, grant_role, system,
+        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
+        system,
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
-    use axum::body::Body;
-    use axum::http::StatusCode;
-    use serde_json::json;
-    use sqlx::PgPool;
-    use std::collections::HashMap;
-    use std::error::Error;
-    use std::sync::Arc;
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_config, test_state};
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
@@ -2374,12 +2373,13 @@ mod tests {
     fn broadcast_email_only_sent_to_opted_in_authenticated_users(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::user_conversation_preferences::{
             self, CreateUserConversationPreferences,
         };
         use crate::models::users::create_user;
         use crate::routes::auth::SignupRequest;
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent.clone());
@@ -2493,10 +2493,11 @@ mod tests {
     fn broadcast_email_respects_anonymous_opt_in_flag(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::conversation_email_notification_recipients::{
             self as anon_model, CreateConversationEmailNotificationRecipients,
         };
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent.clone());
@@ -2613,6 +2614,8 @@ mod tests {
     fn recipients_endpoint_lists_only_opted_in_emails(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::conversation_email_notification_recipients::{
             self as anon_model, CreateConversationEmailNotificationRecipients,
         };
@@ -2621,7 +2624,6 @@ mod tests {
         };
         use crate::models::users::create_user;
         use crate::routes::auth::SignupRequest;
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent);

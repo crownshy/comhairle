@@ -1,26 +1,21 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{DefaultBodyLimit, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::Json;
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::region_area::{self, AreaLocation, CreateRegionArea, PartialRegionArea};
-use crate::routes::{auth::RequiredSuperAdminUser, region_areas::dto::RegionAreaDto};
-use crate::{
-    ComhairleState,
-    models::pagination::{PageOptions, PaginatedResults},
-};
+use crate::routes::auth::RequiredSuperAdminUser;
+use crate::routes::region_areas::dto::RegionAreaDto;
 
 pub mod dto;
 

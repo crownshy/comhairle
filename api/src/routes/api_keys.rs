@@ -1,19 +1,16 @@
 use std::sync::Arc;
 
-use aide::axum::{ApiRouter, routing::post_with};
-use axum::{
-    extract::{Json, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::post_with;
+use axum::extract::{Json, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::api_key::{self, CreateApiKeyRequest},
-    routes::auth::{RequiredAdminUser, is_user_admin},
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::api_key::{self, CreateApiKeyRequest};
+use crate::routes::auth::{RequiredAdminUser, is_user_admin};
 
 #[derive(Serialize, Debug, JsonSchema)]
 pub struct CreateResponse {

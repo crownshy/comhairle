@@ -5,10 +5,10 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::models::translations::TextContentId;
-use crate::{ComhairleState, error::ComhairleError};
-
 use super::{ToolConfigSanitize, ToolImpl};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::translations::TextContentId;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct LearnPage {

@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -37,6 +33,11 @@ use crate::{
         user::dto::UserDto,
     },
 };
+use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
+use crate::models::{self};
+use crate::routes::conversations::dto::LocalizedConversationDto;
+use crate::routes::organizations::dto::LocalizedOrganizationDto;
+use crate::routes::user::dto::UserDto;
 
 pub mod dto;
 
@@ -518,13 +519,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_organization_id,
     };

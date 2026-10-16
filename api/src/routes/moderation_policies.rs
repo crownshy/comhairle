@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::extract::{Json, Path, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
@@ -14,7 +12,8 @@ use crate::middleware::permissions::{PermissionRequirement, authorize};
 use crate::models::moderation_policy::{
     self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
 };
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::routes::moderation_policies::dto::{
     DefaultModerationPolicyReasonDto, ModerationPolicyDto,
 };
@@ -189,14 +188,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::time::Duration;
+
     use axum::Router;
     use serde_json::{Value, json};
     use sqlx::PgPool;
 
     use super::*;
-
-    use std::{error::Error, time::Duration};
-
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };

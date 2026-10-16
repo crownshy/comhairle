@@ -1,20 +1,20 @@
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        demographics::{self, ValueBuckets},
-    },
-};
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, types::Json};
-use std::collections::HashMap;
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
+use sqlx::types::Json;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::demographics::{self, ValueBuckets};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_profile")]
@@ -383,11 +383,11 @@ pub async fn get_demographic_report(
     reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
 )]
 mod tests {
-    use super::*;
-
-    use sqlx::PgPool;
     use std::error::Error;
 
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::models::demographics::{
         DemographicsResponse, DemographicsResponsesFilterOptions, get_demographics_responses,
     };
@@ -840,9 +840,8 @@ mod tests {
     async fn should_generate_demographic_report_for_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{
-            model_test_helpers::setup_default_app_and_session, user_participation,
-        };
+        use crate::models::model_test_helpers::setup_default_app_and_session;
+        use crate::models::user_participation;
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -1038,9 +1037,8 @@ mod tests {
     async fn demographic_report_should_exclude_non_consented_users(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{
-            model_test_helpers::setup_default_app_and_session, user_participation,
-        };
+        use crate::models::model_test_helpers::setup_default_app_and_session;
+        use crate::models::user_participation;
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -1167,9 +1165,8 @@ mod tests {
     async fn demographic_report_should_handle_null_values(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{
-            model_test_helpers::setup_default_app_and_session, user_participation,
-        };
+        use crate::models::model_test_helpers::setup_default_app_and_session;
+        use crate::models::user_participation;
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;

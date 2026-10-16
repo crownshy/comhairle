@@ -1,32 +1,31 @@
-use crate::models::conversation;
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::{Arc, LazyLock};
+
+use async_trait::async_trait;
+use chrono::{DateTime, Datelike, Utc};
+use icalendar::{self as ical, Component, EventLike};
+use lettre::message::header::ContentType;
+use lettre::message::{Attachment, Body, Mailbox, MultiPart, SinglePart};
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+use minijinja::{Environment, Value, context};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+use tracing::{instrument, warn};
+use uuid::Uuid;
+
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
-use crate::models::otp;
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
+use crate::models::{conversation, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
-use crate::{ComhairleState, error::ComhairleError};
-
-use async_trait::async_trait;
-use chrono::{DateTime, Datelike, Utc};
-use icalendar::{self as ical, Component, EventLike};
-use lettre::message::Mailbox;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{
-    Message, SmtpTransport, Transport,
-    message::{Attachment, Body, MultiPart, SinglePart, header::ContentType},
-};
-use minijinja::{Environment, Value, context};
-use std::{collections::HashMap, sync::LazyLock};
-use std::{str::FromStr, sync::Arc};
-use tracing::{instrument, warn};
-use uuid::Uuid;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
 

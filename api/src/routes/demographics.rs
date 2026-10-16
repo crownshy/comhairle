@@ -18,7 +18,8 @@ use crate::models::demographics::{
     DemographicsResponsesFilterOptions, PartialDemographicsQuestion, PartialDemographicsResponse,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{can_perform_action, conversation::Action};
+use crate::models::permissions::can_perform_action;
+use crate::models::permissions::conversation::Action;
 use crate::models::users::User;
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
