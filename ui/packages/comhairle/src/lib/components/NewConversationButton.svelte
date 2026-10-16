@@ -4,13 +4,14 @@
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { Plus } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { notifications } from '$lib/notifications.svelte';
-	import { manage_conversation_url } from '$lib/urls';
 	import { createConversation } from '$lib/createConversation';
 	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 	import { cn } from '$lib/utils';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	type Props = {
 		class?: string;
@@ -25,21 +26,28 @@
 	async function create(templateKey?: string) {
 		if (submitting) return;
 		submitting = true;
-		try {
-			const conversation = await createConversation(templateKey ? { templateKey } : {});
-			// Flag it so the configure page it lands on makes its newness obvious.
-			justCreatedConversation.flag(conversation.id);
-			notifications.addFlash({ message: 'Conversation created' });
-			dialogOpen = false;
-			await goto(manage_conversation_url(conversation.id), {
-				invalidate: [key('admin/conversation')]
-			});
-		} catch (e) {
-			console.warn(e);
+		const created = await tryCatchAsync(() =>
+			createConversation(templateKey ? { templateKey } : {})
+		);
+		if (created.err !== null) {
 			notifications.send({ message: 'Something went wrong creating the conversation' });
-		} finally {
 			submitting = false;
+			return;
 		}
+		// Flag it so the configure page it lands on makes its newness obvious.
+		justCreatedConversation.flag(created.ok.id);
+		notifications.addFlash({ message: 'Conversation created' });
+		dialogOpen = false;
+		// The sidebar list lives in the admin layout, keyed on the plural key.
+		await goto(
+			resolve('/(admin)/admin/conversations/[conversation_id]/configure', {
+				conversation_id: created.ok.id
+			}),
+			{
+				invalidate: [key('admin/conversations')]
+			}
+		);
+		submitting = false;
 	}
 </script>
 
