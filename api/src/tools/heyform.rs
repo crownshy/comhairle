@@ -88,34 +88,14 @@ fn generate_password() -> String {
     let mut rng = thread_rng();
 
     // Ensure at least one of each required character type
-    let lowercase = (b'a'..=b'z').map(char::from).collect::<Vec<_>>();
-    let uppercase = (b'A'..=b'Z').map(char::from).collect::<Vec<_>>();
-    let numbers = (b'0'..=b'9').map(char::from).collect::<Vec<_>>();
-
     let mut password = vec![
-        *lowercase
-            .choose(&mut rng)
-            .expect("Failed to choose a lowercase letter"),
-        *uppercase
-            .choose(&mut rng)
-            .expect("Failed to choose an uppercase letter"),
-        *numbers.choose(&mut rng).expect("Failed to choose a number"),
+        char::from(rng.gen_range(b'a'..=b'z')),
+        char::from(rng.gen_range(b'A'..=b'Z')),
+        char::from(rng.gen_range(b'0'..=b'9')),
     ];
 
     // Fill remaining 9 characters from all alphanumeric
-    let all_chars: Vec<char> = lowercase
-        .into_iter()
-        .chain(uppercase)
-        .chain(numbers)
-        .collect();
-
-    for _ in 0..9 {
-        password.push(
-            *all_chars
-                .choose(&mut rng)
-                .expect("Failed to choose a character"),
-        );
-    }
+    password.extend((0..9).map(|_| char::from(rng.sample(Alphanumeric))));
 
     // Shuffle to avoid predictable pattern
     password.shuffle(&mut rng);
@@ -1118,7 +1098,7 @@ pub async fn submissions_csv(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -1146,6 +1126,26 @@ mod tests {
     #[derive(Clone)]
     struct MockHeyFormState {
         submission_calls: Arc<AtomicUsize>,
+    }
+
+    #[test]
+    fn generate_password_is_12_ascii_alphanumeric_chars() {
+        for _ in 0..100 {
+            let password = generate_password();
+
+            assert_eq!(password.len(), 12, "unexpected length: {password}");
+            assert!(
+                password.chars().all(|c| c.is_ascii_alphanumeric()),
+                "non-alphanumeric char in: {password}"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_password_produces_different_passwords() {
+        let passwords: HashSet<String> = (0..100).map(|_| generate_password()).collect();
+
+        assert_eq!(passwords.len(), 100);
     }
 
     fn create_form_report() -> FormReport {
