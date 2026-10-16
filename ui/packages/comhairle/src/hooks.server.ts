@@ -1,4 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
+import { LOCALE_COOKIE } from '$lib/utils/locale';
 import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
@@ -90,7 +91,7 @@ const handleApi: Handle = async ({ event, resolve }) => {
 				event.url.origin + '/api',
 				event.cookies.get('auth-token'),
 				'server',
-				event.cookies.get('COMHAIRLE_LOCALE'),
+				event.cookies.get(LOCALE_COOKIE),
 				previewGrantCookies(event.cookies)
 			))
 	});
