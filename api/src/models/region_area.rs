@@ -213,20 +213,18 @@ pub async fn create_many(
         .to_owned();
 
     for request in create_requests.drain(..) {
-        query
-            .values([
-                request.zip_prefix.into(),
-                request.tags.into(),
-                match request.area_geometry {
-                    Some(geom) => Expr::cust_with_values(
-                        "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1)), 3))",
-                        [geom.to_string()],
-                    ),
-                    None => Expr::cust("NULL"),
-                },
-                request.name.into(),
-            ])
-            .expect("columns match values length");
+        query.values([
+            request.zip_prefix.into(),
+            request.tags.into(),
+            match request.area_geometry {
+                Some(geom) => Expr::cust_with_values(
+                    "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1)), 3))",
+                    [geom.to_string()],
+                ),
+                None => Expr::cust("NULL"),
+            },
+            request.name.into(),
+        ])?;
     }
 
     let (sql, values) = query

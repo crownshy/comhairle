@@ -55,6 +55,10 @@ impl RateLimitConfig {
 
 /// Creates a rate limiter layer based on the provided configuration
 /// This layer extracts the client IP from X-Forwarded-For, X-Real-IP, or socket address
+#[allow(
+    clippy::expect_used,
+    reason = "only run when starting api so acceptable to panic"
+)]
 pub fn create_rate_limiter(
     config: RateLimitConfig,
 ) -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {

@@ -249,13 +249,13 @@ impl<'r> Decode<'r, Postgres> for EventLocation {
     }
 }
 
-impl From<EventLocation> for sea_query::Value {
-    fn from(l: EventLocation) -> Self {
-        Self::Json(Some(Box::new(
-            // `expect` should be safe here as serialization should fail at the api
-            // layer if invalid
-            serde_json::to_value(l).expect("EventLocation serialization failed"),
-        )))
+impl TryFrom<EventLocation> for sea_query::Value {
+    type Error = ComhairleError;
+
+    fn try_from(l: EventLocation) -> Result<Self, Self::Error> {
+        let json = serde_json::to_value(l)?;
+
+        Ok(Self::Json(Some(Box::new(json))))
     }
 }
 
@@ -489,7 +489,7 @@ pub async fn create(
 }
 
 impl PartialEvent {
-    pub fn to_values(&self) -> Vec<(EventIden, sea_query::SimpleExpr)> {
+    pub fn try_to_values(&self) -> Result<Vec<(EventIden, sea_query::SimpleExpr)>, ComhairleError> {
         let mut values = vec![];
         if let Some(value) = &self.name {
             values.push((EventIden::Name, value.into()));
@@ -513,7 +513,8 @@ impl PartialEvent {
             values.push((EventIden::Agenda, value.into()));
         }
         if let Some(value) = &self.location {
-            values.push((EventIden::Location, value.clone().into()));
+            let location = sea_query::Value::try_from(value.clone())?;
+            values.push((EventIden::Location, location.into()));
         }
         if let Some(value) = &self.format {
             values.push((EventIden::Format, value.clone().into()));
@@ -535,7 +536,7 @@ impl PartialEvent {
             values.push((EventIden::Metadata, value.clone().into()));
         }
 
-        values
+        Ok(values)
     }
 }
 
@@ -545,7 +546,7 @@ pub async fn update(
     id: &Uuid,
     update_event: &PartialEvent,
 ) -> Result<Event, ComhairleError> {
-    let values = update_event.to_values();
+    let values = update_event.try_to_values()?;
 
     if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);

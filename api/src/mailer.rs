@@ -186,12 +186,20 @@ impl MockComhairleMailer {
     }
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "minijinja_embed's generated code panics at startup if an embedded template is invalid"
+)]
+fn load_email_templates(mut env: &mut minijinja::Environment<'static>) {
+    minijinja_embed::load_templates!(env);
+}
+
 impl Mailer {
     pub fn new(host: &str, user: &str, password: &str) -> Self {
         let creds = Credentials::new(user.to_string(), password.to_string());
         let mut env = minijinja::Environment::new();
         env.add_global("year", minijinja::Value::from(*MAILER_YEAR));
-        minijinja_embed::load_templates!(&mut env);
+        load_email_templates(&mut env);
         Self {
             host: host.into(),
             creds,
@@ -247,14 +255,9 @@ impl ComhairleMailer for Mailer {
         context: Value,
         attachment: Option<SinglePart>,
     ) -> Result<(), ComhairleError> {
-        let template = self
-            .template_engine
-            .get_template(template)
-            .expect("template to exist");
+        let template = self.template_engine.get_template(template)?;
 
-        let html = template
-            .render(context)
-            .expect("Template to render properly");
+        let html = template.render(context)?;
         let html_inline_styles = css_inline::inline(&html)?;
 
         let to = Mailbox::from_str(to)?;
