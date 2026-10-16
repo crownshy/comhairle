@@ -11,14 +11,21 @@ use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
 use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
-use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
+use crate::{ComhairleState, setup_server};
 
 /// Sets up a default `App` and `UserSession` for testing.
 pub async fn setup_default_app_and_session(
     pool: &PgPool,
 ) -> Result<(crate::App, UserSession), Box<dyn Error>> {
     let state = Arc::new(test_state().db(pool.clone()).call()?);
+    setup_app_and_session_with_state(state).await
+}
+
+/// Like [`setup_default_app_and_session`] but for a caller-supplied state, e.g. one with a custom mailer.
+pub async fn setup_app_and_session_with_state(
+    state: Arc<ComhairleState>,
+) -> Result<(crate::App, UserSession), Box<dyn Error>> {
     let app = setup_server(state.clone()).await?;
 
     let mut session = UserSession::new_admin();
