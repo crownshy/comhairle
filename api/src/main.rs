@@ -184,22 +184,21 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let server_future = async move {
         // run our app with hyper
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+        tracing::info!("listening on {}", listener.local_addr()?);
         axum::serve(
             listener,
             app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
         )
         .await
-        .unwrap();
     };
 
     let worker_future = init_monitor(storage, &state);
 
     if let Some(worker_future) = worker_future {
-        let _ = tokio::join!(server_future, worker_future);
+        let _ = tokio::try_join!(server_future, worker_future)?;
     } else {
-        server_future.await;
+        server_future.await?;
     }
 
     Ok(())
