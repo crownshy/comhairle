@@ -74,7 +74,8 @@ export default defineConfig({
 	/* Run your local dev server before starting the tests */
 	webServer: {
 		command: 'pn build && pn preview',
-		url: "http://localhost:4173",
-		timeout: 5 * Minute
+		url: 'http://localhost:4173',
+		timeout: 5 * Minute,
+		reuseExistingServer: !process.env.CI
 	}
 });
