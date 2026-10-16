@@ -190,6 +190,10 @@ If you copy a block a second time, stop and extract it.
   such as a shared class string or a limit, reads as a constant when it's named like one:
   `VOTE_BUTTON_CLASS`, not `voteButtonClass`. Keep it next to where it's used; if only one
   template block needs it, a `{@const}` inside that block is fine.
+- **Say what kind of constant it is.** A Tailwind class string ends in `_CLASS`
+  (`PAGER_BUTTON_CLASS`), so nobody mistakes it for a component or a type. A number carries
+  its unit (`BAR_GAP_PX`). When several files in a route folder share class strings, put
+  them in a colocated `styles.ts`, not a file named after one constant.
 - **Name the props type; don't inline the annotation.** Declare a `type Props = { … }`
   (or `interface Props`) above the destructure and annotate with it, rather than inlining
   a large object literal after `}:`.
