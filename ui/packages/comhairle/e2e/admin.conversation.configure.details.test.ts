@@ -50,12 +50,12 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 		await Description.expect();
 
 		const header = page.getByRole('heading', {
-			description: Title.currentValue(),
+			description: Title.value(),
 			exact: true
 		});
 		await eventually(() => expect(header).toBeVisible());
 
-		const conversation = page.getByRole('link', { name: Title.currentValue() });
+		const conversation = page.getByRole('link', { name: Title.value() });
 		await eventually(() => expect(conversation).toBeVisible());
 
 		// Translation stuff

@@ -87,7 +87,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 
 	if (withTests) {
 		await page.waitForURL('**/events');
-		await expect(page.getByRole('heading', { name: Title.currentValue() })).toBeVisible();
+		await expect(page.getByRole('heading', { name: Title.value() })).toBeVisible();
 	}
 }
 
