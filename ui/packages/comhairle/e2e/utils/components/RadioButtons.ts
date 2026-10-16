@@ -2,12 +2,16 @@ import { expect } from '@playwright/test';
 import type { Refs } from './types';
 import { find } from '..';
 
-async function RadioButtons<const T extends string[]>(options: T, refs: Refs) {
+type Options<T extends string[]> = {
+	resetTo?: T[number];
+};
+
+async function RadioButtons<const T extends string[]>(radios: T, refs: Refs, options: Options<T>) {
 	const getRadio = (name: string) => find(refs.page.getByRole('radio', { name }));
 
 	let selected: T[number] | undefined = await (async () => {
-		for (const option of options) {
-			if (await (await getRadio(option)).isChecked()) return option;
+		for (const radio of radios) {
+			if (await (await getRadio(radio)).isChecked()) return radio;
 		}
 		return undefined;
 	})();
@@ -28,6 +32,10 @@ async function RadioButtons<const T extends string[]>(options: T, refs: Refs) {
 
 	refs.cleanup?.(async () => {
 		if (!firstSelected) {
+			return;
+		}
+		if (options.resetTo) {
+			await (await getRadio(options.resetTo)).click();
 			return;
 		}
 		await (await getRadio(firstSelected)).click();
