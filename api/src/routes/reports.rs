@@ -105,7 +105,7 @@ async fn create_report(
     Ok((StatusCode::CREATED, Json(full_report)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -131,5 +131,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<FullReportDto>>()
             }),
         )
-        .with_state(state)
 }

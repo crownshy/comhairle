@@ -282,7 +282,7 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/polis/report_data",
@@ -610,7 +610,6 @@ impl ToolImpl for PolisTool {
                     authorize_polis_statement,
                 )),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -1986,7 +1985,6 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    use axum::Router;
     use serde_json::json;
     use sqlx::PgPool;
 
@@ -2003,7 +2001,7 @@ mod tests {
     use super::*;
 
     async fn setup_polis_aux(
-        app: &Router,
+        app: &crate::App,
         pool: &PgPool,
         session: &mut UserSession,
         themes: Vec<String>,
@@ -2300,7 +2298,7 @@ mod tests {
 
     /// Create a conversation + workflow + Polis workflow step, returning the step id.
     async fn setup_polis_step(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session.create_random_conversation(app).await?;

@@ -190,15 +190,9 @@ name = "api_spec_gen"
 version = "0.1.0"
 dependencies = [
  "aide",
- "async-trait",
  "comhairle_api",
- "lettre",
- "minijinja",
- "serde",
  "serde_json",
- "sqlx",
  "tokio",
- "uuid",
 ]
 
 [[package]]
