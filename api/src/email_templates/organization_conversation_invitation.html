@@ -1,0 +1,12 @@
+{% extends "email_layout.html" %}
+{% block content %}
+<p>Hello!</p>
+
+<p>{{ inviter_name }} would like to give {{ organization_name }} access to the conversation "{{ conversation_title }}" on Comhairle.</p>
+
+<p>An administrator of {{ organization_name }} can review and accept the invitation using the link below. No access is given until it is accepted.</p>
+
+<p><a href="{{ accept_link }}">Review the invitation</a></p>
+
+<p>This invitation expires in {{ expires_in_days }} days.</p>
+{% endblock %}

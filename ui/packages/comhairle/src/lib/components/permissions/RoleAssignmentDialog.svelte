@@ -2,7 +2,7 @@
 	import type { Snapshot } from '@crownshy/api-client/api';
 	import { LoaderCircle } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Checkbox } from '$lib/components/ui/checkbox';
@@ -10,6 +10,7 @@
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import { cn } from '$lib/utils';
 	import {
+		parseEmails,
 		roleDescription,
 		type RoleManagement,
 		type RoleRecipient,
@@ -120,14 +121,18 @@
 						</div>
 					</fieldset>
 					{#if newKind === 'user'}<div class="space-y-2">
-							<Label for="recipient-email">Email</Label>
-							<Input
+							<Label for="recipient-email">Emails</Label>
+							<Textarea
 								id="recipient-email"
-								type="email"
 								bind:value={email}
 								required
+								rows={3}
+								placeholder="name@example.com"
 								disabled={saving || !canAdmin}
 							/>
+							<p class="text-muted-foreground text-base">
+								Separate several addresses with commas or new lines.
+							</p>
 						</div>
 					{:else}<div class="space-y-2">
 							<Label for="recipient-organization">Organization</Label>
@@ -224,6 +229,7 @@
 						saving ||
 						!hasChanges ||
 						(!recipient && selectedRoles.length === 0) ||
+						(!recipient && newKind === 'user' && parseEmails(email).length === 0) ||
 						(recipient !== null && snapshot === null)}
 				>
 					{#if saving}

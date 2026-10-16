@@ -149,6 +149,7 @@ pub struct Mailer {
 }
 
 #[cfg(test)]
+#[derive(Clone)]
 pub struct SentEmail {
     pub to: String,
     pub subject: String,
