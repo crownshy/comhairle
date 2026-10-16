@@ -293,6 +293,8 @@
 	"finding_answer": "جارٍ العثور على إجابة...",
 	"sources": "المصادر",
 	"question": "سؤال",
+	"question_x_of_y": "السؤال {current} من {total}",
+	"video_x_of_y": "الفيديو {current} من {total}",
 	"saving": "جارٍ الحفظ",
 	"not_saved": "لم يتم الحفظ",
 	"confirm_and_save": "تأكيد وحفظ",

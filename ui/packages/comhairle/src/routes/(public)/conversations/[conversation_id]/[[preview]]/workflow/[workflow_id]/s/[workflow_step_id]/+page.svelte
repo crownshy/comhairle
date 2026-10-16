@@ -333,7 +333,9 @@
 						/>
 					{/key}
 				{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
-					<LivedExperience.UserUI onDone={stepComplete} />
+					{#key workflowStep.id}
+						<LivedExperience.UserUI onSequenceChange={handleSequenceChange} />
+					{/key}
 				{:else if toolConfig?.type === ThinkingSpace.TOOL_NAME}
 					{#key workflowStep.id}
 						<ThinkingSpace.UserUI
@@ -349,6 +351,7 @@
 							progressStatus={workflowStep.progressStatus}
 							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
 						/>
 					{/key}
 				{:else if toolConfig?.type === ElicitationBot.TOOL_NAME}
