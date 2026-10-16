@@ -45,7 +45,7 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
+	import { capitalise } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { permissions } from '$lib/permissions.svelte';
 
@@ -564,14 +564,14 @@
 						type="single"
 						disabled={!canEdit}
 						value={$form.format}
-						onValueChange={(value: string) => ($form.format = value)}
+						onValueChange={(value) => ($form.format = value)}
 					>
-						<Select.Trigger class="w-45"
-							>{snakeToStartCase($form.format)}</Select.Trigger
-						>
+						{@const toLabel = (value: string) => capitalise(value).replaceAll('_', '-')}
+						<Select.Trigger class="w-45">{toLabel($form.format)}</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="online">Online</Select.Item>
-							<Select.Item value="in_person">In-person</Select.Item>
+							{#each ['online', 'in_person'] as option (option)}
+								<Select.Item value={option}>{toLabel(option)}</Select.Item>
+							{/each}
 						</Select.Content>
 					</Select.Root>
 				</Form.Control>
