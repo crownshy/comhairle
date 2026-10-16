@@ -567,7 +567,7 @@
 						onValueChange={(value: string) => ($form.format = value)}
 					>
 						<Select.Trigger class="w-45"
-							>Format: {snakeToStartCase($form.format)}</Select.Trigger
+							>{snakeToStartCase($form.format)}</Select.Trigger
 						>
 						<Select.Content>
 							<Select.Item value="online">Online</Select.Item>
