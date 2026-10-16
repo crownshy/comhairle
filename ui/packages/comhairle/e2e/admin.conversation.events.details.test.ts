@@ -2,7 +2,7 @@ import { eventually, test } from './utils/testing';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import Events, { TEST_EVENT_NAME } from './utils/navigation/Events';
-import { RadioButtons, Textbox, TimeRangePicker } from './utils/components';
+import { RadioButtons, Select, Textbox, TimeRangePicker } from './utils/components';
 import { testWithRefresh } from './utils';
 import { expect } from '@playwright/test';
 
@@ -25,6 +25,7 @@ test('Events/Details page', async ({ page, cleanup }) => {
 	// const DefaultTimezone = Combobox('Europe/London', { page, cleanup });
 	// const Date = Calendar('Event date', { page, cleanup });
 	const Time = TimeRangePicker({ start: '03:00 AM', end: '04:00 AM' }, { page, cleanup });
+	const Format = Select(['Online', 'In-person'], { page, cleanup });
 	const SignupMode = await RadioButtons(
 		['Invite', 'Open'],
 		{ page, cleanup },
@@ -40,6 +41,7 @@ test('Events/Details page', async ({ page, cleanup }) => {
 	await Description.write();
 	await Capacity.write('10');
 	await Time.fill('03:35 AM', '05:00 AM');
+	await Format.pick('In-person');
 	await SignupMode.select('Open');
 
 	await SaveChanges.click();
@@ -48,6 +50,11 @@ test('Events/Details page', async ({ page, cleanup }) => {
 		await Name.expect();
 		await Description.expect();
 		await Capacity.expect();
+		await Format.expect();
+		// Should be disabled as Format is "In-person"
+		await eventually(() =>
+			expect(page.getByRole('textbox', { name: 'Custom event link Override' })).toBeDisabled()
+		);
 		await SignupMode.expect();
 	});
 
