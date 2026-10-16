@@ -179,7 +179,6 @@
 	"guest": "Convidado",
 	"logout_failed": "Algo correu mal ao terminar a sessão. Tente novamente.",
 	"polis_add_opinion_long": "Ou adicione sua própria opinião para que outros votem.",
-	"polis_continue_to_next_step": "Continuar para o próximo passo",
 	"polis_close": "Fechar",
 	"polis_tips_for_your_opinion": "Dicas para escrever a sua opinião",
 	"polis_tip_agreeable": "Uma opinião deve ser respondível com \"concordo\" ou \"discordo\"",
@@ -453,5 +452,12 @@
 	"revisit_step_stories_label": "Experiência vivida",
 	"revisit_step_stories_body": "Leia as histórias que outras pessoas partilharam.",
 	"revisit_step_stories_action": "Ler histórias",
-	"conversations_return_page_title": "Voltar a {conversation}"
+	"conversations_return_page_title": "Voltar a {conversation}",
+	"pager_back": "Voltar",
+	"pager_skip": "Pular",
+	"step_loading": "Carregando etapa…",
+	"step_minutes": "({count} minutos)",
+	"step_not_found": "Não foi possível encontrar a conversa",
+	"step_one_minute": "(1 minuto)",
+	"step_x_of_y": "Etapa {current} de {total}"
 }

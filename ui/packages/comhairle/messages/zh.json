@@ -179,7 +179,6 @@
 	"guest": "访客",
 	"logout_failed": "登出时出错，请重试。",
 	"polis_add_opinion_long": "或添加您自己的意见供其他人投票。",
-	"polis_continue_to_next_step": "继续下一步",
 	"polis_close": "关闭",
 	"polis_tips_for_your_opinion": "撰写观点的提示",
 	"polis_tip_agreeable": "意见应该可以用\"同意\"或\"不同意\"来回答",
@@ -453,5 +452,12 @@
 	"revisit_step_stories_label": "亲身经历",
 	"revisit_step_stories_body": "阅读其他人分享的故事。",
 	"revisit_step_stories_action": "阅读故事",
-	"conversations_return_page_title": "回到{conversation}"
+	"conversations_return_page_title": "回到{conversation}",
+	"pager_back": "返回",
+	"pager_skip": "跳过",
+	"step_loading": "正在加载步骤…",
+	"step_minutes": "（{count} 分钟）",
+	"step_not_found": "找不到该对话",
+	"step_one_minute": "（1 分钟）",
+	"step_x_of_y": "第 {current} 步，共 {total} 步"
 }
