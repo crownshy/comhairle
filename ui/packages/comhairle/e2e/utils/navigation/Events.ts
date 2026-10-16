@@ -94,7 +94,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 const Events = {
 	add,
 	gotoPlaywrightEvent: async (page: Page) => {
-		const event = page.getByRole('heading', { name: TEST_EVENT_NAME });
+		const event = page.getByRole('heading', { name: TEST_EVENT_NAME }).first();
 		if (!(await event.isVisible())) {
 			await add({ page, event: { title: TEST_EVENT_NAME } });
 		}

@@ -4,7 +4,7 @@ import type { Refs } from './types';
 type Time = `${number}${number}:${number}${number} AM` | `${number}${number}:${number}${number} PM`;
 
 const EMPTY = '––:–– AM to––:–– AM';
-const FILLED = /:[\d–]{2} (AM|PM) to[\d–]{2}:[\d–]{2} (AM|PM)/gm;
+const FILLED = /:[\d–]{2}[\s]+(AM|PM)[\s]+to[\d–]{2}:[\d–]{2}[\s]+(AM|PM)/;
 
 function TimeRangePicker(refs: Refs) {
 	let text: string | undefined;
