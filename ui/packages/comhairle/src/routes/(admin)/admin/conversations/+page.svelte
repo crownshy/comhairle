@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { afterNavigate } from '$app/navigation';
-	import { page } from '$app/state';
+	import { beforeNavigate } from '$app/navigation';
+	import { navigating, page } from '$app/state';
 	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
@@ -22,9 +22,13 @@
 
 	let pageTop: HTMLElement | undefined = $state();
 
+	let turningPage = $derived(!!navigating.to && isPageTurn(page.url, navigating.to.url));
+
 	// The admin layout scrolls inside <main>, which SvelteKit's own scroll reset doesn't reach.
-	afterNavigate(({ from, to }) => {
-		if (from && to && isPageTurn(from.url, to.url)) pageTop?.scrollIntoView({ block: 'start' });
+	// Scrolling on click rather than on arrival shows the page turn has started.
+	beforeNavigate(({ from, to }) => {
+		if (from && to && isPageTurn(from.url, to.url))
+			pageTop?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 	});
 </script>
 
@@ -67,7 +71,13 @@
 				<ConversationSearch />
 			</div>
 
-			<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16">
+			<div
+				class={[
+					'grid w-full grid-cols-1 gap-x-2 gap-y-16 transition-opacity',
+					turningPage && 'pointer-events-none opacity-50'
+				]}
+				aria-busy={turningPage}
+			>
 				{#each data.conversations.records as conversation (conversation.id)}
 					<ConversationCard {conversation} isShared={conversation.isShared} />
 				{:else}
