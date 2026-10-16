@@ -1,4 +1,4 @@
-import { test } from './utils/testing';
+import { eventually, test } from './utils/testing';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import Events, { TEST_EVENT_NAME } from './utils/navigation/Events';
@@ -25,7 +25,11 @@ test('Events/Details page', async ({ page, cleanup }) => {
 	// const DefaultTimezone = Combobox('Europe/London', { page, cleanup });
 	// const Date = Calendar('Event date', { page, cleanup });
 	const Time = TimeRangePicker({ start: '03:00 AM', end: '04:00 AM' }, { page, cleanup });
-	const SignupMode = await RadioButtons(['Invite', 'Open'], { page, cleanup });
+	const SignupMode = await RadioButtons(
+		['Invite', 'Open'],
+		{ page, cleanup },
+		{ resetTo: 'Invite' }
+	);
 	const SaveChanges = page.getByRole('button', { name: 'Save changes' });
 
 	cleanup(async () => {
