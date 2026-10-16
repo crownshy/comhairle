@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use comhairle::config::{ComhairleConfig, MailerConfig};
 use comhairle::error::ComhairleError;
-use comhairle::models::{permissions::ResourcePermission, users::User};
+use comhairle::models::users::User;
 use comhairle::websockets::handlers::video_call::VideoCallMessageHandler;
 use comhairle::websockets::{
     ConnectionId, WebSocketConnection, WebSocketMessageHandler, messages::WebSocketMessage,
@@ -126,15 +126,6 @@ impl mailer::ComhairleMailer for DummyMailer {
         _email: &str,
         _subject: &str,
         _html_body: &str,
-    ) -> Result<(), ComhairleError> {
-        todo!()
-    }
-
-    fn send_permission_notification_email(
-        &self,
-        _email: &str,
-        _permission: &ResourcePermission,
-        _action: &str,
     ) -> Result<(), ComhairleError> {
         todo!()
     }

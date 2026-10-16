@@ -84,6 +84,25 @@ grant typed actions.
   advance versions; invalidate caches after commit. Redis failure falls back to PostgreSQL.
 - **Migration rejects unknown legacy resource types.** Resolve those grants before
   applying the split; supported grants retain IDs and audit fields.
+- **Roles for unregistered emails wait in `pending_role_assignment`.** The role
+  assignments UI invites addresses with no account (`models/pending_role_assignment.rs`).
+  The proposed roles are granted only once the person proves they own the address:
+  signing up with the signed token from the invitation email, or verifying their
+  email afterwards. At claim time the inviter must still hold `grant_permission` on
+  the resource, otherwise the role is dropped. Pending rows expire after 14 days.
+  Each row stores the proposed role set for one resource and exactly one recipient:
+  an email address or an organization ID. Reinviting replaces that proposal and
+  refreshes its expiry. Email claims cannot consume organization proposals.
+- **First roles for an organization on a conversation wait for acceptance.** When
+  the role assignments UI gives an organization's members group roles on a
+  conversation and it holds none yet, the roles are stored in
+  `pending_role_assignment` with an organization recipient and emailed to its contact
+  email (`models/organization_invitation.rs`). An organization administrator accepts
+  at `/organization-invitations/{id}`, which grants the roles and emails the
+  conversation's administrators. The inviter must still hold `grant_permission` on
+  accept. Organizations without a contact email are granted directly. Only the
+  assignments `save` path does this; the older `POST /permissions/{type}/{id}` grant
+  does not.
 
 From the repository root, run `cargo test -p comhairle_api --lib permissions`
 when changing policy, storage, assignment concurrency, or administrator safeguards.

@@ -1,0 +1,20 @@
+{% extends "email_layout.html" %}
+{% block content %}
+<p>Hello!</p>
+
+<p>{{ inviter_name }} has invited you to join Comhairle. You have pending role assignments
+    {% if resource_type == "system" %}on the platform{% else %}on the {{ resource_type }} "{{ resource_label }}"{% endif %}:</p>
+
+<ul>
+    {% for role in roles %}
+    <li>{{ role | replace("_", " ") }}</li>
+    {% endfor %}
+</ul>
+
+<p>Create your account using the link below and this email address to claim your pending roles.
+    If you sign up separately, verify your email address to claim them.</p>
+
+<p><a href="{{ signup_link }}">Create your account</a></p>
+
+<p>This invitation expires in {{ expires_in_days }} days.</p>
+{% endblock %}

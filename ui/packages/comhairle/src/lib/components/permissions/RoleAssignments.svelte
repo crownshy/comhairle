@@ -2,7 +2,7 @@
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { ApiError, Snapshot } from '@crownshy/api-client/api';
+	import type { ApiError, EmailLookup, Snapshot } from '@crownshy/api-client/api';
 	import { Building2, UserRound, Plus, Search, Pencil } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -16,12 +16,14 @@
 		roleCounts,
 		roleDescription,
 		roleRecipients,
+		parseEmails,
 		type RoleRecipient,
 		type RoleManagement,
 		type RoleResourceType
 	} from './roleAssignments';
 	import { key } from '$lib/utils/invalidationKey';
 	import RoleAssignmentDialog from './RoleAssignmentDialog.svelte';
+	import InviteUnregisteredDialog from './InviteUnregisteredDialog.svelte';
 
 	type Props = {
 		resourceType: RoleResourceType;
@@ -124,6 +126,8 @@
 	let newKind = $state<'user' | 'organization'>('user');
 	let email = $state('');
 	let organizationId = $state('');
+	let inviteLookup = $state<EmailLookup | null>(null);
+	let inviteDialogOpen = $state(false);
 	const params = $derived({
 		resource_type: resourceType,
 		resource_id: resourceId
@@ -143,6 +147,8 @@
 		organizationId = '';
 		newKind = 'user';
 		error = '';
+		inviteLookup = null;
+		inviteDialogOpen = false;
 		open = true;
 	}
 
@@ -186,33 +192,6 @@
 		selectedRoles.splice(index, 1);
 	}
 
-	async function resolveUserRecipient(): Promise<RoleRecipient> {
-		const existing = roleData?.users.find(
-			(user) => user.email?.toLowerCase() === email.trim().toLowerCase()
-		);
-		let userId = existing?.id;
-		if (!userId) {
-			const grant = await apiClient.GrantPermission(
-				{
-					user_email: email.trim(),
-					role_name: selectedRoles[0],
-					grant_reason: grantReason
-				},
-				{ params }
-			);
-			userId = grant.user_id ?? undefined;
-		}
-		if (!userId) throw new Error('Could not resolve the user');
-		return {
-			id: userId,
-			type: 'user',
-			kind: 'User',
-			name: email.trim(),
-			detail: email.trim(),
-			roles: []
-		};
-	}
-
 	function resolveOrganizationRecipient(): RoleRecipient {
 		const organization = roleData?.organizations.find(
 			(organization) => organization.id === organizationId
@@ -229,8 +208,7 @@
 	}
 
 	async function prepareNewRecipient(): Promise<RoleRecipient> {
-		const target =
-			newKind === 'user' ? await resolveUserRecipient() : resolveOrganizationRecipient();
+		const target = resolveOrganizationRecipient();
 		recipient = target;
 		const current = await loadRecipientAssignments(target);
 		snapshot = current;
@@ -238,13 +216,10 @@
 		return target;
 	}
 
-	async function persistRoleAssignments(): Promise<Snapshot> {
-		const target = recipient ?? (await prepareNewRecipient());
-		const current = snapshot;
-		if (!current || !canAdmin) throw new Error('Cannot save assignments');
+	function saveRecipientRoles(target: RoleRecipient, current: Snapshot, roles: string[]) {
 		return apiClient.SavePermissionAssignments(
 			{
-				roles: selectedRoles,
+				roles,
 				expected_version: current.version,
 				grant_reason: grantReason
 			},
@@ -252,13 +227,48 @@
 		);
 	}
 
-	async function saveRoles() {
-		if (!canAdmin || loading || saving || !hasChanges) return;
-		if (!recipient && selectedRoles.length === 0) return;
+	async function persistRoleAssignments(): Promise<Snapshot> {
+		const target = recipient ?? (await prepareNewRecipient());
+		const current = snapshot;
+		if (!current || !canAdmin) throw new Error('Cannot save assignments');
+		return saveRecipientRoles(target, current, selectedRoles);
+	}
+
+	async function assignRolesToEmails(lookup: EmailLookup) {
+		for (const registered of lookup.registered) {
+			const target: RoleRecipient = {
+				id: registered.user_id,
+				type: 'user',
+				kind: 'User',
+				name: registered.email,
+				detail: registered.email,
+				roles: []
+			};
+			const current = await loadRecipientAssignments(target);
+			await saveRecipientRoles(
+				target,
+				current,
+				Array.from(new Set(current.roles.concat(selectedRoles)))
+			);
+		}
+		if (lookup.unregistered.length === 0) return;
+		const invited = await apiClient.InviteToAssignRoles(
+			{ emails: lookup.unregistered, roles: selectedRoles, grant_reason: grantReason },
+			{ params }
+		);
+		if (invited.emails.length !== lookup.unregistered.length) {
+			throw new Error(
+				'Some recipients registered while the invitation was being prepared. Retry.'
+			);
+		}
+	}
+
+	async function runSave(save: () => Promise<Snapshot | void>, message: string) {
 		saving = true;
 		error = '';
-		const result = await tryCatchAsync<Snapshot, ApiError>(persistRoleAssignments);
+		const result = await tryCatchAsync<Snapshot | void, ApiError>(save);
 		saving = false;
+		inviteDialogOpen = false;
 		if (result.err !== null) {
 			error =
 				result.err.response?.status === 409
@@ -267,10 +277,51 @@
 			await invalidate(permissionsKey);
 			return;
 		}
-		snapshot = result.ok;
+		if (result.ok) snapshot = result.ok;
 		open = false;
-		notifications.send({ message: 'Roles updated', priority: 'INFO' });
+		const contactEmail = result.ok?.invitation_sent_to;
+		notifications.send({
+			message: contactEmail
+				? `Invitation sent to ${contactEmail}. The roles apply once the organization accepts`
+				: message,
+			priority: 'INFO'
+		});
 		await Promise.all([invalidate(permissionsKey), invalidate(detailsKey)]);
+	}
+
+	async function saveRoles() {
+		if (!canAdmin || loading || saving || !hasChanges) return;
+		if (!recipient && selectedRoles.length === 0) return;
+		if (recipient || newKind === 'organization') {
+			await runSave(persistRoleAssignments, 'Roles updated');
+			return;
+		}
+		saving = true;
+		error = '';
+		const lookup = await tryCatchAsync(() =>
+			apiClient.LookupAssignmentEmails({ emails: parseEmails(email) }, { params })
+		);
+		saving = false;
+		if (lookup.err !== null) {
+			error = 'Could not check the email addresses. Try again.';
+			return;
+		}
+		if (lookup.ok.unregistered.length > 0) {
+			inviteLookup = lookup.ok;
+			inviteDialogOpen = true;
+			return;
+		}
+		await runSave(() => assignRolesToEmails(lookup.ok), 'Roles updated');
+	}
+
+	async function confirmInvites() {
+		const lookup = inviteLookup;
+		if (!lookup || !canAdmin || saving) return;
+		const count = lookup.unregistered.length;
+		await runSave(
+			() => assignRolesToEmails(lookup),
+			`Roles updated. ${count} ${count === 1 ? 'invitation' : 'invitations'} sent`
+		);
 	}
 </script>
 
@@ -512,4 +563,11 @@
 	onToggleRole={toggleRole}
 	onSave={saveRoles}
 	onReload={editRecipient}
+/>
+
+<InviteUnregisteredDialog
+	bind:open={inviteDialogOpen}
+	emails={inviteLookup?.unregistered ?? []}
+	{saving}
+	onConfirm={confirmInvites}
 />

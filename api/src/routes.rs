@@ -16,6 +16,7 @@ pub mod jobs;
 pub mod media;
 pub mod moderation_policies;
 pub mod notifications;
+pub mod organization_invitations;
 pub mod organizations;
 pub mod permissions;
 pub mod preview_access;

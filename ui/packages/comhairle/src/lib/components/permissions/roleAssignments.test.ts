@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadRoleManagement, roleRecipients } from './roleAssignments';
+import { loadRoleManagement, parseEmails, roleRecipients } from './roleAssignments';
 import { SYSTEM_RESOURCE_ID } from '$lib/utils/permissions';
 
 type RoleManagementApi = Parameters<typeof loadRoleManagement>[0];
@@ -216,5 +216,19 @@ describe('roleRecipients', () => {
 			[]
 		);
 		expect(recipients).toEqual([]);
+	});
+});
+
+describe('parseEmails', () => {
+	it('splits on commas, semicolons and whitespace and removes duplicates', () => {
+		expect(parseEmails('A@x.com, b@x.com;\nc@x.com  a@X.com')).toEqual([
+			'a@x.com',
+			'b@x.com',
+			'c@x.com'
+		]);
+	});
+
+	it('returns nothing for blank input', () => {
+		expect(parseEmails('  \n ,')).toEqual([]);
 	});
 });

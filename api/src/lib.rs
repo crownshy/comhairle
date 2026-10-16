@@ -250,6 +250,10 @@ pub async fn build_router_and_spec(
         )
         .nest("/ws", websockets::routes::websocket_routes())
         .nest("/organizations", routes::organizations::router())
+        .nest(
+            "/organization_invitations",
+            routes::organization_invitations::router(),
+        )
         .nest("/regions", routes::regions::router())
         .nest("/region_areas", routes::region_areas::router())
         .nest("/media", routes::media::router())

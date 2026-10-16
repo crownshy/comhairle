@@ -47,7 +47,7 @@ use crate::models::users::{
     self, UpdateUserRequest, User, UserAuthType, create_guest_user, create_otp_user, create_user,
     get_guest_user_by_code, get_user_by_email, get_user_by_id, set_signup_metadata, update_user,
 };
-use crate::models::{api_key, otp};
+use crate::models::{api_key, otp, pending_role_assignment};
 use crate::routes::user::dto::UserDto;
 
 /// This is the key that we use in the cookie for the JWT
@@ -306,6 +306,25 @@ pub struct SignupRequest {
     pub email: String,
 }
 
+#[derive(Deserialize, Debug, JsonSchema)]
+pub struct InvitedSignupRequest {
+    #[serde(flatten)]
+    pub signup: SignupRequest,
+    #[serde(default)]
+    pub invite_token: Option<String>,
+}
+
+async fn claim_invited_roles(state: &Arc<ComhairleState>, user: &User, invite_token: Option<&str>) {
+    let (Some(token), Some(email)) = (invite_token, user.email.as_deref()) else {
+        return;
+    };
+    let invited_email =
+        pending_role_assignment::email_from_invite_token(&state.config.jwt_secret, token);
+    if invited_email.as_deref() == Some(&pending_role_assignment::normalize_email(email)) {
+        pending_role_assignment::claim(state, user.id, email).await;
+    }
+}
+
 /// Best-effort recording of the client IP and browser signature on a newly
 /// created user. Failures are logged but never surfaced to the caller, so
 /// metadata capture can't break signup. Both values are resolved by the
@@ -331,16 +350,18 @@ async fn signup(
     Extension(client_ip): Extension<ClientIp>,
     Extension(user_agent): Extension<ClientUserAgent>,
     jar: CookieJar,
-    Json(payload): Json<SignupRequest>,
+    Json(payload): Json<InvitedSignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     // Validate password strength
-    validate_password_strength(&payload.password)?;
+    validate_password_strength(&payload.signup.password)?;
 
-    let user = create_user(&payload, &state.db).await?;
+    let user = create_user(&payload.signup, &state.db).await?;
 
     record_signup_metadata(&state, &user.id, &client_ip, &user_agent).await;
 
     send_verification_email(&user, &state)?;
+
+    claim_invited_roles(&state, &user, payload.invite_token.as_deref()).await;
 
     if let Some(admin_users) = &state.config.admin_users
         && admin_users.contains(&user.email.clone().unwrap_or_default())
@@ -675,6 +696,10 @@ async fn verify_email_token(
     };
 
     let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
+
+    if let Some(email) = &updated_user.email {
+        pending_role_assignment::claim(&state, updated_user.id, email).await;
+    }
 
     let claims = SessionClaims {
         username: updated_user.username.clone(),
