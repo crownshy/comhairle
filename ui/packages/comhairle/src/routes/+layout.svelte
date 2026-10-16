@@ -2,6 +2,7 @@
 	import type { LayoutProps } from './$types';
 	import CookieConsent from '$lib/cookies/cookieconsent.svelte';
 	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
+	import RouteProgress from '$lib/components/RouteProgress.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { browser } from '$app/environment';
 	import '../app.css';
@@ -67,6 +68,7 @@
 
 <ThemeProvider>
 	<div class="bg-background w-full">
+		<RouteProgress />
 		<CookieConsent />
 		<NotificationsToaster closeButton />
 		{@render children()}
