@@ -7240,6 +7240,14 @@ Create a response for prioritization tool proposal
     response: Submissions,
   },
   {
+    method: "get",
+    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions/csv",
+    alias: "HeyFormExportSubmissionsCsv",
+    description: `Downloads one row per respondent and one column per question, with choice ids resolved to their labels. Unaggregated, unlike /insights.`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
     method: "post",
     path: "/tools/thinking_space",
     alias: "postToolsthinking_space",

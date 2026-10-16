@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::middleware::from_fn_with_state;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
@@ -22,10 +23,15 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models;
+use crate::models::permissions::{ConversationResource, conversation::Action};
 use crate::routes::auth::RequiredAdminUser;
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
+
+/// `(status, headers, body)` for a CSV download response.
+type CsvExportResponse = (StatusCode, [(String, String); 2], String);
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct HeyFormToolConfig {
@@ -340,6 +346,21 @@ impl ToolImpl for HeyFormTool {
                         .response::<200, Json<SurveyInsights>>()
                 }),
             )
+            .api_route(
+                "/survey_tool/conversation/{conversation_id}/workflow_step/{step_id}/submissions/csv",
+                get_with(submissions_csv, |op| {
+                    op.id("HeyFormExportSubmissionsCsv")
+                        .tag("Tools")
+                        .summary("Export raw survey submissions as CSV")
+                        .description(
+                            "Downloads one row per respondent and one column per question, with \
+                             choice ids resolved to their labels. Unaggregated, unlike /insights.",
+                        )
+                }).route_layer(from_fn_with_state(
+                    PermissionRequirement::<ConversationResource>::new(Action::Export),
+                    permission_middleware::<ConversationResource>,
+                )),
+            )
             .with_state(state.clone())
     }
 }
@@ -621,17 +642,11 @@ fn resolve_choices(
     }
 }
 
-/// Builds the fully labelled [`SurveyInsights`] by joining a form definition,
-/// its aggregate report, and full submissions list.
-///
-/// This is the pure transformation layer. The handler fetches all resources
-/// and delegates here, keeping network I/O and business logic separate.
-pub fn build_survey_insights(
-    form: &Form,
-    report: &FormReport,
-    submissions: &[Submission],
-) -> SurveyInsights {
-    // Index form fields by ID so look-ups are O(1).
+/// Indexes a form's fields by ID, flattening `group` fields' subfields into
+/// the same map (each subfield tagged with its parent via
+/// `properties.parent`) so every question-bearing field, nested or not, is a
+/// single O(1) look-up away.
+fn build_fields_by_id(form: &Form) -> HashMap<String, FormField> {
     let mut fields_by_id: HashMap<String, FormField> = HashMap::new();
     for field in form.fields.as_deref().unwrap_or_default().iter() {
         if matches!(
@@ -679,6 +694,20 @@ pub fn build_survey_insights(
             }
         }
     }
+    fields_by_id
+}
+
+/// Builds the fully labelled [`SurveyInsights`] by joining a form definition,
+/// its aggregate report, and full submissions list.
+///
+/// This is the pure transformation layer. The handler fetches all resources
+/// and delegates here, keeping network I/O and business logic separate.
+pub fn build_survey_insights(
+    form: &Form,
+    report: &FormReport,
+    submissions: &[Submission],
+) -> SurveyInsights {
+    let fields_by_id = build_fields_by_id(form);
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();
     let mut seen_answers: std::collections::HashSet<(String, String)> =
@@ -847,6 +876,244 @@ pub async fn insights(
     let survey_insights = build_survey_insights(&form, &report, &submissions);
 
     Ok((StatusCode::OK, Json(survey_insights)))
+}
+
+/// Builds a choice-id-to-label map from a field's `properties.choices`, for
+/// rendering raw choice answers (which carry only ids) as readable text.
+fn choice_label_map(field: &FormField) -> HashMap<String, String> {
+    field
+        .properties
+        .as_ref()
+        .and_then(|p| p.get("choices"))
+        .and_then(|c| c.as_array())
+        .map(|choices| {
+            choices
+                .iter()
+                .filter_map(|choice| {
+                    let choice = choice.as_object()?;
+                    let id = choice.get("id")?.as_str()?.to_string();
+                    let label = choice
+                        .get("label")
+                        .and_then(|l| l.as_str())
+                        .unwrap_or(&id)
+                        .to_string();
+                    Some((id, label))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Renders a raw HeyForm answer value as a CSV cell. HeyForm's answer
+/// payloads vary in shape by field kind (plain scalar, `{ value: [ids] }`,
+/// a name/address/date-range/file object, or a choice-id-to-count map for
+/// matrix questions), so this reads the JSON shape directly rather than
+/// switching on the field's declared kind. Choice ids resolve to their
+/// label via `choices` wherever one is found.
+fn format_answer_value(value: &serde_json::Value, choices: &HashMap<String, String>) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => if *b { "Yes" } else { "No" }.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => choices.get(s).cloned().unwrap_or_else(|| s.clone()),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .map(|v| format_answer_value(v, choices))
+            .collect::<Vec<_>>()
+            .join("; "),
+        serde_json::Value::Object(obj) => {
+            if let Some(serde_json::Value::Array(ids)) = obj.get("value") {
+                return ids
+                    .iter()
+                    .map(|v| format_answer_value(v, choices))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+            }
+            if let (Some(first), Some(last)) = (obj.get("firstName"), obj.get("lastName")) {
+                return format!(
+                    "{} {}",
+                    first.as_str().unwrap_or_default(),
+                    last.as_str().unwrap_or_default()
+                )
+                .trim()
+                .to_string();
+            }
+            if let (Some(start), Some(end)) = (obj.get("start"), obj.get("end")) {
+                return format!(
+                    "{} - {}",
+                    start.as_str().unwrap_or_default(),
+                    end.as_str().unwrap_or_default()
+                );
+            }
+            if let (Some(filename), Some(url)) = (obj.get("filename"), obj.get("url")) {
+                return format!(
+                    "{} - {}",
+                    filename.as_str().unwrap_or_default(),
+                    url.as_str().unwrap_or_default()
+                );
+            }
+            if obj.contains_key("address1") {
+                return obj
+                    .values()
+                    .filter_map(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+            }
+            // Matrix answers: a choice-id-to-count map.
+            if !obj.is_empty() && obj.values().all(|v| v.is_number()) {
+                return obj
+                    .iter()
+                    .map(|(id, count)| {
+                        format!(
+                            "{}: {}",
+                            choices.get(id).cloned().unwrap_or_else(|| id.clone()),
+                            count
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+            }
+            value.to_string()
+        }
+    }
+}
+
+/// Builds a CSV with one row per submission and one column per question
+/// (in form order, including flattened `group` subfields), resolving choice
+/// ids to their labels via the form schema.
+fn build_submissions_csv(
+    form: &Form,
+    submissions: &[Submission],
+) -> Result<String, ComhairleError> {
+    let fields_by_id = build_fields_by_id(form);
+
+    // Walk the form in its declared order, flattening group subfields in
+    // place, so columns match the order respondents saw the questions in.
+    let mut ordered_fields: Vec<&FormField> = Vec::new();
+    for field in form.fields.as_deref().unwrap_or_default().iter() {
+        if field.kind == "group" {
+            let subfield_ids = field
+                .properties
+                .as_ref()
+                .and_then(|p| p.get("fields"))
+                .and_then(|p| p.as_array())
+                .map(|fields| {
+                    fields
+                        .iter()
+                        .filter_map(|f| f.get("id").and_then(|id| id.as_str()))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            for id in subfield_ids {
+                if let Some(subfield) = fields_by_id.get(id) {
+                    ordered_fields.push(subfield);
+                }
+            }
+        } else if let Some(resolved) = fields_by_id.get(&field.id) {
+            ordered_fields.push(resolved);
+        }
+    }
+
+    let titles: Vec<String> = ordered_fields
+        .iter()
+        .map(|field| {
+            field
+                .title
+                .as_ref()
+                .and_then(extract_field_title)
+                .unwrap_or_else(|| field.id.clone())
+        })
+        .collect();
+
+    let mut csv_output = Vec::new();
+    {
+        let mut writer = csv::Writer::from_writer(&mut csv_output);
+
+        let mut header = vec!["submission_id".to_string(), "submitted_at".to_string()];
+        header.extend(titles);
+        writer.write_record(&header)?;
+
+        for submission in submissions {
+            let mut answers_by_id: HashMap<&str, &serde_json::Value> = HashMap::new();
+            for answer in &submission.answers {
+                if let Some(id) = answer.get("id").and_then(|v| v.as_str())
+                    && let Some(value) = answer.get("value")
+                {
+                    answers_by_id.insert(id, value);
+                }
+            }
+
+            let submitted_at = if submission.end_at != 0 {
+                chrono::DateTime::from_timestamp(submission.end_at, 0)
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            let mut row = vec![submission.id.clone(), submitted_at];
+            for field in &ordered_fields {
+                let cell = answers_by_id
+                    .get(field.id.as_str())
+                    .filter(|value| !is_empty_value(value))
+                    .map(|value| format_answer_value(value, &choice_label_map(field)))
+                    .unwrap_or_default();
+                row.push(cell);
+            }
+            writer.write_record(&row)?;
+        }
+
+        writer.flush()?;
+    }
+
+    Ok(String::from_utf8(csv_output)?)
+}
+
+/// Returns the raw survey submissions for a workflow step as a CSV download,
+/// one row per respondent and one column per question. Unlike `/insights`,
+/// values are not aggregated.
+pub async fn submissions_csv(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, workflow_step_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<CsvExportResponse, ComhairleError> {
+    let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
+    let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
+
+    client
+        .login(LoginInput {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    let (form, submissions) = tokio::try_join!(
+        client.get_form(&config.survey_id),
+        fetch_all_submissions(&client, &config.survey_id, "inbox"),
+    )?;
+
+    let csv_string = build_submissions_csv(&form, &submissions)?;
+    let filename = format!(
+        "survey-submissions-{}.csv",
+        chrono::Utc::now().format("%Y-%m-%d")
+    );
+
+    Ok((
+        StatusCode::OK,
+        [
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
+        ],
+        csv_string,
+    ))
 }
 
 #[cfg(test)]

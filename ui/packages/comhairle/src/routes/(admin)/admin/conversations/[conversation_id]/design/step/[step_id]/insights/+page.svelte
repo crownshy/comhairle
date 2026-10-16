@@ -55,5 +55,9 @@
 
 <!-- Survey -->
 {#if data.survey && step}
-	<SurveyInsights data={data.survey} />
+	<SurveyInsights
+		data={data.survey}
+		conversationId={data.conversation.id}
+		workflowStepId={step.id}
+	/>
 {/if}
