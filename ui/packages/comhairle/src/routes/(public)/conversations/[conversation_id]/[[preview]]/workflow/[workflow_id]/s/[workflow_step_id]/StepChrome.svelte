@@ -13,13 +13,15 @@
 		steps: StepItem[];
 		currentIndex: number;
 		fill: number;
+		/** The tool's position inside the step, read out on the progress bar. */
+		position?: string;
 		/** Where the mark goes: this conversation's landing page. */
 		introUrl: string;
 		/** Marks an admin's preview here, in place of the full-width banner other pages get. */
 		preview?: boolean;
 	};
 
-	let { steps, currentIndex, fill, introUrl, preview = false }: Props = $props();
+	let { steps, currentIndex, fill, position, introUrl, preview = false }: Props = $props();
 
 	const supportDrawer = useSupportDrawer();
 </script>
@@ -55,6 +57,6 @@
 		</div>
 	</div>
 	<div class={STEP_COLUMN_CLASS}>
-		<StepProgressBar {steps} {currentIndex} {fill} />
+		<StepProgressBar {steps} {currentIndex} {fill} {position} />
 	</div>
 </header>
