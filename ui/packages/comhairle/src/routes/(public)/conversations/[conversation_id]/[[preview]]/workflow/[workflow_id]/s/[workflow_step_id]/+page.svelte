@@ -19,8 +19,9 @@
 	import type { StepItem } from './stepItems';
 	import type { ToolSequence } from '$lib/tools/toolSequence';
 	import { STEP_COLUMN_CLASS } from './styles';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import {
 		thank_you_page,
 		next_workflow_step_url,
@@ -125,6 +126,12 @@
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
 
+	// This page stays mounted between steps, so a finished submit has to be cleared here or
+	// coming Back to that step finds its pager still spinning and locked.
+	afterNavigate(() => {
+		submittingStepId = undefined;
+	});
+
 	function forThisStep<T>(scoped: StepScoped<T> | undefined): T | undefined {
 		return scoped?.stepId === workflowStep.id ? scoped.value : undefined;
 	}
@@ -183,8 +190,49 @@
 	}
 
 	function goToThankYouPage() {
-		navigateTo(
+		return navigateTo(
 			thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString
+		);
+	}
+
+	function goToNextRevisitableStep() {
+		const isPreview = !conversation.isLive;
+		const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+		const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
+		const target = nextRevisitable ?? actualCurrentStep;
+		if (!target) return goToThankYouPage();
+		return navigateTo(
+			workflow_step_url(conversation.id, workflow_id, target.id, isPreview) + queryString
+		);
+	}
+
+	async function completeLiveStep() {
+		await apiClient.SetUserProgress(
+			{ status: 'done' },
+			{
+				params: {
+					workflow_id: workflowStep.workflowId,
+					conversation_id: conversation.id,
+					workflow_step_id: workflowStep.id
+				},
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
+
+		// Not invalidate(): this page's load would redirect a finished step to /next,
+		// rejecting the invalidate and firing a spurious error toast.
+		await navigateTo(
+			next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
+			{ invalidateAll: true }
+		);
+	}
+
+	function goToNextPreviewStep() {
+		const next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
+		if (!next) return goToThankYouPage();
+		return navigateTo(
+			workflow_step_url(conversation.id, workflow_id, next.id, !conversation.isLive) +
+				queryString
 		);
 	}
 
@@ -192,61 +240,13 @@
 		if (isSubmitting) return;
 		submittingStepId = workflowStep.id;
 
-		if (isRevisiting) {
-			const isPreview = !conversation.isLive;
-			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
-			const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
-			const target = nextRevisitable ?? actualCurrentStep;
-			if (target) {
-				navigateTo(
-					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
-						queryString
-				);
-			} else {
-				goToThankYouPage();
-			}
-			submittingStepId = undefined;
-			return;
-		}
+		const completed = await tryCatchAsync<void, Error>(() => {
+			if (isRevisiting) return goToNextRevisitableStep();
+			if (conversation.isLive) return completeLiveStep();
+			return goToNextPreviewStep();
+		});
 
-		try {
-			if (conversation.isLive) {
-				await apiClient.SetUserProgress(
-					{ status: 'done' },
-					{
-						params: {
-							workflow_id: workflowStep.workflowId,
-							conversation_id: conversation.id,
-							workflow_step_id: workflowStep.id
-						},
-						headers: { 'Content-Type': 'application/json' }
-					}
-				);
-
-				// Not invalidate(): this page's load would redirect a finished step to /next,
-				// rejecting the invalidate and firing a spurious error toast.
-				await navigateTo(
-					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
-					{ invalidateAll: true }
-				);
-			} else {
-				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
-				if (next) {
-					let next_step_url = workflow_step_url(
-						conversation.id,
-						workflow_id,
-						next.id,
-						!conversation.isLive
-					);
-					navigateTo(next_step_url + queryString);
-				} else {
-					goToThankYouPage();
-				}
-			}
-		} catch (e) {
-			if (e instanceof Error) {
-				console.warn(e.message);
-			}
+		if (completed.err !== null) {
 			notifications.send({
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
