@@ -12,7 +12,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 	import StepShell from './StepShell.svelte';
-	import StepProgressBar from './StepProgressBar.svelte';
+	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
@@ -20,7 +20,12 @@
 	import { STEP_COLUMN_CLASS } from './styles';
 
 	import { goto } from '$app/navigation';
-	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import {
+		thank_you_page,
+		next_workflow_step_url,
+		workflow_step_url,
+		conversation_url
+	} from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
@@ -89,7 +94,8 @@
 	);
 
 	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
-	let currentStepNumber = $derived(viewedIndex + 1);
+
+	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
 
 	// Mid-navigation `data` still describes the step we're leaving, so the skeleton is picked
 	// from the destination's tool.
@@ -259,23 +265,25 @@
 {#if conversation && workflowStep && user}
 	<StepShell class="min-h-0 grow">
 		{#snippet header()}
-			<header class="bg-background pt-3 md:pt-4">
-				<div class={STEP_COLUMN_CLASS}>
-					<StepProgressBar steps={stepItems} currentIndex={viewedIndex} {fill} />
-				</div>
+			<div class="bg-background">
+				<StepChrome
+					steps={stepItems}
+					currentIndex={viewedIndex}
+					{fill}
+					{introUrl}
+					preview={isPreview}
+				/>
 				{#if showNavigationSkeleton.current}
 					<StepHeaderSkeleton />
 				{:else}
 					<StepHeader
-						{currentStepNumber}
-						totalSteps={stepItems.length}
 						title={workflowStep.name}
 						description={workflowStep.description}
 						{availableDocuments}
 						conversationId={conversation.id}
 					/>
 				{/if}
-			</header>
+			</div>
 		{/snippet}
 
 		{#snippet content()}

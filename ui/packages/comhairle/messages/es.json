@@ -366,5 +366,9 @@
 	"step_minutes": "({count} minutos)",
 	"step_not_found": "No se encontró la conversación",
 	"step_one_minute": "(1 minuto)",
-	"step_x_of_y": "Paso {current} de {total}"
+	"step_x_of_y": "Paso {current} de {total}",
+	"step_chrome_conversation_home": "Volver a la página de la conversación",
+	"conversation_preview_badge": "Vista previa",
+	"theme_light_mode": "Modo claro",
+	"theme_dark_mode": "Modo oscuro"
 }
