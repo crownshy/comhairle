@@ -10,7 +10,7 @@
 	let kind = $derived(ACTION_KINDS[entry.kind]);
 </script>
 
-<!-- One logged action. Shared by the Action calendar log and the signups chart's key panel. -->
+<!-- One logged action, as listed in the signups chart's key panel. -->
 <div
 	class={cn(
 		'bg-card flex items-start gap-3 rounded-xl border p-3',

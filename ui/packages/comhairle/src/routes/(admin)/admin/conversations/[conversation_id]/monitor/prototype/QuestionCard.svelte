@@ -21,6 +21,9 @@
 		question: string;
 		value: string;
 		unit: string;
+		/** A second number beside the main one, e.g. typical time to complete. */
+		extraValue?: string;
+		extraUnit?: string;
 		/** Line sparkline. Ignored when `bars` is given. */
 		trend?: number[];
 		trendLabel: string;
@@ -41,6 +44,8 @@
 		question,
 		value,
 		unit,
+		extraValue,
+		extraUnit,
 		trend,
 		trendLabel,
 		bars,
@@ -63,9 +68,21 @@
 		<Card.Title class="text-muted-foreground text-sm">{question}</Card.Title>
 	</Card.Header>
 	<Card.Content class="flex flex-col gap-4">
-		<div class="flex items-baseline gap-2">
-			<span class="shrink-0 text-4xl leading-none font-bold whitespace-nowrap">{value}</span>
-			<span class="text-muted-foreground text-base">{unit}</span>
+		<div class="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+			<p class="flex items-baseline gap-2">
+				<span class="shrink-0 text-4xl leading-none font-bold whitespace-nowrap"
+					>{value}</span
+				>
+				<span class="text-muted-foreground text-base">{unit}</span>
+			</p>
+			{#if extraValue}
+				<p class="flex items-baseline gap-2">
+					<span class="shrink-0 text-2xl leading-none font-bold whitespace-nowrap"
+						>{extraValue}</span
+					>
+					<span class="text-muted-foreground text-base">{extraUnit}</span>
+				</p>
+			{/if}
 		</div>
 		{#if visual}
 			{@render visual()}

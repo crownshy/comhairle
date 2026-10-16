@@ -14,7 +14,7 @@
 		completions: SignupPoint[];
 		targetPace: SignupPoint[];
 		projection: SignupPoint[];
-		/** The Action calendar's log: every logged action is marked on the chart. */
+		/** What the team did and when: every logged action is marked on the chart. */
 		actions: ActivityLogEntry[];
 		target: number;
 	};
@@ -92,15 +92,15 @@
 
 <!--
 	Running totals of joined and completed against an even pace to the target, with each
-	action from the Action calendar marked. The key under the chart lists those actions:
+	logged recruitment action marked. The key under the chart lists those actions:
 	hover previews them in the panel below it, click keeps them open.
 -->
 <Card.Root>
 	<Card.Header>
 		<Card.Title>Signups and completions over time</Card.Title>
 		<Card.Description
-			>Running totals of people who joined and who completed, with the actions from your
-			Action calendar marked</Card.Description
+			>Running totals of people who joined and who completed, with your recruitment actions
+			marked</Card.Description
 		>
 	</Card.Header>
 	<Card.Content>

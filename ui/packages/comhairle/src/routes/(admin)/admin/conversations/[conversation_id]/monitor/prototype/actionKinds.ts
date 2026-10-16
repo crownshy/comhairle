@@ -1,15 +1,14 @@
-import type { Component } from 'svelte';
-import { BellRing, Flag, Mail, QrCode, Rocket, Users } from 'lucide-svelte';
+import { BellRing, Flag, Mail, QrCode, Rocket, Users, type Icon } from 'lucide-svelte';
 import type { ActivityKind } from './sampleMonitorData';
 
 /**
- * How each kind of logged action looks, shared by the Action calendar and the signups
- * chart so the same action has the same colour and name everywhere.
+ * How each kind of logged action looks on the signups chart: marker line, label, key
+ * and the action cards in its panel.
  */
 export type ActionKindStyle = {
-	icon: Component;
+	icon: typeof Icon;
 	label: string;
-	/** Solid fill, e.g. a calendar day. */
+	/** Solid fill, e.g. the swatch in the chart key. */
 	dot: string;
 	/** Light tile with matching text, e.g. the icon in the log. */
 	tile: string;
@@ -69,7 +68,7 @@ export const ACTION_KINDS: Record<ActivityKind, ActionKindStyle> = {
 	}
 };
 
-/** "Wed 30 Sept": how action dates are written in the calendar log and chart panel. */
+/** "Wed 30 Sept": how action dates are written in the chart panel. */
 export function formatActionDay(date: Date): string {
 	return date.toLocaleDateString('en-GB', {
 		weekday: 'short',

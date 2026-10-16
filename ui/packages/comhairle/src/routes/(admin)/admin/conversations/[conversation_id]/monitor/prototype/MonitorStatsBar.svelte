@@ -1,7 +1,6 @@
 <!--
-	Fork of $lib/components/StatsBar.svelte with an explanation popover per stat and two variants:
-	- primary: headline numbers (At a glance), solid brand surface.
-	- secondary: live numbers (Live pulse), light card surface.
+	Fork of $lib/components/StatsBar.svelte with an explanation popover per stat, on a light
+	card surface. Used for the live numbers on Live pulse.
 	TODO(frontend): fold these into the shared StatsBar, or replace it.
 -->
 <script lang="ts">
@@ -24,46 +23,21 @@
 	};
 	type Props = {
 		stats: Array<Stat>;
-		variant?: 'primary' | 'secondary';
-		/** Optional line across the top of the bar, left and right, e.g. day and freshness. */
-		caption?: string;
-		captionEnd?: string;
 	};
 
-	let { stats, variant = 'primary', caption, captionEnd }: Props = $props();
+	let { stats }: Props = $props();
 
-	const VARIANT_CLASSES = {
-		primary: {
-			bar: 'bg-primary',
-			divider: 'border-primary-foreground/25',
-			caption: 'text-accent',
-			label: 'text-accent',
-			value: 'text-primary-foreground',
-			detail: 'text-primary-foreground',
-			infoButton:
-				'bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/25'
-		},
-		secondary: {
-			bar: 'bg-card border',
-			divider: 'border-border',
-			caption: 'text-primary font-semibold',
-			label: 'text-muted-foreground',
-			value: 'text-foreground',
-			detail: 'text-muted-foreground',
-			infoButton: 'bg-muted text-muted-foreground hover:bg-muted/70'
-		}
-	} as const;
-
-	let styles = $derived(VARIANT_CLASSES[variant]);
+	const styles = {
+		bar: 'bg-card border',
+		divider: 'border-border',
+		label: 'text-muted-foreground',
+		value: 'text-foreground',
+		detail: 'text-muted-foreground',
+		infoButton: 'bg-muted text-muted-foreground hover:bg-muted/70'
+	};
 </script>
 
 <div class={cn('mb-5 flex w-full flex-col gap-5 rounded-3xl p-6', styles.bar)}>
-	{#if caption || captionEnd}
-		<div class={cn('flex flex-wrap justify-between gap-3 px-5 text-sm', styles.caption)}>
-			<span>{caption}</span>
-			<span>{captionEnd}</span>
-		</div>
-	{/if}
 	<div class="grid w-full grid-cols-2 gap-y-6 md:flex md:items-start md:justify-around">
 		{#each stats as stat, index (stat.name)}
 			<div

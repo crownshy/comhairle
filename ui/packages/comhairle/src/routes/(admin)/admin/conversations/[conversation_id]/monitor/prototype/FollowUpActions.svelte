@@ -1,83 +1,68 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Download, Send } from 'lucide-svelte';
+	import { Download } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 
-	type FollowUp = {
-		count: number;
-		who: string;
-		why: string;
+	type DataExport = {
+		/** How many people the export covers, when known. */
+		count?: number;
+		title: string;
+		description: string;
 		label: string;
 		href: string;
-		kind: 'message' | 'download';
-		/** The most urgent follow-up: highlighted and given the primary button. */
+		/** Highlighted and given the primary button. */
 		primary?: boolean;
 		disabled?: boolean;
 	};
 
-	type Props = { actions: FollowUp[] };
+	type Props = { exports: DataExport[] };
 
-	let { actions }: Props = $props();
-
-	let groups = $derived(
-		[
-			{
-				title: 'Message people',
-				items: actions.filter((action) => action.kind === 'message')
-			},
-			{ title: 'Export data', items: actions.filter((action) => action.kind === 'download') }
-		].filter((group) => group.items.length > 0)
-	);
+	let { exports }: Props = $props();
 </script>
 
-<!-- Next steps for people in this conversation, grouped into messaging and exports. -->
-<section aria-label="Follow up" class="bg-card flex flex-col gap-6 rounded-3xl border p-6">
-	{#each groups as group (group.title)}
-		<div class="flex flex-col gap-2">
-			<h3 class="text-primary text-sm font-semibold tracking-wide">
-				{group.title}
-			</h3>
-			<ul class="flex flex-col gap-2">
-				{#each group.items as action (action.label)}
-					<li
-						class={cn(
-							'flex flex-col gap-3 rounded-2xl p-4',
-							action.primary ? 'bg-accent' : 'bg-muted/50'
-						)}
-					>
-						<div class="flex items-start gap-3">
-							<span
-								class={cn(
-									'inline-flex min-w-12 shrink-0 items-center justify-center rounded-xl px-2 py-1.5 text-2xl font-bold tabular-nums',
-									action.primary
-										? 'bg-primary text-primary-foreground'
-										: 'bg-card'
-								)}
-							>
-								{action.count}
-							</span>
-							<div class="flex min-w-0 flex-col">
-								<span class="text-base font-semibold">{action.who}</span>
-								<span class="text-muted-foreground text-sm">{action.why}</span>
-							</div>
-						</div>
-						<Button
-							href={action.href}
-							variant={action.primary ? 'default' : 'outline'}
-							disabled={action.disabled}
-							download={action.kind === 'download' ? true : undefined}
-							class="self-start rounded-full"
+<!-- Data the admin can download about the people in this conversation. -->
+<section aria-labelledby="follow-up-heading" class="flex flex-col gap-4">
+	<div class="flex flex-col gap-1">
+		<h2 id="follow-up-heading" class="text-2xl font-semibold">Follow up</h2>
+		<p class="text-muted-foreground text-base">
+			Export data about people in this conversation.
+		</p>
+	</div>
+	<ul class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+		{#each exports as item (item.href + item.label)}
+			<li
+				class={cn(
+					'flex flex-col justify-between gap-4 rounded-2xl border p-5',
+					item.primary ? 'bg-accent border-transparent' : 'bg-card'
+				)}
+			>
+				<div class="flex items-start gap-3">
+					{#if item.count !== undefined}
+						<span
+							class={cn(
+								'inline-flex min-w-12 shrink-0 items-center justify-center rounded-xl px-2 py-1.5 text-2xl font-bold tabular-nums',
+								item.primary ? 'bg-primary text-primary-foreground' : 'bg-muted'
+							)}
 						>
-							{#if action.kind === 'download'}
-								<Download class="mr-2 size-4" aria-hidden="true" />
-							{:else}
-								<Send class="mr-2 size-4" aria-hidden="true" />
-							{/if}
-							{action.label}
-						</Button>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	{/each}
+							{item.count}
+						</span>
+					{/if}
+					<div class="flex min-w-0 flex-col gap-1">
+						<span class="text-base font-semibold">{item.title}</span>
+						<span class="text-muted-foreground text-sm">{item.description}</span>
+					</div>
+				</div>
+				<Button
+					href={item.href}
+					variant={item.primary ? 'default' : 'outline'}
+					disabled={item.disabled}
+					download
+					class="self-start rounded-full"
+				>
+					<Download class="mr-2 size-4" aria-hidden="true" />
+					{item.label}
+				</Button>
+			</li>
+		{/each}
+	</ul>
 </section>

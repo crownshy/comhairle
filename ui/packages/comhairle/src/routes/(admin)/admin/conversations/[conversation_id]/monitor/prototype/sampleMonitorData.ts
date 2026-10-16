@@ -35,10 +35,10 @@ export type RepresentationRow = {
 	populationPercent: number;
 };
 
-export type ActivityItem = { text: string; when: string; kind: 'progress' | 'neutral' | 'drop' };
-
 export const SAMPLE_DAY_OF_CONVERSATION = 14;
 export const SAMPLE_CONVERSATION_LENGTH_DAYS = 28;
+/** New: people who signed up (invited, open link or QR) whether or not they opened it. */
+export const SAMPLE_RECRUITED = 100;
 export const SAMPLE_JOINED = 86;
 export const SAMPLE_FINISHED = 41;
 export const SAMPLE_TARGET = 200;
@@ -209,19 +209,6 @@ export const SAMPLE_REPRESENTATION: RepresentationDimension[] = [
 	}
 ];
 
-export const SAMPLE_ACTIVITY: ActivityItem[] = [
-	{ text: 'Someone completed the whole conversation', when: '2 min ago', kind: 'progress' },
-	{
-		text: '3 people joined via the Council newsletter link',
-		when: '25 min ago',
-		kind: 'progress'
-	},
-	{ text: 'New statement added in Participant-led poll', when: '40 min ago', kind: 'neutral' },
-	{ text: 'Someone left Thinking space after 2 minutes', when: '1 h ago', kind: 'drop' },
-	{ text: 'Reminder email sent to 31 people', when: 'Yesterday', kind: 'neutral' },
-	{ text: '11 people joined from the community centre QR code', when: '6 Oct', kind: 'progress' }
-];
-
 export const HEATMAP_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const HEATMAP_SLOTS = ['6–9am', '9–12', '12–3pm', '3–6pm', '6–9pm', '9–12pm'];
 /** New: actions taken (step starts, answers, comments) per weekday and time slot. */
@@ -358,7 +345,7 @@ export const SAMPLE_TODAY_JOURNEYS: ParticipantJourney[] = [
 	}
 ];
 
-/** Kinds of admin activity logged on the At a glance calendar. */
+/** Kinds of admin activity marked on the signups chart. */
 export type ActivityKind = 'launch' | 'email' | 'qr' | 'event' | 'reminder' | 'close';
 
 /**
@@ -374,8 +361,6 @@ export type ActivityLogEntry = {
 	/** True for things planned but not happened yet. */
 	scheduled?: boolean;
 };
-
-export const SAMPLE_TODAY = new Date('2026-10-12');
 
 export const SAMPLE_ACTIVITY_LOG: ActivityLogEntry[] = [
 	{ date: new Date('2026-09-29'), kind: 'launch', title: 'Conversation launched' },

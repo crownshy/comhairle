@@ -5,9 +5,9 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import MonitorStatsBar from './MonitorStatsBar.svelte';
 	import FirstVisitHint from './FirstVisitHint.svelte';
+	import ParticipationFlow from './ParticipationFlow.svelte';
 	import QuestionCard from './QuestionCard.svelte';
 	import TargetSparkline from './TargetSparkline.svelte';
-	import ActionCalendar from './ActionCalendar.svelte';
 	import ReachMini from './ReachMini.svelte';
 	import StepFunnel from './StepFunnel.svelte';
 	import RecruitmentTarget from './RecruitmentTarget.svelte';
@@ -17,7 +17,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import RecruitmentChannels from './RecruitmentChannels.svelte';
 	import RepresentationBars from './RepresentationBars.svelte';
-	import RecentActivity from './RecentActivity.svelte';
 	import ActivityHeatmap from './ActivityHeatmap.svelte';
 	import TodayJourneys from './TodayJourneys.svelte';
 	import FollowUpActions from './FollowUpActions.svelte';
@@ -100,6 +99,9 @@
 			(target * sample.SAMPLE_DAY_OF_CONVERSATION) / sample.SAMPLE_CONVERSATION_LENGTH_DAYS
 		)
 	);
+	let closingLabel = $derived(
+		sample.SAMPLE_CLOSING_DATE.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+	);
 	// At a glance Reach card: which demographic is selected.
 	let reachDimensionName = $state(sample.SAMPLE_REPRESENTATION[0].name);
 	let reachDimension = $derived(
@@ -116,61 +118,32 @@
 </svelte:head>
 
 <Tabs.Root value={activeTab} onValueChange={showTab} class="flex flex-col gap-8 pb-16">
-	<Tabs.List class="w-fit max-w-full" aria-label="Monitor sections">
-		{#each MONITOR_TABS as tab (tab.value)}
-			<Tabs.Trigger value={tab.value} class="px-4 text-base">{tab.label}</Tabs.Trigger>
-		{/each}
-	</Tabs.List>
+	<div class="flex flex-wrap items-center gap-4">
+		<Tabs.List class="w-fit max-w-full" aria-label="Monitor sections">
+			{#each MONITOR_TABS as tab (tab.value)}
+				<Tabs.Trigger value={tab.value} class="px-4 text-base">{tab.label}</Tabs.Trigger>
+			{/each}
+		</Tabs.List>
+	</div>
 
 	<!-- At a glance: verdict and the three questions -->
 	<Tabs.Content value="glance" class="flex flex-col gap-12">
 		<section aria-label="Overview" class="flex flex-col gap-6">
-			<MonitorStatsBar
-				variant="primary"
-				caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS}"
-				captionEnd="Updated 2 minutes ago"
-				stats={[
-					{
-						name: 'Joined',
-						amount: sample.SAMPLE_JOINED,
-						unit: null,
-						meaning: 'People who opened the conversation',
-						explanation:
-							'Counts everyone who opened the conversation at least once, through any link, email or QR code. People who were invited but never opened it are not counted.'
-					},
-					{
-						name: 'Completed',
-						amount: sample.SAMPLE_FINISHED,
-						unit: null,
-						meaning: `Completed every step. ${Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}% of everyone who joined`,
-						explanation:
-							'Counts people who reached the end of the last step. Someone who skipped an optional step still counts as completed.'
-					},
-					{
-						name: 'Active now',
-						amount: sample.SAMPLE_ACTIVE_NOW,
-						unit: null,
-						meaning: 'Taking part right now, in any step',
-						explanation:
-							'People who did something in the conversation in the last 5 minutes.'
-					},
-					{
-						name: 'Time to complete',
-						amount: sample.SAMPLE_MEDIAN_MINUTES_TO_FINISH,
-						unit: 'min',
-						meaning: 'Typical time from first step to last',
-						explanation:
-							'The median: half of the people who completed took less time than this, half took longer. Time away from the page is not counted.'
-					}
-				]}
-			/>
 			<FirstVisitHint tourHref="/admin/info/tools" />
+			<ParticipationFlow
+				recruited={sample.SAMPLE_RECRUITED}
+				joined={sample.SAMPLE_JOINED}
+				completed={sample.SAMPLE_FINISHED}
+				caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS} · closes {closingLabel}"
+			/>
 			<div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
 				<QuestionCard
 					eyebrow="Working"
 					question="Are people completing?"
 					value="{Math.round((sample.SAMPLE_FINISHED / sample.SAMPLE_JOINED) * 100)}%"
 					unit="of joiners completed"
+					extraValue="{sample.SAMPLE_MEDIAN_MINUTES_TO_FINISH} min"
+					extraUnit="typical time to complete"
 					trendLabel="Completion rate per step"
 					bars={sample.SAMPLE_STEPS.map((step) => ({
 						label: step.shortName,
@@ -226,17 +199,40 @@
 					{/snippet}
 				</QuestionCard>
 			</div>
-			<ActionCalendar
-				entries={sample.SAMPLE_ACTIVITY_LOG}
-				launchDate={sample.SAMPLE_LAUNCH_DATE}
-				closingDate={sample.SAMPLE_CLOSING_DATE}
-				today={sample.SAMPLE_TODAY}
-				conversationId={data.conversation.id}
-			/>
 		</section>
+		<FollowUpActions
+			exports={[
+				{
+					count: sample.USED_THINKING_SPACE,
+					title: 'Thinking space summaries',
+					description: 'Get a sense of how people think.',
+					label: 'Download summaries',
+					// TODO(backend): no summaries export yet; this points at the demographics export.
+					href: `/api/conversation/${data.conversation.id}/demographics/export`,
+					disabled: !canExport,
+					primary: true
+				},
+				{
+					title: 'Contacts',
+					description:
+						'A list of users who have opted in to being contacted on this engagement.',
+					label: 'Download contacts',
+					href: `/api/conversation/${data.conversation.id}/contacts/export`,
+					disabled: !canExport
+				},
+				{
+					title: 'Demographics',
+					description:
+						'Demographic data from user profiles for participants in this conversation.',
+					label: 'Download demographics',
+					href: `/api/conversation/${data.conversation.id}/demographics/export`,
+					disabled: !canExport
+				}
+			]}
+		/>
 	</Tabs.Content>
 
-	<!-- Pulse: what's happening right now, and who to follow up with -->
+	<!-- Pulse: what's happening right now -->
 	<Tabs.Content value="pulse" class="flex flex-col gap-6">
 		<ActionHint>
 			Most people who stop leave at <strong>{worstStep.name}</strong>:
@@ -250,7 +246,6 @@
 			{/snippet}
 		</ActionHint>
 		<MonitorStatsBar
-			variant="secondary"
 			stats={[
 				{
 					name: 'Active now',
@@ -281,41 +276,6 @@
 			slots={sample.HEATMAP_SLOTS}
 			counts={sample.SAMPLE_HEATMAP}
 		/>
-
-		<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-			<RecentActivity activity={sample.SAMPLE_ACTIVITY} />
-			<FollowUpActions
-				actions={[
-					{
-						count: worstStep.reached - worstStep.finished,
-						who: `stuck at ${worstStep.name}`,
-						why: "Started but haven't been back for 3+ days.",
-						label: 'Send a reminder',
-						href: `${base}/notifications`,
-						kind: 'message'
-					},
-					{
-						count: sample.SAMPLE_FINISHED,
-						who: 'completed',
-						why: 'Thank them, and let them know when the report is out.',
-						label: 'Send a thank-you',
-						href: `${base}/notifications`,
-						kind: 'message'
-					},
-
-					{
-						count: sample.USED_THINKING_SPACE,
-						who: 'download "Thinking Space" summary',
-						why: 'Get a sense of how people think.',
-						label: 'Download summaries',
-						href: `/api/conversation/${data.conversation.id}/demographics/export`,
-						kind: 'download',
-						disabled: !canExport,
-						primary: true
-					}
-				]}
-			/>
-		</div>
 	</Tabs.Content>
 
 	<!-- Journey: where people get stuck -->
