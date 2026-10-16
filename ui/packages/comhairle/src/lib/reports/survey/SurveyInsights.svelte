@@ -29,7 +29,7 @@
 	// Browser-navigated download: cookie auth covers it, and the backend sets
 	// Content-Disposition, so no fetch/Blob plumbing is needed here.
 	const csvExportUrl = $derived(
-		`/api/tools/survey_tool/workflow_step/${workflowStepId}/submissions/csv`
+		`/api/tools/survey_tool/conversation/${conversationId}/workflow_step/${workflowStepId}/submissions/csv`
 	);
 
 	const isValidQuestion = (section: SurveyQuestion): boolean =>

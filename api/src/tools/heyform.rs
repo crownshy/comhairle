@@ -25,7 +25,7 @@ use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models;
-use crate::models::permissions::{WorkflowStepConversationResource, conversation::Action};
+use crate::models::permissions::{ConversationResource, conversation::Action};
 use crate::routes::auth::RequiredAdminUser;
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -347,7 +347,7 @@ impl ToolImpl for HeyFormTool {
                 }),
             )
             .api_route(
-                "/survey_tool/workflow_step/{workflow_step_id}/submissions/csv",
+                "/survey_tool/conversation/{conversation_id}/workflow_step/{step_id}/submissions/csv",
                 get_with(submissions_csv, |op| {
                     op.id("HeyFormExportSubmissionsCsv")
                         .tag("Tools")
@@ -357,8 +357,8 @@ impl ToolImpl for HeyFormTool {
                              choice ids resolved to their labels. Unaggregated, unlike /insights.",
                         )
                 }).route_layer(from_fn_with_state(
-                    PermissionRequirement::<WorkflowStepConversationResource>::new(Action::Export),
-                    permission_middleware::<WorkflowStepConversationResource>,
+                    PermissionRequirement::<ConversationResource>::new(Action::Export),
+                    permission_middleware::<ConversationResource>,
                 )),
             )
             .with_state(state.clone())
@@ -1076,7 +1076,7 @@ fn build_submissions_csv(
 /// values are not aggregated.
 pub async fn submissions_csv(
     State(state): State<Arc<ComhairleState>>,
-    Path(workflow_step_id): Path<Uuid>,
+    Path((_conversation_id, workflow_step_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<CsvExportResponse, ComhairleError> {
     let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
