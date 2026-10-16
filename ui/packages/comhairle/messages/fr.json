@@ -179,7 +179,6 @@
 	"guest": "Invité",
 	"logout_failed": "Un problème est survenu lors de la déconnexion. Veuillez réessayer.",
 	"polis_add_opinion_long": "Ou ajoutez votre propre opinion pour que d'autres votent dessus.",
-	"polis_continue_to_next_step": "Continuer à l'étape suivante",
 	"polis_close": "Fermer",
 	"polis_tips_for_your_opinion": "Conseils pour rédiger votre opinion",
 	"polis_tip_agreeable": "Une opinion doit pouvoir être répondue par \"d'accord\" ou \"pas d'accord\"",
@@ -453,5 +452,12 @@
 	"revisit_step_stories_label": "Expérience vécue",
 	"revisit_step_stories_body": "Lisez les témoignages partagés par d'autres personnes.",
 	"revisit_step_stories_action": "Lire les témoignages",
-	"conversations_return_page_title": "Revenir à {conversation}"
+	"conversations_return_page_title": "Revenir à {conversation}",
+	"pager_back": "Retour",
+	"pager_skip": "Passer",
+	"step_loading": "Chargement de l'étape…",
+	"step_minutes": "({count} minutes)",
+	"step_not_found": "Conversation introuvable",
+	"step_one_minute": "(1 minute)",
+	"step_x_of_y": "Étape {current} sur {total}"
 }

@@ -179,7 +179,6 @@
 	"guest": "مېلمه",
 	"logout_failed": "ستاسو د وتلو پر مهال یوه ستونزه رامنځته شوه. مهرباني وکړئ بیا هڅه وکړئ.",
 	"polis_add_opinion_long": "یا خپل نظر اضافه کړئ ترڅو نور پرې رایه ورکړي.",
-	"polis_continue_to_next_step": "راتلونکي پړاو ته دوام ورکړئ",
 	"polis_close": "بندول",
 	"polis_tips_for_your_opinion": "ستاسو د نظر لیکلو لپاره لارښوونې",
 	"polis_tip_agreeable": "یو نظر باید د \"موافق\" یا \"مخالف\" سره د ځواب وړ وي",
@@ -453,5 +452,12 @@
 	"revisit_step_stories_label": "ژوندۍ تجربه",
 	"revisit_step_stories_body": "هغه کیسې ولولئ چې نورو شریکې کړې دي.",
 	"revisit_step_stories_action": "کیسې ولولئ",
-	"conversations_return_page_title": "{conversation} ته بېرته ورشئ"
+	"conversations_return_page_title": "{conversation} ته بېرته ورشئ",
+	"pager_back": "شاته",
+	"pager_skip": "تېرول",
+	"step_loading": "ګام بارېږي…",
+	"step_minutes": "({count} دقیقې)",
+	"step_not_found": "خبرې اترې ونه موندل شوې",
+	"step_one_minute": "(۱ دقیقه)",
+	"step_x_of_y": "ګام {current} له {total}"
 }

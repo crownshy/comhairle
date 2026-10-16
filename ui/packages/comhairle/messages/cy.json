@@ -179,7 +179,6 @@
 	"guest": "Gwestai",
 	"logout_failed": "Aeth rhywbeth o'i le wrth eich allgofnodi. Rhowch gynnig arall arni.",
 	"polis_add_opinion_long": "Neu ychwanegwch eich barn eich hun i eraill bleidleisio arni.",
-	"polis_continue_to_next_step": "Parhau i'r cam nesaf",
 	"polis_close": "Cau",
 	"polis_tips_for_your_opinion": "Awgrymiadau ar gyfer ysgrifennu eich barn",
 	"polis_tip_agreeable": "Dylai barn fod yn atebadwy gyda \"cytuno\" neu \"anghytuno\"",
@@ -453,5 +452,12 @@
 	"revisit_step_stories_label": "Profiad bywyd",
 	"revisit_step_stories_body": "Darllenwch y straeon y mae pobl wedi'u rhannu.",
 	"revisit_step_stories_action": "Darllen straeon",
-	"conversations_return_page_title": "Ewch yn ôl i {conversation}"
+	"conversations_return_page_title": "Ewch yn ôl i {conversation}",
+	"pager_back": "Yn ôl",
+	"pager_skip": "Hepgor",
+	"step_loading": "Wrthi'n llwytho'r cam…",
+	"step_minutes": "({count} munud)",
+	"step_not_found": "Methu dod o hyd i'r sgwrs",
+	"step_one_minute": "(1 munud)",
+	"step_x_of_y": "Cam {current} o {total}"
 }
