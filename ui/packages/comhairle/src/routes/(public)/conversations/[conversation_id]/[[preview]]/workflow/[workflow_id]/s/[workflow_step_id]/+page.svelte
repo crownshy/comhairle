@@ -170,6 +170,7 @@
 			} else {
 				goToThankYouPage();
 			}
+			submittingStepId = null;
 			return;
 		}
 
