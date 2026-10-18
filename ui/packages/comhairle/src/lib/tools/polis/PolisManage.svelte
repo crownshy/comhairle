@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
@@ -11,19 +11,23 @@
 	import { useDebounce } from 'runed';
 	import type { InstancedToolConfig } from '$lib/tools/types';
 	import { permissions } from '$lib/permissions.svelte';
+	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import SeedStatements from './SeedStatements.svelte';
 
 	let {
 		toolConfig,
 		conversationId,
 		workflowId,
 		workflowStepId,
-		isLive
+		isLive,
+		statements
 	}: {
 		toolConfig: InstancedToolConfig<'polis'>;
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
 		isLive: boolean;
+		statements: PolisStatementAux[];
 	} = $props();
 
 	const canEdit = $derived(
@@ -95,13 +99,6 @@
 		if (raw.trim() === '' || !Number.isFinite(value) || value < 1) return;
 		saveField('required_votes', value);
 	}, 500);
-
-	// Link back to the Moderation subtab on this same step, preserving the path.
-	const moderationHref = $derived.by(() => {
-		const url = new URL(page.url);
-		url.searchParams.set('subtab', 'moderation');
-		return url.pathname + url.search;
-	});
 </script>
 
 <div class="mb-8 flex max-w-2xl flex-col gap-8">
@@ -193,12 +190,13 @@
 				</Label>
 				<span class="text-muted-foreground text-xs">
 					When on, every statement must be accepted or rejected at
-					<!-- eslint-disable svelte/no-navigation-without-resolve -->
 					<a
-						href={moderationHref}
-						class="text-primary font-medium underline underline-offset-2">Moderation</a
+						href={resolve(
+							'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+							{ conversation_id: conversationId, step_id: workflowStepId }
+						)}
+						class="text-primary font-medium underline underline-offset-2">Moderate</a
 					>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					before participants see it.
 				</span>
 			</div>
@@ -210,4 +208,6 @@
 			/>
 		</div>
 	</div>
+
+	<SeedStatements {conversationId} {workflowStepId} {statements} {canEdit} />
 </div>

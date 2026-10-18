@@ -31,6 +31,7 @@
 		workflowId={workflow.id}
 		workflowStepId={step.id}
 		isLive={conversation.isLive}
+		statements={data.statements}
 	/>
 {/if}
 

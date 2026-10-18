@@ -9,7 +9,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Download, RefreshCw, Search } from '@lucide/svelte';
-	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
@@ -274,10 +273,10 @@
 		// separate: it reads `replacementsByOriginal[s.id]`, which isn't complete
 		// until every statement has been seen (a replacement may sit before or
 		// after its original in the list).
-		const byId = new Map<string, PolisStatementAux>();
+		const byId: Record<string, PolisStatementAux> = {};
 		const replacementsByOriginal: Record<string, string[]> = {};
 		for (const s of statements) {
-			byId.set(s.id, s);
+			byId[s.id] = s;
 			if (s.original_statement_id) {
 				(replacementsByOriginal[s.original_statement_id] ??= []).push(s.statement_text);
 			}
@@ -285,7 +284,7 @@
 		const result: Record<string, { editedFrom?: string; replacedBy?: string[] }> = {};
 		for (const s of statements) {
 			const editedFrom = s.original_statement_id
-				? byId.get(s.original_statement_id)?.statement_text
+				? byId[s.original_statement_id]?.statement_text
 				: undefined;
 			const replacedBy = replacementsByOriginal[s.id];
 			if (editedFrom || replacedBy) result[s.id] = { editedFrom, replacedBy };
@@ -339,14 +338,6 @@
 					<RefreshCw class="size-4" />
 					Sync from Polis
 				</LoadingButton>
-			{/if}
-			{#if canEdit}
-				<AddSeedStatementsDialog
-					{conversationId}
-					{workflowStepId}
-					existingStatements={statements.map((s) => s.statement_text)}
-					onSeeded={() => invalidate('polis:statement-aux')}
-				/>
 			{/if}
 		</div>
 	</div>
