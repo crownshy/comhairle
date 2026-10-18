@@ -18,7 +18,15 @@
 	let userRoles = $derived(data.userRoles);
 	// Set by the conversation layout. Its presence switches the sidebar to that conversation.
 	let conversation = $derived(page.data.conversation as StageConversation | undefined);
-	let stepCount = $derived((page.data.workflowSteps as unknown[] | undefined)?.length ?? 0);
+	type StepTool = { toolConfig?: { type?: string }; previewToolConfig?: { type?: string } };
+	let workflowSteps = $derived((page.data.workflowSteps as StepTool[] | undefined) ?? []);
+	let stepCount = $derived(workflowSteps.length);
+	// Moderation is for Polis steps, whether they are live or still in preview.
+	let hasPolisStep = $derived(
+		workflowSteps.some(
+			(step) => step.toolConfig?.type === 'polis' || step.previewToolConfig?.type === 'polis'
+		)
+	);
 
 	if (!data.user) {
 		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
@@ -42,7 +50,13 @@
 	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 >
 	{#if conversation}
-		<ConversationNav {conversation} {stepCount} user={data.user} path={page.url.pathname} />
+		<ConversationNav
+			{conversation}
+			{stepCount}
+			{hasPolisStep}
+			user={data.user}
+			path={page.url.pathname}
+		/>
 	{:else}
 		<AdminNav
 			user={data.user}

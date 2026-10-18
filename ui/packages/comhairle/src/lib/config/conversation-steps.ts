@@ -6,7 +6,8 @@ import {
 	UsersRound,
 	Bell,
 	Binoculars,
-	NotebookText
+	NotebookText,
+	ShieldCheck
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
 
@@ -27,6 +28,8 @@ export interface ConversationSection {
 	requiresLive?: boolean;
 	/** Only conversation Admins can open it. */
 	requiresAdmin?: boolean;
+	/** Only listed when the conversation has a Polis step to moderate. */
+	requiresPolis?: boolean;
 }
 
 export const conversationSections: ConversationSection[] = [
@@ -43,6 +46,14 @@ export const conversationSections: ConversationSection[] = [
 		requiresLive: true,
 		requiresAdmin: true
 	},
-	{ name: 'Monitor', path: 'monitor', icon: Binoculars, stage: 'results', requiresLive: true },
+	{
+		name: 'Moderate',
+		path: 'moderate',
+		icon: ShieldCheck,
+		stage: 'engage',
+		requiresLive: true,
+		requiresPolis: true
+	},
+	{ name: 'Monitor', path: 'monitor', icon: Binoculars, stage: 'engage', requiresLive: true },
 	{ name: 'Report', path: 'report', icon: NotebookText, stage: 'results', requiresLive: true }
 ];

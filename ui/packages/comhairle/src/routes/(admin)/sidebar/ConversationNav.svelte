@@ -16,11 +16,12 @@
 	type Props = {
 		conversation: StageConversation;
 		stepCount: number;
+		hasPolisStep: boolean;
 		user: UserDto;
 		path: string;
 	};
 
-	let { conversation, stepCount, user, path }: Props = $props();
+	let { conversation, stepCount, hasPolisStep, user, path }: Props = $props();
 
 	const sidebar = useSidebar();
 	const sidebarWidth = useSidebarWidth();
@@ -70,7 +71,7 @@
 	<SideBar.Content
 		class="flex flex-col gap-4 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
-		<ConversationSection {conversation} {stepCount} {path} />
+		<ConversationSection {conversation} {stepCount} {hasPolisStep} {path} />
 	</SideBar.Content>
 
 	<SideBar.Footer class="border-sidebar-foreground/20 border-t">
