@@ -1,14 +1,13 @@
 import { expect } from '@playwright/test';
 import type { Refs } from './types';
 import { find } from '..';
+import Button from './Button';
 
 function Select<const T extends string[]>(inputs: T, refs: Refs) {
 	const originallySelected: T[number] = inputs[0];
 	let selected: T[number] = inputs[0];
 
-	async function getSelect() {
-		return await find(refs.page.getByRole('button', { name: selected }));
-	}
+	const getSelect = () => Button(selected, refs.page);
 
 	async function getMenuItem(option: T[number]) {
 		const locator = await find(
