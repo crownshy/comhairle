@@ -201,21 +201,9 @@ pub async fn register_user(
         .await?;
     }
 
-    // Check to see if the user already has preferences for this
-    // conversastion
     if let Some(conversation_id) = workflow.conversation_id {
-        let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
-            db,
-            &user.id,
-            &conversation_id,
-        )
-        .await;
-
-        // If they dont, create some
-        if user_preferences.is_err() {
-            user_conversation_preferences::create_with_defaults(db, &user.id, &conversation_id)
-                .await?;
-        }
+        user_conversation_preferences::create_defaults_if_missing(db, &user.id, &conversation_id)
+            .await?;
     }
 
     Ok(user_participation)
