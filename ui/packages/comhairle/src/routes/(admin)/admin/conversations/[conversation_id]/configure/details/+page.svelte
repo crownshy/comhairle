@@ -19,6 +19,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
 	import { Image, Trash2 } from '@lucide/svelte';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
@@ -243,7 +244,7 @@
 			}
 
 			notifications.send({ message: 'Conversation deleted', priority: 'INFO' });
-			await goto('/admin', { invalidate: [key('admin/conversations')] });
+			await goto(resolve('/admin'), { invalidate: [key('admin/conversations')] });
 		});
 	}
 </script>
@@ -268,6 +269,7 @@
 							source={titleSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('title')}
+							onRejected={(value) => ($form.title = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputProps={props}
@@ -296,6 +298,7 @@
 							source={shortDescriptionSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('shortDescription')}
+							onRejected={(value) => ($form.shortDescription = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputType="textarea"
@@ -325,6 +328,7 @@
 							source={descriptionSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('description')}
+							onRejected={(value) => ($form.description = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputType="textarea"

@@ -38,6 +38,8 @@
 		 * correct for optional fields.
 		 */
 		canSave?: (value: string) => boolean;
+		/** Called with the value `canSave` rejected, so the caller can show its validation error. */
+		onRejected?: (value: string) => void;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 		/** Forwarded to the inline rich editor to enable the "Embed report component" control. */
@@ -68,6 +70,7 @@
 		dialogTitle = 'Content Translation',
 		inputProps = {},
 		canSave,
+		onRejected,
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = []
@@ -80,6 +83,7 @@
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let hasTranslations = $derived(otherLanguages.length > 0);
 	let saveState = $derived(source.saveState);
+	let rejected = $state(false);
 
 	registerAutosaveSource(() => source);
 
@@ -94,7 +98,12 @@
 
 	function saveSource(content: string) {
 		if (disabled) return;
-		if (!canSave || canSave(content)) source.saveSource(content);
+		rejected = !!canSave && !canSave(content);
+		if (rejected) {
+			onRejected?.(content);
+			return;
+		}
+		source.saveSource(content);
 	}
 
 	function handlePlainInput(e: Event) {
@@ -181,9 +190,14 @@
 		</div>
 	{/if}
 
-	{#if hasTranslations || saveState !== 'idle'}
+	{#if hasTranslations || rejected || saveState !== 'idle'}
 		<div class="flex flex-wrap items-center gap-2">
-			{#if saveState === 'saving'}
+			{#if rejected}
+				<span class="text-destructive inline-flex items-center gap-1 text-xs">
+					<TriangleAlert class="h-3 w-3" />
+					Not saved
+				</span>
+			{:else if saveState === 'saving'}
 				<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
 					<LoaderCircle class="h-3 w-3 animate-spin" />
 					Saving
