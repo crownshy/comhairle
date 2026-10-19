@@ -300,7 +300,7 @@ impl Display for WorkflowRouterContext {
     }
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
     let router = ApiRouter::new()
         .api_route(
             "/",
@@ -363,7 +363,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             )),
         );
 
-    let router = match ctx {
+    match ctx {
         WorkflowRouterContext::Conversation => router
             .api_route(
                 "/{workflow_id}/next",
@@ -424,9 +424,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                 }),
             ),
         _ => router,
-    };
-
-    router.with_state(state)
+    }
 }
 
 #[cfg(test)]

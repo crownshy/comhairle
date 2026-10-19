@@ -851,7 +851,7 @@ async fn export_conversation_demographics(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     let requirement = PermissionRequirement::<ConversationResource>::new;
     let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
@@ -1005,8 +1005,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
-            })
-                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            }),
         )
         .api_route(
             "/{conversation_id}/contacts/export",
@@ -1028,7 +1027,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             })
                 .route_layer(from_fn_with_state(requirement(Action::Export), permission_middleware::<ConversationResource>)),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -2345,7 +2343,7 @@ mod tests {
     /// Helper: create the conversation and return its id.
     async fn make_conversation(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &crate::App,
         slug: &str,
     ) -> Result<uuid::Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session

@@ -34,7 +34,7 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::middleware::rate_limit::auth_rate_limiter_if_enabled;
+use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::permissions::{
     ActorId, GrantRoleRequest, PermissionRole, grant_role, has_resource_permission,
@@ -1134,12 +1134,17 @@ async fn issue_refresh_token<'a>(
 }
 
 /// Function to set up the auth routes
-pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
     // One strict per-IP bucket, shared by every route that takes or issues
     // credentials, so rotating between login and signup does not buy extra
     // attempts. Session reads (`current_user`, `logout`) stay off it: they run
     // on every page render, and limiting them signs people out at random.
-    let credential_limit = option_layer(auth_rate_limiter_if_enabled(&state.config));
+    let credential_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
+    // OTP routes get their own, more lenient bucket: a single OTP sign-in
+    // already costs two of these requests (create then login), so sharing
+    // `credential_limit` with password login/signup left genuine sign-ins
+    // tripping the limit.
+    let otp_limit = option_layer(rate_limiters.map(|limiters| limiters.otp_rate_limiter()));
 
     ApiRouter::new()
         .api_route(
@@ -1171,7 +1176,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Login a user with a one time passcode")
                     .response::<200, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/signup",
@@ -1201,7 +1206,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/create_otp",
@@ -1211,7 +1216,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Create and send a new one time passcode")
                     .response::<201, ()>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/login_otp_token",
@@ -1221,7 +1226,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Verify one-time-passcode from a JWT")
                     .response::<200, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/logout",
@@ -1291,7 +1296,6 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

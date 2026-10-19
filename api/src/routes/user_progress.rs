@@ -84,7 +84,7 @@ pub async fn update_user_progress(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -102,7 +102,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserProgressDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

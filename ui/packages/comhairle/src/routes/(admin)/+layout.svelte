@@ -49,7 +49,8 @@
 	/>
 	<SideBar.Inset class="min-h-0 min-w-0">
 		<SidebarFloatingTriggers />
-		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
+		<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
+		<main class="bg-muted relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
 			{@render children()}
 		</main>
 	</SideBar.Inset>

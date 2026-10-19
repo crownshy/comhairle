@@ -363,7 +363,7 @@ mod tests {
 
     async fn create_random_event(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &crate::App,
     ) -> Result<EventDto, Box<dyn std::error::Error>> {
         let conversation_response = session.create_random_conversation(app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;
