@@ -201,6 +201,10 @@ pub async fn build_router_and_spec(
                         ),
                 )
                 .nest(
+                    "/{conversation_id}/preview_access",
+                    routes::preview_access::router(rate_limiters.as_ref()),
+                )
+                .nest(
                     "/{conversation_id}/invite",
                     routes::invites::router(rate_limiters.as_ref()),
                 )

@@ -2169,6 +2169,17 @@ export const PartialRecruitmentTarget = z
   .partial()
   .passthrough();
 export type PartialRecruitmentTarget = z.infer<typeof PartialRecruitmentTarget>;
+export const PreviewPasswordRequest = z
+  .object({ password: z.string() })
+  .passthrough();
+export type PreviewPasswordRequest = z.infer<typeof PreviewPasswordRequest>;
+export const PreviewPasswordStatus = z
+  .object({
+    enabled: z.boolean(),
+    updatedAt: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type PreviewPasswordStatus = z.infer<typeof PreviewPasswordStatus>;
 export const InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
@@ -3707,6 +3718,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RecruitmentTargetDto,
   CreateRecruitmentTarget,
   PartialRecruitmentTarget,
+  PreviewPasswordRequest,
+  PreviewPasswordStatus,
   InviteType,
   LoginBehaviour,
   InviteStatus,
@@ -5125,6 +5138,50 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     description: `Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.`,
     requestFormat: "json",
     response: NotificationRecipientsResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/preview_access",
+    alias: "UnlockConversationPreview",
+    description: `Sets a cookie that lets this browser read the draft conversation for a week, or until the password is changed or cleared.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ password: z.string() }).passthrough(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "GetConversationPreviewPassword",
+    requestFormat: "json",
+    response: PreviewPasswordStatus,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "SetConversationPreviewPassword",
+    description: `Changing it signs out everyone who unlocked the old one.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ password: z.string() }).passthrough(),
+      },
+    ],
+    response: PreviewPasswordStatus,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "ClearConversationPreviewPassword",
+    requestFormat: "json",
+    response: PreviewPasswordStatus,
   },
   {
     method: "get",
