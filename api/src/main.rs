@@ -123,9 +123,12 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
-    let (worker_service, storage) = match init_worker_service(&config.worker_service).await {
-        Some((worker_service, storage)) => (Some(worker_service), Some(storage)),
-        _ => (None, None),
+    let workers = match &config.worker_service {
+        Some(ws_config) => {
+            let (worker_service, storage) = init_worker_service(ws_config).await?;
+            Some((worker_service, storage))
+        }
+        _ => None,
     };
 
     let categorization_service = config.categorization_service.as_ref().map(|config| {
@@ -173,7 +176,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         transcription_service,
         bot_service,
         wiki_poll_service,
-        worker_service,
+        worker_service: workers.as_ref().map(|w| w.0.clone()),
         bulk_storage_service,
         categorization_service,
         redis_conn,
@@ -199,7 +202,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         .await
     };
 
-    let worker_future = init_monitor(storage, &state);
+    let worker_future = init_monitor(workers.map(|w| w.1), &state);
 
     if let Some(worker_future) = worker_future {
         let _ = tokio::try_join!(server_future, worker_future)?;
