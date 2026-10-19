@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { Calendar, Combobox, NumericTextbox, Textbox, TimeRangePicker } from '../components';
 import type { Page } from '../types';
 import { eventually } from '../testing';
+import { sleep } from '..';
 
 export const TEST_EVENT_NAME = 'Playwright Event';
 
@@ -94,6 +95,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 const Events = {
 	add,
 	gotoPlaywrightEvent: async (page: Page) => {
+		await sleep(0.5);
 		const event = page.getByRole('heading', { name: TEST_EVENT_NAME }).first();
 		if (!(await event.isVisible())) {
 			await add({ page, event: { title: TEST_EVENT_NAME } });
@@ -104,6 +106,7 @@ const Events = {
 		for (const card of await page.locator('.bg-card').all()) {
 			if (await card.getByRole('heading', { name: TEST_EVENT_NAME }).isVisible()) {
 				await card.getByRole('link', { name: 'Edit event' }).click();
+				await sleep(0.5);
 				return;
 			}
 		}

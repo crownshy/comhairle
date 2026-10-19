@@ -29,9 +29,9 @@ test.describe('Events/Invites page', () => {
 		Submit = await Button('Submit', page);
 	});
 
-	test('Should show an error for incorrect email addresses', async () => {
+	test('Should show an error for incorrect email addresses', async ({ page }) => {
 		await Email?.write('incorrect_email');
-		expect(await Email?.isValid()).toBe(false);
+		await expect(page.getByText('One or more emails are invalid')).toBeVisible();
 	});
 
 	test('Should be able to add a new email', async ({ page }) => {

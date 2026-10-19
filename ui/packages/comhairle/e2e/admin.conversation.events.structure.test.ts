@@ -94,6 +94,7 @@ test('Events/Structure page', async ({ page }) => {
 	const DeleteItem = await Button('Delete item', page);
 	await DeleteItem.click();
 	await DeleteItem.click();
+	await SaveAgenda.click();
 
 	await eventually(async () => {
 		expect(await page.getByText('Standard item').count()).toEqual(0);
