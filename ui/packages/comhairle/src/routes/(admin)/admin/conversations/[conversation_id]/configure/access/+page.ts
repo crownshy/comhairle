@@ -14,9 +14,14 @@ async function collectPages<RecordType>(loadPage: (offset: number) => Promise<Re
 
 export const load: PageLoad = async ({ parent, depends }) => {
 	depends(key('admin/conversation/permissions'));
+	depends(key('admin/conversation/preview-password'));
 	const { api, conversation, conversationActions } = await parent();
+	const previewPassword = await tryCatchAsync(() =>
+		api.GetConversationPreviewPassword({ params: { conversation_id: conversation.id } })
+	);
+	const previewPasswordStatus = previewPassword.err === null ? previewPassword.ok : null;
 	if (!canPerformAction(conversationActions, 'conversation_admin'))
-		return { roleManagement: null };
+		return { roleManagement: null, previewPasswordStatus };
 	const params = { resource_type: 'conversation', resource_id: conversation.id };
 	const roleManagement = await tryCatchAsync(async () => {
 		const [roles, assignments, users, organizations] = await Promise.all([
@@ -37,5 +42,5 @@ export const load: PageLoad = async ({ parent, depends }) => {
 		]);
 		return { roles, assignments, users, organizations };
 	});
-	return { roleManagement };
+	return { roleManagement, previewPasswordStatus };
 };

@@ -48,7 +48,7 @@
 	}
 
 	function doJoin() {
-		if (!user && firstWorkflow.autoLogin) {
+		if (!user && joinsAnonymously) {
 			registerGuestUserSignupAndRedirect();
 		} else {
 			registerUser();
@@ -78,6 +78,9 @@
 	});
 
 	let firstWorkflow = $derived(workflows[0]);
+	// Someone sent a preview link has no account and no reason to make one, so a preview
+	// always offers the one-click anonymous join, whatever the conversation's own setting.
+	let joinsAnonymously = $derived(firstWorkflow.autoLogin || preview);
 
 	let firstWorkflowPath = $derived(
 		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/next`
@@ -315,7 +318,7 @@
 							{conversation.callToAction || m.join_the_conversation()}
 						</Button>
 					{/if}
-				{:else if firstWorkflow.autoLogin}
+				{:else if joinsAnonymously}
 					<Button
 						class="mt-5 w-full md:w-fit"
 						onclick={handleJoin}
