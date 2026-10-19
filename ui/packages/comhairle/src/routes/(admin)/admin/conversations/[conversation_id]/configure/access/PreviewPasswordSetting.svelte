@@ -79,6 +79,7 @@
 <div class="flex flex-col gap-4">
 	<FieldLabel
 		type="plain"
+		class="lg:w-auto"
 		label="Preview password"
 		info="Lets people without a Comhairle account open the preview link before launch. Everyone uses the same password. Changing it or turning it off locks out everyone who used the old one. Access also runs out after 7 days."
 	/>
