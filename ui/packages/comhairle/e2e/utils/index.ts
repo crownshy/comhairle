@@ -19,7 +19,6 @@ export const sleep = async (seconds: number): Promise<true> =>
  */
 export async function testWithRefresh(page: Page, tests: () => Promise<void>) {
 	await tests();
-	await sleep(1.5);
 	await page.reload();
 	await sleep(1.5);
 	await tests();
