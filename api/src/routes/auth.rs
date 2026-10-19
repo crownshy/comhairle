@@ -1140,6 +1140,11 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
     // attempts. Session reads (`current_user`, `logout`) stay off it: they run
     // on every page render, and limiting them signs people out at random.
     let credential_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
+    // OTP routes get their own, more lenient bucket: a single OTP sign-in
+    // already costs two of these requests (create then login), so sharing
+    // `credential_limit` with password login/signup left genuine sign-ins
+    // tripping the limit.
+    let otp_limit = option_layer(rate_limiters.map(|limiters| limiters.otp_rate_limiter()));
 
     ApiRouter::new()
         .api_route(
@@ -1171,7 +1176,7 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
                     .description("Login a user with a one time passcode")
                     .response::<200, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/signup",
@@ -1201,7 +1206,7 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
                     .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/create_otp",
@@ -1211,7 +1216,7 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
                     .summary("Create and send a new one time passcode")
                     .response::<201, ()>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/login_otp_token",
@@ -1221,7 +1226,7 @@ pub async fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Co
                     .summary("Verify one-time-passcode from a JWT")
                     .response::<200, Json<UserDto>>()
             })
-            .layer(credential_limit.clone()),
+            .layer(otp_limit.clone()),
         )
         .api_route(
             "/logout",

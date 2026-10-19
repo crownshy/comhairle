@@ -159,7 +159,10 @@
 					apiClient.SignupOtp({ email: emailValue })
 				);
 				if (signup.err !== null) {
-					emailError = 'Failed to sign up with this email';
+					emailError =
+						signup.err.status === HttpStatus.TooManyRequests
+							? 'Too many attempts, please wait a moment and try again'
+							: 'Failed to sign up with this email';
 					isSubmitting = false;
 					return;
 				}
@@ -170,7 +173,10 @@
 				return;
 			}
 
-			emailError = 'Failed to send one-time-passcode';
+			emailError =
+				createOtp.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
 			isSubmitting = false;
 			return;
 		}
@@ -191,7 +197,10 @@
 
 		isSubmitting = false;
 		if (result.err !== null) {
-			emailError = 'Failed to send one-time-passcode';
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
 			return;
 		}
 		codeResent = true;
@@ -214,7 +223,10 @@
 		);
 
 		if (result.err !== null) {
-			emailError = 'Invalid or expired code';
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Invalid or expired code';
 			isSubmitting = false;
 			return;
 		}

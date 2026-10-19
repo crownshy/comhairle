@@ -15,6 +15,7 @@ export enum HttpStatus {
 	NotFound = 404,
 	Conflict = 409,
 	UnprocessableContent = 422,
+	TooManyRequests = 429,
 	InternalServerError = 500,
 	BadGateway = 502
 }
