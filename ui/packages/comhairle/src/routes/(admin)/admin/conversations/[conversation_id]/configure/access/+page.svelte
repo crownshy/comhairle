@@ -141,17 +141,6 @@
 {/snippet}
 
 <div class="divide-border flex max-w-3xl flex-col divide-y">
-	<section class="flex flex-col gap-4 py-6">
-		<h2 class="text-base font-semibold">Preview link</h2>
-		<PreviewPasswordSetting
-			conversationId={conversation.id}
-			conversationSlug={conversation.slug ?? conversation.id}
-			isLive={conversation.isLive}
-			status={data.previewPasswordStatus}
-			canEdit={canAdmin}
-		/>
-	</section>
-
 	<section class="flex flex-col py-6">
 		<h3 class="text-base font-semibold">Visibility</h3>
 		<div class="flex flex-col">
@@ -217,5 +206,16 @@
 				(v) => saveConversationToggle('showThankyouPageFeedbackButton', v)
 			)}
 		</div>
+	</section>
+
+	<section class="flex flex-col gap-4 py-6">
+		<h2 class="text-base font-semibold">Preview link</h2>
+		<PreviewPasswordSetting
+			conversationId={conversation.id}
+			conversationSlug={conversation.slug ?? conversation.id}
+			isLive={conversation.isLive}
+			status={data.previewPasswordStatus}
+			canEdit={canAdmin}
+		/>
 	</section>
 </div>
