@@ -650,11 +650,18 @@ async fn send_broadcast_email_to_opted_in(
 #[instrument(err(Debug), skip(state))]
 async fn register_email_for_updates(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(request): Json<RegisterEmailRequest>,
 ) -> Result<(StatusCode, Json<RegisterEmailResponse>), ComhairleError> {
-    // Verify conversation exists and is public
     let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    let participant_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
+            .await?;
+    if !participant_ids.contains(&user.id) {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
     // Check if email is already registered for this conversation
     if let Ok(_existing) = email_recipients_model::get_by_conversation_and_email(
@@ -1001,7 +1008,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
             post_with(register_email_for_updates, |op| {
                 op.id("RegisterEmailForUpdates")
                     .summary("Register email address for conversation updates")
-                    .description("Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.")
+                    .description("Lets a participant on the conversation (usually a guest) register an email address to receive updates about it. If the email is already registered, returns the existing registration.")
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
@@ -3050,6 +3057,81 @@ mod tests {
 
         // Keep this variable used to avoid accidental changes to the test setup where user lookup fails.
         assert_eq!(member_user.email.as_deref(), Some("org_member@example.com"));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participant_can_register_email_for_updates(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+        let workflow_id = workflow["id"].as_str().unwrap().to_string();
+
+        let mut guest = UserSession::new_guest();
+        guest.signup_guest(&app).await?;
+        guest
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/register"),
+                Body::empty(),
+            )
+            .await?;
+
+        let (status, _, _) = guest
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/email-updates"),
+                json!({
+                    "email": "guest@example.com",
+                    "receive_updates_by_email": true,
+                    "receive_similar_conversation_updates_by_email": false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn non_participant_cannot_register_email_for_updates(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+
+        let mut outsider = UserSession::new_guest();
+        outsider.signup_guest(&app).await?;
+
+        let (status, _, _) = outsider
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/email-updates"),
+                json!({
+                    "email": "outsider@example.com",
+                    "receive_updates_by_email": true,
+                    "receive_similar_conversation_updates_by_email": false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
 
         Ok(())
     }
