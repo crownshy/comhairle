@@ -23,7 +23,7 @@ function Combobox(initialName: string, refs: Refs) {
 
 		// Wait for dialog to close
 		await eventually(() =>
-			expect(refs.page.getByRole('listbox', { name: 'Suggesstions...' })).not.toBeVisible()
+			expect(refs.page.getByRole('listbox', { name: 'Suggestions...' })).not.toBeVisible()
 		);
 
 		name = option;
