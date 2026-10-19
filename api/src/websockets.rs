@@ -376,6 +376,12 @@ impl ComhairleWebSocketService {
         })
     }
 
+    fn required_redis_service(&self) -> Result<&ComhairleWebSocketServiceRedis, ComhairleError> {
+        self.redis_service
+            .as_ref()
+            .ok_or(ComhairleError::NoRedisServiceConfigured)
+    }
+
     pub async fn start_pubsub_subscriber(
         &self,
     ) -> Result<tokio::task::JoinHandle<()>, ComhairleError> {
@@ -384,7 +390,7 @@ impl ComhairleWebSocketService {
                 "Redis pub/sub is not configured".to_string(),
             ));
         }
-        let redis_service = self.redis_service.as_ref().unwrap();
+        let redis_service = self.required_redis_service()?;
         // Create a DEDICATED connection just for listening
         let client = redis::Client::open(redis_service.redis_url.as_str())
             .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
@@ -415,7 +421,9 @@ impl ComhairleWebSocketService {
                         authenticated_only,
                     } => {
                         // PREVENT ECHO: Skip if we sent this message!
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
@@ -436,7 +444,9 @@ impl ComhairleWebSocketService {
                         user_id,
                         message,
                     } => {
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
@@ -451,7 +461,9 @@ impl ComhairleWebSocketService {
                         connection_ids,
                         message,
                     } => {
-                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
                             continue;
                         }
 
@@ -497,7 +509,7 @@ impl ComhairleWebSocketService {
                 "Redis pub/sub is not configured".to_string(),
             ));
         }
-        let redis_service = self.redis_service.as_ref().unwrap();
+        let redis_service = self.required_redis_service()?;
         let mut conn = redis_service.redis_publisher.clone();
         if let Ok(payload) = serde_json::to_string(message) {
             use redis::AsyncCommands;

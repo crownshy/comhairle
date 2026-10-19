@@ -12,10 +12,11 @@ use axum::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use tower::util::option_layer;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::middleware::rate_limit::standard_rate_limiter;
+use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::event::{self, SignupMode};
 use crate::models::event_attendance::{
@@ -277,8 +278,8 @@ pub async fn delete(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    let rate_limit_layer = standard_rate_limiter();
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let auth_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
 
     ApiRouter::new()
         .api_route(
@@ -316,7 +317,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Create a new attendance for a conversation event")
                     .response::<201, Json<EventAttendanceDto>>()
             })
-            .layer(rate_limit_layer),
+            .layer(auth_limit),
         )
         .api_route(
             "/facilitator",
@@ -353,12 +354,10 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<EventAttendanceDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use chrono::{DateTime, Utc};
     use serde_json::json;
     use sqlx::PgPool;
@@ -482,7 +481,7 @@ mod tests {
     }
 
     async fn create_random_open_event(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: &str,
     ) -> Result<serde_json::Value, Box<dyn Error>> {

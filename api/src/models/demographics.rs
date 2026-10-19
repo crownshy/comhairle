@@ -230,6 +230,10 @@ const DEMOGRAPHICS_QUESTION_COLUMNS: [DemographicsQuestionIden; 4] = [
     DemographicsQuestionIden::BucketConfig,
 ];
 
+fn json_expr<T: Serialize>(value: &T) -> Result<SimpleExpr, ComhairleError> {
+    Ok(Expr::val(serde_json::to_value(value)?).into())
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateDemographicsQuestion {
@@ -245,20 +249,23 @@ impl CreateDemographicsQuestion {
         DEMOGRAPHICS_QUESTION_COLUMNS
     }
 
-    fn values(self) -> [SimpleExpr; 4] {
-        [
+    fn try_values(self) -> Result<[SimpleExpr; 4], ComhairleError> {
+        let bucket_config = match &self.bucket_config {
+            Some(json) => json_expr(&json.0)?,
+            None => sea_query::Keyword::Null.into(),
+        };
+
+        Ok([
             self.slug.into(),
             self.display_name.into(),
             self.response_type.into(),
-            self.bucket_config
-                .map(|json| serde_json::to_value(json.0).unwrap())
-                .into(),
-        ]
+            bucket_config,
+        ])
     }
 }
 
 impl PartialDemographicsQuestion {
-    fn to_values(&self) -> Vec<(DemographicsQuestionIden, SimpleExpr)> {
+    fn try_to_values(&self) -> Result<Vec<(DemographicsQuestionIden, SimpleExpr)>, ComhairleError> {
         let mut values = Vec::new();
         if let Some(display_name) = &self.display_name {
             values.push((DemographicsQuestionIden::DisplayName, display_name.into()));
@@ -273,13 +280,14 @@ impl PartialDemographicsQuestion {
 
         if let Some(bucket_config) = &self.bucket_config {
             let json_expr: SimpleExpr = match bucket_config {
-                Some(json) => Expr::val(serde_json::to_value(json.0.clone()).unwrap()).into(),
+                Some(json) => json_expr(&json.0.clone())?,
                 None => sea_query::Keyword::Null.into(),
             };
 
             values.push((DemographicsQuestionIden::BucketConfig, json_expr));
         }
-        values
+
+        Ok(values)
     }
 }
 
@@ -578,7 +586,7 @@ pub async fn create_demographics_question(
     let (sql, values) = sea_query::Query::insert()
         .into_table(DemographicsQuestionIden::Table)
         .columns(CreateDemographicsQuestion::columns())
-        .values(new_demographics_question.values())?
+        .values(new_demographics_question.try_values()?)?
         .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -597,7 +605,7 @@ pub async fn update_demographics_question(
     slug: String,
     updated_demographics_question: PartialDemographicsQuestion,
 ) -> Result<DemographicsQuestion, ComhairleError> {
-    let update_values = updated_demographics_question.to_values();
+    let update_values = updated_demographics_question.try_to_values()?;
 
     if update_values.is_empty() {
         return get_demographics_question_by_slug(db, &slug).await;

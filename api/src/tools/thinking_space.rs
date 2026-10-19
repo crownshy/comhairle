@@ -203,7 +203,7 @@ impl ToolImpl for ThinkingSpaceTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/thinking_space",
@@ -332,7 +332,6 @@ Use a raw HTTP request and process the response body incrementally.
                         .response::<200, Json<ThinkingSpaceInsightsResponse>>()
                 }),
             )
-            .with_state(state.clone())
     }
 }
 

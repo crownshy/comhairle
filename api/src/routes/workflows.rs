@@ -282,7 +282,7 @@ async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    let workflow = workflow::delete(&state.db, &workflow_id).await?.into();
+    let workflow = workflow::delete(&state, &workflow_id).await?.into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -300,7 +300,7 @@ impl Display for WorkflowRouterContext {
     }
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
     let router = ApiRouter::new()
         .api_route(
             "/",
@@ -363,7 +363,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             )),
         );
 
-    let router = match ctx {
+    match ctx {
         WorkflowRouterContext::Conversation => router
             .api_route(
                 "/{workflow_id}/next",
@@ -424,9 +424,7 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                 }),
             ),
         _ => router,
-    };
-
-    router.with_state(state)
+    }
 }
 
 #[cfg(test)]

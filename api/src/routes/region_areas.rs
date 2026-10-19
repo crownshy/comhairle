@@ -121,7 +121,7 @@ async fn import_region_areas(
     Ok((StatusCode::CREATED, Json(areas)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/intersecting",
@@ -196,5 +196,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .layer(DefaultBodyLimit::max(256 * 1024 * 1024))
-        .with_state(state)
 }

@@ -39,19 +39,15 @@ async fn list(
     Ok((StatusCode::OK, Json(services)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .api_route(
-            "/",
-            get_with(list, |op| {
-                op.id("ListSupportedServices")
-                    .summary("List of supported services")
-                    .description(
-                        "List of services supported (configured) by current Comhairle server",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleServices>>()
-            }),
-        )
-        .with_state(state)
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
+    ApiRouter::new().api_route(
+        "/",
+        get_with(list, |op| {
+            op.id("ListSupportedServices")
+                .summary("List of supported services")
+                .description("List of services supported (configured) by current Comhairle server")
+                .security_requirement("JWT")
+                .response::<200, Json<ComhairleServices>>()
+        }),
+    )
 }

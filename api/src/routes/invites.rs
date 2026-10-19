@@ -10,13 +10,17 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
+use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
     ComhairleState,
     error::ComhairleError,
-    middleware::request_logging::{ClientIp, ClientUserAgent},
+    middleware::{
+        rate_limit::RateLimitLayers,
+        request_logging::{ClientIp, ClientUserAgent},
+    },
     models::{
         self, breakout_plan, conversation, event,
         event_attendance::{self, CreateEventAttendance},
@@ -336,7 +340,7 @@ async fn auto_register_event_attendance(
 
     let invite = invite.accept(&state.db, &user).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let cookie = create_session_cookie(&user, &state)?;
 
     event
         .schedule_event_reminders(
@@ -363,7 +367,9 @@ async fn auto_register_event_attendance(
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let auth_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
+
     ApiRouter::new()
         .api_route(
             "/",
@@ -468,9 +474,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Auto register event attendance")
                     .tag("Invites")
                     .response::<200, Json<InviteDto>>()
-            }),
+            })
+            .layer(auth_limit),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

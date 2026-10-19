@@ -1,18 +1,30 @@
 <script lang="ts">
 	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Badge, type BadgeVariant } from '$lib/components/ui/badge';
+	import {
+		conversationStatus,
+		CONVERSATION_STATUS_LABELS,
+		type ConversationStatus
+	} from '$lib/utils/conversationStatus';
 	import { ArrowRight, MessageSquareText } from 'lucide-svelte';
 
-	let {
-		conversation,
-		variant = 'admin',
-		organizationName
-	}: {
+	type Props = {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
-	} = $props();
+		isShared?: boolean;
+	};
+
+	let { conversation, variant = 'admin', organizationName, isShared = false }: Props = $props();
+
+	const STATUS_BADGE_VARIANTS: Record<ConversationStatus, BadgeVariant> = {
+		live: 'default',
+		draft: 'draft',
+		completed: 'secondary'
+	};
+
+	let status = $derived(conversationStatus(conversation));
 </script>
 
 <!-- Image snippet -->
@@ -85,11 +97,14 @@
 			<!-- Text content -->
 			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-					{#if conversation.isLive}
-						<Badge variant="default" class="h-7 text-sm">Live</Badge>
-					{:else}
-						<Badge variant="draft" class="h-7 text-sm">Draft</Badge>
-					{/if}
+					<div class="flex flex-wrap gap-2">
+						<Badge variant={STATUS_BADGE_VARIANTS[status]} class="h-7 text-sm">
+							{CONVERSATION_STATUS_LABELS[status]}
+						</Badge>
+						{#if isShared}
+							<Badge variant="outline" class="h-7 text-sm">Shared</Badge>
+						{/if}
+					</div>
 
 					<h2
 						class="text-foreground self-stretch text-xl leading-7 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-2xl"

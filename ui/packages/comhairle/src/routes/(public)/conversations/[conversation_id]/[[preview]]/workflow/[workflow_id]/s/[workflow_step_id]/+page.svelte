@@ -170,6 +170,7 @@
 			} else {
 				goToThankYouPage();
 			}
+			submittingStepId = null;
 			return;
 		}
 
@@ -222,8 +223,8 @@
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
-			submittingStepId = null;
 		}
+		submittingStepId = null;
 	}
 </script>
 

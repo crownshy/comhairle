@@ -63,7 +63,7 @@ async fn update(
     Ok((StatusCode::OK, Json(chat)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -87,5 +87,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<ComhairleChat>>()
             }),
         )
-        .with_state(state)
 }
