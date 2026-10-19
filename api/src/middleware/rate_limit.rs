@@ -26,6 +26,19 @@ impl RateLimitConfig {
         }
     }
 
+    /// Creates a rate limit config for OTP endpoints.
+    ///
+    /// A single OTP sign-in already costs two credential-shaped requests
+    /// (`create_otp` then `login_otp`), plus a possible resend, so it needs more
+    /// headroom than `auth_strict` to avoid locking out a genuine sign-in.
+    /// 10 requests per minute with a burst of 6
+    pub fn otp_strict() -> Self {
+        Self {
+            per_minute: 10,
+            burst_size: 6,
+        }
+    }
+
     /// Creates a standard rate limit config for general API endpoints
     /// 100 requests per minute with a burst of 20
     pub fn standard() -> Self {
@@ -72,6 +85,7 @@ pub type LimitLayer<M> = GovernorLayer<SmartIpKeyExtractor, M, Body>;
 pub struct RateLimitLayers {
     standard: Arc<GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware>>,
     auth_strict: Arc<GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware>>,
+    otp_strict: Arc<GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware>>,
     lenient: Arc<GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware>>,
 }
 
@@ -84,6 +98,9 @@ impl RateLimitLayers {
             standard: Arc::new(build_governor_config(RateLimitConfig::standard())),
             auth_strict: Arc::new(build_governor_config_with_headers(
                 RateLimitConfig::auth_strict(),
+            )),
+            otp_strict: Arc::new(build_governor_config_with_headers(
+                RateLimitConfig::otp_strict(),
             )),
             lenient: Arc::new(build_governor_config(RateLimitConfig::lenient())),
         }
@@ -107,6 +124,18 @@ impl RateLimitLayers {
         GovernorLayer::new(Arc::clone(&self.auth_strict))
     }
 
+    /// Pre-configured rate limiter for OTP endpoints (create/login/resend by OTP)
+    /// - 10 requests per minute per IP
+    /// - Burst capacity of 6 requests
+    /// - Kept separate from `auth_rate_limiter` so a normal OTP sign-in
+    ///   (create + login, plus an occasional resend) isn't starved by the
+    ///   stricter password login/signup bucket on the same IP.
+    ///
+    /// This is also wired to add `x-ratelimit-*` headers to responses.
+    pub fn otp_rate_limiter(&self) -> LimitLayer<StateInformationMiddleware> {
+        GovernorLayer::new(Arc::clone(&self.otp_strict))
+    }
+
     /// Pre-configured rate limiter for lenient endpoints
     /// - 300 requests per minute per IP
     /// - Burst capacity of 50 requests
@@ -123,7 +152,8 @@ impl RateLimitLayers {
     pub fn retain_recent(&self) {
         self.standard.limiter().retain_recent();
         self.auth_strict.limiter().retain_recent();
-        self.standard.limiter().retain_recent();
+        self.otp_strict.limiter().retain_recent();
+        self.lenient.limiter().retain_recent();
     }
 
     /// Spawns a separate background task to clean up stale entries.
