@@ -1005,8 +1005,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
-            })
-                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            }),
         )
         .api_route(
             "/{conversation_id}/contacts/export",
