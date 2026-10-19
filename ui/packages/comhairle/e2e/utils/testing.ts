@@ -35,15 +35,19 @@ export const test = base.extend<Fixtures>({
 	}
 });
 
+type Options = {
+	interval?: number;
+	timeout?: number;
+};
 /**
  * @important *IMPORTANT: Make sure to use an `expect` inside of the function callback*
  * @description Poll periodically to check whether the test has passed. Used for things which take a variable amount of time to update, such as saving spinners or fetch requests
  * @param callback - The `expect` you want to check
- * @param timeout - Timeout (in seconds) until the test gives up and fails, defaults to 25 seconds
+ * @param options - Timeout (in seconds) until the test gives up and fails, defaults to 25 seconds & Interval at which the test will check if it's succeeded, defaults to 5 seconds
  */
-export const eventually = async (callback: () => Promise<void>, timeout?: number) => {
+export const eventually = async (callback: () => Promise<void>, options?: Options) => {
 	await expect(callback).toPass({
-		intervals: [5 * Second],
-		timeout: (timeout ?? 25) * Second
+		intervals: [(options?.interval ?? 5) * Second],
+		timeout: (options?.timeout ?? 25) * Second
 	});
 };

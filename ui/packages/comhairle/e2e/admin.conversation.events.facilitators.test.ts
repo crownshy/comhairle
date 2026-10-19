@@ -1,4 +1,4 @@
-import { test } from './utils/testing';
+import { eventually, test } from './utils/testing';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import Events from './utils/navigation/Events';
@@ -25,17 +25,19 @@ test('Events/Facilitators page', async ({ page }) => {
 	if (!(await isSelected(FacilitatorBtn))) await FacilitatorBtn.click();
 
 	await AttendeeBtn.click();
-	await testWithRefresh(page, async () => {
-		expect(await isSelected(AttendeeBtn)).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => expect(await isSelected(AttendeeBtn)).toBe(true), { interval: 0.2 })
+	);
 
 	await ModeratorBtn.click();
-	await testWithRefresh(page, async () => {
-		expect(await isSelected(ModeratorBtn)).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => expect(await isSelected(ModeratorBtn)).toBe(true), { interval: 0.2 })
+	);
 
 	await FacilitatorBtn.click();
-	await testWithRefresh(page, async () => {
-		expect(await isSelected(FacilitatorBtn)).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => expect(await isSelected(FacilitatorBtn)).toBe(true), {
+			interval: 0.2
+		})
+	);
 });
