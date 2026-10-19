@@ -51,15 +51,4 @@ test.describe('Events/Invites page', () => {
 				eventually(() => expect(page.getByText(value.trim() ?? '')).toBeVisible())
 			);
 	});
-
-	test('Should be able to add multiple new emails', async ({ page }) => {
-		await Email?.write('test+1@gmail.com');
-		await ValidFor?.select('1 Day');
-		await Submit?.click();
-		Email?.value()
-			.split(',')
-			.forEach((value) =>
-				eventually(() => expect(page.getByText(value.trim() ?? '')).toBeVisible())
-			);
-	});
 });

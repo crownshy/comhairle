@@ -5,7 +5,7 @@ type Options = Omit<Parameters<typeof Textbox>[2], 'overrideRole' | 'resetTo'> &
 	resetTo?: number;
 };
 
-async function NumericTextbox(name: string, refs: Refs, options?: Options) {
+async function NumericTextbox(name: string | undefined, refs: Refs, options?: Options) {
 	const Txtbox = await Textbox(name, refs, {
 		overrideRole: 'spinbutton',
 		resetTo: options?.resetTo?.toString()
