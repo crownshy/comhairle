@@ -1,7 +1,8 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Check, ChevronDown, Lock, Rocket } from 'lucide-svelte';
+	import { Check, ChevronDown, Eye, Lock, Rocket } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { cn } from '$lib/utils';
@@ -22,6 +23,12 @@
 	};
 	let { conversation, stepCount, hasPolisStep, path }: Props = $props();
 
+	let previewHref = $derived(
+		resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+			conversation_id: conversation.id,
+			preview: 'preview'
+		})
+	);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
 	let stages = $derived(
 		conversationStages({ conversation, pathname: path, canAdmin, hasPolisStep })
@@ -30,6 +37,7 @@
 	let sections = $derived(
 		stages.flatMap((stage) => (stage.link ? [stage.link] : stage.sections))
 	);
+	let lastSetUpSection = $derived(stages.find((stage) => stage.id === 'set-up')?.sections.at(-1));
 
 	// Engage and Results fold, and so does Set up once launched. Locked stages and a
 	// launched Set up start folded, but admins can still open them to look or make changes.
@@ -240,6 +248,19 @@
 </ol>
 
 <!-- Collapsed: one icon per section, in the same order. -->
+{#snippet previewIcon()}
+	<SideBar.MenuItem>
+		<SideBar.MenuButton tooltipContent="Preview">
+			{#snippet child({ props })}
+				<a {...props} href={previewHref} target="_blank">
+					<Eye />
+					<span class="sr-only">Preview</span>
+				</a>
+			{/snippet}
+		</SideBar.MenuButton>
+	</SideBar.MenuItem>
+{/snippet}
+
 <SideBar.Menu class="hidden items-center group-data-[collapsible=icon]:flex">
 	{#each sections as link (link.path)}
 		<SideBar.MenuItem>
@@ -258,5 +279,8 @@
 				{/snippet}
 			</SideBar.MenuButton>
 		</SideBar.MenuItem>
+		{#if link === lastSetUpSection}
+			{@render previewIcon()}
+		{/if}
 	{/each}
 </SideBar.Menu>

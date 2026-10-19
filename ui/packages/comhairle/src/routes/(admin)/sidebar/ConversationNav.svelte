@@ -8,13 +8,14 @@
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from '$lib/components/ui/sidebar/constants';
 	import { useSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from '$lib/components/sidebarWidth.js';
-	import type { UserDto } from '@crownshy/api-client/api';
-	import type { StageConversation } from './conversationStages';
+	import type { ConversationWithTranslations, UserDto } from '@crownshy/api-client/api';
+	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import ConversationStatus from './ConversationStatus.svelte';
 	import ConversationSection from './ConversationSection.svelte';
 	import UserMenu from './UserMenu.svelte';
 
 	type Props = {
-		conversation: StageConversation;
+		conversation: ConversationWithTranslations;
 		stepCount: number;
 		hasPolisStep: boolean;
 		user: UserDto;
@@ -22,6 +23,13 @@
 	};
 
 	let { conversation, stepCount, hasPolisStep, user, path }: Props = $props();
+	let title = $derived(
+		getTextInLocale(
+			conversation.translations?.title,
+			conversation.primaryLocale ?? 'en',
+			conversation.title
+		) || conversation.title
+	);
 
 	const sidebar = useSidebar();
 	const sidebarWidth = useSidebarWidth();
@@ -36,41 +44,50 @@
 
 <SideBar.Root collapsible="icon">
 	<SideBar.Header
-		class="flex flex-row items-center justify-between gap-2 py-6 pr-3 pl-4 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
+		class="flex flex-col gap-2 pt-5 pr-3 pb-3 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>
-		<a
-			href={resolve('/admin/conversations')}
-			title="Back to conversations"
-			class="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10 -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-base group-data-[collapsible=icon]:hidden"
+		<div class="flex min-h-8 items-center justify-between gap-2">
+			<a
+				href={resolve('/admin/conversations')}
+				title="Back to conversations"
+				class="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-foreground/10 -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-base group-data-[collapsible=icon]:hidden"
+			>
+				<ArrowLeft class="size-4 shrink-0" />
+				Conversations
+			</a>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-sidebar-foreground/70 hover:text-sidebar size-7 shrink-0 group-data-[collapsible=icon]:hidden"
+				title={toggleTitle}
+				aria-label="Collapse sidebar"
+				onclick={() => sidebar.toggle()}
+			>
+				<PanelLeftClose class="size-4" />
+			</Button>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-sidebar-foreground/70 hover:text-sidebar hidden size-7 group-data-[collapsible=icon]:flex"
+				title={toggleTitle}
+				aria-label="Expand sidebar"
+				onclick={expandSidebar}
+			>
+				<PanelLeftOpen class="size-4" />
+			</Button>
+		</div>
+		<h1
+			class="text-sidebar-foreground line-clamp-2 text-lg leading-7 font-semibold group-data-[collapsible=icon]:hidden"
+			{title}
 		>
-			<ArrowLeft class="size-4 shrink-0" />
-			Conversations
-		</a>
-		<Button
-			variant="ghost"
-			size="icon"
-			class="text-sidebar-foreground/70 hover:text-sidebar size-7 group-data-[collapsible=icon]:hidden"
-			title={toggleTitle}
-			aria-label="Collapse sidebar"
-			onclick={() => sidebar.toggle()}
-		>
-			<PanelLeftClose class="size-4" />
-		</Button>
-		<Button
-			variant="ghost"
-			size="icon"
-			class="text-sidebar-foreground/70 hover:text-sidebar mx-auto hidden size-7 group-data-[collapsible=icon]:flex"
-			title={toggleTitle}
-			aria-label="Expand sidebar"
-			onclick={expandSidebar}
-		>
-			<PanelLeftOpen class="size-4" />
-		</Button>
+			{title}
+		</h1>
 	</SideBar.Header>
 
 	<SideBar.Content
-		class="flex flex-col gap-4 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
+		class="flex flex-col gap-6 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
+		<ConversationStatus {conversation} />
 		<ConversationSection {conversation} {stepCount} {hasPolisStep} {path} />
 	</SideBar.Content>
 
