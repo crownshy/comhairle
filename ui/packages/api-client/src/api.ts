@@ -5465,7 +5465,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "delete",
-    path: "/demographics/conversations_questions/:conversation_id/:question_slug/",
+    path: "/demographics/conversations_questions/:conversation_id/:question_slug",
     alias: "DeleteConversationDemographicsByQuestion",
     description: `Delete demographics responses for a specific conversation and question`,
     requestFormat: "json",
@@ -7202,6 +7202,14 @@ Create a response for prioritization tool proposal
   },
   {
     method: "get",
+    path: "/tools/survey_tool/conversation/:conversation_id/workflow_step/:step_id/submissions/csv",
+    alias: "HeyFormExportSubmissionsCsv",
+    description: `Downloads one row per respondent and one column per question, with choice ids resolved to their labels. Unaggregated, unlike /insights.`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
     path: "/tools/survey_tool/workflow_step/:workflow_step_id/form",
     alias: "HeyFormGetForm",
     description: `Fetches the form for the HeyForm tool attached to a workflow step`,
@@ -7238,14 +7246,6 @@ Create a response for prioritization tool proposal
       },
     ],
     response: Submissions,
-  },
-  {
-    method: "get",
-    path: "/tools/survey_tool/workflow_step/:workflow_step_id/submissions/csv",
-    alias: "HeyFormExportSubmissionsCsv",
-    description: `Downloads one row per respondent and one column per question, with choice ids resolved to their labels. Unaggregated, unlike /insights.`,
-    requestFormat: "json",
-    response: z.void(),
   },
   {
     method: "post",

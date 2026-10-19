@@ -9,7 +9,6 @@ use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
-    Router,
     body::Body,
     http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
     response::Response,
@@ -374,7 +373,7 @@ impl UserSession {
 
     pub async fn get(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("GET");
@@ -404,7 +403,7 @@ impl UserSession {
 
     pub async fn get_with_api_key(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         api_key: &str,
     ) -> Result<(StatusCode, Value), Box<dyn Error>> {
@@ -424,7 +423,7 @@ impl UserSession {
 
     pub async fn delete(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let mut request = Request::builder().uri(url).method("DELETE");
@@ -454,7 +453,7 @@ impl UserSession {
 
     pub async fn delete_with_body(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -488,7 +487,7 @@ impl UserSession {
 
     pub async fn post(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -522,7 +521,7 @@ impl UserSession {
 
     pub async fn post_raw_response(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Body, Vec<HeaderValue>), Box<dyn Error>> {
@@ -557,7 +556,7 @@ impl UserSession {
 
     pub async fn post_multipart(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         boundary: &str,
         body: Body,
@@ -592,7 +591,7 @@ impl UserSession {
 
     pub async fn post_with_headers(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
         headers: &[(HeaderName, HeaderValue)],
@@ -631,7 +630,7 @@ impl UserSession {
 
     pub async fn put(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -665,7 +664,7 @@ impl UserSession {
 
     pub async fn patch(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         url: &str,
         body: Body,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -699,7 +698,7 @@ impl UserSession {
 
     pub async fn logout(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.cookies = None;
         self.post(app, "/auth/logout", Body::empty()).await
@@ -707,7 +706,7 @@ impl UserSession {
 
     pub async fn current_user(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, UserDto, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
@@ -718,7 +717,7 @@ impl UserSession {
 
     pub async fn login(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         email: &str,
         password: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -734,7 +733,7 @@ impl UserSession {
 
     pub async fn login_guest(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -746,7 +745,7 @@ impl UserSession {
 
     pub async fn signup_guest(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
     {
         let (status, value, cookie) = self.post(app, "/auth/signup_guest", Body::empty()).await?;
@@ -761,7 +760,7 @@ impl UserSession {
 
     pub async fn signup(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, HashMap<String, Option<Value>>, Vec<HeaderValue>), Box<dyn Error>>
     {
         let body: Body = if self.username.is_some() {
@@ -786,7 +785,7 @@ impl UserSession {
 
     pub async fn resend_verification_email(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -798,7 +797,7 @@ impl UserSession {
 
     pub async fn verify_email_token(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         token: String,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -811,7 +810,7 @@ impl UserSession {
 
     pub async fn update_user_details(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         update_user: UpdateUserRequest,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.put(
@@ -825,7 +824,7 @@ impl UserSession {
 
     pub async fn password_reset_create(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         email: String,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -838,7 +837,7 @@ impl UserSession {
 
     pub async fn password_reset_update(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         token: &str,
         password: &str,
         confirm_password: &str,
@@ -855,7 +854,7 @@ impl UserSession {
 
     pub async fn create_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         new_coversation: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self
@@ -866,7 +865,7 @@ impl UserSession {
 
     pub async fn update_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         id: &str,
         conversation_update: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -882,7 +881,7 @@ impl UserSession {
 
     pub async fn list_conversations(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -895,7 +894,7 @@ impl UserSession {
 
     pub async fn delete_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.delete(app, &format!("/conversation/{id}")).await
@@ -904,7 +903,7 @@ impl UserSession {
     /// Creates a random launched conversation
     pub async fn create_random_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
@@ -935,7 +934,7 @@ impl UserSession {
     /// Creates a random unlaunched conversation
     pub async fn create_random_unlaunched_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let title: String = Sentence(1..10).fake();
         let description: String = Paragraph(3..4).fake();
@@ -965,7 +964,7 @@ impl UserSession {
 
     pub async fn create_workflow_step(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         workflow_id: &str,
         new_workflow_step: Value,
@@ -980,7 +979,7 @@ impl UserSession {
 
     pub async fn create_random_workflow_steps(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         workflow_id: &str,
         no: i32,
@@ -1013,7 +1012,7 @@ impl UserSession {
 
     pub async fn create_random_workflow(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         convo_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let name: String = Sentence(1..10).fake();
@@ -1039,7 +1038,7 @@ impl UserSession {
 
     pub async fn create_event(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         event: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1053,7 +1052,7 @@ impl UserSession {
 
     pub async fn create_random_event(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
@@ -1075,7 +1074,7 @@ impl UserSession {
 
     pub async fn create_random_event_attendance(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         event_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1093,7 +1092,7 @@ impl UserSession {
 
     pub async fn create_random_event_workflow(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         event_id: &str,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
@@ -1115,7 +1114,7 @@ impl UserSession {
 
     pub async fn create_random_event_workflow_step(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &str,
         event_id: &str,
         workflow_id: &str,
@@ -1140,7 +1139,7 @@ impl UserSession {
 
     pub async fn create_organization(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         organization: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/organizations", organization.to_string().into())
@@ -1149,7 +1148,7 @@ impl UserSession {
 
     pub async fn create_random_organization(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -1168,7 +1167,7 @@ impl UserSession {
 
     pub async fn create_region_area(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         region_area: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/region_areas", region_area.to_string().into())
@@ -1177,7 +1176,7 @@ impl UserSession {
 
     pub async fn create_random_region_area(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let zip_prefix = format!("test-{}", Uuid::new_v4());
         self.post(
@@ -1194,7 +1193,7 @@ impl UserSession {
 
     pub async fn create_region(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         region: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(app, "/regions", region.to_string().into()).await
@@ -1202,7 +1201,7 @@ impl UserSession {
 
     pub async fn create_random_region(
         &mut self,
-        app: &Router,
+        app: &crate::App,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
@@ -1220,7 +1219,7 @@ impl UserSession {
 
     pub async fn get_conversation(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         id: &str,
     ) -> Result<(StatusCode, HashMap<String, Value>, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
@@ -1230,7 +1229,7 @@ impl UserSession {
 
     pub async fn create_job(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         new_job: serde_json::Value,
     ) -> Result<(StatusCode, Value, Vec<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
@@ -1240,7 +1239,7 @@ impl UserSession {
 
     pub async fn create_prioritization_workflow_step(
         &mut self,
-        app: &Router,
+        app: &crate::App,
         conversation_id: &Uuid,
         workflow_id: &Uuid,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

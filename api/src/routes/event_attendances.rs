@@ -277,7 +277,7 @@ pub async fn delete(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     let rate_limit_layer = standard_rate_limiter();
 
     ApiRouter::new()
@@ -353,12 +353,10 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<EventAttendanceDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use chrono::{DateTime, Utc};
     use serde_json::json;
     use sqlx::PgPool;
@@ -482,7 +480,7 @@ mod tests {
     }
 
     async fn create_random_open_event(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: &str,
     ) -> Result<serde_json::Value, Box<dyn Error>> {

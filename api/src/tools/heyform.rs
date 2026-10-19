@@ -300,7 +300,7 @@ impl ToolImpl for HeyFormTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
@@ -361,7 +361,6 @@ impl ToolImpl for HeyFormTool {
                     permission_middleware::<ConversationResource>,
                 )),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -1417,7 +1416,7 @@ mod tests {
     }
 
     async fn create_heyform_workflow_step(
-        app: &axum::Router,
+        app: &crate::App,
         session: &mut crate::test_helpers::UserSession,
         server_url: &str,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

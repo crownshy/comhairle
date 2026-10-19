@@ -511,7 +511,7 @@ async fn delete(
     Ok((StatusCode::OK, Json(organization)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     use crate::middleware::permissions::{
         PermissionRequirement, authenticate, authorize as permission_middleware,
     };
@@ -660,7 +660,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .route_layer(from_fn_with_state(requirement(Action::Delete), permission_middleware::<OrganizationResource>))
                     .route_layer(from_fn(authenticate::<RequiredAdminUser>)),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
