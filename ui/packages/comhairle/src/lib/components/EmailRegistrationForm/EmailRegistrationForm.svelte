@@ -7,6 +7,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	type Props = {
 		conversation_id: string;
@@ -28,9 +29,9 @@
 			return;
 		}
 
-		try {
-			registering = true;
-			const response = await apiClient.RegisterEmailForUpdates(
+		registering = true;
+		const registration = await tryCatchAsync(() =>
+			apiClient.RegisterEmailForUpdates(
 				{
 					email: result.data.email,
 					receive_updates_by_email: result.data.receive_updates_by_email,
@@ -38,25 +39,32 @@
 						result.data.receive_similar_conversation_updates_by_email
 				},
 				{ params: { conversation_id } }
-			);
-			notifications.send({ message: response.message });
-			onSuccess?.();
-		} catch (e) {
+			)
+		);
+		registering = false;
+
+		if (registration.err !== null) {
 			notifications.send({
 				priority: 'ERROR',
 				message: 'Failed to register email for updates'
 			});
 			$message = 'Failed to register email for updates';
-		} finally {
-			registering = false;
+			return;
 		}
+
+		notifications.send({ message: registration.ok.message });
+		onSuccess?.();
 	}
 
 	const form = superForm(defaults(zod(emailRegistrationSchema)), {
 		validators: zodClient(emailRegistrationSchema),
 		taintedMessage: false,
 		validationMethod: 'oninput',
-		onSubmit: registerEmail
+		// Submit through the API only; the page has no form action to post to.
+		onSubmit: async ({ cancel }) => {
+			cancel();
+			await registerEmail();
+		}
 	});
 
 	let { form: formData, enhance, validateForm, message } = form;
