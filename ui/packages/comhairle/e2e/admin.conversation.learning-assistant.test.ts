@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { Textbox, Switch } from './utils/components';
+import { Switch, NumericTextbox } from './utils/components';
 import { eventually, test } from './utils/testing';
 import { exists, sleep, testWithRefresh } from './utils';
 
@@ -53,26 +53,22 @@ test('Learning Assistant page', async ({ page, cleanup }) => {
 	);
 
 	// Target reading age
-	const TargetReadingAge = await Textbox(
-		undefined,
-		{ page, cleanup },
-		{ resetTo: '9', overrideRole: 'spinbutton' }
-	);
+	const TargetReadingAge = await NumericTextbox(undefined, { page, cleanup }, { resetTo: 9 });
 
-	await TargetReadingAge.write('18');
+	await TargetReadingAge.write(18);
 
-	await TargetReadingAge.write('19');
+	await TargetReadingAge.write(19);
 	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.write('10');
+	await TargetReadingAge.write(10);
 	expect(await TargetReadingAge.isValid()).toBe(true);
 
-	await TargetReadingAge.write('4');
+	await TargetReadingAge.write(4);
 	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.write('8');
+	await TargetReadingAge.write(8);
 
 	await testWithRefresh(page, async () => {
 		await TargetReadingAge.expect();

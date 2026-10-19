@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { Calendar, Combobox, Textbox, TimeRangePicker } from '../components';
+import { Calendar, Combobox, NumericTextbox, Textbox, TimeRangePicker } from '../components';
 import type { Page } from '../types';
 import { eventually } from '../testing';
 
@@ -36,7 +36,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 
 	const Title = await Textbox('Title', { page });
 	const Description = await Textbox('Description', { page });
-	const Capacity = await Textbox('Capacity', { page }, { overrideRole: 'spinbutton' });
+	const Capacity = await NumericTextbox('Capacity', { page });
 	const DefaultTimezone = Combobox('Europe/London', { page });
 	const Date = Calendar('Event date', { page });
 	const Time = TimeRangePicker(undefined, { page });
@@ -62,7 +62,7 @@ async function add({ page, event, from, withTests }: AddParams) {
 	await Description.write(event?.description);
 
 	// Capacity
-	await Capacity.write(event?.capacity?.toString() ?? '2');
+	await Capacity.write(event?.capacity ?? 2);
 
 	// Default time zone
 	// await DefaultTimezone.select(event?.timezone);
