@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import type { PageLoad } from './$types';
 
 /** Valid sub-tab route segments. A legacy `?subtab=` value is honoured if it matches one. */
@@ -14,7 +15,10 @@ export const load: PageLoad = async (event) => {
 	if (legacy === 'moderation') {
 		redirect(
 			307,
-			`/admin/conversations/${event.params.conversation_id}/moderate/step/${event.params.step_id}`
+			resolve(
+				'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+				event.params
+			)
 		);
 	}
 	const target = legacy && SUBTAB_SEGMENTS.includes(legacy) ? legacy : 'setup';

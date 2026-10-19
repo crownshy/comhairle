@@ -1,15 +1,11 @@
-import type { PolisStatementAux } from '@crownshy/api-client/api';
-import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { key } from '$lib/utils/invalidationKey';
+import { loadPolisStatements } from '$lib/tools/polis/loadStatements';
 import type { PageLoad } from './$types';
 
 // Polis Setup lists the step's seed statements, so it loads the statements here.
 export const load: PageLoad = async ({ parent, depends }) => {
-	depends('polis:statement-aux');
+	depends(key('admin/polis/statements'));
 	const { api, toolConfig, step_id } = await parent();
-	if (toolConfig?.type !== 'polis') return { statements: [] as PolisStatementAux[] };
-
-	const statementAux = await tryCatchAsync(() =>
-		api.PolisListStatementAux({ queries: { workflow_step_id: step_id } })
-	);
-	return { statements: statementAux.err !== null ? [] : statementAux.ok };
+	if (toolConfig?.type !== 'polis') return { statements: [], statementsFailed: false };
+	return loadPolisStatements(api, step_id);
 };

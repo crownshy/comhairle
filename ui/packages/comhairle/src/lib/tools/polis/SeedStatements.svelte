@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { ChevronDown, RotateCcw, Trash2 } from '@lucide/svelte';
@@ -62,7 +63,7 @@
 			});
 			return;
 		}
-		await invalidate('polis:statement-aux');
+		await invalidate(key('admin/polis/statements'));
 		pending = { ...pending, [seed.id]: false };
 	}
 </script>
@@ -81,7 +82,7 @@
 				{workflowStepId}
 				existingStatements={statements.map((statement) => statement.statement_text)}
 				removedSeeds={removedSeeds.map((seed) => seed.statement_text)}
-				onSeeded={() => invalidate('polis:statement-aux')}
+				onSeeded={() => invalidate(key('admin/polis/statements'))}
 			/>
 		{/if}
 	</div>

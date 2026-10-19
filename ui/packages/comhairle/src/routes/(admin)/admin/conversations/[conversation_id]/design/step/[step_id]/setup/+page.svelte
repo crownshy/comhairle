@@ -25,6 +25,11 @@
 {/if}
 
 {#if step && toolConfig?.type === 'polis'}
+	{#if data.statementsFailed}
+		<p class="text-destructive mb-4">
+			Seed statements could not be loaded. Try reloading the page.
+		</p>
+	{/if}
 	<PolisManage
 		{toolConfig}
 		conversationId={conversation.id}

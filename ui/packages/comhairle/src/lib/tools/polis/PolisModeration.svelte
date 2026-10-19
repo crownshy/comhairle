@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
@@ -44,7 +45,7 @@
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,
 	// then resyncs on its own when the load re-runs (sync/seed invalidate
-	// `polis:statement-aux` and a fresh `initialStatements` flows back down).
+	// the Polis statements key and a fresh `initialStatements` flows back down).
 	let statements = $derived(initialStatements);
 
 	// --- Sync from Polis ---
@@ -76,7 +77,7 @@
 			}`
 		});
 		// Keep the spinner up through the reload so the button doesn't flicker.
-		await invalidate('polis:statement-aux');
+		await invalidate(key('admin/polis/statements'));
 		syncing = false;
 	}
 
@@ -216,7 +217,7 @@
 			});
 		}
 		// Reconcile with server truth (also corrects any partial failures).
-		await invalidate('polis:statement-aux');
+		await invalidate(key('admin/polis/statements'));
 	}
 
 	// --- Accept / reject ---
@@ -391,6 +392,6 @@
 		bind:open={splitOpen}
 		original={splitTarget}
 		viewedContext={splitContext}
-		onDone={() => invalidate('polis:statement-aux')}
+		onDone={() => invalidate(key('admin/polis/statements'))}
 	/>
 {/if}

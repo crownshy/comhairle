@@ -2,7 +2,7 @@
 	@component Trigger for the sensemaking-generated Polis summary (consensus /
 	disagreement / per-group descriptions). Kicks off POST /tools/polis/summary,
 	polls the returned job via GET /jobs/{job_id}, and on completion invalidates
-	`polis:summary` so the parent loader re-fetches the persisted result. Button-only:
+	the Polis summary key so the parent loader re-fetches the persisted result. Button-only:
 	the generated text itself is rendered by the parent (AreaOfConsensus cards,
 	OpinionGroups), not here.
 -->
@@ -12,6 +12,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { Sparkles } from '@lucide/svelte';
 	import { formatDistanceToNow } from 'date-fns';
@@ -64,7 +65,7 @@
 
 		if (jobStatus === 'completed') {
 			jobId = null;
-			await invalidate('polis:summary');
+			await invalidate(key('admin/polis/summary'));
 			return;
 		}
 

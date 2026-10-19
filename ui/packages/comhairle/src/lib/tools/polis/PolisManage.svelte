@@ -14,21 +14,17 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import SeedStatements from './SeedStatements.svelte';
 
-	let {
-		toolConfig,
-		conversationId,
-		workflowId,
-		workflowStepId,
-		isLive,
-		statements
-	}: {
+	type Props = {
 		toolConfig: InstancedToolConfig<'polis'>;
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
 		isLive: boolean;
 		statements: PolisStatementAux[];
-	} = $props();
+	};
+
+	let { toolConfig, conversationId, workflowId, workflowStepId, isLive, statements }: Props =
+		$props();
 
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversationId)
