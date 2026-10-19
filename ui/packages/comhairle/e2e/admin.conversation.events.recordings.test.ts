@@ -11,4 +11,5 @@ test.beforeEach(async ({ page }) => {
 	await Events.subtab(page, 'Recordings');
 });
 
+// TODO: Add these at some point, current it's erroring and don't know how easy it is to make it upload files either
 test('Events/Recordings page', async ({ page }) => {});

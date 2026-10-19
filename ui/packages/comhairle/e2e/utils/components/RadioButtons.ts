@@ -6,7 +6,7 @@ type Options<T extends string[]> = {
 	resetTo?: T[number];
 };
 
-async function RadioButtons<const T extends string[]>(radios: T, refs: Refs, options: Options<T>) {
+async function RadioButtons<const T extends string[]>(radios: T, refs: Refs, options?: Options<T>) {
 	const getRadio = (name: string) => find(refs.page.getByRole('radio', { name }));
 
 	let selected: T[number] | undefined = await (async () => {
@@ -34,7 +34,7 @@ async function RadioButtons<const T extends string[]>(radios: T, refs: Refs, opt
 		if (!firstSelected) {
 			return;
 		}
-		if (options.resetTo) {
+		if (options?.resetTo) {
 			await (await getRadio(options.resetTo)).click();
 			return;
 		}
