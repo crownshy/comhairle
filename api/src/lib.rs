@@ -154,6 +154,7 @@ pub async fn build_app_and_spec(state: Arc<ComhairleState>) -> (Router, OpenApi)
     let mut allowed_origins = vec![
         "http://localhost".parse::<HeaderValue>().unwrap(),
         "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+        "http://localhost:4173".parse::<HeaderValue>().unwrap(),
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),
         "https://stage.comhairle.scot"
             .parse::<HeaderValue>()
