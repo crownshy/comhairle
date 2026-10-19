@@ -1,4 +1,4 @@
-import { test } from './utils/testing';
+import { eventually, test } from './utils/testing';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 import Events from './utils/navigation/Events';
@@ -21,6 +21,6 @@ test('Events/Breakout-rooms page', async ({ page }) => {
 	await AutoAssign.click();
 
 	await testWithRefresh(page, () =>
-		expect(page.getByText('Room #1 admin@crown-shy.com')).toBeVisible()
+		eventually(() => expect(page.getByText('Room #1 admin@crown-shy.com')).toBeVisible())
 	);
 });

@@ -43,11 +43,11 @@ type Options = {
  * @important *IMPORTANT: Make sure to use an `expect` inside of the function callback*
  * @description Poll periodically to check whether the test has passed. Used for things which take a variable amount of time to update, such as saving spinners or fetch requests
  * @param callback - The `expect` you want to check
- * @param options - Timeout (in seconds) until the test gives up and fails, defaults to 25 seconds & Interval at which the test will check if it's succeeded, defaults to 5 seconds
+ * @param options - Timeout (in seconds) until the test gives up and fails, defaults to 10 seconds & Interval at which the test will check if it's succeeded, defaults to 2 seconds
  */
 export const eventually = async (callback: () => Promise<void>, options?: Options) => {
 	await expect(callback).toPass({
-		intervals: [(options?.interval ?? 5) * Second],
-		timeout: (options?.timeout ?? 25) * Second
+		intervals: [(options?.interval ?? 2) * Second],
+		timeout: (options?.timeout ?? 10) * Second
 	});
 };
