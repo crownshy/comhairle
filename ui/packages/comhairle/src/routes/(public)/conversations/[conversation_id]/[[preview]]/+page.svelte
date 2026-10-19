@@ -27,6 +27,7 @@
 	let emailValue = $state('');
 	let codeValue = $state('');
 	let emailError = $state<string | null>(null);
+	let codeResent = $state(false);
 
 	let guestStep = $state<'closed' | 'choice' | 'code'>('closed');
 	let guestCodeValue = $state('');
@@ -178,6 +179,31 @@
 		emailStep = 'code';
 	}
 
+	async function resendCode() {
+		if (isSubmitting) return;
+		isSubmitting = true;
+		emailError = null;
+		codeResent = false;
+
+		const result = await tryCatchAsync<void, ApiError>(() =>
+			apiClient.CreateOtp({ email: emailValue })
+		);
+
+		isSubmitting = false;
+		if (result.err !== null) {
+			emailError = 'Failed to send one-time-passcode';
+			return;
+		}
+		codeResent = true;
+	}
+
+	function changeEmail() {
+		codeValue = '';
+		emailError = null;
+		codeResent = false;
+		emailStep = 'email';
+	}
+
 	async function submitCode() {
 		if (!codeValue || isSubmitting) return;
 		isSubmitting = true;
@@ -305,15 +331,21 @@
 							submitCode();
 						}}
 					>
-						<span class="inline-block">{emailValue}</span>
+						<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
+						<p class="text-muted-foreground max-w-prose text-base">
+							{m.otp_sent_to_email({ email: emailValue })}
+						</p>
 						<Input
 							placeholder={m.otp_placeholder()}
 							bind:value={codeValue}
+							autocomplete="one-time-code"
 							required
 							disabled={isSubmitting}
 						/>
 						{#if emailError}
 							<p class="text-destructive text-sm">{emailError}</p>
+						{:else if codeResent}
+							<p class="text-base">{m.otp_resent()}</p>
 						{/if}
 						<Button type="submit" disabled={isSubmitting}>
 							{#if isSubmitting}
@@ -321,6 +353,25 @@
 							{/if}
 							{m.verify_code()}
 						</Button>
+						<p class="text-muted-foreground text-base">
+							{m.resend_otp()}
+							<button
+								type="button"
+								class="text-primary underline"
+								onclick={resendCode}
+								disabled={isSubmitting}
+							>
+								{m.send_again()}
+							</button>
+						</p>
+						<button
+							type="button"
+							class="text-primary self-start text-base underline"
+							onclick={changeEmail}
+							disabled={isSubmitting}
+						>
+							{m.use_a_different_email()}
+						</button>
 					</form>
 				{:else if guestStep === 'choice'}
 					<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">
