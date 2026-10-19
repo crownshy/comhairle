@@ -1,7 +1,8 @@
-import { exists, sleep, find } from '../..';
+import { exists, sleep } from '../..';
 import UserInput from './UserInput';
 import type { Refs } from '../types';
 import Tiptap from './Tiptap';
+import Button from '../Button';
 
 type Options = {
 	resetTo?: string;
@@ -15,7 +16,7 @@ const CollapsibleRichField = async (
 ) => {
 	const userInput = await UserInput({
 		async focus() {
-			const btn = await find(refs.page.getByRole('button', { name }));
+			const btn = await Button(name, refs.page);
 			if (await exists(btn)) {
 				await btn.click();
 				return;
