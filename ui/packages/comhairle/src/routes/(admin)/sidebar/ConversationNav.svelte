@@ -9,7 +9,7 @@
 	import { useSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from '$lib/components/sidebarWidth.js';
 	import type { ConversationWithTranslations, UserDto } from '@crownshy/api-client/api';
-	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 	import ConversationStatus from './ConversationStatus.svelte';
 	import ConversationSection from './ConversationSection.svelte';
 	import UserMenu from './UserMenu.svelte';
@@ -23,17 +23,11 @@
 	};
 
 	let { conversation, stepCount, hasPolisStep, user, path }: Props = $props();
-	let title = $derived(
-		getTextInLocale(
-			conversation.translations?.title,
-			conversation.primaryLocale ?? 'en',
-			conversation.title
-		) || conversation.title
-	);
+	let title = $derived(conversationTitle(conversation));
 
 	const sidebar = useSidebar();
 	const sidebarWidth = useSidebarWidth();
-	const toggleTitle = `Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`;
+	const TOGGLE_TITLE = `Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`;
 
 	function expandSidebar() {
 		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
@@ -59,7 +53,7 @@
 				variant="ghost"
 				size="icon"
 				class="text-sidebar-foreground/70 hover:text-sidebar size-7 shrink-0 group-data-[collapsible=icon]:hidden"
-				title={toggleTitle}
+				title={TOGGLE_TITLE}
 				aria-label="Collapse sidebar"
 				onclick={() => sidebar.toggle()}
 			>
@@ -69,7 +63,7 @@
 				variant="ghost"
 				size="icon"
 				class="text-sidebar-foreground/70 hover:text-sidebar hidden size-7 group-data-[collapsible=icon]:flex"
-				title={toggleTitle}
+				title={TOGGLE_TITLE}
 				aria-label="Expand sidebar"
 				onclick={expandSidebar}
 			>
@@ -85,7 +79,7 @@
 	</SideBar.Header>
 
 	<SideBar.Content
-		class="flex flex-col gap-6 overflow-x-hidden overflow-y-auto pt-2 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
+		class="flex flex-col gap-6 overflow-x-hidden overflow-y-auto pt-2 pl-4 [scrollbar-color:color-mix(in_oklab,var(--sidebar-foreground)_25%,transparent)_transparent] [scrollbar-width:thin] group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
 		<ConversationStatus {conversation} />
 		<ConversationSection {conversation} {stepCount} {hasPolisStep} {path} />

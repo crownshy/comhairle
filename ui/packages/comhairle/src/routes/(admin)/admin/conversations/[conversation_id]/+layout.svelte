@@ -9,22 +9,16 @@
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
-	let displayTitle = $derived(
-		getTextInLocale(
-			conversation.translations?.title,
-			conversation.primaryLocale ?? 'en',
-			conversation.title
-		) || conversation.title
-	);
+	let displayTitle = $derived(conversationTitle(conversation));
 
 	// Only the design board itself is full-bleed (it renders its own white card + palette
-	// + scroll region). Every other tab — including the design step config pages under
-	// /design/step/* — keeps the padded, max-width reading column.
+	// + scroll region). Every other tab, including the design step config pages under
+	// /design/step/*, keeps the padded, max-width reading column.
 	let isDesignBoard = $derived(
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
 	);
