@@ -103,8 +103,7 @@ pub async fn create(
             create_request.title.into(),
             create_request.details.into(),
             create_request.kind.into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

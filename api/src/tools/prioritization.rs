@@ -253,7 +253,7 @@ impl ToolImpl for PrioritizationTool {
         config.sanitize()
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/prioritization/proposals",
@@ -356,7 +356,6 @@ Create a response for prioritization tool proposal
                         .response::<200, Json<PrioritizationInsightsResponse>>()
                 }),
             )
-            .with_state(state.clone())
     }
 }
 

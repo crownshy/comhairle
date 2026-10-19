@@ -56,8 +56,7 @@ pub async fn create(
             user_id.to_owned().into(),
             invite_id.to_owned().into(),
             response.into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

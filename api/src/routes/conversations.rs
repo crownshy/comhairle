@@ -200,9 +200,13 @@ async fn get_conversation(
     }
 
     // Check if user is admin and withTranslations is requested
-    let should_return_with_translations = query.with_translations
-        && user.is_some()
-        && is_user_admin(&state, user.as_ref().unwrap()).await;
+    let should_return_with_translations = if query.with_translations
+        && let Some(user) = &user
+    {
+        is_user_admin(&state, user).await
+    } else {
+        false
+    };
 
     if should_return_with_translations {
         // Convert to ConversationWithTranslations
@@ -328,7 +332,7 @@ async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation = conversation::delete(&state, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
 
     Ok((StatusCode::OK, Json(conversation)))
@@ -646,11 +650,18 @@ async fn send_broadcast_email_to_opted_in(
 #[instrument(err(Debug), skip(state))]
 async fn register_email_for_updates(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(request): Json<RegisterEmailRequest>,
 ) -> Result<(StatusCode, Json<RegisterEmailResponse>), ComhairleError> {
-    // Verify conversation exists and is public
     let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    let participant_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
+            .await?;
+    if !participant_ids.contains(&user.id) {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
     // Check if email is already registered for this conversation
     if let Ok(_existing) = email_recipients_model::get_by_conversation_and_email(
@@ -847,7 +858,7 @@ async fn export_conversation_demographics(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     let requirement = PermissionRequirement::<ConversationResource>::new;
     let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
@@ -997,12 +1008,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(register_email_for_updates, |op| {
                 op.id("RegisterEmailForUpdates")
                     .summary("Register email address for conversation updates")
-                    .description("Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.")
+                    .description("Lets a participant on the conversation (usually a guest) register an email address to receive updates about it. If the email is already registered, returns the existing registration.")
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
-            })
-                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+            }),
         )
         .api_route(
             "/{conversation_id}/contacts/export",
@@ -1024,7 +1034,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             })
                 .route_layer(from_fn_with_state(requirement(Action::Export), permission_middleware::<ConversationResource>)),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -1960,6 +1969,90 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_be_able_to_delete_conversation_with_event_workflow(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::CREATED,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service.expect_create_chat().once().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live" : false,
+                    "is_invite_only" : false,
+                    "slug" : "event_workflow_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation_id = conversation.get("id").unwrap().as_str().unwrap().to_owned();
+
+        let (_, event, _) = session.create_random_event(&app, &conversation_id).await?;
+        let event_id = event.get("id").unwrap().as_str().unwrap().to_owned();
+        let (status, _, _) = session
+            .create_random_event_workflow(&app, &conversation_id, &event_id)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "Should create event workflow");
+
+        let (status, _, _) = session.delete_conversation(&app, &conversation_id).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "Should delete conversation with an event workflow attached"
+        );
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -2257,7 +2350,7 @@ mod tests {
     /// Helper: create the conversation and return its id.
     async fn make_conversation(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &crate::App,
         slug: &str,
     ) -> Result<uuid::Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session
@@ -2964,6 +3057,81 @@ mod tests {
 
         // Keep this variable used to avoid accidental changes to the test setup where user lookup fails.
         assert_eq!(member_user.email.as_deref(), Some("org_member@example.com"));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participant_can_register_email_for_updates(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+        let workflow_id = workflow["id"].as_str().unwrap().to_string();
+
+        let mut guest = UserSession::new_guest();
+        guest.signup_guest(&app).await?;
+        guest
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/register"),
+                Body::empty(),
+            )
+            .await?;
+
+        let (status, _, _) = guest
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/email-updates"),
+                json!({
+                    "email": "guest@example.com",
+                    "receive_updates_by_email": true,
+                    "receive_similar_conversation_updates_by_email": false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn non_participant_cannot_register_email_for_updates(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+
+        let mut outsider = UserSession::new_guest();
+        outsider.signup_guest(&app).await?;
+
+        let (status, _, _) = outsider
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/email-updates"),
+                json!({
+                    "email": "outsider@example.com",
+                    "receive_updates_by_email": true,
+                    "receive_similar_conversation_updates_by_email": false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
 
         Ok(())
     }

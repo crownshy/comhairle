@@ -15,7 +15,10 @@
 	import type { ApiError } from '@crownshy/api-client/api';
 
 	let { data } = $props();
-	let { conversation, workflows, participation, preview } = data;
+	let conversation = $derived(data.conversation);
+	let workflows = $derived(data.workflows);
+	let participation = $derived(data.participation);
+	let preview = $derived(data.preview);
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
@@ -27,6 +30,7 @@
 	let emailValue = $state('');
 	let codeValue = $state('');
 	let emailError = $state<string | null>(null);
+	let codeResent = $state(false);
 
 	let guestStep = $state<'closed' | 'choice' | 'code'>('closed');
 	let guestCodeValue = $state('');
@@ -48,6 +52,17 @@
 			registerGuestUserSignupAndRedirect();
 		} else {
 			registerUser();
+		}
+	}
+
+	// Someone signing back in may already be part of this conversation, so send them back
+	// into it rather than registering them a second time.
+	function joinOrReturn() {
+		if (participation) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+			goto(returnPath);
+		} else {
+			handleJoin();
 		}
 	}
 
@@ -80,6 +95,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
 		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
@@ -135,7 +151,7 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		guestStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	function openEmailStep() {
@@ -158,7 +174,10 @@
 					apiClient.SignupOtp({ email: emailValue })
 				);
 				if (signup.err !== null) {
-					emailError = 'Failed to sign up with this email';
+					emailError =
+						signup.err.status === HttpStatus.TooManyRequests
+							? 'Too many attempts, please wait a moment and try again'
+							: 'Failed to sign up with this email';
 					isSubmitting = false;
 					return;
 				}
@@ -169,13 +188,44 @@
 				return;
 			}
 
-			emailError = 'Failed to send one-time-passcode';
+			emailError =
+				createOtp.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
 			isSubmitting = false;
 			return;
 		}
 
 		isSubmitting = false;
 		emailStep = 'code';
+	}
+
+	async function resendCode() {
+		if (isSubmitting) return;
+		isSubmitting = true;
+		emailError = null;
+		codeResent = false;
+
+		const result = await tryCatchAsync<void, ApiError>(() =>
+			apiClient.CreateOtp({ email: emailValue })
+		);
+
+		isSubmitting = false;
+		if (result.err !== null) {
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
+			return;
+		}
+		codeResent = true;
+	}
+
+	function changeEmail() {
+		codeValue = '';
+		emailError = null;
+		codeResent = false;
+		emailStep = 'email';
 	}
 
 	async function submitCode() {
@@ -188,7 +238,10 @@
 		);
 
 		if (result.err !== null) {
-			emailError = 'Invalid or expired code';
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Invalid or expired code';
 			isSubmitting = false;
 			return;
 		}
@@ -196,7 +249,7 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		emailStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	async function registerUser() {
@@ -209,6 +262,7 @@
 				message: `You are part of the "${conversation.title}" conversation!`
 			});
 
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
 			goto(firstWorkflowPath);
 		} catch (e) {
 			let message;
@@ -305,15 +359,21 @@
 							submitCode();
 						}}
 					>
-						<span class="inline-block">{emailValue}</span>
+						<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
+						<p class="text-muted-foreground max-w-prose text-base">
+							{m.otp_sent_to_email({ email: emailValue })}
+						</p>
 						<Input
 							placeholder={m.otp_placeholder()}
 							bind:value={codeValue}
+							autocomplete="one-time-code"
 							required
 							disabled={isSubmitting}
 						/>
 						{#if emailError}
 							<p class="text-destructive text-sm">{emailError}</p>
+						{:else if codeResent}
+							<p class="text-base">{m.otp_resent()}</p>
 						{/if}
 						<Button type="submit" disabled={isSubmitting}>
 							{#if isSubmitting}
@@ -321,6 +381,25 @@
 							{/if}
 							{m.verify_code()}
 						</Button>
+						<p class="text-muted-foreground text-base">
+							{m.resend_otp()}
+							<button
+								type="button"
+								class="text-primary underline"
+								onclick={resendCode}
+								disabled={isSubmitting}
+							>
+								{m.send_again()}
+							</button>
+						</p>
+						<button
+							type="button"
+							class="text-primary self-start text-base underline"
+							onclick={changeEmail}
+							disabled={isSubmitting}
+						>
+							{m.use_a_different_email()}
+						</button>
 					</form>
 				{:else if guestStep === 'choice'}
 					<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">

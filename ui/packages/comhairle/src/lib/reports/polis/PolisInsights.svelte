@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ReportComment, PolisReportData } from '$lib/tools/polis/reportTypes';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { PolisStatementAux, WikiPollConversationSummary } from '@crownshy/api-client/api';
 	import {
 		getEngagementStats,
 		getConsensusStatements,
@@ -12,17 +12,21 @@
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
+	import PolisSummaryPanel from './PolisSummaryPanel.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Download, ChartNoAxesColumn } from '@lucide/svelte';
+	import * as Alert from '$lib/components/ui/alert';
+	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
 
 	let {
 		conversationId,
+		workflowStepId,
 		reportData,
 		statementAux,
-		actions
+		actions,
+		summary
 	}: {
 		conversationId: string;
 		workflowStepId: string;
@@ -30,10 +34,43 @@
 		statementAux: PolisStatementAux[];
 		/** Extra page actions, shown beside Download CSV. */
 		actions?: Snippet;
+		summary: WikiPollConversationSummary | null;
 	} = $props();
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
 	);
+
+	// The sensemaker's Polis summary result: per-group name/description plus the
+	// consensus/disagreement text shown inside the respective AreaOfConsensus cards.
+	type SummaryResult = {
+		consensus_description?: string;
+		disagrement_description?: string;
+		group_descriptions?: Array<{
+			group_id: string;
+			name?: string;
+			description?: string;
+		}>;
+	};
+
+	const summaryResult = $derived((summary?.result ?? null) as SummaryResult | null);
+
+	// The summary is generated from a point-in-time snapshot of the groups. If Polis has
+	// since re-clustered (more or fewer groups than the summary describes), the AI text
+	// no longer matches the live report and the admin should regenerate it.
+	const summaryGroupCountMismatch = $derived(
+		summaryResult !== null &&
+			reportData !== null &&
+			(summaryResult.group_descriptions?.length ?? 0) !== reportData.groups.length
+	);
+
+	const groupSummaries = $derived.by<Record<number, { name: string; summary: string }>>(() => {
+		const map: Record<number, { name: string; summary: string }> = {};
+		for (const g of summaryResult?.group_descriptions ?? []) {
+			if (!g.name || !g.description) continue;
+			map[Number(g.group_id)] = { name: g.name, summary: g.description };
+		}
+		return map;
+	});
 
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
 	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
@@ -179,6 +216,17 @@
 	</div>
 {:else}
 	<div class="flex flex-col gap-10 pb-8">
+		{#if summaryGroupCountMismatch}
+			<Alert.Root variant="destructive">
+				<TriangleAlert />
+				<Alert.Description>
+					The AI summary was generated with a different number of opinion groups than the
+					current report has. It's probably out of date — regenerate it below for an
+					accurate summary.
+				</Alert.Description>
+			</Alert.Root>
+		{/if}
+
 		<!-- ===== Top stats + page actions ===== -->
 		<div class="flex flex-wrap items-start justify-between gap-4">
 			<div class="flex flex-wrap gap-4">
@@ -198,12 +246,13 @@
 					subText="{avgVotesPerVoter.toFixed(1)} avg per voter"
 				/>
 			</div>
-			<div class="flex flex-wrap gap-2">
+			<div class="flex flex-col items-stretch gap-2">
 				{@render actions?.()}
-				<Button size="sm" onclick={handleDownloadCsv} disabled={!canExport}>
+				<Button class="w-full" size="sm" onclick={handleDownloadCsv} disabled={!canExport}>
 					<Download class="size-4" />
 					Download CSV
 				</Button>
+				<PolisSummaryPanel {workflowStepId} {summary} />
 			</div>
 		</div>
 
@@ -215,6 +264,7 @@
 			title="Area of consensus"
 			comments={consensusStatements}
 			groups={report.groups}
+			summary={summaryResult?.consensus_description}
 		/>
 
 		<!-- ===== Area of disagreement ===== -->
@@ -222,9 +272,10 @@
 			title="Area of disagreement"
 			comments={disagreementStatements}
 			groups={report.groups}
+			summary={summaryResult?.disagrement_description}
 		/>
 
 		<!-- ===== Opinion groups ===== -->
-		<OpinionGroups comments={report.comments} groups={report.groups} />
+		<OpinionGroups comments={report.comments} groups={report.groups} {groupSummaries} />
 	</div>
 {/if}

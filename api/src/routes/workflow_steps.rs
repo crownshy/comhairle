@@ -340,7 +340,7 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
+pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -410,7 +410,6 @@ Use query param withUserProgress=true to get the active user's progress status f
                 permission_middleware::<ConversationResource>,
             )),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]

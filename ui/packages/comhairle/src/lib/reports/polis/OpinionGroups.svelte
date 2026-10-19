@@ -7,13 +7,12 @@
 	clicking it again clears the filter and shows every group. All groups are shown
 	by default.
 
-	The AI group name + summary aren't in the report payload yet, so the live report
-	renders each card without them (the OpinionGroupCard hides that block when it has
-	no `aiSummary`). When we have a source for it (likely an on-demand agent that reads
-	each group's statements), hand each card its `aiSummary`. Storybook still demos the
-	generated version at the OpinionGroupCard level.
+	The AI group name + summary come from the optional `groupSummaries` prop (keyed by
+	`group_id`), sourced from the sensemaker-generated Polis summary. Omitted until a
+	summary exists, in which case each OpinionGroupCard just hides that block.
 
-	Dumb: takes the comments + groups. Chip selection is local view state.
+	Dumb: takes the comments + groups + optional groupSummaries. Chip selection is local
+	view state.
 -->
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
@@ -23,6 +22,8 @@
 	type Props = {
 		comments: ReportComment[];
 		groups: ReportGroup[];
+		/** AI-generated name + summary per group, keyed by `group_id`. */
+		groupSummaries?: Record<number, { name: string; summary: string }>;
 		/**
 		 * Frozen-snapshot render (ADR-0012): the group nav chips are interactive, so a static
 		 * snapshot drops them (every group is already shown by default) and freezes each card.
@@ -30,7 +31,7 @@
 		frozen?: boolean;
 	};
 
-	let { comments, groups, frozen = false }: Props = $props();
+	let { comments, groups, groupSummaries, frozen = false }: Props = $props();
 
 	// null = show every group; a group_id = focus that one.
 	let selectedGroupId = $state<number | null>(null);
@@ -71,6 +72,12 @@
 	{/if}
 
 	{#each shownGroups as g (g.group_id)}
-		<OpinionGroupCard group={g} {comments} {groups} {frozen} />
+		<OpinionGroupCard
+			group={g}
+			{comments}
+			{groups}
+			{frozen}
+			aiSummary={groupSummaries?.[g.group_id]}
+		/>
 	{/each}
 </section>

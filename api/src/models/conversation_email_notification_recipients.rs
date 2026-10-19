@@ -69,8 +69,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(ConversationEmailNotificationRecipientsIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

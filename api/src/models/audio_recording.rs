@@ -213,8 +213,7 @@ pub async fn create(
             create_recording.s3_key_prefix.clone().into(),
             create_recording.file_extension.extension().into(),
             AudioRecordingStatus::AwaitingUpload.to_string().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -364,7 +363,7 @@ mod tests {
 
     async fn create_random_event(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &crate::App,
     ) -> Result<EventDto, Box<dyn std::error::Error>> {
         let conversation_response = session.create_random_conversation(app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;

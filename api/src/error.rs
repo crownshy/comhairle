@@ -73,6 +73,9 @@ pub enum ComhairleError {
     #[error("No bulk storage service configured")]
     NoBulkStorageServiceConfigured,
 
+    #[error("No redis service configured")]
+    NoRedisServiceConfigured,
+
     #[error("No video service configured")]
     NoVideoServiceConfigured,
 

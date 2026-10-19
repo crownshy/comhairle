@@ -94,7 +94,7 @@ async fn delete_policy(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -184,12 +184,10 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             PermissionRequirement::<ConversationResource>::new(Action::Read),
             authorize::<ConversationResource>,
         ))
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
     use serde_json::{Value, json};
     use sqlx::PgPool;
 
@@ -204,7 +202,7 @@ mod tests {
     use crate::test_helpers::{UserSession, polis_tool_config};
 
     async fn create_policy(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<ModerationPolicyDto, Box<dyn Error>> {
@@ -222,7 +220,7 @@ mod tests {
 
     /// Creates a Polis step and returns its url and preview tool config.
     async fn create_polis_step(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<(String, Value), Box<dyn Error>> {

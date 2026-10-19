@@ -5,6 +5,7 @@ pub use crate::bot_service::config::BotServiceConfig;
 pub use crate::bulk_storage_service::config::BulkStorageServiceConfig;
 use crate::categorization_service::config::CategorizationConfig;
 pub use crate::error::ComhairleError;
+pub use crate::sensemakar_service::config::SensemakarModelConfig;
 pub use crate::transcription_service::config::TranscriptionServiceConfig;
 pub use crate::translation_service::config::TranslatorConfig;
 use crate::websockets::config::WebsocketConfig;
@@ -80,6 +81,7 @@ pub struct ComhairleConfig {
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
     pub worker_service: Option<WorkerConfig>,
+    pub sensemaker_model: Option<SensemakarModelConfig>,
     pub categorization_service: Option<CategorizationConfig>,
     pub bulk_storage_service: Option<BulkStorageServiceConfig>,
     pub websocket_service: Option<WebsocketConfig>,

@@ -226,8 +226,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(NotificationDeliveryIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -257,7 +256,7 @@ pub async fn create_bulk(
         .to_owned();
 
     for delivery in deliveries {
-        query = query.values(delivery.values()).unwrap().to_owned();
+        query = query.values(delivery.values())?.to_owned();
     }
 
     let (sql, values) = query

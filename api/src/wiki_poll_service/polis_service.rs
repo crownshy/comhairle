@@ -300,20 +300,19 @@ impl PolisClient {
             "https://{}/api/v3/comments?conversation_id={poll_id}&moderation=true",
             self.base_url
         );
-        let comments: Vec<PolisComment> = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .map_err(|e| {
-            PolisError::FailedToGetComments(
-                e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-                e.to_string(),
-            )
-        })?;
+        let comments: Vec<PolisComment> =
+            self.client
+                .get(url)
+                .send()
+                .await?
+                .json()
+                .await
+                .map_err(|e| {
+                    PolisError::FailedToGetComments(
+                        e.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                        e.to_string(),
+                    )
+                })?;
 
         Ok(comments)
     }

@@ -130,13 +130,8 @@ impl<'q> Encode<'q, Postgres> for ReportSectionConfigs {
         &self,
         buf: &mut PgArgumentBuffer,
     ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
-        let json = serde_json::to_value(self).unwrap();
+        let json = serde_json::to_value(self)?;
         <serde_json::Value as Encode<Postgres>>::encode(json, buf)
-    }
-
-    fn size_hint(&self) -> usize {
-        let json = serde_json::to_value(self).unwrap();
-        <serde_json::Value as Encode<Postgres>>::size_hint(&json)
     }
 }
 
@@ -150,7 +145,9 @@ impl<'r> Decode<'r, Postgres> for ReportSectionConfigs {
 }
 
 impl PartialReport {
-    pub fn to_values(&self) -> Vec<(ReportIden, sea_query::SimpleExpr)> {
+    pub fn try_to_values(
+        &self,
+    ) -> Result<Vec<(ReportIden, sea_query::SimpleExpr)>, ComhairleError> {
         let mut values = vec![];
         if let Some(value) = self.is_public {
             values.push((ReportIden::IsPublic, value.into()));
@@ -158,10 +155,10 @@ impl PartialReport {
         if let Some(value) = &self.section_configs {
             values.push((
                 ReportIden::SectionConfigs,
-                serde_json::to_string_pretty(value).unwrap().into(),
+                serde_json::to_string_pretty(value)?.into(),
             ));
         }
-        values
+        Ok(values)
     }
 }
 
@@ -187,7 +184,7 @@ pub async fn update(
     conversation_id: Uuid,
     update: PartialReport,
 ) -> Result<Report, ComhairleError> {
-    let values = update.to_values();
+    let values = update.try_to_values()?;
     let (sql, values) = Query::update()
         .table(ReportIden::Table)
         .values(values)
@@ -247,7 +244,7 @@ pub async fn create_for_conversation(
     let mut values: Vec<sea_query::SimpleExpr> = vec![
         false.into(),
         conversation_id.into(),
-        serde_json::to_value(&section_configs).unwrap().into(),
+        serde_json::to_value(&section_configs)?.into(),
     ];
 
     let mut columns = vec![
