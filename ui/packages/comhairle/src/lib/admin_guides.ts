@@ -196,14 +196,14 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Select the **collapse icon** :collapse: to collapse the sidebar. To reopen it, select the **expand icon** :expand:.'
 				],
 				tips: [
-					'Under **Your conversations**: **Owned Conversations** lists conversations you’ve created. **Permitted Conversations** lists conversations that have been shared with you.',
+					'**Conversations** lists every conversation you’ve created or that has been shared with you. Open one and the sidebar switches to that conversation; select **← Conversations** at the top to switch back.',
 					'**Media library** is where you can upload and manage media, such as images and videos, to use in your conversations.',
 					'Images and files you upload are kept in the **Media library**, so you can reuse them across Conversations.',
-					'**Emails** is where you can create and manage email templates, including emails used to invite participants to a conversation.',
-					'**Organisation** shows the organisation your account belongs to.',
-					'**Home** takes you out of the admin workspace and back to the main site.',
-					'**Workspace** takes you back to the landing page of admin workspace.',
-					'**Settings** is where you can manage your account settings, including changing your password.',
+					'**Email templates** is where you can create and manage email templates, including emails used to invite participants to a conversation.',
+					'**Organisations** shows the organisations your account belongs to.',
+					'**Handbook**, at the bottom of the sidebar, opens these guides.',
+					'Your profile menu at the bottom of the sidebar has **Back to home**, which takes you out of the admin workspace and back to the main site.',
+					'**Settings**, in your profile menu, is where you can manage your account settings, including changing your password.',
 					"Most fields save automatically as you type, so there's no Save button to look for."
 				]
 			},

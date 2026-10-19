@@ -13,6 +13,7 @@
 		type SectionLink,
 		type StageConversation
 	} from './conversationStages';
+	import { LINK_ROW, LINK_ROW_IDLE, ROW_ACTIVE, ROW_HOVER } from './sidebarRows';
 
 	type Props = {
 		conversation: StageConversation;
@@ -61,7 +62,6 @@
 		folded[stage.id] = isOpen(stage);
 	}
 
-	// Never draw sidebar text on --sidebar-accent: in some themes (scot-gov) it is white.
 	const MARKER_CLASS: Record<ConversationStage['state'], string> = {
 		done: 'bg-primary text-primary-foreground',
 		current: 'bg-primary text-primary-foreground',
@@ -69,8 +69,6 @@
 	};
 	const ACTIVE_MARKER_CLASS =
 		'border-sidebar-accent-foreground/40 text-sidebar-accent-foreground border';
-	const ROW_HOVER = 'hover:bg-sidebar-foreground/10';
-	const ROW_ACTIVE = 'bg-sidebar-accent text-sidebar-accent-foreground font-medium';
 	const MILESTONE_ROW = '-ml-1 flex h-10 items-center gap-3 rounded-lg pr-2 pl-1';
 
 	// The Launch marker stays an outlined rocket until the conversation is launched.
@@ -212,13 +210,8 @@
 									href={link.href}
 									aria-current={link.active ? 'page' : undefined}
 									class={cn(
-										'flex h-10 items-center gap-2 rounded-lg px-2 text-base',
-										link.active
-											? ROW_ACTIVE
-											: [
-													'text-sidebar-foreground/80 hover:text-sidebar-foreground',
-													ROW_HOVER
-												]
+										LINK_ROW,
+										link.active ? ROW_ACTIVE : [LINK_ROW_IDLE, ROW_HOVER]
 									)}
 								>
 									<link.icon class="size-4 shrink-0" />
