@@ -2,10 +2,12 @@
 	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
-	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import { ArrowUpRight, ChevronRight, Rocket, TriangleAlert } from 'lucide-svelte';
+	import ConversationLinkCard from '../ConversationLinkCard.svelte';
+	import ChecklistItem from '../ChecklistItem.svelte';
+	import ConsequencesAlert from '../ConsequencesAlert.svelte';
+	import { Rocket } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -15,11 +17,6 @@
 		permissions.can('conversation', 'conversation_launch', conversation.id)
 	);
 	let launchModalOpen = $state(false);
-	let hasPolisStep = $derived(
-		(data.workflowSteps ?? []).some(
-			(step) => step.toolConfig?.type === 'polis' || step.previewToolConfig?.type === 'polis'
-		)
-	);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
 
 	let params = $derived({ conversation_id: conversation.id });
@@ -44,7 +41,7 @@
 				title: 'Moderate statements',
 				detail: 'Review new statements in your Polis steps as they come in.',
 				href: resolve('/(admin)/admin/conversations/[conversation_id]/moderate', params),
-				show: hasPolisStep
+				show: data.hasPolisStep
 			},
 			{
 				title: 'Follow participation',
@@ -97,9 +94,6 @@
 	]);
 </script>
 
-<!-- Checklist hrefs are built with resolve() in the script above. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
-
 <svelte:head>
 	<title>{conversation.isLive ? 'Launched' : 'Launch'} - Comhairle Admin</title>
 </svelte:head>
@@ -134,26 +128,13 @@
 		</div>
 
 		{#if !conversation.isComplete}
+			<ConversationLinkCard {conversation} />
+
 			<section class="flex flex-col gap-3">
 				<h2 class="text-lg font-semibold">Next steps</h2>
 				<ol class="bg-background divide-border border-border divide-y rounded-xl border">
 					{#each nextSteps as step, index (step.title)}
-						<li>
-							<a
-								href={step.href}
-								class="hover:bg-muted/60 flex items-center gap-4 px-5 py-4"
-							>
-								<span
-									class="bg-muted text-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-									>{index + 1}</span
-								>
-								<span class="flex flex-1 flex-col gap-0.5">
-									<span class="font-medium">{step.title}</span>
-									<span class="text-muted-foreground text-sm">{step.detail}</span>
-								</span>
-								<ChevronRight class="text-muted-foreground size-4 shrink-0" />
-							</a>
-						</li>
+						<ChecklistItem {...step} number={index + 1} />
 					{/each}
 				</ol>
 			</section>
@@ -165,41 +146,20 @@
 			<h2 class="text-lg font-semibold">Before you launch</h2>
 			<ul class="bg-background divide-border border-border divide-y rounded-xl border">
 				{#each checks as check (check.title)}
-					<li>
-						<a
-							href={check.href}
-							target={check.external ? '_blank' : undefined}
-							class="hover:bg-muted/60 flex items-center gap-4 px-5 py-4"
-						>
-							<span class="flex flex-1 flex-col gap-0.5">
-								<span class="font-medium">{check.title}</span>
-								<span class="text-muted-foreground text-sm">{check.detail}</span>
-							</span>
-							{#if check.external}
-								<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
-							{:else}
-								<ChevronRight class="text-muted-foreground size-4 shrink-0" />
-							{/if}
-						</a>
-					</li>
+					<ChecklistItem {...check} />
 				{/each}
 			</ul>
 		</section>
 
-		<Alert
-			class="border-orange-300 bg-orange-50 dark:border-orange-400/40 dark:bg-orange-400/10"
-		>
-			<TriangleAlert class="text-orange-500" />
-			<AlertTitle>What happens when you launch</AlertTitle>
-			<AlertDescription>
-				<ul class="list-disc space-y-1 pl-4">
-					<li>The conversation goes live and anyone with access can take part.</li>
-					<li>You will no longer be able to change the conversation's set-up.</li>
-					<li>Recruit, Notify, Monitor and Report open, and you can close it later.</li>
-					<li>A launched conversation can't go back to draft.</li>
-				</ul>
-			</AlertDescription>
-		</Alert>
+		<ConsequencesAlert
+			title="What happens when you launch"
+			consequences={[
+				'The conversation goes live and anyone with access can take part.',
+				"You will no longer be able to change the conversation's set-up.",
+				'Recruit, Notify, Monitor and Report open, and you can close it later.',
+				"A launched conversation can't go back to draft."
+			]}
+		/>
 
 		<div class="flex flex-col items-start gap-2">
 			<Button

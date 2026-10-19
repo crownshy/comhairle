@@ -3,10 +3,11 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import * as Card from '$lib/components/ui/card';
-	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import { ChevronRight, CircleCheck, CircleX, Lock, TriangleAlert } from 'lucide-svelte';
+	import ChecklistItem from '../ChecklistItem.svelte';
+	import ConsequencesAlert from '../ConsequencesAlert.svelte';
+	import { CircleCheck, CircleX, Lock } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -38,9 +39,6 @@
 		}
 	]);
 </script>
-
-<!-- Checklist hrefs are built with resolve() in the script above. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
 
 <PageHeader
 	title={conversation.isComplete ? 'Closed' : 'Close'}
@@ -76,38 +74,19 @@
 			<h2 class="text-lg font-semibold">Before you close</h2>
 			<ol class="bg-background divide-border border-border divide-y rounded-xl border">
 				{#each steps as step, index (step.title)}
-					<li>
-						{#if step.href}
-							<a
-								href={step.href}
-								class="hover:bg-muted/60 flex items-center gap-4 px-5 py-4"
-							>
-								{@render stepBody(step, index)}
-								<ChevronRight class="text-muted-foreground size-4 shrink-0" />
-							</a>
-						{:else}
-							<div class="flex items-center gap-4 px-5 py-4">
-								{@render stepBody(step, index)}
-							</div>
-						{/if}
-					</li>
+					<ChecklistItem {...step} number={index + 1} />
 				{/each}
 			</ol>
 		</section>
 
-		<Alert
-			class="border-orange-300 bg-orange-50 dark:border-orange-400/40 dark:bg-orange-400/10"
-		>
-			<TriangleAlert class="text-orange-500" />
-			<AlertTitle>What happens when you close</AlertTitle>
-			<AlertDescription>
-				<ul class="list-disc space-y-1 pl-4">
-					<li>Participants can no longer take part or submit responses.</li>
-					<li>Everything collected so far stays available in Monitor and Report.</li>
-					<li>You can re-open the conversation later if you need to.</li>
-				</ul>
-			</AlertDescription>
-		</Alert>
+		<ConsequencesAlert
+			title="What happens when you close"
+			consequences={[
+				'Participants can no longer take part or submit responses.',
+				'Everything collected so far stays available in Monitor and Report.',
+				'You can re-open the conversation later if you need to.'
+			]}
+		/>
 
 		<div class="flex flex-col items-start gap-2">
 			<Button
@@ -129,14 +108,3 @@
 
 	<EndConversationModal {conversation} hideTrigger bind:open={endModalOpen} />
 {/if}
-
-{#snippet stepBody(step: { title: string; detail: string }, index: number)}
-	<span
-		class="bg-muted text-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-		>{index + 1}</span
-	>
-	<span class="flex flex-1 flex-col gap-0.5">
-		<span class="font-medium">{step.title}</span>
-		<span class="text-muted-foreground text-sm">{step.detail}</span>
-	</span>
-{/snippet}

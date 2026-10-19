@@ -16,7 +16,7 @@ A single position in a Workflow, backed by one engagement tool (learn/onboarding
 _Avoid_: stage (that word belongs to [[#conversation-stage]])
 
 **Conversation Stage**:
-Where a Conversation is in its admin lifecycle: **Set up**, **Launch**, **Engage**, **Results**. Groups the admin sections of a Conversation; Engage and Results stay locked until launch. Unrelated to Workflow Steps, and Results is not the per-Step Insights.
+Where a Conversation is in its admin lifecycle: **Set up**, **Launch**, **Engage**, **Close**, **Results**. Groups the admin sections of a Conversation; Engage, Close and Results stay locked until launch. Unrelated to Workflow Steps, and Results is not the per-Step Insights.
 _Avoid_: phase, step, Insight/Insights (for the last stage), Learn (for the last stage)
 
 **Design board**:

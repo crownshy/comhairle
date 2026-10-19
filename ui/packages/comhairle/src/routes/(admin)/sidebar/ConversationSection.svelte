@@ -4,6 +4,7 @@
 	import { Check, ChevronDown, Lock, Rocket } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { cn } from '$lib/utils';
 	import {
 		conversationStages,
 		sectionLockLabels,
@@ -34,11 +35,7 @@
 	// launched Set up start folded, but admins can still open them to look or make changes.
 	// A stage holding the page you're on always starts open.
 	function isFoldable(stage: ConversationStage): boolean {
-		return (
-			stage.id === 'engage' ||
-			stage.id === 'results' ||
-			(stage.id === 'set-up' && conversation.isLive)
-		);
+		return stage.id === 'engage' || stage.id === 'results' || isFrozen(stage);
 	}
 	/** Set up after launch: still editable, but marked locked so changes feel deliberate. */
 	function isFrozen(stage: ConversationStage): boolean {
@@ -57,13 +54,30 @@
 	}
 
 	// Never draw sidebar text on --sidebar-accent: in some themes (scot-gov) it is white.
-	const markerClass: Record<ConversationStage['state'], string> = {
+	const MARKER_CLASS: Record<ConversationStage['state'], string> = {
 		done: 'bg-primary text-primary-foreground',
 		current: 'bg-primary text-primary-foreground',
 		locked: 'border-sidebar-foreground/40 text-sidebar-foreground/70 border'
 	};
-	const rowHover = 'hover:bg-sidebar-foreground/10';
-	const rowActive = 'bg-sidebar-accent text-sidebar-accent-foreground font-medium';
+	const ACTIVE_MARKER_CLASS =
+		'border-sidebar-accent-foreground/40 text-sidebar-accent-foreground border';
+	const ROW_HOVER = 'hover:bg-sidebar-foreground/10';
+	const ROW_ACTIVE = 'bg-sidebar-accent text-sidebar-accent-foreground font-medium';
+	const MILESTONE_ROW = '-ml-1 flex h-10 items-center gap-3 rounded-lg pr-2 pl-1';
+
+	// The Launch marker stays an outlined rocket until the conversation is launched.
+	function markerClass(stage: ConversationStage, active: boolean): string {
+		if (stage.state === 'done') return MARKER_CLASS.done;
+		if (active) return ACTIVE_MARKER_CLASS;
+		if (stage.id === 'launch') return MARKER_CLASS.locked;
+		return MARKER_CLASS[stage.state];
+	}
+
+	function labelClass(stage: ConversationStage, active: boolean): string {
+		if (active) return 'text-sidebar-accent-foreground';
+		if (stage.state === 'locked') return 'text-sidebar-foreground/60';
+		return 'text-sidebar-foreground';
+	}
 </script>
 
 <!-- Section hrefs come from conversationStages, built from the conversation id. -->
@@ -71,12 +85,10 @@
 
 {#snippet stageHeading(stage: ConversationStage, index: number, active = false)}
 	<span
-		class="flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold {active &&
-		stage.state !== 'done'
-			? 'border-sidebar-accent-foreground/40 text-sidebar-accent-foreground border'
-			: stage.id === 'launch' && stage.state !== 'done'
-				? markerClass.locked
-				: markerClass[stage.state]}"
+		class={cn(
+			'flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+			markerClass(stage, active)
+		)}
 		aria-hidden="true"
 	>
 		{#if stage.state === 'done'}
@@ -87,13 +99,7 @@
 			{index + 1}
 		{/if}
 	</span>
-	<span
-		class="text-base font-semibold {active
-			? 'text-sidebar-accent-foreground'
-			: stage.state === 'locked'
-				? 'text-sidebar-foreground/60'
-				: 'text-sidebar-foreground'}"
-	>
+	<span class={cn('text-base font-semibold', labelClass(stage, active))}>
 		{stage.label}
 		{#if stage.state === 'done'}<span class="sr-only">, done</span>{/if}
 	</span>
@@ -132,9 +138,7 @@
 				<a
 					href={stage.link.href}
 					aria-current={active ? 'page' : undefined}
-					class="-ml-1 flex h-10 items-center gap-3 rounded-lg pr-2 pl-1 {active
-						? rowActive
-						: rowHover}"
+					class={cn(MILESTONE_ROW, active ? ROW_ACTIVE : ROW_HOVER)}
 				>
 					{@render stageHeading(stage, index, active)}
 				</a>
@@ -144,7 +148,7 @@
 				{/snippet}
 				{@render lockedRow(
 					stage.link.lock,
-					'text-sidebar-foreground/40 -ml-1 flex h-10 cursor-not-allowed items-center gap-3 rounded-lg pr-2 pl-1',
+					cn(MILESTONE_ROW, 'text-sidebar-foreground/40 cursor-not-allowed'),
 					milestoneBody
 				)}
 			{:else if isFoldable(stage)}
@@ -153,7 +157,7 @@
 					aria-expanded={open}
 					aria-controls="stage-{stage.id}"
 					onclick={() => toggle(stage)}
-					class="-ml-1 flex h-10 items-center gap-3 rounded-lg pr-2 pl-1 text-left {rowHover}"
+					class={cn(MILESTONE_ROW, 'text-left', ROW_HOVER)}
 				>
 					{@render stageHeading(stage, index)}
 					{#if isFrozen(stage)}
@@ -164,11 +168,11 @@
 						<span class="sr-only">Locked after launch, still editable</span>
 					{/if}
 					<ChevronDown
-						class="text-sidebar-foreground/70 size-4 shrink-0 transition-transform {isFrozen(
-							stage
-						)
-							? ''
-							: 'ml-auto'} {open ? '' : '-rotate-90'}"
+						class={cn(
+							'text-sidebar-foreground/70 size-4 shrink-0 transition-transform',
+							!isFrozen(stage) && 'ml-auto',
+							!open && '-rotate-90'
+						)}
 						aria-hidden="true"
 					/>
 				</button>
@@ -199,17 +203,26 @@
 								<a
 									href={link.href}
 									aria-current={link.active ? 'page' : undefined}
-									class="flex h-10 items-center gap-2 rounded-lg px-2 text-base {link.active
-										? rowActive
-										: `text-sidebar-foreground/80 hover:text-sidebar-foreground ${rowHover}`}"
+									class={cn(
+										'flex h-10 items-center gap-2 rounded-lg px-2 text-base',
+										link.active
+											? ROW_ACTIVE
+											: [
+													'text-sidebar-foreground/80 hover:text-sidebar-foreground',
+													ROW_HOVER
+												]
+									)}
 								>
 									<link.icon class="size-4 shrink-0" />
 									<span class="flex-1 truncate">{link.name}</span>
 									{#if link.path === 'design'}
 										<span
-											class="shrink-0 rounded-full px-2 text-sm {link.active
-												? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground'
-												: 'bg-sidebar-foreground/15 text-sidebar-foreground'}"
+											class={cn(
+												'shrink-0 rounded-full px-2 text-sm',
+												link.active
+													? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground'
+													: 'bg-sidebar-foreground/15 text-sidebar-foreground'
+											)}
 										>
 											{stepCount}<span class="sr-only">
 												{stepCount === 1 ? 'step' : 'steps'}</span

@@ -94,6 +94,11 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			workflows,
 			stats,
 			workflowSteps,
+			// Moderation is for Polis steps, whether they are live or still in preview.
+			hasPolisStep: workflowSteps.some(
+				(step) =>
+					step.toolConfig?.type === 'polis' || step.previewToolConfig?.type === 'polis'
+			),
 			events,
 			media,
 			user,

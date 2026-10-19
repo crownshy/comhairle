@@ -1,4 +1,5 @@
 import type { ComponentType } from 'svelte';
+import { resolve } from '$app/paths';
 import { Flag, Rocket } from 'lucide-svelte';
 import type { ConversationDto } from '@crownshy/api-client/api';
 import {
@@ -51,17 +52,20 @@ export function conversationStages({
 	canAdmin,
 	hasPolisStep = false
 }: StageInput): ConversationStage[] {
-	const base = `/admin/conversations/${conversation.id}`;
+	const base = resolve('/(admin)/admin/conversations/[conversation_id]', {
+		conversation_id: conversation.id
+	});
+	const live = conversation.isLive;
+	const complete = conversation.isComplete;
 	const sectionsIn = (stage: SectionStage) =>
 		conversationSections
 			.filter((section) => section.stage === stage)
 			.filter((section) => !section.requiresPolis || hasPolisStep)
-			.map((section) => sectionLink(section, base, pathname, conversation.isLive, canAdmin));
-	const live = conversation.isLive;
-
-	const complete = conversation.isComplete;
-	const milestone = (name: string, path: string, icon: ComponentType, lock: SectionLock | null) =>
-		sectionLink({ name, path, icon, stage: 'set-up' }, base, pathname, live, canAdmin, lock);
+			.map((section) =>
+				sectionLink(section, base, pathname, sectionLock(section, live, canAdmin))
+			);
+	const milestone = (target: LinkTarget, lock: SectionLock | null) =>
+		sectionLink(target, base, pathname, lock);
 
 	return [
 		{
@@ -75,49 +79,57 @@ export function conversationStages({
 			label: live ? 'Launched' : 'Launch',
 			state: live ? 'done' : 'current',
 			sections: [],
-			link: milestone(live ? 'Launched' : 'Launch', 'launch', Rocket, null)
+			link: milestone(
+				{ name: live ? 'Launched' : 'Launch', path: 'launch', icon: Rocket },
+				null
+			)
 		},
 		{
 			id: 'engage',
 			label: 'Engage',
-			state: !live ? 'locked' : complete ? 'done' : 'current',
+			state: afterLaunchState(live, complete),
 			sections: sectionsIn('engage')
 		},
 		{
 			id: 'close',
 			label: complete ? 'Closed' : 'Close',
-			state: !live ? 'locked' : complete ? 'done' : 'current',
+			state: afterLaunchState(live, complete),
 			sections: [],
 			link: milestone(
-				complete ? 'Closed' : 'Close',
-				'close',
-				Flag,
+				{ name: complete ? 'Closed' : 'Close', path: 'close', icon: Flag },
 				live ? null : 'until-launch'
 			)
 		},
 		{
 			id: 'results',
 			label: 'Results',
-			state: !live ? 'locked' : 'current',
+			state: live ? 'current' : 'locked',
 			sections: sectionsIn('results')
 		}
 	];
 }
 
+/** Engage and Close: locked before launch, current while live, done once closed. */
+function afterLaunchState(isLive: boolean, isComplete: boolean): StageState {
+	if (!isLive) return 'locked';
+	if (isComplete) return 'done';
+	return 'current';
+}
+
+type LinkTarget = Pick<ConversationSection, 'name' | 'path' | 'icon'>;
+
 function sectionLink(
-	section: ConversationSection,
+	target: LinkTarget,
 	base: string,
 	pathname: string,
-	isLive: boolean,
-	canAdmin: boolean,
-	lock: SectionLock | null = sectionLock(section, isLive, canAdmin)
+	lock: SectionLock | null
 ): SectionLink {
-	const href = `${base}/${section.path}`;
+	const href = `${base}/${target.path}`;
 	return {
-		name: section.name,
-		path: section.path,
+		name: target.name,
+		path: target.path,
 		href,
-		icon: section.icon,
+		icon: target.icon,
 		active: pathname === href || pathname.startsWith(`${href}/`),
 		lock
 	};
