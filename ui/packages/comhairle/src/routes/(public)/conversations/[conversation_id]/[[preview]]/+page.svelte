@@ -15,7 +15,10 @@
 	import type { ApiError } from '@crownshy/api-client/api';
 
 	let { data } = $props();
-	let { conversation, workflows, participation, preview } = data;
+	let conversation = $derived(data.conversation);
+	let workflows = $derived(data.workflows);
+	let participation = $derived(data.participation);
+	let preview = $derived(data.preview);
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
@@ -52,6 +55,17 @@
 		}
 	}
 
+	// Someone signing back in may already be part of this conversation, so send them back
+	// into it rather than registering them a second time.
+	function joinOrReturn() {
+		if (participation) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+			goto(returnPath);
+		} else {
+			handleJoin();
+		}
+	}
+
 	function handlePrivacyPolicyAccept() {
 		privacyAccepted = true;
 		doJoin();
@@ -81,6 +95,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
 		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
@@ -136,7 +151,7 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		guestStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	function openEmailStep() {
@@ -222,7 +237,7 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		emailStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	async function registerUser() {
@@ -235,6 +250,7 @@
 				message: `You are part of the "${conversation.title}" conversation!`
 			});
 
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
 			goto(firstWorkflowPath);
 		} catch (e) {
 			let message;
