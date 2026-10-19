@@ -9,7 +9,12 @@
 	let { children, data }: LayoutProps = $props();
 	setSupportDrawer();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
-	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
+	// The preview password page is a sign-in page in all but path, so it gets the same
+	// full-screen split with no nav bar.
+	const isAuthPage = $derived(
+		page.url.pathname.startsWith('/auth/') ||
+			page.route.id === '/(public)/conversations/[conversation_id]/preview-unlock'
+	);
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 

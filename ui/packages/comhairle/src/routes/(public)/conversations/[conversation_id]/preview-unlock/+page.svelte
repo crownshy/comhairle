@@ -46,17 +46,20 @@
 
 <AuthLayout>
 	<form
-		class="flex flex-col gap-6"
+		class="space-y-6 lg:space-y-8"
 		onsubmit={(e) => {
 			e.preventDefault();
 			unlock();
 		}}
 	>
-		<div class="flex flex-col gap-2 text-center">
-			<h1 class="text-foreground text-3xl leading-9 font-bold">Preview this conversation</h1>
-			<p class="text-muted-foreground text-base">
-				This conversation hasn't launched yet. Enter the password you were given to look
-				around.
+		<div class="flex flex-col items-center gap-3 lg:gap-6">
+			<h1
+				class="text-foreground text-center text-3xl leading-9 font-bold lg:text-5xl lg:leading-[52px]"
+			>
+				Preview this conversation
+			</h1>
+			<p class="text-muted-foreground text-center text-lg leading-6 lg:text-xl lg:leading-7">
+				It hasn't launched yet. Enter the password you were given to look around.
 			</p>
 		</div>
 		<div class="flex flex-col gap-2">
@@ -65,6 +68,7 @@
 				id="preview-password"
 				type="password"
 				autocomplete="off"
+				class="h-12"
 				bind:value={password}
 				aria-invalid={error !== null}
 			/>
@@ -72,7 +76,12 @@
 				<p class="text-destructive text-base" role="alert">{error}</p>
 			{/if}
 		</div>
-		<LoadingButton type="submit" loading={loader.loading} disabled={!password}>
+		<LoadingButton
+			type="submit"
+			loading={loader.loading}
+			disabled={!password}
+			class="h-12 w-full px-7"
+		>
 			Open preview
 		</LoadingButton>
 	</form>
