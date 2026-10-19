@@ -6,8 +6,10 @@ import { find } from '..';
 function Combobox(initialName: string, refs: Refs) {
 	let name = initialName;
 
+	const locator = () => find(refs.page.getByText(name));
+
 	async function open() {
-		await (await find(refs.page.getByText(name))).click();
+		await (await locator()).click();
 	}
 
 	async function search(searchTerm: string) {
@@ -22,9 +24,7 @@ function Combobox(initialName: string, refs: Refs) {
 		await (await find(refs.page.getByRole('option', { name }))).click();
 
 		// Wait for dialog to close
-		await eventually(() =>
-			expect(refs.page.getByRole('listbox', { name: 'Suggestions...' })).not.toBeVisible()
-		);
+		await eventually(async () => expect(await locator()).toBeVisible());
 
 		name = option;
 	}
