@@ -4439,7 +4439,7 @@ curl -X POST \
     method: "post",
     path: "/conversation/:conversation_id/email-updates",
     alias: "RegisterEmailForUpdates",
-    description: `Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.`,
+    description: `Lets a participant on the conversation (usually a guest) register an email address to receive updates about it. If the email is already registered, returns the existing registration.`,
     requestFormat: "json",
     parameters: [
       {
