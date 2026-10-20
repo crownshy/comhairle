@@ -2,6 +2,7 @@ import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
 import { key } from '$lib/utils/invalidationKey';
+import type { UserDto } from '@crownshy/api-client/api';
 
 export const load: LayoutServerLoad = async (event) => {
 	event.depends(key('user'));
@@ -20,7 +21,7 @@ export const load: LayoutServerLoad = async (event) => {
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('auth-token');
 
-	let body: { id?: string } | undefined;
+	let body: UserDto | undefined;
 	try {
 		const resp = await event.fetch(`/api/auth/current_user`, {
 			method: 'GET',
