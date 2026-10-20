@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use aide::axum::{ApiRouter, routing::get_with};
-use axum::{
-    extract::{Json, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::get_with;
+use axum::extract::{Json, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredUser};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::routes::auth::RequiredUser;
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]

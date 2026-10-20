@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    Extension,
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::Extension;
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -358,23 +354,24 @@ pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Comhairl
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use chrono::{DateTime, Utc};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            scheduled_email::{self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions},
-        },
-        routes::{auth::SignupRequest, events::dto::EventDto},
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
 
     use super::*;
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::scheduled_email::{
+        self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions,
+    };
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::events::dto::EventDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {

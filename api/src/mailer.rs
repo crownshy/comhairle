@@ -1,34 +1,38 @@
-use crate::models::conversation;
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::{Arc, LazyLock};
+
+use async_trait::async_trait;
+use chrono::{DateTime, Datelike, Utc};
+use icalendar::{self as ical, Component, EventLike};
+use lettre::message::header::ContentType;
+use lettre::message::{Attachment, Body, Mailbox, MultiPart, SinglePart};
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+use minijinja::{Environment, Value, context};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+use tracing::{instrument, warn};
+use uuid::Uuid;
+
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
-use crate::models::otp;
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
+use crate::models::{conversation, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
-use crate::{ComhairleState, error::ComhairleError};
-
-use async_trait::async_trait;
-use chrono::{DateTime, Datelike, Utc};
-use icalendar::{self as ical, Component, EventLike};
-use lettre::message::Mailbox;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{
-    Message, SmtpTransport, Transport,
-    message::{Attachment, Body, MultiPart, SinglePart, header::ContentType},
-};
-use minijinja::{Environment, Value, context};
-use std::{collections::HashMap, sync::LazyLock};
-use std::{str::FromStr, sync::Arc};
-use tracing::{instrument, warn};
-use uuid::Uuid;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
+
+const DEFAULT_HEADER_LOGO_URL: &str =
+    "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo_lg.png";
+const DEFAULT_FOOTER_LOGO_URL: &str =
+    "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo.png";
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -187,10 +191,18 @@ impl MockComhairleMailer {
 }
 
 impl Mailer {
-    pub fn new(host: &str, user: &str, password: &str) -> Self {
+    pub fn new(host: &str, user: &str, password: &str, logo_url: Option<&str>) -> Self {
         let creds = Credentials::new(user.to_string(), password.to_string());
         let mut env = minijinja::Environment::new();
         env.add_global("year", minijinja::Value::from(*MAILER_YEAR));
+        env.add_global(
+            "header_logo_url",
+            minijinja::Value::from(logo_url.unwrap_or(DEFAULT_HEADER_LOGO_URL)),
+        );
+        env.add_global(
+            "footer_logo_url",
+            minijinja::Value::from(logo_url.unwrap_or(DEFAULT_FOOTER_LOGO_URL)),
+        );
         minijinja_embed::load_templates!(&mut env);
         Self {
             host: host.into(),
@@ -777,7 +789,7 @@ mod tests {
 
     #[test]
     fn should_load_email_template() {
-        let mailer = Mailer::new("test_host", "test_user", "test_password");
+        let mailer = Mailer::new("test_host", "test_user", "test_password", None);
 
         let template = mailer.template_engine.get_template("welcome.html");
         assert!(template.is_ok(), "error retrieving welcome template");

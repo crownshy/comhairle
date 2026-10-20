@@ -1,11 +1,10 @@
+use std::sync::Arc;
+
 use axum::body::Body;
 use governor::middleware::{NoOpMiddleware, StateInformationMiddleware};
-use std::sync::Arc;
-use tower_governor::{
-    GovernorLayer,
-    governor::{GovernorConfig, GovernorConfigBuilder},
-    key_extractor::SmartIpKeyExtractor,
-};
+use tower_governor::GovernorLayer;
+use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
+use tower_governor::key_extractor::SmartIpKeyExtractor;
 
 /// Configuration for rate limiting
 #[derive(Clone)]
@@ -216,15 +215,14 @@ pub fn create_custom_rate_limiter(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use axum::{
-        Router,
-        http::{Request, StatusCode},
-        routing::get,
-    };
     use std::time::Duration;
+
+    use axum::Router;
+    use axum::http::{Request, StatusCode};
+    use axum::routing::get;
     use tower::ServiceExt;
+
+    use super::*;
 
     #[test]
     fn test_auth_strict_config() {

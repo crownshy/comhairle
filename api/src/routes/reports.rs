@@ -1,25 +1,21 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with, put_with};
+use axum::Json;
+use axum::extract::{Path, Query, State};
 use hyper::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models;
+use crate::error::ComhairleError;
 use crate::models::report::{FullReportDto, PartialReport, ReportWithTranslations};
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
 use crate::routes::reports::dto::{LocalizedReportDto, ReportDto};
 use crate::routes::translations::LocaleExtractor;
-use crate::{ComhairleState, error::ComhairleError};
+use crate::{ComhairleState, models};
 
 pub mod dto;
 

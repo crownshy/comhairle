@@ -3,7 +3,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{user_participation::UserParticipation, workflow::Workflow};
+use crate::models::user_participation::UserParticipation;
+use crate::models::workflow::Workflow;
 
 /// Data transfer object (public API representation) for a Workflow.
 ///

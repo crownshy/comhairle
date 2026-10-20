@@ -1,25 +1,23 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::{ComhairleBotService, CreateChatSessionRequest},
-    config::ComhairleConfig,
-    error::ComhairleError,
-    models::{conversation, workflow_step},
-    tools::ToolConfig,
-};
-
-#[cfg(test)]
-use fake::Dummy;
+use crate::ComhairleState;
+use crate::bot_service::{ComhairleBotService, CreateChatSessionRequest};
+use crate::config::ComhairleConfig;
+use crate::error::ComhairleError;
+use crate::models::{conversation, workflow_step};
+use crate::tools::ToolConfig;
 
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
 #[enum_def(table_name = "bot_service_user_session")]

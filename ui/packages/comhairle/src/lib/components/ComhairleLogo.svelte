@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { env } from '$env/dynamic/public';
 	import IconLogo from '$lib/assets/comhairle_logo.svg';
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
@@ -32,13 +33,20 @@
 		lg: 'h-12 w-12'
 	};
 
-	let isWaves = $derived(themeStore.name === 'waves');
+	let customLogoUrl = env.PUBLIC_LOGO_URL;
+	let isWaves = $derived(!customLogoUrl && themeStore.name === 'waves');
 	let logoSrc = $derived(showText ? FullLogo : IconLogo);
 	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
 </script>
 
 {#snippet logoContent()}
-	{#if isWaves}
+	{#if customLogoUrl}
+		<img
+			src={customLogoUrl}
+			alt="Logo"
+			class="inline-block h-12 shrink-0 overflow-hidden object-contain {sizeClass}"
+		/>
+	{:else if isWaves}
 		<img
 			src={WavesLogo}
 			alt="Logo"

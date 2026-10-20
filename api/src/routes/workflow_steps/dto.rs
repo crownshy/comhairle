@@ -4,20 +4,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        translations::{
-            LocalizeTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
-        },
-        user_progress::ProgressStatus,
-        workflow_step::{
-            ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
-            WorkflowStepTranslations, WorkflowStepWithTranslations,
-        },
-    },
-    schema_helpers::{example_localized_text, example_uuid},
-    tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations},
+use crate::models::translations::{
+    LocalizeTranslations, ResolveWithTranslations, TextContentId, TranslationDto,
 };
+use crate::models::user_progress::ProgressStatus;
+use crate::models::workflow_step::{
+    ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
+    WorkflowStepTranslations, WorkflowStepWithTranslations,
+};
+use crate::schema_helpers::{example_localized_text, example_uuid};
+use crate::tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations};
 
 /// Data transfer object (public API representation) for a WorkflowStep.
 ///

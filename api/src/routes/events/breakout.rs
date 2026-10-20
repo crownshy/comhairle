@@ -4,27 +4,21 @@
 //! - `POST /{event_id}/breakout/seed` — randomly (re)seed from attendees + invites
 //! - `PUT  /{event_id}/breakout`      — save an edited plan
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        breakout_plan,
-        event::{BreakoutPlan, BreakoutPlanRoom},
-        event_attendance, invites,
-    },
-    routes::auth::RequiredAdminUser,
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::event::{BreakoutPlan, BreakoutPlanRoom};
+use crate::models::{breakout_plan, event_attendance, invites};
+use crate::routes::auth::RequiredAdminUser;
 
 /// A seat in the plan, enriched with a human-readable label for the admin UI.
 #[derive(Serialize, JsonSchema, Debug)]
