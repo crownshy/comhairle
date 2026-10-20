@@ -183,6 +183,10 @@ fn governor_builder(
         .key_extractor(SmartIpKeyExtractor)
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "only run when starting api so acceptable to panic"
+)]
 fn build_governor_config(
     config: RateLimitConfig,
 ) -> GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware> {
@@ -191,6 +195,10 @@ fn build_governor_config(
         .expect("Failed to create rate limiter configuration")
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "only run when starting api so acceptable to panic"
+)]
 fn build_governor_config_with_headers(
     config: RateLimitConfig,
 ) -> GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware> {
