@@ -116,7 +116,7 @@
 	description: string,
 	onChange: (value: boolean) => void
 )}
-	<Form.Field form={accessForm} {name} class="py-4">
+	<Form.Field form={accessForm} {name} class="py-3">
 		<Form.Control>
 			{#snippet children({ props })}
 				<div class="flex items-center justify-between gap-6">
@@ -139,10 +139,10 @@
 	</Form.Field>
 {/snippet}
 
-<div class="flex max-w-3xl flex-col gap-8 py-6">
-	<section class="flex flex-col">
+<div class="divide-border flex max-w-3xl flex-col divide-y">
+	<section class="flex flex-col py-6">
 		<h2 class="text-base font-semibold">Visibility</h2>
-		<div class="divide-border flex flex-col divide-y">
+		<div class="flex flex-col">
 			{@render toggleRow(
 				'isPublic',
 				'Show conversation publicly',
@@ -153,9 +153,9 @@
 		</div>
 	</section>
 
-	<section class="flex flex-col">
+	<section class="flex flex-col py-6">
 		<h2 class="text-base font-semibold">Who can take part</h2>
-		<div class="divide-border flex flex-col divide-y">
+		<div class="flex flex-col">
 			{@render toggleRow(
 				'isInviteOnly',
 				'Only allow participation by invite',
@@ -173,9 +173,9 @@
 		</div>
 	</section>
 
-	<section class="flex flex-col">
+	<section class="flex flex-col py-6">
 		<h2 class="text-base font-semibold">After finishing</h2>
-		<div class="divide-border flex flex-col divide-y">
+		<div class="flex flex-col">
 			{@render toggleRow(
 				'allowRevisitAfterFinishing',
 				'Allow revisit after finishing',
