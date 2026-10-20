@@ -12,6 +12,10 @@
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { conversationsListTour } from './tour';
+
+	useTour(() => conversationsListTour);
 
 	let { data }: PageProps = $props();
 	let filteredNoun = $derived(
@@ -60,18 +64,28 @@
 				<h1 class="text-2xl sm:text-4xl">Your conversations</h1>
 			</div>
 			{#if permissions.can('system', 'conversation_create')}
-				<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
+				<div data-tour="new-conversation" class="w-full sm:w-auto">
+					<NewConversationButton
+						class="w-full sm:w-auto"
+						label="Create New Conversation"
+					/>
+				</div>
 			{/if}
 		</div>
 		<div class="flex w-full flex-col gap-11 overflow-y-auto">
 			<div
 				class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"
 			>
-				<StatusFilterChips active={data.filter} />
-				<ConversationSearch />
+				<div data-tour="status-filters">
+					<StatusFilterChips active={data.filter} />
+				</div>
+				<div data-tour="conversation-search">
+					<ConversationSearch />
+				</div>
 			</div>
 
 			<div
+				data-tour="conversation-list"
 				class={[
 					'grid w-full grid-cols-1 gap-x-2 gap-y-16 transition-opacity',
 					turningPage && 'pointer-events-none opacity-50'

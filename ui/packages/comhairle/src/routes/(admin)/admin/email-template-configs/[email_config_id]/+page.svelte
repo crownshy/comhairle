@@ -14,6 +14,10 @@
 	import { useDebounce } from 'runed';
 	import { LoaderCircle } from 'lucide-svelte';
 	import { key } from '$lib/utils/invalidationKey';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { emailTemplateConfigTour } from './tour';
+
+	useTour(() => emailTemplateConfigTour);
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;
@@ -134,7 +138,9 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
+<h1 data-tour="page-header" class="text-4xl font-bold">
+	Custom email: {snakeToStartCase(emailConfig.emailType)}
+</h1>
 
 <div class="flex justify-end gap-2">
 	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}

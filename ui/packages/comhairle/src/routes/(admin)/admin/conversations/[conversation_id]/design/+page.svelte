@@ -35,6 +35,10 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { permissions } from '$lib/permissions.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { processDesignTour } from './tour';
+
+	useTour(() => processDesignTour);
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
@@ -326,7 +330,7 @@
 		<div class="px-gutter pt-page-top flex w-full max-w-5xl flex-col gap-4 pb-8">
 			<!-- Toolbar -->
 			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
-				<div class="flex flex-col">
+				<div data-tour="process-design-heading" class="flex flex-col">
 					<h1 class="self-start text-2xl font-bold sm:self-auto">Process steps</h1>
 					<p class="text-muted-foreground text-base">
 						Design and configure your engagement, one step at a time.
@@ -334,6 +338,7 @@
 				</div>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
+						data-tour="choose-template"
 						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"
 					>
 						Choose from templates

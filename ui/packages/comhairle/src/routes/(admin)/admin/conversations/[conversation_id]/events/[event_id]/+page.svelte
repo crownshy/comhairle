@@ -48,6 +48,10 @@
 	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { eventTour } from './tour';
+
+	useTour(() => eventTour);
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -339,7 +343,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="mb-6 flex flex-row items-center gap-4">
+<div data-tour="page-header" class="mb-6 flex flex-row items-center gap-4">
 	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>

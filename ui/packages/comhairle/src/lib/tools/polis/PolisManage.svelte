@@ -108,7 +108,7 @@
 	<h2 class="text-2xl font-bold">Setup</h2>
 
 	<!-- Content -->
-	<div class="flex flex-col gap-4">
+	<div data-tour="polis-content" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-base font-bold">Content</h3>
 			<span class="text-muted-foreground text-sm"
@@ -145,7 +145,7 @@
 	</div>
 
 	<!-- Settings -->
-	<div class="flex flex-col gap-4">
+	<div data-tour="polis-settings" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-base font-bold">Settings</h3>
 			<span class="text-muted-foreground text-sm">Customise what participants will see.</span>

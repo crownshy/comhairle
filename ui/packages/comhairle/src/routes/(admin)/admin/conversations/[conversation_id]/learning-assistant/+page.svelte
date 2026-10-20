@@ -32,6 +32,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { learningAssistantTour } from './tour';
+
+	useTour(() => learningAssistantTour);
 
 	const MAX_SIZE = 50 * MB;
 
@@ -305,6 +309,7 @@
 </svelte:head>
 
 <PageHeader
+	data-tour="page-header"
 	title="Learning Assistant"
 	description="Enable the Learning Assistant and manage the documents it answers from"
 />

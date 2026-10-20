@@ -5,6 +5,10 @@
 	import EventCard from '$lib/components/EventCard.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { eventsListTour } from './tour';
+
+	useTour(() => eventsListTour);
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -20,9 +24,13 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader title="Events" description="Use this space to manage your conversation's events." />
+<PageHeader
+	data-tour="page-header"
+	title="Events"
+	description="Use this space to manage your conversation's events."
+/>
 
-<div class="flex max-w-[700px] flex-col gap-6">
+<div data-tour="events-list" class="flex max-w-[700px] flex-col gap-6">
 	{#if events.length === 0}
 		<div
 			class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"

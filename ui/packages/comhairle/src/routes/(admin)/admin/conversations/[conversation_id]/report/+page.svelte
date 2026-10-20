@@ -28,6 +28,10 @@
 	import { key } from '$lib/utils/invalidationKey.js';
 	import { permissions } from '$lib/permissions.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { reportTour } from './tour';
+
+	useTour(() => reportTour);
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -80,10 +84,14 @@
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader title="Report" description="Use this space to edit the report for this conversation" />
+<PageHeader
+	data-tour="page-header"
+	title="Report"
+	description="Use this space to edit the report for this conversation"
+/>
 
 <div class="flex flex-col gap-4">
-	<div class="flex w-full flex-row items-center justify-end gap-2">
+	<div data-tour="report-publish" class="flex w-full flex-row items-center justify-end gap-2">
 		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
 		<Label for="published">Publish Report</Label>
 		<Switch name="published" value={report.isPublic} disabled={!canEdit} />

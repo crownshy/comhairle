@@ -320,7 +320,10 @@
 			<p class="text-muted-foreground text-sm">Moderate and view all statements.</p>
 		</div>
 		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
-		<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0">
+		<div
+			data-tour="moderation-actions"
+			class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0"
+		>
 			<Button
 				variant="outline"
 				disabled={!canExport || statements.length === 0}
@@ -360,7 +363,7 @@
 	</div>
 
 	<!-- Status filter chips -->
-	<div class="flex flex-wrap items-center gap-2">
+	<div data-tour="moderation-filters" class="flex flex-wrap items-center gap-2">
 		{#each filters as f (f.key)}
 			<button
 				type="button"
@@ -377,21 +380,23 @@
 	</div>
 
 	<!-- Statements list -->
-	<StatementsTable
-		editable={canModerate}
-		rows={visible}
-		{rejectReasons}
-		{selected}
-		{pending}
-		{bulkAction}
-		{lineage}
-		onToggleSelect={toggleSelect}
-		onToggleAll={toggleSelectAll}
-		onClear={clearSelection}
-		onBulkModerate={bulkModerate}
-		onModerate={setStatus}
-		onSplit={openSplit}
-	/>
+	<div data-tour="moderation-statements">
+		<StatementsTable
+			editable={canModerate}
+			rows={visible}
+			{rejectReasons}
+			{selected}
+			{pending}
+			{bulkAction}
+			{lineage}
+			onToggleSelect={toggleSelect}
+			onToggleAll={toggleSelectAll}
+			onClear={clearSelection}
+			onBulkModerate={bulkModerate}
+			onModerate={setStatus}
+			onSplit={openSplit}
+		/>
+	</div>
 </div>
 
 {#if canModerate}

@@ -21,6 +21,10 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import TranslatableFieldWithSkeleton from '$lib/components/Translation/TranslatableFieldWithSkeleton.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { contentConfigTour } from './tour';
+
+	useTour(() => contentConfigTour);
 
 	let { data } = $props();
 	const { conversation, streamedAvailableDocuments } = $derived(data);
@@ -140,169 +144,183 @@
 </script>
 
 <PageHeader
+	data-tour="page-header"
 	title="Content"
 	description="Participant-facing copy shown throughout the conversation."
 />
 
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<Form.Field form={contentForm} name="privacyPolicy" class="contents">
-		<Form.Control>
-			{#snippet children({ props })}
-				<FieldLabel
-					label="Privacy Policy"
-					info="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
-				/>
-				<div class="flex-1">
-					<CollapsibleRichField
-						label="Privacy policy"
-						editable={canEdit}
-						content={$form.privacyPolicy}
-						open={openContentField === 'privacyPolicy'}
-						onOpenChange={(o) => (openContentField = o ? 'privacyPolicy' : null)}
-					>
-						<TranslatableFieldWithSkeleton
-							source={privacyPolicySource}
-							disabled={!canEdit}
-							editorType="rich"
-							placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
-							{primaryLocale}
-							{supportedLanguages}
-							{streamedAvailableDocuments}
-							conversationId={conversation.id}
-							inputProps={props}
-						/>
-						<Form.FieldErrors />
-					</CollapsibleRichField>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
-</div>
-
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<Form.Field form={contentForm} name="shortPrivacyPolicy" class="contents">
-		<Form.Control>
-			{#snippet children({ props })}
-				<FieldLabel
-					label="Short Privacy Policy"
-					info="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
-				/>
-				<div class="flex-1">
-					<CollapsibleRichField
-						label="Short privacy policy"
-						editable={canEdit}
-						content={$form.shortPrivacyPolicy}
-						open={openContentField === 'shortPrivacyPolicy'}
-						onOpenChange={(o) => (openContentField = o ? 'shortPrivacyPolicy' : null)}
-					>
-						<TranslatableFieldWithSkeleton
-							source={shortPrivacyPolicySource}
-							disabled={!canEdit}
-							editorType="rich"
-							placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
-							{primaryLocale}
-							{supportedLanguages}
-							{streamedAvailableDocuments}
-							conversationId={conversation.id}
-							inputProps={props}
-						/>
-						<Form.FieldErrors />
-					</CollapsibleRichField>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
-</div>
-
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<Form.Field form={contentForm} name="faqs" class="contents">
-		<Form.Control>
-			{#snippet children({ props })}
-				<FieldLabel
-					label="FAQs"
-					info="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
-				/>
-				<div class="flex-1">
-					<CollapsibleRichField
-						label="FAQs"
-						editable={canEdit}
-						content={$form.faqs}
-						open={openContentField === 'faqs'}
-						onOpenChange={(o) => (openContentField = o ? 'faqs' : null)}
-					>
-						<TranslatableFieldWithSkeleton
-							source={faqsSource}
-							disabled={!canEdit}
-							editorType="rich"
-							placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
-							{primaryLocale}
-							{supportedLanguages}
-							{streamedAvailableDocuments}
-							conversationId={conversation.id}
-							inputProps={props}
-						/>
-						<Form.FieldErrors />
-					</CollapsibleRichField>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
-</div>
-
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<Form.Field form={contentForm} name="thankYouMessage" class="contents">
-		<Form.Control>
-			{#snippet children({ props })}
-				<FieldLabel
-					label="Thank you message"
-					info="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
-				/>
-				<div class="flex-1">
-					<CollapsibleRichField
-						label="Thank you message"
-						editable={canEdit}
-						content={$form.thankYouMessage}
-						open={openContentField === 'thankYouMessage'}
-						onOpenChange={(o) => (openContentField = o ? 'thankYouMessage' : null)}
-					>
-						<TranslatableFieldWithSkeleton
-							source={thankYouMessageSource}
-							disabled={!canEdit}
-							editorType="rich"
-							placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
-							{primaryLocale}
-							{supportedLanguages}
-							{streamedAvailableDocuments}
-							conversationId={conversation.id}
-							inputProps={props}
-						/>
-						<Form.FieldErrors />
-					</CollapsibleRichField>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
-</div>
-
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<Form.Field form={contentForm} name="callToAction" class="contents">
-		<Form.Control>
-			{#snippet children({ props })}
-				<FieldLabel
-					label="Call to action"
-					info="The label on the main join button. Leave blank for 'Join the conversation'."
-				/>
-				<div class="flex-1">
-					<TranslatableField
-						source={callToActionSource}
-						disabled={!canEdit}
-						{primaryLocale}
-						{supportedLanguages}
-						inputProps={props}
+<div data-tour="content-fields" class="flex flex-col">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={contentForm} name="privacyPolicy" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="Privacy Policy"
+						info="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
 					/>
-					<Form.FieldErrors />
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
+					<div class="flex-1">
+						<CollapsibleRichField
+							label="Privacy policy"
+							editable={canEdit}
+							content={$form.privacyPolicy}
+							open={openContentField === 'privacyPolicy'}
+							onOpenChange={(o) => (openContentField = o ? 'privacyPolicy' : null)}
+						>
+							<TranslatableFieldWithSkeleton
+								source={privacyPolicySource}
+								disabled={!canEdit}
+								editorType="rich"
+								placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
+								{primaryLocale}
+								{supportedLanguages}
+								{streamedAvailableDocuments}
+								conversationId={conversation.id}
+								inputProps={props}
+							/>
+							<Form.FieldErrors />
+						</CollapsibleRichField>
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={contentForm} name="shortPrivacyPolicy" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="Short Privacy Policy"
+						info="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
+					/>
+					<div class="flex-1">
+						<CollapsibleRichField
+							label="Short privacy policy"
+							editable={canEdit}
+							content={$form.shortPrivacyPolicy}
+							open={openContentField === 'shortPrivacyPolicy'}
+							onOpenChange={(o) =>
+								(openContentField = o ? 'shortPrivacyPolicy' : null)}
+						>
+							<TranslatableFieldWithSkeleton
+								source={shortPrivacyPolicySource}
+								disabled={!canEdit}
+								editorType="rich"
+								placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
+								{primaryLocale}
+								{supportedLanguages}
+								{streamedAvailableDocuments}
+								conversationId={conversation.id}
+								inputProps={props}
+							/>
+							<Form.FieldErrors />
+						</CollapsibleRichField>
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={contentForm} name="faqs" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="FAQs"
+						info="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
+					/>
+					<div class="flex-1">
+						<CollapsibleRichField
+							label="FAQs"
+							editable={canEdit}
+							content={$form.faqs}
+							open={openContentField === 'faqs'}
+							onOpenChange={(o) => (openContentField = o ? 'faqs' : null)}
+						>
+							<TranslatableFieldWithSkeleton
+								source={faqsSource}
+								disabled={!canEdit}
+								editorType="rich"
+								placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
+								{primaryLocale}
+								{supportedLanguages}
+								{streamedAvailableDocuments}
+								conversationId={conversation.id}
+								inputProps={props}
+							/>
+							<Form.FieldErrors />
+						</CollapsibleRichField>
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={contentForm} name="thankYouMessage" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="Thank you message"
+						info="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
+					/>
+					<div class="flex-1">
+						<CollapsibleRichField
+							label="Thank you message"
+							editable={canEdit}
+							content={$form.thankYouMessage}
+							open={openContentField === 'thankYouMessage'}
+							onOpenChange={(o) => (openContentField = o ? 'thankYouMessage' : null)}
+						>
+							<TranslatableFieldWithSkeleton
+								source={thankYouMessageSource}
+								disabled={!canEdit}
+								editorType="rich"
+								placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
+								{primaryLocale}
+								{supportedLanguages}
+								{streamedAvailableDocuments}
+								conversationId={conversation.id}
+								inputProps={props}
+							/>
+							<Form.FieldErrors />
+						</CollapsibleRichField>
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={contentForm} name="callToAction" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="Call to action"
+						info="The label on the main join button. Leave blank for 'Join the conversation'."
+					/>
+					<div class="flex-1">
+						<TranslatableField
+							source={callToActionSource}
+							disabled={!canEdit}
+							{primaryLocale}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
 </div>

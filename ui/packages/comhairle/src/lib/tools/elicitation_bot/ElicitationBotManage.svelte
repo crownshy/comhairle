@@ -84,7 +84,13 @@
 		<p class="text-destructive text-sm">{$errMessage}</p>
 	{/if}
 
-	<form onsubmit={handleSubmit} class="space-y-6" method="POST" use:enhance>
+	<form
+		data-tour="elicitationbot-topic"
+		onsubmit={handleSubmit}
+		class="space-y-6"
+		method="POST"
+		use:enhance
+	>
 		<Form.Field {form} name="topic">
 			<Form.Control>
 				{#snippet children({ props })}

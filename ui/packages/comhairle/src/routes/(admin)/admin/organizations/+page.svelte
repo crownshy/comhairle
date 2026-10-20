@@ -4,6 +4,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from 'lucide-svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { organizationsTour } from './tour';
+
+	useTour(() => organizationsTour);
 
 	let props: PageProps = $props();
 	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
@@ -21,7 +25,7 @@
 	>
 		{#snippet actions()}
 			{#if canCreateOrganization}
-				<Button href="/admin/organizations/new">
+				<Button href="/admin/organizations/new" data-tour="new-organization">
 					<Plus class="size-4" />
 					Create organisation
 				</Button>
@@ -29,39 +33,41 @@
 		{/snippet}
 	</PageHeader>
 
-	{#if organizationAccess.length === 0}
-		<div class="bg-card border-border rounded-2xl border p-6">
-			<p class="text-base">You are not a member of any organisations yet.</p>
-		</div>
-	{:else}
-		<div class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
-			{#each organizationAccess as access (access.organization.id)}
-				<div
-					class="bg-card border-border flex h-full flex-col gap-4 rounded-2xl border p-6"
-				>
-					<div class="flex items-start justify-between gap-4">
-						<div class="min-w-0">
-							<h3 class="truncate text-xl font-semibold">
-								{access.organization.name}
-							</h3>
-							{#if access.organization.description}
-								<p class="text-muted-foreground mt-2 text-base">
-									{access.organization.description}
-								</p>
-							{/if}
+	<section data-tour="organizations-list" class="flex w-full flex-col gap-6 overflow-y-auto">
+		{#if organizationAccess.length === 0}
+			<div class="bg-card border-border rounded-2xl border p-6">
+				<p class="text-base">You are not a member of any organisations yet.</p>
+			</div>
+		{:else}
+			<div class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
+				{#each organizationAccess as access (access.organization.id)}
+					<div
+						class="bg-card border-border flex h-full flex-col gap-4 rounded-2xl border p-6"
+					>
+						<div class="flex items-start justify-between gap-4">
+							<div class="min-w-0">
+								<h3 class="truncate text-xl font-semibold">
+									{access.organization.name}
+								</h3>
+								{#if access.organization.description}
+									<p class="text-muted-foreground mt-2 text-base">
+										{access.organization.description}
+									</p>
+								{/if}
+							</div>
+						</div>
+
+						<div class="mt-auto pt-2">
+							<Button
+								variant="outline"
+								href={`/admin/organizations/${access.organization.id}`}
+							>
+								View details
+							</Button>
 						</div>
 					</div>
-
-					<div class="mt-auto pt-2">
-						<Button
-							variant="outline"
-							href={`/admin/organizations/${access.organization.id}`}
-						>
-							View details
-						</Button>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+				{/each}
+			</div>
+		{/if}
+	</section>
 </section>

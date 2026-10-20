@@ -2,6 +2,10 @@
 	import { page } from '$app/state';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { stepTour } from './tour';
+
+	useTour(() => stepTour);
 
 	let { data, children } = $props();
 	const canEdit = $derived(
@@ -32,7 +36,9 @@
 	 Rendered here from `data` (server-rendered) so a hard refresh of /design/step/* paints it
 	 immediately, rather than flashing in after hydration. The parent conversation layout gives
 	 the step route a full-bleed region (no padded wrapper) so this strip sits flush under Row 3. -->
-<SubTabStrip items={subtabItems} {basePath} />
+<div data-tour="step-subtabs">
+	<SubTabStrip items={subtabItems} {basePath} />
+</div>
 
 {#if isHeyformSetup}
 	<div class="bg-admin-background min-h-0 grow overflow-hidden">

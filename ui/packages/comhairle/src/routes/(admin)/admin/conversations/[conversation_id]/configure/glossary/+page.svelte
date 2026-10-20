@@ -29,6 +29,10 @@
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { glossaryConfigTour } from './tour';
+
+	useTour(() => glossaryConfigTour);
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
@@ -338,6 +342,7 @@
 </script>
 
 <PageHeader
+	data-tour="page-header"
 	title="Glossary"
 	description="Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
 />
@@ -390,7 +395,7 @@
 	{/if}
 
 	<!-- Toolbar: filter the list plus the row-level actions. -->
-	<div class="flex flex-wrap items-center gap-2">
+	<div data-tour="glossary-toolbar" class="flex flex-wrap items-center gap-2">
 		<div class="relative flex-1 md:max-w-xs">
 			<Search
 				class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"

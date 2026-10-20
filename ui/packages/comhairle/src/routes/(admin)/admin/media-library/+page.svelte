@@ -13,6 +13,10 @@
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { mediaLibraryTour } from './tour';
+
+	useTour(() => mediaLibraryTour);
 
 	const { data } = $props();
 
@@ -60,7 +64,7 @@
 {/snippet}
 
 <div class="mx-auto w-11/12 p-10">
-	<header class="flex flex-row items-baseline justify-between lg:w-10/12">
+	<header data-tour="page-header" class="flex flex-row items-baseline justify-between lg:w-10/12">
 		<h1 class="text-4xl font-bold">Media library</h1>
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
@@ -80,7 +84,7 @@
 			{/if}
 		</div>
 	</header>
-	<div class="mt-5 flex flex-row gap-4">
+	<div data-tour="media-filters" class="mt-5 flex flex-row gap-4">
 		{@render filterButton('audio')}
 		{@render filterButton('image')}
 		{@render filterButton('video')}

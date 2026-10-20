@@ -4,6 +4,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { moderateTour } from './tour';
+
+	useTour(() => moderateTour);
 
 	let { data } = $props();
 	let { workflowSteps, conversation } = data;
@@ -19,7 +23,7 @@
 
 <PageHeader title="Moderate" description="Use this space to moderate the conversation" />
 
-<div class="mb-5 flex flex-col gap-y-5">
+<div data-tour="moderate-steps" class="mb-5 flex flex-col gap-y-5">
 	{#each workflowSteps as step (step.id)}
 		<Card.Root class="transition-all">
 			<Card.Header>

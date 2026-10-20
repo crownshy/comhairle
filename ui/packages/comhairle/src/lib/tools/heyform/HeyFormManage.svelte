@@ -142,7 +142,11 @@
 </script>
 
 {#if canEdit}
-	<div bind:this={viewport} class="bg-muted relative h-full w-full overflow-hidden">
+	<div
+		bind:this={viewport}
+		data-tour="heyform-builder"
+		class="bg-muted relative h-full w-full overflow-hidden"
+	>
 		{#if !ready}
 			<!-- Covers the login + redirect hop (the iframe renders at opacity 0 behind this), so the
 			operator sees the builder skeleton rather than a blank frame or the bare login page. -->

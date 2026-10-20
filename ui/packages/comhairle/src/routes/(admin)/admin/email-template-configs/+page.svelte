@@ -3,6 +3,10 @@
 	import { Plus } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import EmailConfigCard from '$lib/components/EmailConfigCard.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { emailTemplateConfigsTour } from './tour';
+
+	useTour(() => emailTemplateConfigsTour);
 
 	let { data } = $props();
 	const { emailConfigs } = data;
@@ -12,13 +16,15 @@
 	<title>Custom Emails - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom emails</h1>
+<div data-tour="page-header">
+	<h1 class="text-4xl font-bold">Custom emails</h1>
 
-<p class="text-muted-foreground mb-10 text-base font-medium">
-	Use this space to manage your custom emails.
-</p>
+	<p class="text-muted-foreground mb-10 text-base font-medium">
+		Use this space to manage your custom emails.
+	</p>
+</div>
 
-<div class="mx-auto flex max-w-175 flex-col gap-6">
+<div data-tour="email-configs-list" class="mx-auto flex max-w-175 flex-col gap-6">
 	{#each emailConfigs as emailConfig (emailConfig.id)}
 		<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
 			<EmailConfigCard {emailConfig} />

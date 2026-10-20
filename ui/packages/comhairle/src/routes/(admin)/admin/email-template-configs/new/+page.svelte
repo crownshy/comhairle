@@ -13,6 +13,10 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { key } from '$lib/utils/invalidationKey';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { newEmailTemplateConfigTour } from './tour';
+
+	useTour(() => newEmailTemplateConfigTour);
 
 	type FormState = {
 		subject?: string;
@@ -120,7 +124,7 @@
 	<title>New Custom Email - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Create new custom email</h1>
+<h1 data-tour="page-header" class="text-4xl font-bold">Create new custom email</h1>
 
 <div class="flex justify-between">
 	<div class="flex flex-col gap-4">
