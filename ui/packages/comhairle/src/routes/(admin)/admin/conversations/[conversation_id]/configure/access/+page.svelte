@@ -50,6 +50,8 @@
 		| 'showThankyouPageFeedbackButton'
 		| 'allowRevisitAfterFinishing';
 
+	type AccessToggle = ConversationToggle | 'autoLogin';
+
 	async function saveConversationToggle(field: ConversationToggle, value: boolean) {
 		if (!canAdmin) return;
 		const res = await tryCatchAsync(() =>
@@ -107,186 +109,101 @@
 
 <PageHeader title="Access" description="Visibility, invites and participation." />
 
-<div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
-	<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Other configuration</p>
-	<div class="flex flex-1 flex-col gap-6">
-		<Form.Field form={accessForm} name="isPublic">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Show conversation publicly"
-								info="When this conversation is launched, anyone (even without an account) can open its documents and data. Off means only you, collaborators, and participants can."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Let anyone view this conversation's data once it's launched.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.isPublic}
-							disabled={!canAdmin}
-							onCheckedChange={(v) => saveConversationToggle('isPublic', v)}
-						/>
+{#snippet toggleRow(
+	name: AccessToggle,
+	label: string,
+	info: string,
+	description: string,
+	onChange: (value: boolean) => void
+)}
+	<Form.Field form={accessForm} {name} class="py-3">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex items-center justify-between gap-6">
+					<div class="flex flex-col gap-1">
+						<FieldLabel {label} {info} class="lg:w-auto" />
+						<Form.Description class="text-muted-foreground text-sm">
+							{description}
+						</Form.Description>
 					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+					<Switch
+						{...props}
+						bind:checked={$form[name]}
+						disabled={!canAdmin}
+						onCheckedChange={onChange}
+					/>
+				</div>
+			{/snippet}
+		</Form.Control>
+		<Form.FieldErrors />
+	</Form.Field>
+{/snippet}
 
-		<Form.Field form={accessForm} name="isInviteOnly">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Only allow participation by invite"
-								info="Only people you invite can take part. With this off, anyone with the link can participate."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Admins can invite and manage members.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.isInviteOnly}
-							disabled={!canAdmin}
-							onCheckedChange={(v) => saveConversationToggle('isInviteOnly', v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+<div class="divide-border flex max-w-3xl flex-col divide-y">
+	<section class="flex flex-col py-6">
+		<h2 class="text-base font-semibold">Visibility</h2>
+		<div class="flex flex-col">
+			{@render toggleRow(
+				'isPublic',
+				'Show conversation publicly',
+				'When this conversation is launched, anyone (even without an account) can open its documents and data. Off means only you, collaborators, and participants can.',
+				"Let anyone view this conversation's data once it's launched.",
+				(v) => saveConversationToggle('isPublic', v)
+			)}
+		</div>
+	</section>
 
-		<Form.Field form={accessForm} name="autoLogin">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Automatically log in with an anonymous account"
-								info="Visitors who are not signed in get a temporary anonymous account automatically, so they can take part without registering. They can upgrade to a real account later."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Creates a temporary account for unauthenticated users.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.autoLogin}
-							disabled={!canAdmin}
-							onCheckedChange={(v) => saveAutoLogin(v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
+	<section class="flex flex-col py-6">
+		<h2 class="text-base font-semibold">Who can take part</h2>
+		<div class="flex flex-col">
+			{@render toggleRow(
+				'isInviteOnly',
+				'Only allow participation by invite',
+				'Only people you invite can take part. With this off, anyone with the link can participate.',
+				'Admins can invite and manage members.',
+				(v) => saveConversationToggle('isInviteOnly', v)
+			)}
+			{@render toggleRow(
+				'autoLogin',
+				'Automatically log in with an anonymous account',
+				'Visitors who are not signed in get a temporary anonymous account automatically, so they can take part without registering. They can upgrade to a real account later.',
+				'Creates a temporary account for unauthenticated users.',
+				(v) => saveAutoLogin(v)
+			)}
+		</div>
+	</section>
 
-		<Form.Field form={accessForm} name="enableSignupPrompts">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Enable signup prompts"
-								info="Shows prompts encouraging participants to create an account on the thank-you page after they finish."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Toggle whether to display signup prompts on thank you page.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.enableSignupPrompts}
-							disabled={!canAdmin}
-							onCheckedChange={(v) =>
-								saveConversationToggle('enableSignupPrompts', v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
-
-		<Form.Field form={accessForm} name="showThankYouPageAnnonInstructions">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Show thank you page anonymous instructions"
-								info="On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Display instructions for anonymous users on the thank you page.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.showThankYouPageAnnonInstructions}
-							disabled={!canAdmin}
-							onCheckedChange={(v) =>
-								saveConversationToggle('showThankYouPageAnnonInstructions', v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
-
-		<Form.Field form={accessForm} name="showThankyouPageFeedbackButton">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Show thank you page feedback button"
-								info="On the thank-you page, shows participants a button to give feedback on the process."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Display the feedback button on the thank you page.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.showThankyouPageFeedbackButton}
-							disabled={!canAdmin}
-							onCheckedChange={(v) =>
-								saveConversationToggle('showThankyouPageFeedbackButton', v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
-
-		<Form.Field form={accessForm} name="allowRevisitAfterFinishing">
-			<Form.Control>
-				{#snippet children({ props })}
-					<div class="flex items-center justify-between gap-4">
-						<div class="flex flex-col gap-1">
-							<FieldLabel
-								label="Allow revisit after finishing"
-								info="Once a participant has finished every step they reach the thank-you page. Turn this off to seal them out: no step is reachable afterwards, the revisit links disappear, and the server rejects any further contributions."
-							/>
-							<Form.Description class="text-muted-foreground text-sm">
-								Let participants return to the steps after they have finished.
-							</Form.Description>
-						</div>
-						<Switch
-							{...props}
-							bind:checked={$form.allowRevisitAfterFinishing}
-							disabled={!canAdmin}
-							onCheckedChange={(v) =>
-								saveConversationToggle('allowRevisitAfterFinishing', v)}
-						/>
-					</div>
-				{/snippet}
-			</Form.Control>
-			<Form.FieldErrors />
-		</Form.Field>
-	</div>
+	<section class="flex flex-col py-6">
+		<h2 class="text-base font-semibold">After finishing</h2>
+		<div class="flex flex-col">
+			{@render toggleRow(
+				'allowRevisitAfterFinishing',
+				'Allow revisit after finishing',
+				'Once a participant has finished every step they reach the thank-you page. Turn this off to seal them out: no step is reachable afterwards, the revisit links disappear, and the server rejects any further contributions.',
+				'Let participants return to the steps after they have finished.',
+				(v) => saveConversationToggle('allowRevisitAfterFinishing', v)
+			)}
+			{@render toggleRow(
+				'enableSignupPrompts',
+				'Enable signup prompts',
+				'Shows prompts encouraging participants to create an account on the thank-you page after they finish.',
+				'Toggle whether to display signup prompts on thank you page.',
+				(v) => saveConversationToggle('enableSignupPrompts', v)
+			)}
+			{@render toggleRow(
+				'showThankYouPageAnnonInstructions',
+				'Show thank you page anonymous instructions',
+				'On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results.',
+				'Display instructions for anonymous users on the thank you page.',
+				(v) => saveConversationToggle('showThankYouPageAnnonInstructions', v)
+			)}
+			{@render toggleRow(
+				'showThankyouPageFeedbackButton',
+				'Show thank you page feedback button',
+				'On the thank-you page, shows participants a button to give feedback on the process.',
+				'Display the feedback button on the thank you page.',
+				(v) => saveConversationToggle('showThankyouPageFeedbackButton', v)
+			)}
+		</div>
+	</section>
 </div>
