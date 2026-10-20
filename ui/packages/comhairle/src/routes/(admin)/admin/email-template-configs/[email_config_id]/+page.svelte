@@ -136,22 +136,6 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<!-- <h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
-
-<div class="flex justify-end gap-2">
-	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}
-		>Delete</Button
-	>
-	<Button
-		variant="default"
-		type="button"
-		onclick={() => {
-			debouncedPreviewEmail();
-			openPreviewModal = true;
-		}}>Preview</Button
-	>
-</div> -->
-
 <SectionHeader
 	content={{
 		eyebrow: 'Email templates',

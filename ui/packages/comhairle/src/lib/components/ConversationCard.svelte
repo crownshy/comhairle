@@ -7,18 +7,30 @@
 		CONVERSATION_STATUS_BADGE_VARIANTS,
 		CONVERSATION_STATUS_LABELS
 	} from '$lib/utils/conversationStatus';
-	import { ArrowRight, MessageSquareText } from 'lucide-svelte';
+	import { ArrowRight, MessageCircle, MessageSquareText } from 'lucide-svelte';
 
 	type Props = {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
 		isShared?: boolean;
+		layout?: 'card' | 'row';
 	};
 
-	let { conversation, variant = 'admin', organizationName, isShared = false }: Props = $props();
+	let {
+		conversation,
+		variant = 'admin',
+		organizationName,
+		isShared = false,
+		layout = 'card'
+	}: Props = $props();
 
 	let status = $derived(conversationStatus(conversation));
+	const BANNER_TONE: Record<typeof status, string> = {
+		live: 'bg-primary/15 text-primary',
+		draft: 'bg-muted text-muted-foreground',
+		completed: 'bg-foreground/10 text-foreground/60'
+	};
 </script>
 
 <!-- Image snippet -->
@@ -83,47 +95,84 @@
 		</div>
 	{:else}
 		<!-- Admin variant -->
-		<div
-			class="group hover:bg-accent/50 flex w-full max-w-[1280px] flex-col-reverse items-stretch gap-2 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md lg:flex-row-reverse lg:items-start lg:gap-16 lg:p-6"
-		>
-			{@render image('h-40 sm:h-56 lg:h-72')}
-
-			<!-- Text content -->
-			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
-				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-					<div class="flex flex-wrap gap-2">
-						<Badge
-							variant={CONVERSATION_STATUS_BADGE_VARIANTS[status]}
-							class="h-7 text-sm"
-						>
-							{CONVERSATION_STATUS_LABELS[status]}
-						</Badge>
-						{#if isShared}
-							<Badge variant="outline" class="h-7 text-sm">Shared</Badge>
-						{/if}
+		{#snippet banner(sizeClass: string)}
+			<div class="relative shrink-0 {sizeClass} {BANNER_TONE[status]}">
+				{#if conversation.imageUrl}
+					<img
+						class="absolute inset-0 h-full w-full object-cover"
+						src={conversation.imageUrl}
+						alt=""
+					/>
+				{:else}
+					<div class="flex h-full items-center justify-center">
+						<MessageCircle class="size-6" />
 					</div>
+				{/if}
+			</div>
+		{/snippet}
 
+		{#snippet badges()}
+			<div class="flex flex-wrap gap-2">
+				<Badge variant={CONVERSATION_STATUS_BADGE_VARIANTS[status]}>
+					{CONVERSATION_STATUS_LABELS[status]}
+				</Badge>
+				{#if isShared}
+					<Badge variant="outline">Shared</Badge>
+				{/if}
+			</div>
+		{/snippet}
+
+		{#snippet editButton()}
+			<Button
+				variant="primaryDark"
+				class="rounded-full"
+				href={`/admin/conversations/${conversation.id}/configure`}
+			>
+				Edit conversation
+				<ArrowRight class="size-4" />
+			</Button>
+		{/snippet}
+
+		{#if layout === 'row'}
+			<article
+				class="bg-card border-border flex flex-col-reverse gap-6 overflow-hidden rounded-2xl border p-4 transition-shadow duration-200 hover:shadow-md lg:flex-row lg:items-stretch lg:gap-12 lg:p-6"
+			>
+				<div class="flex flex-1 flex-col gap-4">
+					{@render badges()}
 					<h2
-						class="text-foreground self-stretch text-xl leading-7 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-2xl"
+						class="text-foreground text-xl leading-7 font-semibold lg:text-2xl lg:leading-8"
 					>
 						{conversation.title}
 					</h2>
-
-					<p class="text-foreground self-stretch text-sm leading-5 font-medium">
-						{conversation.shortDescription}
-					</p>
+					{#if conversation.shortDescription}
+						<p class="text-muted-foreground text-base">
+							{conversation.shortDescription}
+						</p>
+					{/if}
+					<div class="mt-auto pt-2">{@render editButton()}</div>
 				</div>
-
-				<!-- Edit button -->
-				<Button
-					variant="primaryDark"
-					class="rounded-full px-4 py-3 transition-transform duration-300"
-					href={`/admin/conversations/${conversation.id}/configure`}
-				>
-					Edit conversation
-					<ArrowRight class="ml-1 size-4 transition-transform duration-300" />
-				</Button>
-			</div>
-		</div>
+				{@render banner(
+					'h-40 w-full overflow-hidden rounded-xl sm:h-56 lg:h-72 lg:w-auto lg:flex-1'
+				)}
+			</article>
+		{:else}
+			<article
+				class="bg-card border-border flex h-full flex-col overflow-hidden rounded-xl border transition-shadow duration-200 hover:shadow-md"
+			>
+				{@render banner('h-22')}
+				<div class="flex grow flex-col gap-3 p-5">
+					{@render badges()}
+					<h2 class="text-foreground text-lg leading-snug font-semibold">
+						{conversation.title}
+					</h2>
+					{#if conversation.shortDescription}
+						<p class="text-muted-foreground line-clamp-2 text-base">
+							{conversation.shortDescription}
+						</p>
+					{/if}
+					<div class="mt-auto pt-2">{@render editButton()}</div>
+				</div>
+			</article>
+		{/if}
 	{/if}
 {/if}
