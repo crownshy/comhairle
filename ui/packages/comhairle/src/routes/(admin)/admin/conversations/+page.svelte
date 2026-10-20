@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { Home } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
 	import { Pager } from '$lib/pagination';
@@ -34,17 +33,13 @@
 	<title>Admin Dashboard - Comhairle</title>
 </svelte:head>
 
-<div
-	bind:this={pageTop}
-	class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16"
->
+<div bind:this={pageTop} class="pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 	<div class="@container flex w-full max-w-300 flex-col gap-11">
 		<!-- The right padding matches the card padding so the button lines up with the card images. -->
 		<div
 			class="mb-10 flex flex-col items-start gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"
 		>
 			<div class="flex items-center gap-2">
-				<Home class="size-7 sm:size-9" />
 				<h1 class="text-2xl sm:text-4xl">Your conversations</h1>
 			</div>
 			{#if permissions.can('system', 'conversation_create')}
