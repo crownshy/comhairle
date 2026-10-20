@@ -1,24 +1,26 @@
+use std::error::Error;
+use std::sync::Arc;
+
 use aws_config::BehaviorVersion;
+use comhairle::bot_service::{ComhairleBotService, ComhairleRagBotService};
+use comhairle::bulk_storage_service::BulkStorageService;
+use comhairle::bulk_storage_service::s3_storage::S3StorageService;
+use comhairle::categorization_service::CategorizationService;
+use comhairle::categorization_service::tttc_categorizer::TttcCategorizer;
+use comhairle::config::{TranscriptionServiceConfig, TranslatorConfig};
+use comhairle::db::setup_db;
+use comhairle::mailer::Mailer;
 use comhairle::redis_connection::RedisImpl;
-use comhairle::{
-    ComhairleState,
-    bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage_service::{BulkStorageService, s3_storage::S3StorageService},
-    categorization_service::{CategorizationService, tttc_categorizer::TttcCategorizer},
-    config::{TranscriptionServiceConfig, TranslatorConfig},
-    db::setup_db,
-    mailer::Mailer,
-    setup_server,
-    transcription_service::amazon_transcriber::AmazonTranscriber,
-    translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService,
-    websockets::handlers::video_call::VideoCallMessageHandler,
-    wiki_poll_service::polis_service::PolisClient,
-    worker_service::{init_monitor, init_worker_service},
-};
+use comhairle::transcription_service::amazon_transcriber::AmazonTranscriber;
+use comhairle::translation_service::GoogleTranslateService;
+use comhairle::websockets::ComhairleWebSocketService;
+use comhairle::websockets::handlers::video_call::VideoCallMessageHandler;
+use comhairle::wiki_poll_service::polis_service::PolisClient;
+use comhairle::worker_service::{init_monitor, init_worker_service};
+use comhairle::{ComhairleState, setup_server};
 use redis::aio::ConnectionManagerConfig;
-use std::{error::Error, sync::Arc};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() {
@@ -75,6 +77,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         &config.mailer.host,
         &config.mailer.user,
         &config.mailer.password,
+        config.logo_url.as_deref(),
     ));
 
     // Setup Websocket service

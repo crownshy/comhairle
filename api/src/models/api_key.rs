@@ -1,4 +1,5 @@
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use schemars::JsonSchema;
@@ -6,7 +7,8 @@ use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, prelude::FromRow, query_scalar_with, query_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_scalar_with, query_with};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -106,11 +108,10 @@ pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, Comhai
 
 #[cfg(test)]
 mod tests {
-    use crate::models::users;
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::users;
 
     #[test]
     fn same_keys_produce_same_hashes() {

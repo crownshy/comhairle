@@ -14,21 +14,20 @@ use heyform_sdk::{
     FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, SignUpInput, Submission,
     Submissions,
 };
+use rand::distributions::Alphanumeric;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
-use rand::{Rng, distributions::Alphanumeric};
+use rand::{Rng, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ComhairleState;
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
-use crate::models;
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::routes::auth::RequiredAdminUser;
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
+use crate::{ComhairleState, models};
 
 /// `(status, headers, body)` for a CSV download response.
 type CsvExportResponse = (StatusCode, [(String, String); 2], String);
@@ -1118,10 +1117,13 @@ pub async fn submissions_csv(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::error::Error;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use axum::{Router, extract::State, routing::post};
+    use axum::Router;
+    use axum::extract::State;
+    use axum::routing::post;
     use heyform_sdk::{
         Form, FormField, FormReport, FormReportAnswer, FormReportResponse, FormReportSubmission,
         HiddenFieldAnswer, Submission, SubmissionCategory, Submissions,
@@ -1130,17 +1132,12 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
-    use crate::{
-        models::model_test_helpers::{
-            get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::heyform_tool_config,
-    };
-
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+    };
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::heyform_tool_config;
 
     #[derive(Clone)]
     struct MockHeyFormState {

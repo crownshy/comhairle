@@ -5,31 +5,23 @@ pub mod messages;
 pub mod routes;
 pub mod setup;
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use axum::{
-    extract::{
-        ConnectInfo, State,
-        ws::{Message, WebSocket, WebSocketUpgrade},
-    },
-    response::Response,
-};
+use async_trait::async_trait;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{ConnectInfo, State};
+use axum::response::Response;
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use messages::{NotificationLevel, WebSocketMessage};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
-
-use async_trait::async_trait;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
@@ -1040,10 +1032,11 @@ async fn route_to_handler(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::Utc;
     use redis_test::server::RedisServer;
     use serial_test::serial;
+
+    use super::*;
 
     #[tokio::test]
     #[serial]

@@ -1,8 +1,11 @@
-use std::{error::Error, sync::Arc};
+use std::error::Error;
+use std::sync::Arc;
 
-use crate::models::permissions::{
-    ActorId, GrantRoleRequest, PermissionRole, grant_role, system::Role,
-};
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use crate::models::permissions::system::Role;
+use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
@@ -10,9 +13,6 @@ use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
 use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
-
-use sqlx::PgPool;
-use uuid::Uuid;
 
 /// Sets up a default `App` and `UserSession` for testing.
 pub async fn setup_default_app_and_session(

@@ -12,13 +12,9 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        event::{self, BreakoutPlan, BreakoutPlanRoom, BreakoutSeat, EventIden},
-        event_attendance, invites,
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::event::{self, BreakoutPlan, BreakoutPlanRoom, BreakoutSeat, EventIden};
+use crate::models::{event_attendance, invites};
 
 /// Room size used when the event's agenda has no breakout item with `max_per_room`.
 const DEFAULT_MAX_PER_ROOM: usize = 4;

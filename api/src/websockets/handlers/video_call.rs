@@ -1,7 +1,5 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
-};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -11,10 +9,9 @@ use thiserror::Error;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    websockets::{WebSocketConnection, WebSocketMessageHandler, messages::WebSocketMessage},
-};
+use crate::ComhairleState;
+use crate::websockets::messages::WebSocketMessage;
+use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
 
 /// Represents a participant in a video call.
 ///
