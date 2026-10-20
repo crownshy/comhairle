@@ -34,7 +34,14 @@
 <div class="flex w-full flex-col items-center gap-4">
 	{#if user}
 		<div class="flex flex-col gap-4">
-			<UserAvatar {user} />
+			<div class="bg-primary mt-12 flex flex-col items-center">
+				<UserAvatar
+					username={user.username}
+					avatarUrl={user.avatarUrl}
+					class="mb-4 h-20 w-20"
+					withUsername
+				/>
+			</div>
 			<form
 				method="POST"
 				onsubmit={(e) => {

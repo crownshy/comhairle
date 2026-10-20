@@ -1,5 +1,11 @@
 <script lang="ts">
-	import AdminNav from '$lib/components/AdminNav.svelte';
+	import AdminSidebar, { type OpenConversation } from './sidebar/AdminSidebar.svelte';
+	import { workspaceGroups } from './sidebar/workspaceLinks';
+	import { hasSiteAdminRole, hasSuperAdminRole } from '$lib/utils/permissions';
+	import type {
+		ConversationWithTranslations,
+		WorkflowStepsListResponse
+	} from '@crownshy/api-client/api';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -10,10 +16,24 @@
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let ownedConversations = $derived(data.ownedConversations);
-	let permittedConversations = $derived(data.permittedConversations);
-	let userOrganizations = $derived(data.userOrganizations);
-	let userRoles = $derived(data.userRoles);
+	// Set by the conversation layout. Inside a conversation the sidebar shows it instead of
+	// the workspace links (ADR-0052).
+	let openConversation = $derived.by((): OpenConversation | undefined => {
+		const conversation = page.data.conversation as ConversationWithTranslations | undefined;
+		if (!conversation) return undefined;
+		const steps = page.data.workflowSteps as WorkflowStepsListResponse | undefined;
+		return {
+			conversation,
+			stepCount: steps?.length ?? 0,
+			hasPolisStep: page.data.hasPolisStep === true
+		};
+	});
+	let groups = $derived(
+		workspaceGroups({
+			isSiteAdmin: hasSiteAdminRole(data.userRoles),
+			isSuperAdmin: hasSuperAdminRole(data.userRoles)
+		})
+	);
 
 	if (!data.user) {
 		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
@@ -31,30 +51,29 @@
 	});
 </script>
 
-<SideBar.Provider
-	class="h-svh"
-	style="--sidebar-width: {sidebarWidthPx}px;"
-	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
->
-	<AdminNav
-		user={data.user}
-		ownedConversations={ownedConversations?.records ?? []}
-		permittedConversations={permittedConversations?.records ?? []}
-		userOrganizations={userOrganizations ?? {
-			organizations: [],
-			canCreateOrganization: false
-		}}
-		{userRoles}
-		path={page.url.pathname}
-	/>
-	<SideBar.Inset class="min-h-0 min-w-0">
-		<SidebarFloatingTriggers />
-		<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
-		<main class="bg-muted relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
-			{@render children()}
-		</main>
-	</SideBar.Inset>
-</SideBar.Provider>
+{#if data.user}
+	<SideBar.Provider
+		class="h-svh"
+		style="--sidebar-width: {sidebarWidthPx}px;"
+		data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
+	>
+		<AdminSidebar
+			open={openConversation}
+			workspaceGroups={groups}
+			user={data.user}
+			path={page.url.pathname}
+		/>
+		<SideBar.Inset class="min-h-0 min-w-0">
+			<SidebarFloatingTriggers />
+			<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
+			<main
+				class="bg-muted relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto"
+			>
+				{@render children()}
+			</main>
+		</SideBar.Inset>
+	</SideBar.Provider>
+{/if}
 
 <AutosaveLeaveGuard />
 

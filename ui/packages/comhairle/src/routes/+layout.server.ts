@@ -1,3 +1,4 @@
+import type { UserDto } from '@crownshy/api-client/api';
 import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
@@ -20,7 +21,7 @@ export const load: LayoutServerLoad = async (event) => {
 	// `hooks.server.ts`).
 	const tk = event.cookies.get('auth-token');
 
-	let body: { id?: string } | undefined;
+	let body: UserDto | undefined;
 	try {
 		const resp = await event.fetch(`/api/auth/current_user`, {
 			method: 'GET',
@@ -31,7 +32,7 @@ export const load: LayoutServerLoad = async (event) => {
 			return { user: null, ...common };
 		}
 		body = await resp.json();
-	} catch (e) {
+	} catch {
 		// Network-level failure, including a connection reset mid-body-read
 		// (resp.ok can be true before the stream errors out) — degrade to
 		// anonymous instead of letting this throw crash every route that

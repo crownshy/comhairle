@@ -18,6 +18,7 @@
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl, embedInviteUrl } from '$lib/utils/invites.js';
 	import { permissions } from '$lib/permissions.svelte';
+	import ConversationLinkCard from '../ConversationLinkCard.svelte';
 
 	let labelDialogOpen = $state(false);
 	let selectedInvite = $state<InviteDto | null>(null);
@@ -77,6 +78,15 @@
 {/snippet}
 
 <PageHeader title="Recruit" />
+
+{#if !conversation.isComplete}
+	<div class="mb-6 max-w-3xl">
+		<ConversationLinkCard
+			conversationId={conversation.id}
+			isInviteOnly={conversation.isInviteOnly}
+		/>
+	</div>
+{/if}
 
 {#if activeTab === 'email'}
 	<EmailInviteForm
