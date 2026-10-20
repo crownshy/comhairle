@@ -12,6 +12,7 @@ use crate::models::pagination::PageOptions;
 use crate::models::workflow;
 use crate::models::workflow_step;
 use crate::tools::ToolConfig;
+use crate::wiki_poll_service::ModerationStatus;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WikiPollModerationNotifyRequest;
@@ -100,11 +101,13 @@ pub async fn send_wiki_poll_moderation_notify_emails(
             .ok_or_record_failure(&req.job_id, &state.db)
             .await?;
 
-        wiki_poll_steps.extend(
-            workflow_steps
-                .into_iter()
-                .filter(|step| matches!(step.tool_config, Some(ToolConfig::Polis(_)))),
-        );
+        wiki_poll_steps.extend(workflow_steps.into_iter().filter_map(|step| {
+            let Some(ToolConfig::Polis(config)) = &step.tool_config else {
+                return None;
+            };
+            let config = config.clone();
+            Some((step, config))
+        }));
     }
 
     if wiki_poll_steps.is_empty() {
@@ -120,8 +123,35 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         return Ok(());
     }
 
+    let mut steps_with_pending = Vec::new();
+    // TODO: add toggle for workflow_step to enable email feature
+    for (step, config) in wiki_poll_steps {
+        let mut pending_count = 0;
+        // TODO: check what `moderation=true` does on polis request
+        let comments = state
+            .wiki_poll_service
+            .get_comments(&config.poll_id)
+            .await
+            .map_err(|e| WorkerServiceError::WikiPollServiceError(e.to_string()))
+            .ok_or_record_failure(&req.job_id, &state.db)
+            .await?;
+
+        comments.into_iter().for_each(|comment| {
+            let moderation_status = ModerationStatus::try_from(comment.moderation);
+
+            if let Ok(status) = moderation_status
+                && status == ModerationStatus::Pending
+            {
+                pending_count += 1;
+            }
+        });
+
+        if pending_count > 0 {
+            steps_with_pending.push((step, pending_count));
+        }
+    }
+
     // TODO:
-    // 1. Check for pending polis comments
     // 2. Send emails to mod and owner if so
 
     Ok(())
