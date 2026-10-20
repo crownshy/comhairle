@@ -6,6 +6,8 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { stepSetupTour } from './tour';
 
 	let { data } = $props();
 
@@ -13,6 +15,8 @@
 	let step = $derived(data.step);
 	let workflow = $derived(data.workflows[0]);
 	let toolConfig = $derived(data.toolConfig);
+
+	useTour(() => stepSetupTour(toolConfig?.type));
 </script>
 
 {#if step && toolConfig?.type === 'learn'}

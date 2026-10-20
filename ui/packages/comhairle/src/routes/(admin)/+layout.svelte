@@ -7,6 +7,7 @@
 		WorkflowStepsListResponse
 	} from '@crownshy/api-client/api';
 	import MobileAdminBar from './sidebar/MobileAdminBar.svelte';
+	import TourReplayButton from '$lib/tours/TourReplayButton.svelte';
 	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -96,6 +97,7 @@
 		/>
 		<SideBar.Inset class="min-h-0 min-w-0 bg-transparent">
 			<MobileAdminBar title={mobileTitle} />
+			<TourReplayButton />
 			<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
 			<main class="relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
 				{@render children()}
