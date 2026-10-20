@@ -19,7 +19,7 @@
 	}
 </script>
 
-<PageHeader title="Your Details" description="Update account details and demographic data here" />
+<PageHeader title="Your profile" description="Update account details and demographic data here" />
 
 <section>
 	{#if user.authType === 'guest'}
