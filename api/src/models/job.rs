@@ -3,17 +3,14 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 
 #[derive(Serialize, Deserialize, FromRow, Clone, JsonSchema, Debug)]
 #[enum_def(table_name = "job")]
@@ -308,9 +305,9 @@ pub async fn list(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
+
+    use super::*;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_job(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -1,14 +1,17 @@
-use crate::models::conversation_email_notification_recipients::ConversationEmailNotificationRecipientsIden;
-use crate::models::users::UserIden;
-use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::conversation_email_notification_recipients::ConversationEmailNotificationRecipientsIden;
+use crate::models::users::UserIden;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_conversation_preferences")]

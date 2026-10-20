@@ -14,7 +14,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, LockType, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -526,10 +527,9 @@ pub async fn lock_for_step(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };

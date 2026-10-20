@@ -3,10 +3,8 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::models::{
-    notification::{Notification, NotificationContextType, NotificationType},
-    notification_delivery::{DeliveryMethod, NotificationDelivery},
-};
+use crate::models::notification::{Notification, NotificationContextType, NotificationType};
+use crate::models::notification_delivery::{DeliveryMethod, NotificationDelivery};
 
 /// Data transfer object (public API representation) for a Notification.
 ///

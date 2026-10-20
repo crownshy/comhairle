@@ -4,10 +4,9 @@ use std::pin::Pin;
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use reqwest::StatusCode;
-
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

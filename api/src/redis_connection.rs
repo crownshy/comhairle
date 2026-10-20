@@ -5,9 +5,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use redis::AsyncCommands;
-use redis::RedisError;
 use redis::aio::ConnectionManager;
+use redis::{AsyncCommands, RedisError};
 #[cfg(test)]
 use tokio::sync::Mutex;
 

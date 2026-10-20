@@ -3,19 +3,16 @@ use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, LockType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        event::EventIden,
-        pagination::{Order, PageOptions, PaginatedResults},
-        users::UserIden,
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::event::EventIden;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::users::UserIden;
 
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "event_attendance")]
@@ -350,15 +347,13 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhairle
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{
-        event::{self, CreateEvent, SignupMode},
-        model_test_helpers::{
-            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
-        },
-    };
+    use std::error::Error;
 
     use super::*;
-    use std::error::Error;
+    use crate::models::event::{self, CreateEvent, SignupMode};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
+    };
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_attendance_for_event_without_capacity(

@@ -3,14 +3,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        organization::{LocalizedOrganization, Organization, OrganizationType},
-        pagination::PaginatedResults,
-        translations::TextContentId,
-    },
-    schema_helpers::{example_localized_text, example_uuid},
-};
+use crate::models::organization::{LocalizedOrganization, Organization, OrganizationType};
+use crate::models::pagination::PaginatedResults;
+use crate::models::translations::TextContentId;
+use crate::schema_helpers::{example_localized_text, example_uuid};
 
 /// Data transfer object (public API representation) for an Organization.
 ///

@@ -17,14 +17,9 @@ use crate::models::organization::{
     PartialOrganization,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{
-    PermissionResource, PermissionRole, SystemResource,
-    organization::{Action, Role},
-    system,
-};
-use crate::models::translations;
-use crate::models::user_group;
-use crate::models::users;
+use crate::models::permissions::organization::{Action, Role};
+use crate::models::permissions::{PermissionResource, PermissionRole, SystemResource, system};
+use crate::models::{translations, user_group, users};
 use crate::routes::auth::{
     EmailLinkClaims, RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin,
     is_user_super_admin,
@@ -512,11 +507,12 @@ async fn delete(
 }
 
 pub fn router() -> ApiRouter<Arc<ComhairleState>> {
+    use axum::middleware::{from_fn, from_fn_with_state};
+
     use crate::middleware::permissions::{
         PermissionRequirement, authenticate, authorize as permission_middleware,
     };
     use crate::models::permissions::organization::Action as OrganizationAction;
-    use axum::middleware::{from_fn, from_fn_with_state};
     let requirement = PermissionRequirement::<OrganizationResource>::new;
     let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
@@ -664,14 +660,14 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-    use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::models::organization::OrganizationType;
+    use serde_json::json;
+    use sqlx::PgPool;
 
     use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::organization::OrganizationType;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {

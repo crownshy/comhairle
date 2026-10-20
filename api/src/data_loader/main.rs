@@ -3,24 +3,22 @@
     reason = "local fixture loader, panicking on bad data is acceptable"
 )]
 
-use clap::Parser;
-use comhairle::hash_pw;
-use comhairle::models::conversation::ConversationIden;
-use comhairle::models::{conversation::Conversation, users::UserIden};
+use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
 
-use comhairle::models::users::User;
+use clap::Parser;
+use comhairle::db::{run_migrations, setup_db};
+use comhairle::hash_pw;
+use comhairle::models::conversation::{Conversation, ConversationIden};
+use comhairle::models::users::{User, UserIden};
 use comhairle::models::workflow::{Workflow, WorkflowIden};
 use comhairle::models::workflow_step::{WorkflowStep, WorkflowStepIden};
 use sea_query::{PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::Deserialize;
 use sqlx::PgPool;
-use std::error::Error;
-use std::fs::File;
-use std::io::BufReader;
 use tracing::info;
-
-use comhairle::db::{run_migrations, setup_db};
 
 #[derive(Parser, Debug)]
 struct Args {
