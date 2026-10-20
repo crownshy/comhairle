@@ -70,6 +70,7 @@ pub struct ComhairleConfig {
     pub resource_bucket: String,
     pub default_conversation_image_url: String,
     pub admin_users: Option<Vec<String>>,
+    pub logo_url: Option<String>,
     pub mailer: MailerConfig,
     pub domain: String,
     pub translator: Option<TranslatorConfig>,
