@@ -4,7 +4,8 @@
 	import { Plus } from 'lucide-svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	let props: PageProps = $props();
 	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
 	let canCreateOrganization = $derived(permissions.can('system', 'organization_create'));
@@ -14,21 +15,22 @@
 	<title>Organisations - Comhairle Admin</title>
 </svelte:head>
 
-<section class="pt-page-top px-gutter max-w-300 grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-	<PageHeader
-		title="Your organisations"
-		description="Organisations you belong to. Open one to see its details and manage its team."
-	>
-		{#snippet actions()}
-			{#if canCreateOrganization}
-				<Button href="/admin/organizations/new">
-					<Plus class="size-4" />
-					Create organisation
-				</Button>
-			{/if}
-		{/snippet}
-	</PageHeader>
-
+<SectionHeader
+	content={{
+		eyebrow: 'Administration',
+		title: 'Your organisations',
+		description: 'Organisations you belong to. Open one to see its details and manage its team.'
+	}}
+>
+	{#snippet actions()}
+		{#if canCreateOrganization}
+			<Button href="/admin/organizations/new">
+				<Plus class="size-4" />
+				Create organisation
+			</Button>
+		{/if}
+	{/snippet}
+</SectionHeader><TabContent>
 	<div class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
 		{#each organizationAccess as access (access.organization.id)}
 			<div class="bg-card border-border flex h-full flex-col gap-4 rounded-2xl border p-6">
@@ -60,4 +62,4 @@
 			</div>
 		{/each}
 	</div>
-</section>
+</TabContent>
