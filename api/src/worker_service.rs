@@ -20,7 +20,7 @@ use mockall::{automock, predicate::*};
 use sensemakar_jobs::WikiPollSummaryJob;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
-use tracing::{error, instrument};
+use tracing::instrument;
 
 use crate::ComhairleState;
 use crate::config::WorkerConfig;
@@ -120,23 +120,16 @@ pub struct WorkerStorage {
 }
 
 pub async fn init_worker_service(
-    config: &Option<WorkerConfig>,
-) -> Option<(Arc<dyn WorkerService>, WorkerStorage)> {
-    let config = config.as_ref()?;
-
+    config: &WorkerConfig,
+) -> Result<(Arc<dyn WorkerService>, WorkerStorage), ComhairleError> {
     // Manually handle connection timeout as apalis default too long
     let redis_connection = timeout(
         Duration::from_secs(10),
         apalis_redis::connect(config.redis_url.clone()),
     )
     .await
-    .ok()
-    .and_then(|r| r.ok())
-    .or_else(|| {
-        error!("Timed out attempting to establish connection to Redis");
-        error!("Worker service unavailable");
-        None
-    })?;
+    .map_err(|_| ComhairleError::RedisError("Timed out conncecting to Redis after 10s".into()))?
+    .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
 
     let documents_config =
         apalis_redis::Config::default().set_namespace("worker_service_documents");
@@ -168,7 +161,7 @@ pub async fn init_worker_service(
         wiki_poll_summary: Arc::new(Mutex::new(wiki_poll_summary_storage.clone())),
     });
 
-    Some((
+    Ok((
         worker_service,
         WorkerStorage {
             documents: documents_storage,
