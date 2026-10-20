@@ -75,6 +75,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         &config.mailer.host,
         &config.mailer.user,
         &config.mailer.password,
+        config.logo_url.as_deref(),
     ));
 
     // Setup Websocket service
