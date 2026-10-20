@@ -338,6 +338,7 @@
 </script>
 
 <PageHeader
+	level="h2"
 	title="Glossary"
 	description="Define terms once and their explanation appears as a hover tooltip wherever the term shows up in this conversation's Learn steps. Add synonyms of the same term, separated by commas, and they'll all share one explanation."
 />

@@ -3,7 +3,6 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
@@ -76,8 +75,6 @@
 		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
 	</div>
 {/snippet}
-
-<PageHeader title="Recruit" />
 
 {#if !conversation.isComplete}
 	<div class="mb-6 max-w-3xl">

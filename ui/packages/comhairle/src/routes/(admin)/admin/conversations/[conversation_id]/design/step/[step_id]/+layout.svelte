@@ -39,8 +39,8 @@
 		{@render children()}
 	</div>
 {:else}
-	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-		<div class="h-full w-full max-w-[1200px]">
+	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12">
+		<div class="max-w-admin mx-auto h-full w-full">
 			{@render children()}
 		</div>
 	</div>

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
 	import TabContent from './TabContent.svelte';
+	import SectionHeader from './SectionHeader.svelte';
+	import { sectionHeader } from './sectionHeader';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
@@ -102,6 +104,9 @@
 	let primaryStripSkeleton = $derived(
 		conversationPrimaryStripSkeleton(effectivePathname, conversation.id)
 	);
+
+	// Follows the navigation target so the header changes together with the skeleton below it.
+	let header = $derived(sectionHeader(effectivePathname, conversation));
 </script>
 
 <!-- Mobile only: the sidebar is a drawer there, so keep the title visible and leave room for
@@ -109,14 +114,24 @@
 <div
 	class="border-border bg-background flex w-full shrink-0 items-center border-b py-2 pr-3 pl-14 md:hidden"
 >
-	<h1 class="text-primary truncate text-lg leading-7 font-semibold" title={displayTitle}>
+	<p class="text-primary truncate text-lg leading-7 font-semibold" title={displayTitle}>
 		{displayTitle}
-	</h1>
+	</p>
 </div>
 
-<!-- Section sub-strips. The sidebar picks the section (ADR-0052). shrink-0 keeps their
-	 height inside the viewport-capped `main`. -->
+<!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
+	 within it. shrink-0 keeps their height inside the viewport-capped `main`. -->
 <div class="flex shrink-0 flex-col">
+	{#if conversation.isComplete}
+		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
+			<p class="text-destructive text-sm">This conversation has closed</p>
+		</div>
+	{/if}
+
+	{#if header}
+		<SectionHeader content={header} />
+	{/if}
+
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
 		 (keyed off the pathname), never injected from a child `$effect`. Once a switch has run long
 		 enough to warrant the skeleton we ignore them and show the destination's reserved one. -->
@@ -136,19 +151,13 @@
 	{#if isEventDetailPage && !showSwitchingSkeleton.current}
 		<SubTabStrip items={EVENT_SUBTABS} defaultValue="details" />
 	{/if}
-
-	{#if conversation.isComplete}
-		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
-			<p class="text-destructive text-sm">This conversation has closed</p>
-		</div>
-	{/if}
 </div>
 
 {#if isDesignBoard}
-	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
+	<div class="bg-admin-background flex min-h-0 grow flex-col overflow-hidden">
 		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
-				<div class="w-full max-w-300">
+				<div class="max-w-admin mx-auto w-full">
 					<TabContentSkeleton />
 				</div>
 			</div>
@@ -160,8 +169,8 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-			<div class="h-full w-full max-w-300">
+		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12">
+			<div class="max-w-admin mx-auto h-full w-full">
 				<TabContentSkeleton />
 			</div>
 		</div>

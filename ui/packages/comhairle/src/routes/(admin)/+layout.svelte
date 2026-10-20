@@ -53,7 +53,7 @@
 
 {#if data.user}
 	<SideBar.Provider
-		class="h-svh"
+		class="bg-admin-background h-svh" data-sidebar-tone="light"
 		style="--sidebar-width: {sidebarWidthPx}px;"
 		data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 	>
@@ -67,7 +67,7 @@
 			<SidebarFloatingTriggers />
 			<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
 			<main
-				class="bg-muted relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto"
+				class="bg-admin-background relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto"
 			>
 				{@render children()}
 			</main>

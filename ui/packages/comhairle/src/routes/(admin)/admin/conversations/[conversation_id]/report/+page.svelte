@@ -2,7 +2,6 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -79,8 +78,6 @@
 <svelte:head>
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
-
-<PageHeader title="Report" description="Use this space to edit the report for this conversation" />
 
 <div class="flex flex-col gap-4">
 	<div class="flex w-full flex-row items-center justify-end gap-2">

@@ -286,7 +286,7 @@
 	});
 </script>
 
-<PageHeader title="Details" description="Title, description, language and banner." />
+<PageHeader level="h2" title="Details" description="Title, description, language and banner." />
 
 <!-- One superForm still backs every field (its inline validation + $form binding); there is
 	 no submit — every field autosaves (see ADR-0004), so this is a plain container. -->

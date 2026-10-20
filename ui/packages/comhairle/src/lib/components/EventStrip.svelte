@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { CalendarDays, Plus } from 'lucide-svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
+	import { sectionTabClass } from './sectionTabClass';
 	import type { LocalizedEventDto } from '@crownshy/api-client/api';
 
 	let {
@@ -25,10 +26,7 @@
 	<li>
 		<a
 			href={basePath}
-			class="text-foreground inline-flex h-9 items-center gap-1.5 px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-			class:text-primary={manageActive}
-			class:opacity-70={!manageActive}
-			class:hover:opacity-100={!manageActive}
+			class={sectionTabClass(manageActive)}
 			aria-current={manageActive ? 'page' : undefined}
 		>
 			<CalendarDays class="size-4" />
@@ -41,10 +39,7 @@
 			<a
 				href={`${basePath}/${event.id}`}
 				title={event.name || 'Unnamed event'}
-				class="text-foreground inline-flex h-9 max-w-[220px] items-center px-3.5 text-sm font-medium transition-opacity"
-				class:text-primary={active}
-				class:opacity-70={!active}
-				class:hover:opacity-100={!active}
+				class="{sectionTabClass(active)} max-w-[220px]"
 				aria-current={active ? 'page' : undefined}
 			>
 				<span class="truncate">{event.name || 'Unnamed event'}</span>
@@ -52,10 +47,7 @@
 		</li>
 	{/each}
 	<li>
-		<a
-			href={newPath}
-			class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
-		>
+		<a href={newPath} class={sectionTabClass(false)}>
 			<Plus class="size-4" />
 			Add event
 		</a>

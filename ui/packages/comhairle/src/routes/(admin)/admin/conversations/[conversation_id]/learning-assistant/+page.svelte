@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
@@ -303,11 +302,6 @@
 <svelte:head>
 	<title>Learning Assistant - Comhairle Admin</title>
 </svelte:head>
-
-<PageHeader
-	title="Learning Assistant"
-	description="Enable the Learning Assistant and manage the documents it answers from"
-/>
 
 <TabContent>
 	<div class="flex flex-col">

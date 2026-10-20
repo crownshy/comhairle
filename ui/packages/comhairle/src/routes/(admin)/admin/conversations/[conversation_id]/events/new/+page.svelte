@@ -194,7 +194,7 @@
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">New Event</h1>
+<h2 class="mb-4 text-xl font-bold">New event</h2>
 
 <div class="flex flex-col gap-4">
 	<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>

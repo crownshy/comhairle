@@ -320,18 +320,16 @@
 <!-- Full-bleed surface; the design tab has no page padding. overflow-hidden makes this
 	 an independent scroll boundary so the list can't push the sidebar-inset past the
 	 viewport. Only the inner column scrolls. -->
-<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden">
+<div class="bg-admin-background flex min-h-0 w-full flex-1 overflow-hidden">
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
-		<!-- Same gutter column + top spacing as every other admin page; symmetric inset on mobile. -->
-		<div class="px-gutter pt-page-top flex w-full max-w-5xl flex-col gap-4 pb-8">
-			<!-- Toolbar -->
-			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
-				<div class="flex flex-col">
-					<h1 class="self-start text-2xl font-bold sm:self-auto">Process steps</h1>
-					<p class="text-muted-foreground text-base">
-						Design and configure your engagement, one step at a time.
-					</p>
-				</div>
+		<!-- Same centred column as every other admin page: the max width adds both gutters so the
+			 content lines up with TabContent's `max-w-admin` column. -->
+		<div
+			class="px-gutter pt-page-top mx-auto flex w-full max-w-[calc(var(--container-admin)_+_2_*_var(--spacing-gutter))] flex-col gap-4 pb-8"
+		>
+			<!-- Toolbar. The section header above provides the page title. -->
+			<div class="flex shrink-0 items-center justify-between gap-2">
+				<h2 class="text-xl font-bold">Process steps</h2>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
 						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"

@@ -3,7 +3,6 @@
 	import { Plus } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import EventCard from '$lib/components/EventCard.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { permissions } from '$lib/permissions.svelte';
 
 	let { data } = $props();
@@ -19,8 +18,6 @@
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-<PageHeader title="Events" description="Use this space to manage your conversation's events." />
 
 <div class="flex max-w-[700px] flex-col gap-6">
 	{#if events.length === 0}

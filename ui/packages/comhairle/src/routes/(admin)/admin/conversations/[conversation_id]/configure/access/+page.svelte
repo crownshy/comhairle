@@ -107,7 +107,7 @@
 	}
 </script>
 
-<PageHeader title="Access" description="Visibility, invites and participation." />
+<PageHeader level="h2" title="Access" description="Visibility, invites and participation." />
 
 {#snippet toggleRow(
 	name: AccessToggle,
@@ -139,7 +139,7 @@
 	</Form.Field>
 {/snippet}
 
-<div class="divide-border flex max-w-3xl flex-col divide-y">
+<div class="divide-border flex flex-col divide-y">
 	<section class="flex flex-col py-6">
 		<h2 class="text-base font-semibold">Visibility</h2>
 		<div class="flex flex-col">

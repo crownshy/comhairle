@@ -51,7 +51,7 @@
 	}
 </script>
 
-<SideBar.Root collapsible="icon">
+<SideBar.Root collapsible="icon" variant="floating">
 	<SideBar.Header
 		class="flex flex-col gap-2 pt-5 pr-3 pb-3 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>
