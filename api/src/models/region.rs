@@ -1,26 +1,22 @@
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
-
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        organization::OrganizationIden,
-        pagination::{Order, PageOptions, PaginatedResults},
-        translations::{TextContentId, TextFormat, new_translation},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::organization::OrganizationIden;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "region")]
@@ -329,8 +325,9 @@ impl RegionOrderOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(order) = &self.name {
             let tt_name_alias = Alias::new("tt_name");
@@ -444,18 +441,14 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            region_area::{self, CreateRegionArea},
-        },
-        routes::organizations::dto::OrganizationDto,
-    };
-
     use super::*;
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::region_area::{self, CreateRegionArea};
+    use crate::routes::organizations::dto::OrganizationDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {

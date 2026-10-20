@@ -1,20 +1,16 @@
 use std::sync::Arc;
 
 use apalis::prelude::Data;
-use sensemakar::{model_config, wikipoll_describer::WikiPollGroupDescriber};
+use sensemakar::model_config;
+use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
 use sensemakar_jobs::WikiPollSummaryJob;
 use tracing::{info, instrument};
 
-use crate::{
-    ComhairleState,
-    models::{
-        self,
-        job::{self, UpdateJob},
-        wikipoll_conversation_summary::CreateWikiPollConversationSummary,
-    },
-};
-
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
+use crate::ComhairleState;
+use crate::models::job::{self, UpdateJob};
+use crate::models::wikipoll_conversation_summary::CreateWikiPollConversationSummary;
+use crate::models::{self};
 
 /// Runs the Polis "describer" analysis for a workflow step and stores the
 /// result. The `poll_data` sent to the model is stored alongside the result so

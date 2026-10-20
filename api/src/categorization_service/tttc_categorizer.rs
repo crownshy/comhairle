@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::categorization_service::{CreateAnalysisJobResponse, error::CategorizationServiceError};
-
-use super::{CategorizationService, Comment, error::Result};
+use super::error::Result;
+use super::{CategorizationService, Comment};
+use crate::categorization_service::CreateAnalysisJobResponse;
+use crate::categorization_service::error::CategorizationServiceError;
 
 pub struct TttcCategorizer {
     client: Client,
@@ -163,12 +164,12 @@ impl From<Comment> for TttcComment {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_helpers::test_state;
-
-    use super::*;
+    use std::error::Error;
 
     use sqlx::PgPool;
-    use std::error::Error;
+
+    use super::*;
+    use crate::test_helpers::test_state;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore]

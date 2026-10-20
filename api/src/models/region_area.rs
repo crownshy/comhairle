@@ -5,7 +5,8 @@ use sea_query::extension::postgres::PgExpr;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, ReturningClause, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -491,8 +492,9 @@ fn geometry_error(error: sqlx::Error) -> ComhairleError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn rejects_invalid_area_locations() {

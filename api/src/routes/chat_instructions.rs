@@ -1,25 +1,17 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with},
-};
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use dto::ChatInstructionsDto;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::bot_service::{ComhairlePrompt, UpdateChatRequest, Variable};
+use crate::models::chat_instructions::{self, UpsertChatInstructions};
+use crate::models::conversation;
 use crate::{ComhairleError, ComhairleState};
-use crate::{
-    bot_service::{ComhairlePrompt, UpdateChatRequest, Variable},
-    models::{
-        chat_instructions::{self, UpsertChatInstructions},
-        conversation,
-    },
-};
-use dto::ChatInstructionsDto;
 
 pub mod dto;
 
@@ -129,13 +121,12 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
     use sqlx::PgPool;
 
     use super::*;
-
-    use std::error::Error;
-
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };

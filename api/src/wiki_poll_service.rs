@@ -1,11 +1,12 @@
 pub mod error;
 pub mod polis_service;
 
-use crate::wiki_poll_service::{error::WikiPollServiceError, polis_service::WikiPollReport};
-
 use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::wiki_poll_service::error::WikiPollServiceError;
+use crate::wiki_poll_service::polis_service::WikiPollReport;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema, Default)]
 #[sqlx(type_name = "TEXT")]

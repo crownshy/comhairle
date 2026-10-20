@@ -3,9 +3,7 @@ pub mod error;
 pub mod s3_storage;
 
 use async_trait::async_trait;
-
 use error::BulkStorageError;
-
 #[cfg(test)]
 use mockall::automock;
 

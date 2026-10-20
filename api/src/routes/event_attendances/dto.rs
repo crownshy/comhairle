@@ -3,7 +3,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{event_attendance::EventAttendance, pagination::PaginatedResults};
+use crate::models::event_attendance::EventAttendance;
+use crate::models::pagination::PaginatedResults;
 
 /// Data transfer object (public API representation) for an EventAttendance.
 ///

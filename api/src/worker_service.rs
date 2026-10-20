@@ -1,39 +1,39 @@
 pub mod config;
+
 pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
 pub mod process_wiki_poll_summary;
 pub mod scheduled_emails;
 
-use std::{future::Future, str::FromStr, sync::Arc, time::Duration};
+use std::future::Future;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
 use apalis::prelude::*;
 use apalis_cron::{CronStream, Schedule};
 use apalis_redis::RedisStorage;
 use async_trait::async_trait;
-use sensemakar_jobs::WikiPollSummaryJob;
-use tokio::{sync::Mutex, time::timeout};
-use tracing::{error, instrument};
-
-use crate::{
-    ComhairleState,
-    config::WorkerConfig,
-    error::ComhairleError,
-    worker_service::{
-        process_documents::{DocumentJob, process_document_handler},
-        process_video_call_transcriptions::{
-            TranscribeRecording, generate_sensemaking_report, transcribe_recording,
-        },
-        process_wiki_poll_summary::wiki_poll_summary_handler,
-        scheduled_emails::{
-            ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
-            send_scheduled_email,
-        },
-    },
-};
-
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use sensemakar_jobs::WikiPollSummaryJob;
+use tokio::sync::Mutex;
+use tokio::time::timeout;
+use tracing::{error, instrument};
+
+use crate::ComhairleState;
+use crate::config::WorkerConfig;
+use crate::error::ComhairleError;
+use crate::worker_service::process_documents::{DocumentJob, process_document_handler};
+use crate::worker_service::process_video_call_transcriptions::{
+    TranscribeRecording, generate_sensemaking_report, transcribe_recording,
+};
+use crate::worker_service::process_wiki_poll_summary::wiki_poll_summary_handler;
+use crate::worker_service::scheduled_emails::{
+    ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
+    send_scheduled_email,
+};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
