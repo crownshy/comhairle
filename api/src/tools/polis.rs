@@ -35,8 +35,8 @@ use crate::models::{
 };
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::wiki_poll_service::{
-    ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-    polis_service::WikiPollReport,
+    ModerationStatus, ReportScope, WikiPoll, WikiPollComment, WikiPollConfigUpdate, WikiPollLogin,
+    WikiPollService, polis_service::WikiPollReport,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -1903,9 +1903,7 @@ pub async fn launch(
         })
         .await?;
 
-    // TODO: filter seed statements.
-
-    for comment in seed_statements {
+    for comment in statements_to_carry_over(seed_statements) {
         client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id, &live_auth_cookies)
             .await?;
@@ -1915,6 +1913,20 @@ pub async fn launch(
         moderation_policy_id: preview_config.moderation_policy_id,
         ..live_poll_config
     })
+}
+
+/// Statements from the preview poll that go into the live poll at launch. Anything
+/// rejected in preview stays behind.
+fn statements_to_carry_over(comments: Vec<WikiPollComment>) -> Vec<WikiPollComment> {
+    comments
+        .into_iter()
+        .filter(|comment| {
+            !matches!(
+                ModerationStatus::try_from(comment.moderation),
+                Ok(ModerationStatus::Rejected)
+            )
+        })
+        .collect()
 }
 
 /// Polis conversation settings written straight after the poll is created.
@@ -2797,6 +2809,58 @@ mod tests {
 
         assert_eq!(live.strict_moderation, Some(true));
         assert_eq!(updates.lock().unwrap()[0].1.strict_moderation, Some(true));
+        Ok(())
+    }
+
+    fn preview_comment(text: &str, moderation: i32) -> WikiPollComment {
+        WikiPollComment {
+            txt: text.into(),
+            is_seed: true,
+            moderation,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn launch_leaves_rejected_statements_behind() -> Result<(), Box<dyn Error>> {
+        let posted = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("live_poll".to_string()) }));
+        service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
+        service.expect_get_comments().returning(|_| {
+            Box::pin(async {
+                Ok(vec![
+                    preview_comment("Accepted seed", 1),
+                    preview_comment("Removed seed", -1),
+                    preview_comment("Pending statement", 0),
+                ])
+            })
+        });
+        let recorded = posted.clone();
+        service
+            .expect_post_seed_comment()
+            .returning(move |text, _, _| {
+                recorded.lock().unwrap().push(text.to_string());
+                Box::pin(async { Ok(Default::default()) })
+            });
+        let service: Arc<dyn WikiPollService> = Arc::new(service);
+
+        launch(&preview_config(), &service).await?;
+
+        assert_eq!(
+            *posted.lock().unwrap(),
+            vec!["Accepted seed".to_string(), "Pending statement".to_string()]
+        );
         Ok(())
     }
 }
