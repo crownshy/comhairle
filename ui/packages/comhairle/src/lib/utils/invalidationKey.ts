@@ -29,6 +29,7 @@ type InputKey =
 	| 'public/conversation'
 	| 'public/documents'
 	| 'public/event'
+	| 'public/settings/profile'
 	| 'public/notifications'
 	| 'public/participation'
 	| 'public/participation-count'
