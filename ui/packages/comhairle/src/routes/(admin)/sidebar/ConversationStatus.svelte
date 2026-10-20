@@ -13,7 +13,11 @@
 		type ConversationStatus
 	} from '$lib/utils/conversationStatus';
 
-	let { conversation }: { conversation: ConversationWithTranslations } = $props();
+	interface Props {
+		conversation: ConversationWithTranslations;
+	}
+
+	let { conversation }: Props = $props();
 
 	let status = $derived(conversationStatus(conversation));
 
