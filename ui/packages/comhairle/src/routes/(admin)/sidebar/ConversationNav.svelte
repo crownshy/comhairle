@@ -27,7 +27,6 @@
 
 	const sidebar = useSidebar();
 	const sidebarWidth = useSidebarWidth();
-	const TOGGLE_TITLE = `Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`;
 
 	function expandSidebar() {
 		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
@@ -40,6 +39,7 @@
 	<SideBar.Header
 		class="flex flex-col gap-2 pt-5 pr-3 pb-3 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>
+		{@const TOGGLE_TITLE = `Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`}
 		<div class="flex min-h-8 items-center justify-between gap-2">
 			<a
 				href={resolve('/admin/conversations')}
