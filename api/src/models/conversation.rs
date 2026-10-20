@@ -599,7 +599,8 @@ pub async fn update(
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
