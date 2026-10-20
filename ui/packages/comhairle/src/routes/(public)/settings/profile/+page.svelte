@@ -4,19 +4,11 @@
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UserDemographicsForm from './UserDemographicsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
-	import type { UserDto } from '@crownshy/api-client/api';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	let { data }: PageProps = $props();
-	let { user, demographicQuestions = [], demographicResponses = [] } = $derived(data);
-
-	function handleUpgradeSuccess(upgradedUser: UserDto) {
-		user = upgradedUser;
-	}
-
-	async function refreshDemographics() {
-		await invalidate('settings:demographics');
-	}
+	let { user, demographicQuestions, demographicResponses } = $derived(data);
 </script>
 
 <PageHeader title="Your profile" description="Update account details and demographic data here" />
@@ -39,7 +31,10 @@
 					participation will be preserved.
 				</p>
 				<div class="flex w-full flex-row items-end justify-center md:justify-end">
-					<UpgradeAccountModal onSuccess={handleUpgradeSuccess} currentUser={user} />
+					<UpgradeAccountModal
+						onSuccess={(upgradedUser) => void (user = upgradedUser)}
+						currentUser={user}
+					/>
 				</div>
 			</div>
 		</div>
@@ -50,7 +45,7 @@
 				questions={demographicQuestions}
 				responses={demographicResponses}
 				userId={user.id}
-				onSaved={refreshDemographics}
+				onSaved={() => invalidate(key('public/settings/profile'))}
 			/>
 		{/key}
 	{/if}
