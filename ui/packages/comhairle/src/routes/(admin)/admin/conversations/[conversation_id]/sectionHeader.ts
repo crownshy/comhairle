@@ -1,28 +1,7 @@
 import { resolve } from '$app/paths';
 import { ADMIN_GUIDES } from '$lib/admin_guides';
 import { conversationSections, type SectionStage } from '$lib/config/conversation-steps';
-
-/** A link into the admin Handbook (/admin/info/how-to/<guide>/<topic>). */
-export type GuideLink = {
-	href: string;
-	/** The topic's title, or the Handbook's name for the fallback link. */
-	label: string;
-};
-
-export type SectionHeaderContent = {
-	/** The conversation stage the section belongs to (e.g. "Engage"); absent for milestones. */
-	eyebrow?: string;
-	title: string;
-	description?: string;
-	guide: GuideLink;
-	/** A tab strip follows, so the header leaves its bottom edge to the strip. */
-	hasTabs: boolean;
-	/**
-	 * Editor pages (a workflow step, a single event) show the header as one short row, so
-	 * the editor below keeps its height. The active tab already names what is being edited.
-	 */
-	compact: boolean;
-};
+import type { GuideLink, SectionHeaderContent } from '$lib/components/SectionHeader.svelte';
 
 type HeaderConversation = { id: string; isLive: boolean; isComplete: boolean };
 

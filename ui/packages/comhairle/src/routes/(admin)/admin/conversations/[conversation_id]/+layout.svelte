@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
-	import TabContent from './TabContent.svelte';
-	import SectionHeader from './SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { sectionHeader } from './sectionHeader';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';

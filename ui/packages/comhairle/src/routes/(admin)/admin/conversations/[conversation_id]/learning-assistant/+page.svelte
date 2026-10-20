@@ -26,7 +26,7 @@
 	import { getLanguageName } from '$lib/config/languages';
 	import { key } from '$lib/utils/invalidationKey';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import TabContent from '../TabContent.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';

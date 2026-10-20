@@ -1,13 +1,32 @@
+<script lang="ts" module>
+	/** A link into the admin Handbook. */
+	export type GuideLink = { href: string; label: string };
+
+	export type SectionHeaderContent = {
+		/** Small label above the title: the conversation stage, or the sidebar group. */
+		eyebrow?: string;
+		title: string;
+		description?: string;
+		/** Handbook topic for this page. Leave out when there is none yet. */
+		guide?: GuideLink;
+		/** A tab strip follows, so the header leaves its bottom edge to the strip. */
+		hasTabs?: boolean;
+		/** One short row, so an editor below keeps its height. */
+		compact?: boolean;
+	};
+</script>
+
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { BookOpen, ArrowUpRight } from '@lucide/svelte';
-	import type { SectionHeaderContent } from './sectionHeader';
 
 	type Props = {
-		/** What to show, from `sectionHeader()`. */
 		content: SectionHeaderContent;
+		/** Page buttons shown at the right of the title row. */
+		actions?: Snippet;
 	};
 
-	let { content }: Props = $props();
+	let { content, actions }: Props = $props();
 
 	let spacing = $derived.by(() => {
 		if (content.compact) return content.hasTabs ? 'pt-3 pb-1' : 'border-border border-b py-3';
@@ -16,17 +35,22 @@
 </script>
 
 {#snippet guideLink()}
-	<a
-		href={content.guide.href}
-		target="_blank"
-		rel="noopener noreferrer"
-		title="Open the guide in a new tab"
-		class="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 self-start rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-	>
-		<BookOpen class="text-primary size-4 shrink-0" />
-		<span class="max-w-60 truncate">{content.guide.label}</span>
-		<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
-	</a>
+	<div class="flex shrink-0 items-center gap-2 self-start">
+		{@render actions?.()}
+		{#if content.guide}
+			<a
+				href={content.guide.href}
+				target="_blank"
+				rel="noopener noreferrer"
+				title="Open the guide in a new tab"
+				class="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
+			>
+				<BookOpen class="text-primary size-4 shrink-0" />
+				<span class="max-w-60 truncate">{content.guide.label}</span>
+				<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
+			</a>
+		{/if}
+	</div>
 {/snippet}
 
 <!-- When a tab strip follows, it supplies the bottom border so header and tabs read as one block. -->
