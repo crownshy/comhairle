@@ -26,6 +26,7 @@ type InputKey =
 	| 'public/notifications'
 	| 'public/participation'
 	| 'public/participation-count'
+	| 'public/user-progress'
 	| 'public/workflow-steps'
 	| 'user';
 
