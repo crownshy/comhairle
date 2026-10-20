@@ -2,7 +2,7 @@
 	import { invalidate } from '$app/navigation';
 	import type { PageProps } from './$types';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
-	import UserDemographicsForm from '../UserDemographicsForm/UserDemographicsForm.svelte';
+	import UserDemographicsForm from './UserDemographicsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import PageHeader from '$lib/components/PageHeader.svelte';
