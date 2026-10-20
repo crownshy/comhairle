@@ -75,6 +75,10 @@ The point at which a participant has a `done` progress row for **every** Step in
 _Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
 _Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
 
+**Taken part**:
+A person has taken part in a Conversation once they have a `done` progress row for at least one Step in any of its Workflows. Registering for a Workflow is not enough. This is what the participation count on the Thank You page counts. See [ADR-0057](documentation/adr/0057-the-participation-count-counts-people-with-a-done-step.md).
+_Avoid_: Participant count meaning registrations; notification recipients still use everyone who registered.
+
 **Sealed**:
 A participant who has [[#finished-a-participant-is-finished]] in a Conversation with [[#revisit-after-finishing]] turned off. A sealed participant can reach no Step and comhairle rejects their writes. Sealed is **derived**, never stored: it is recomputed from the Workflow's Steps and that participant's progress rows. One consequence of deriving it: adding a Step to a live Workflow un-seals everyone who had already finished.
 _Avoid_: Locked, closed (closed reads as the Conversation being closed).
