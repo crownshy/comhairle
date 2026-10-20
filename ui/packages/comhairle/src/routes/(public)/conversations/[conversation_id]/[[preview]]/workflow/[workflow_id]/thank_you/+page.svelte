@@ -127,7 +127,7 @@
 	{#if conversation.showThankyouPageFeedbackButton}
 		<section
 			aria-labelledby="feedback-heading"
-			class="bg-card flex flex-col gap-4 rounded-lg p-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8"
+			class="bg-admin-background flex flex-col gap-4 rounded-lg p-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8"
 		>
 			<div class="flex flex-col gap-1">
 				<h2 id="feedback-heading" class="text-2xl font-semibold">
