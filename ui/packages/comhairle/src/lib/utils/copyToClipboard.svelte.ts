@@ -1,7 +1,8 @@
 import { notifications } from '$lib/notifications.svelte';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { Second } from './units';
 
-const COPIED_FOR_MS = 2000;
+const COPIED_FOR = 2 * Second;
 
 /**
  * Copies text and shows the copied state on the button itself for a moment, since info
@@ -17,7 +18,7 @@ export function copyToClipboard() {
 			return;
 		}
 		copied = true;
-		setTimeout(() => (copied = false), COPIED_FOR_MS);
+		setTimeout(() => (copied = false), COPIED_FOR);
 	}
 
 	return {

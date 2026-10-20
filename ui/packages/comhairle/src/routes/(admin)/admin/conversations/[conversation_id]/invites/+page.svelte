@@ -81,7 +81,10 @@
 
 {#if !conversation.isComplete}
 	<div class="mb-6 max-w-3xl">
-		<ConversationLinkCard {conversation} />
+		<ConversationLinkCard
+			conversationId={conversation.id}
+			isInviteOnly={conversation.isInviteOnly}
+		/>
 	</div>
 {/if}
 

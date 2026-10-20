@@ -1,11 +1,11 @@
 <script lang="ts">
+	import type { ResolvedPathname } from '$app/types';
 	import { ArrowUpRight, ChevronRight } from 'lucide-svelte';
 
 	type Props = {
 		title: string;
 		detail: string;
-		/** Built with resolve() by the caller. Without one the row is plain text. */
-		href?: string | null;
+		href?: ResolvedPathname | null;
 		/** Shown in a circle before the title, for ordered steps. */
 		number?: number;
 		external?: boolean;

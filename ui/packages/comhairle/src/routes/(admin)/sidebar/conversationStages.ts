@@ -59,8 +59,9 @@ export function conversationStages({
 	const complete = conversation.isComplete;
 	const sectionsIn = (stage: SectionStage) =>
 		conversationSections
-			.filter((section) => section.stage === stage)
-			.filter((section) => !section.requiresPolis || hasPolisStep)
+			.filter(
+				(section) => section.stage === stage && (!section.requiresPolis || hasPolisStep)
+			)
 			.map((section) =>
 				sectionLink(section, base, pathname, sectionLock(section, live, canAdmin))
 			);

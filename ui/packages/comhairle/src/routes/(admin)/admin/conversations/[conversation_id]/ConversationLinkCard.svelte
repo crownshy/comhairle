@@ -3,12 +3,16 @@
 	import { Button } from '$lib/components/ui/button';
 	import { shareable_conversation_url } from '$lib/urls';
 	import { copyToClipboard } from '$lib/utils/copyToClipboard.svelte';
-	import type { ConversationDto } from '@crownshy/api-client/api';
+	import { type ConversationDto } from '@crownshy/api-client/api';
 	import { ArrowUpRight, Check, Copy } from 'lucide-svelte';
 
-	let { conversation }: { conversation: ConversationDto } = $props();
+	interface Props {
+		conversationId: ConversationDto['id'];
+		isInviteOnly: ConversationDto['isInviteOnly'];
+	}
+	let { conversationId, isInviteOnly }: Props = $props();
 
-	let link = $derived(shareable_conversation_url(page.url.origin, conversation.id));
+	let link = $derived(shareable_conversation_url(page.url.origin, conversationId));
 	const clipboard = copyToClipboard();
 </script>
 
@@ -16,7 +20,7 @@
 	<div class="flex flex-col gap-1">
 		<h2 class="text-lg font-semibold">Conversation link</h2>
 		<p class="text-muted-foreground">
-			{conversation.isInviteOnly
+			{isInviteOnly
 				? 'This conversation is invite only, so people need an email invite or an invite link to take part. Share this link with people you have already invited.'
 				: 'Share this link so people can find the conversation and take part.'}
 		</p>

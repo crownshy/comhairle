@@ -51,20 +51,20 @@
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar size-7 group-data-[collapsible=icon]:hidden"
 			title={toggleTitle}
+			aria-label="Collapse sidebar"
 			onclick={() => sidebar.toggle()}
 		>
 			<PanelLeftClose class="size-4" />
-			<span class="sr-only">Collapse sidebar</span>
 		</Button>
 		<Button
 			variant="ghost"
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar mx-auto hidden size-7 group-data-[collapsible=icon]:flex"
 			title={toggleTitle}
+			aria-label="Expand sidebar"
 			onclick={expandSidebar}
 		>
 			<PanelLeftOpen class="size-4" />
-			<span class="sr-only">Expand sidebar</span>
 		</Button>
 	</SideBar.Header>
 

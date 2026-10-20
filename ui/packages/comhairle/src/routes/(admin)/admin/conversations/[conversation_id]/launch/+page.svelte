@@ -8,10 +8,9 @@
 	import ChecklistItem from '../ChecklistItem.svelte';
 	import ConsequencesAlert from '../ConsequencesAlert.svelte';
 	import { Rocket } from 'lucide-svelte';
-	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
-	let conversation = $derived(data.conversation);
+	let { data } = $props();
+	let { conversation } = $derived(data);
 	let stepCount = $derived(data.workflowSteps?.length ?? 0);
 	let canLaunch = $derived(
 		permissions.can('conversation', 'conversation_launch', conversation.id)
@@ -19,50 +18,12 @@
 	let launchModalOpen = $state(false);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
 
-	let params = $derived({ conversation_id: conversation.id });
-	let nextSteps = $derived(
-		[
-			{
-				title: 'Invite participants',
-				detail: 'Send email invites or share the conversation link from Recruit.',
-				href: resolve('/(admin)/admin/conversations/[conversation_id]/invites', params),
-				show: true
-			},
-			{
-				title: 'Keep participants informed',
-				detail: 'Send reminders and updates while the conversation runs.',
-				href: resolve(
-					'/(admin)/admin/conversations/[conversation_id]/notifications',
-					params
-				),
-				show: canAdmin
-			},
-			{
-				title: 'Moderate statements',
-				detail: 'Review new statements in your Polis steps as they come in.',
-				href: resolve('/(admin)/admin/conversations/[conversation_id]/moderate', params),
-				show: data.hasPolisStep
-			},
-			{
-				title: 'Follow participation',
-				detail: 'See who is taking part and how far they get in Monitor.',
-				href: resolve('/(admin)/admin/conversations/[conversation_id]/monitor', params),
-				show: true
-			},
-			{
-				title: 'Close when you are done',
-				detail: 'Wrap up, then start your report from what was collected.',
-				href: resolve('/(admin)/admin/conversations/[conversation_id]/close', params),
-				show: true
-			}
-		].filter((step) => step.show)
-	);
 	let checks = $derived([
 		{
 			title: 'Preview it as a participant',
 			detail: 'Walk through every step the way participants will see it.',
 			href: resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
-				...params,
+				conversation_id: conversation.id,
 				preview: 'preview'
 			}),
 			external: true
@@ -73,22 +34,25 @@
 				stepCount === 0
 					? 'There are no steps yet. Add at least one before you launch.'
 					: `${stepCount} ${stepCount === 1 ? 'step' : 'steps'}. Check the order and content of each one.`,
-			href: resolve('/(admin)/admin/conversations/[conversation_id]/design', params),
+			href: resolve('/(admin)/admin/conversations/[conversation_id]/design', {
+				conversation_id: conversation.id
+			}),
 			external: false
 		},
 		{
 			title: 'Details and access',
 			detail: 'Title, description, languages and who can join.',
-			href: resolve(
-				'/(admin)/admin/conversations/[conversation_id]/configure/details',
-				params
-			),
+			href: resolve('/(admin)/admin/conversations/[conversation_id]/configure/details', {
+				conversation_id: conversation.id
+			}),
 			external: false
 		},
 		{
 			title: 'Team',
 			detail: 'Make sure the right people can moderate and see results.',
-			href: resolve('/(admin)/admin/conversations/[conversation_id]/configure/team', params),
+			href: resolve('/(admin)/admin/conversations/[conversation_id]/configure/team', {
+				conversation_id: conversation.id
+			}),
 			external: false
 		}
 	]);
@@ -128,13 +92,57 @@
 		</div>
 
 		{#if !conversation.isComplete}
-			<ConversationLinkCard {conversation} />
+			{@const nextSteps = [
+				{
+					title: 'Invite participants',
+					detail: 'Send email invites or share the conversation link from Recruit.',
+					href: 'invites',
+					show: true
+				},
+				{
+					title: 'Keep participants informed',
+					detail: 'Send reminders and updates while the conversation runs.',
+					href: 'notifications',
+					show: canAdmin
+				},
+				{
+					title: 'Moderate statements',
+					detail: 'Review new statements in your Polis steps as they come in.',
+					href: 'moderate',
+					show: data.hasPolisStep
+				},
+				{
+					title: 'Follow participation',
+					detail: 'See who is taking part and how far they get in Monitor.',
+					href: 'monitor',
+					show: true
+				},
+				{
+					title: 'Close when you are done',
+					detail: 'Wrap up, then start your report from what was collected.',
+					href: 'close',
+					show: true
+				}
+			] as const}
 
+			<ConversationLinkCard
+				conversationId={conversation.id}
+				isInviteOnly={conversation.isInviteOnly}
+			/>
 			<section class="flex flex-col gap-3">
 				<h2 class="text-lg font-semibold">Next steps</h2>
 				<ol class="bg-background divide-border border-border divide-y rounded-xl border">
 					{#each nextSteps as step, index (step.title)}
-						<ChecklistItem {...step} number={index + 1} />
+						{#if step.show}
+							<ChecklistItem
+								{...step}
+								href={resolve(
+									`/(admin)/admin/conversations/[conversation_id]/${step.href}`,
+									{ conversation_id: conversation.id }
+								)}
+								number={index + 1}
+							/>
+						{/if}
 					{/each}
 				</ol>
 			</section>

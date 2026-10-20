@@ -8,36 +8,14 @@
 	import ChecklistItem from '../ChecklistItem.svelte';
 	import ConsequencesAlert from '../ConsequencesAlert.svelte';
 	import { CircleCheck, CircleX, Lock } from 'lucide-svelte';
-	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
-	let conversation = $derived(data.conversation);
+	let { data } = $props();
+	let { conversation } = $derived(data);
 	let canClose = $derived(
 		permissions.can('conversation', 'conversation_launch', conversation.id)
 	);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
 	let endModalOpen = $state(false);
-
-	let params = $derived({ conversation_id: conversation.id });
-	let steps = $derived([
-		{
-			title: 'Let participants know',
-			detail: 'Send a notification saying when the conversation ends and what happens next.',
-			href: canAdmin
-				? resolve('/(admin)/admin/conversations/[conversation_id]/notifications', params)
-				: null
-		},
-		{
-			title: 'Check final participation',
-			detail: 'Look at Monitor for the final numbers and export the data you need.',
-			href: resolve('/(admin)/admin/conversations/[conversation_id]/monitor', params)
-		},
-		{
-			title: 'Start your report',
-			detail: 'Results and reports stay available after you close.',
-			href: resolve('/(admin)/admin/conversations/[conversation_id]/report', params)
-		}
-	]);
 </script>
 
 <PageHeader
@@ -69,12 +47,38 @@
 		</Card.Content>
 	</Card.Root>
 {:else}
+	{@const steps = [
+		{
+			title: 'Let participants know',
+			detail: 'Send a notification saying when the conversation ends and what happens next.',
+			href: canAdmin ? 'notifications' : null
+		},
+		{
+			title: 'Check final participation',
+			detail: 'Look at Monitor for the final numbers and export the data you need.',
+			href: 'monitor'
+		},
+		{
+			title: 'Start your report',
+			detail: 'Results and reports stay available after you close.',
+			href: 'report'
+		}
+	] as const}
 	<div class="flex max-w-3xl flex-col gap-6">
 		<section class="flex flex-col gap-3">
 			<h2 class="text-lg font-semibold">Before you close</h2>
 			<ol class="bg-background divide-border border-border divide-y rounded-xl border">
 				{#each steps as step, index (step.title)}
-					<ChecklistItem {...step} number={index + 1} />
+					<ChecklistItem
+						{...step}
+						href={step.href
+							? resolve(
+									`/(admin)/admin/conversations/[conversation_id]/${step.href}`,
+									{ conversation_id: conversation.id }
+								)
+							: null}
+						number={index + 1}
+					/>
 				{/each}
 			</ol>
 		</section>

@@ -14,7 +14,10 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { m } from '$lib/paraglide/messages';
 
-	let { user }: { user: UserDto } = $props();
+	interface Props {
+		user: UserDto;
+	}
+	let { user }: Props = $props();
 	const sidebar = useSidebar();
 
 	async function signOut() {
@@ -36,7 +39,10 @@
 					<SideBar.MenuButton size="lg" {...props}>
 						<Avatar.Root class="size-8 rounded-lg">
 							{#if user?.avatarUrl}
-								<Avatar.Image src={user.avatarUrl} alt={user.username} />
+								<Avatar.Image
+									src={user.avatarUrl}
+									alt={`Avatar for ${user.username}`}
+								/>
 							{/if}
 							<Avatar.Fallback class="rounded-lg">
 								{userInitials(user?.username ?? '')}
