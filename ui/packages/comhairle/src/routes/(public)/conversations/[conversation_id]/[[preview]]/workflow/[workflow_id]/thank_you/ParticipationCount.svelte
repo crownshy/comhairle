@@ -12,7 +12,7 @@
 	let summary = $derived(participationSummary(participantCount, getLocale()));
 </script>
 
-<div class="bg-card flex items-center gap-4 rounded-lg p-5">
+<div class="bg-admin-background flex items-center gap-4 rounded-lg p-5">
 	{#if summary.kind === 'count'}
 		<p class="flex items-center gap-4 text-base md:text-lg">
 			<span class="text-primary text-4xl leading-none font-bold tabular-nums md:text-5xl">
