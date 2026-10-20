@@ -22,6 +22,7 @@ export const load: PageLoad = async ({ parent, depends }) => {
 	);
 
 	return {
+		user,
 		demographicQuestions: (await questions).ok?.records ?? [],
 		demographicResponses: (await responses).ok?.records ?? []
 	};
