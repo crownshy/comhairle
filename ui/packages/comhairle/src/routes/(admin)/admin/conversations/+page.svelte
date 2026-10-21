@@ -1,33 +1,31 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
+	import { LayoutGrid, List } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import { Pager } from '$lib/pagination';
 	import { permissions } from '$lib/permissions.svelte';
-	import { CONVERSATION_STATUS_FILTER_LABELS, isPageTurn } from './conversationFilters';
+	import {
+		conversationCountLabel,
+		conversationNoun,
+		isPageTurn,
+		listViewFromUrl,
+		listViewHref
+	} from './conversationFilters';
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
-	import SectionHeader from '$lib/components/SectionHeader.svelte';
-	import TabContent from '$lib/components/TabContent.svelte';
-	import { LayoutGrid, List } from 'lucide-svelte';
-	let view = $state<'cards' | 'list'>('cards');
+
 	let { data }: PageProps = $props();
-	let filteredNoun = $derived(
-		data.filter === 'all'
-			? 'conversations'
-			: `${CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations`
-	);
+
+	let view = $derived(listViewFromUrl(page.url));
 	let total = $derived(data.conversations.total);
 	let searchTerm = $derived(data.search.trim());
-	let countLabel = $derived.by(() => {
-		const noun = total === 1 ? filteredNoun.replace(/s$/, '') : filteredNoun;
-		if (searchTerm)
-			return `${total} ${noun} ${total === 1 ? 'matches' : 'match'} "${searchTerm}"`;
-		if (data.filter === 'all') return `You have ${total} ${noun}`;
-		return `${total} ${noun}`;
-	});
+	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
 	let pageTop: HTMLElement | undefined = $state();
 
 	let turningPage = $derived(!!navigating.to && isPageTurn(page.url, navigating.to.url));
@@ -38,6 +36,17 @@
 		if (from && to && isPageTurn(from.url, to.url))
 			pageTop?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 	});
+
+	// In the URL so the choice survives a reload and the pager's links. The load doesn't read
+	// `view`, so switching doesn't refetch.
+	function showView(next: string) {
+		if (next !== 'card' && next !== 'list') return;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- only swaps the query on this page's URL
+		goto(listViewHref(page.url, next), { replaceState: true, noScroll: true, keepFocus: true });
+	}
+
+	const VIEW_ITEM_CLASS =
+		'text-muted-foreground hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground rounded-full p-2 first:rounded-full last:rounded-full hover:bg-transparent data-[state=on]:shadow-sm';
 </script>
 
 <svelte:head>
@@ -45,31 +54,22 @@
 </svelte:head>
 
 {#snippet viewSwitch()}
-	<div class="bg-muted flex shrink-0 gap-1 rounded-full p-1" role="group" aria-label="Layout">
-		<button
-			type="button"
-			aria-label="Card view"
-			aria-pressed={view === 'cards'}
-			onclick={() => (view = 'cards')}
-			class="rounded-full p-2 transition-colors {view === 'cards'
-				? 'bg-card text-foreground shadow-sm'
-				: 'text-muted-foreground hover:text-foreground'}"
-		>
+	<ToggleGroup.Root
+		type="single"
+		value={view}
+		onValueChange={showView}
+		aria-label="Layout"
+		class="bg-muted shrink-0 gap-1 rounded-full p-1"
+	>
+		<ToggleGroup.Item value="card" aria-label="Card view" class={VIEW_ITEM_CLASS}>
 			<LayoutGrid class="size-4" />
-		</button>
-		<button
-			type="button"
-			aria-label="List view"
-			aria-pressed={view === 'list'}
-			onclick={() => (view = 'list')}
-			class="rounded-full p-2 transition-colors {view === 'list'
-				? 'bg-card text-foreground shadow-sm'
-				: 'text-muted-foreground hover:text-foreground'}"
-		>
+		</ToggleGroup.Item>
+		<ToggleGroup.Item value="list" aria-label="List view" class={VIEW_ITEM_CLASS}>
 			<List class="size-4" />
-		</button>
-	</div>
+		</ToggleGroup.Item>
+	</ToggleGroup.Root>
 {/snippet}
+
 <!-- Page-turn scroll target (see beforeNavigate above). -->
 <div bind:this={pageTop} aria-hidden="true"></div>
 
@@ -101,7 +101,7 @@
 		{/if}
 		<div
 			class={[
-				view === 'cards'
+				view === 'card'
 					? 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3'
 					: 'flex w-full flex-col gap-3',
 				'transition-opacity',
@@ -110,26 +110,22 @@
 			aria-busy={turningPage}
 		>
 			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard
-					{conversation}
-					isShared={conversation.isShared}
-					layout={view === 'cards' ? 'card' : 'row'}
-				/>
+				<ConversationCard {conversation} isShared={conversation.isShared} layout={view} />
 			{:else}
 				<p class="text-muted-foreground text-base">
-					{#if data.search.trim()}
-						No {filteredNoun} match "{data.search.trim()}"
+					{#if searchTerm}
+						No {conversationNoun(data.filter, 0)} match "{searchTerm}"
 					{:else if data.filter === 'all'}
 						You don't have any conversations yet.
 					{:else}
-						No {filteredNoun}.
+						No {conversationNoun(data.filter, 0)}.
 					{/if}
 				</p>
 			{/each}
 		</div>
 
-		{#if data.conversations.total > data.pageSize}
-			<Pager pageSize={data.pageSize} count={data.conversations.total} url={page.url} />
+		{#if total > data.pageSize}
+			<Pager pageSize={data.pageSize} count={total} url={page.url} />
 		{/if}
 	</div>
 </TabContent>

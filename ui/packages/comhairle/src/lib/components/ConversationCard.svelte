@@ -1,3 +1,7 @@
+<script lang="ts" module>
+	export type ConversationCardLayout = 'card' | 'list';
+</script>
+
 <script lang="ts">
 	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
@@ -8,13 +12,15 @@
 		CONVERSATION_STATUS_LABELS
 	} from '$lib/utils/conversationStatus';
 	import { ArrowRight, MessageCircle, MessageSquareText } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
+	import { resolve } from '$app/paths';
 
 	type Props = {
 		conversation: ConversationDto | LocalizedConversationDto;
 		variant?: 'admin' | 'public';
 		organizationName?: string;
 		isShared?: boolean;
-		layout?: 'card' | 'row';
+		layout?: ConversationCardLayout;
 	};
 
 	let {
@@ -26,6 +32,16 @@
 	}: Props = $props();
 
 	let status = $derived(conversationStatus(conversation));
+	let editHref = $derived(
+		resolve('/(admin)/admin/conversations/[conversation_id]/configure', {
+			conversation_id: conversation.id
+		})
+	);
+	// The title's link stretches over the whole card, so the card opens the conversation.
+	const CARD_CLASS =
+		'bg-card border-border group hover:border-primary/40 has-[a:focus-visible]:ring-ring relative overflow-hidden border transition duration-200 hover:-translate-y-0.5 hover:shadow-md has-[a:focus-visible]:ring-2';
+	const TITLE_LINK_CLASS =
+		'group-hover:text-primary transition-colors after:absolute after:inset-0 focus-visible:outline-none';
 	const BANNER_TONE: Record<typeof status, string> = {
 		live: 'bg-primary/15 text-primary',
 		draft: 'bg-muted text-muted-foreground',
@@ -37,7 +53,10 @@
 {#snippet image(heightClass: string)}
 	<div class="w-full min-w-0 lg:flex-1">
 		<div
-			class="bg-primary/10 relative {heightClass} w-full overflow-hidden rounded-xl transition-all duration-300 ease-out group-hover:rounded-2xl group-hover:shadow-lg lg:rounded-3xl lg:group-hover:rounded-[2rem]"
+			class={cn(
+				'bg-primary/10 relative w-full overflow-hidden rounded-xl transition-all duration-300 ease-out group-hover:rounded-2xl group-hover:shadow-lg lg:rounded-3xl lg:group-hover:rounded-[2rem]',
+				heightClass
+			)}
 		>
 			{#if conversation.imageUrl}
 				<img
@@ -96,7 +115,7 @@
 	{:else}
 		<!-- Admin variant -->
 		{#snippet banner(sizeClass: string)}
-			<div class="relative shrink-0 {sizeClass} {BANNER_TONE[status]}">
+			<div class={cn('relative shrink-0', sizeClass, BANNER_TONE[status])}>
 				{#if conversation.imageUrl}
 					<img
 						class="absolute inset-0 h-full w-full object-cover"
@@ -123,26 +142,27 @@
 		{/snippet}
 
 		{#snippet editButton()}
-			<Button
-				variant="primaryDark"
-				class="rounded-full"
-				href={`/admin/conversations/${conversation.id}/configure`}
-			>
+			<Button variant="primaryDark" class="relative z-10 rounded-full" href={editHref}>
 				Edit conversation
 				<ArrowRight class="size-4" />
 			</Button>
 		{/snippet}
 
-		{#if layout === 'row'}
+		<!-- editHref is built with resolve() above. -->
+		<!-- eslint-disable svelte/no-navigation-without-resolve -->
+		{#if layout === 'list'}
 			<article
-				class="bg-card border-border flex flex-col-reverse gap-6 overflow-hidden rounded-2xl border p-4 transition-shadow duration-200 hover:shadow-md lg:flex-row lg:items-stretch lg:gap-12 lg:p-6"
+				class={cn(
+					CARD_CLASS,
+					'flex flex-col-reverse gap-6 rounded-2xl p-4 lg:flex-row lg:items-stretch lg:gap-12 lg:p-6'
+				)}
 			>
 				<div class="flex flex-1 flex-col gap-4">
 					{@render badges()}
 					<h2
 						class="text-foreground text-xl leading-7 font-semibold lg:text-2xl lg:leading-8"
 					>
-						{conversation.title}
+						<a href={editHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
 					</h2>
 					{#if conversation.shortDescription}
 						<p class="text-muted-foreground text-base">
@@ -156,14 +176,12 @@
 				)}
 			</article>
 		{:else}
-			<article
-				class="bg-card border-border flex h-full flex-col overflow-hidden rounded-xl border transition-shadow duration-200 hover:shadow-md"
-			>
+			<article class={cn(CARD_CLASS, 'flex h-full flex-col rounded-xl')}>
 				{@render banner('h-22')}
 				<div class="flex grow flex-col gap-3 p-5">
 					{@render badges()}
 					<h2 class="text-foreground text-lg leading-snug font-semibold">
-						{conversation.title}
+						<a href={editHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
 					</h2>
 					{#if conversation.shortDescription}
 						<p class="text-muted-foreground line-clamp-2 text-base">
@@ -174,5 +192,6 @@
 				</div>
 			</article>
 		{/if}
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{/if}
 {/if}
