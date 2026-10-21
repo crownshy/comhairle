@@ -13,6 +13,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
+	test.skip(
+		!!process.env.CI && !process.env.BOT_SERVICE__HOST,
+		'Syncing learn content needs a bot service, and CI runs without one'
+	);
+
 	// Show Learning Assistant
 	const ShowLearningAssistant = await Switch('Show Learning Assistant', { page, cleanup });
 	await ShowLearningAssistant.toggle();

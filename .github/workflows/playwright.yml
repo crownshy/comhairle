@@ -14,7 +14,6 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: base
 
     services:
       postgres:
@@ -48,13 +47,8 @@ jobs:
       # Every test logs in afresh, which trips the login rate limit.
       ENABLE_RATE_LIMITING: 'false'
       WORKER_SERVICE__REDIS_URL: redis://127.0.0.1:6379
-      # The Learning Assistant test syncs learn content into the knowledge base.
-      BOT_SERVICE__HOST: ${{ secrets.BOT_SERVICE__HOST }}
-      BOT_SERVICE__API_KEY: ${{ secrets.BOT_SERVICE__API_KEY }}
-      BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID: ${{ secrets.BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID }}
-      BOT_SERVICE__ELICITATION_BOT_AGENT_ID: ${{ secrets.BOT_SERVICE__ELICITATION_BOT_AGENT_ID }}
-      BOT_SERVICE__THINKING_SPACE_AGENT_ID: ${{ secrets.BOT_SERVICE__THINKING_SPACE_AGENT_ID }}
-      BOT_SERVICE__THINKING_SPACE_SUMMARY_AGENT_ID: ${{ secrets.BOT_SERVICE__THINKING_SPACE_SUMMARY_AGENT_ID }}
+      # No bot service: the base environment's host isn't reachable from here, and creating a
+      # conversation fails when one is configured but down. The Learning Assistant test skips.
       # Matches the defaults in scripts/seed-minimal.sh. The database only lives for this job.
       PLAYWRIGHT_ADMIN_USERNAME: admin@crown-shy.com
       PLAYWRIGHT_ADMIN_PASSWORD: adminPassword123!
