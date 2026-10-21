@@ -228,6 +228,8 @@
 	 * first, so a participant with nothing to change moves on without scrolling
 	 * past the whole list to reach a Continue button. */
 	let reviewingAnswers = $state(false);
+	/** True when Back on the thanks card has reopened the submitted proposals. */
+	let browsingProposals = $state(false);
 
 	let answeredCountLine = $derived(
 		proposals.length === 1
@@ -311,6 +313,8 @@
 			onDone();
 		} catch (e) {
 			reviewError = e instanceof Error ? e.message : 'Failed to save your changes.';
+			// The thanks card can also save, so show the error next to the edits.
+			reviewingAnswers = true;
 		} finally {
 			savingReview = false;
 		}
@@ -367,11 +371,21 @@
 
 	let isLastProposal = $derived(currentIndex === proposals.length - 1);
 
+	function browseLastProposal() {
+		browsingProposals = true;
+		currentIndex = proposals.length - 1;
+	}
+
+	function returnToThanksCard() {
+		browsingProposals = false;
+	}
+
 	// The pager walks the proposals, then the thanks card and review list (ADR-0047). Forward
-	// on a submitted last proposal or the thanks card completes the step through the gate.
+	// on the thanks card saves any review edits, then completes the step through the gate.
+	// Back on the thanks card reopens the last proposal.
 	function proposalForward(): (() => void) | undefined {
 		if (!currentSubmitted) return submitAndAdvance;
-		if (isLastProposal) return undefined;
+		if (isLastProposal) return allDone ? returnToThanksCard : undefined;
 		return goForward;
 	}
 
@@ -384,7 +398,13 @@
 				progress: 1
 			};
 		}
-		if (allDone) return { progress: 1 };
+		if (allDone && !browsingProposals) {
+			return {
+				next: dirtyIds.size > 0 ? () => void saveReviewEditsAndContinue() : undefined,
+				previous: browseLastProposal,
+				progress: 1
+			};
+		}
 		return {
 			next: proposalForward(),
 			previous: currentIndex > 0 ? goBack : undefined,
@@ -433,7 +453,7 @@
 				<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 			</Card.Content>
 		</Card.Root>
-	{:else if allDone && !reviewingAnswers}
+	{:else if allDone && !reviewingAnswers && !browsingProposals}
 		<Card.Root>
 			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
 				<CheckCircle2 class="text-primary size-10" />
@@ -453,7 +473,7 @@
 				</Button>
 			</Card.Content>
 		</Card.Root>
-	{:else if allDone}
+	{:else if allDone && reviewingAnswers}
 		<div class="space-y-6">
 			<div class="space-y-1 text-center">
 				<h2 class="mt-5 text-lg font-semibold">Your answers</h2>
@@ -646,7 +666,7 @@
 					{m.prioritization_submitting()}
 				</p>
 			{/if}
-			{#if canContinue}
+			{#if canContinue && !allDone}
 				<div
 					class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
 				>
@@ -662,7 +682,7 @@
 						Skip this step
 					</Button>
 				</div>
-			{:else if requiredReviews > 0}
+			{:else if !canContinue && requiredReviews > 0}
 				<p class="text-muted-foreground text-right text-base">
 					Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more
 					proposal{reviewsRemaining > 1 ? 's' : ''} to continue to the next step.
