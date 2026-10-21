@@ -97,7 +97,8 @@
 	function setSaveState(id: string, state: SaveState | undefined) {
 		clearTimeout(savedResetTimers[id]);
 		if (state === undefined) {
-			const { [id]: _, ...rest } = saveStateById;
+			const rest = { ...saveStateById };
+			delete rest[id];
 			saveStateById = rest;
 			return;
 		}

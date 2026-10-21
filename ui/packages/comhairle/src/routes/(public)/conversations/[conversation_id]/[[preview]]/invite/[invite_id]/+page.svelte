@@ -55,19 +55,22 @@
 		privacyPolicyOpen = true;
 	}
 
+	// The lint rule only accepts a bare resolve() call, so a path with the query string appended
+	// can't satisfy it.
+	function goToFirstWorkflow(invalidate: string[]) {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		return goto(firstWorkflowPath + url.search, { invalidate });
+	}
+
 	async function handlePrivacyPolicyAccept() {
 		try {
 			if (loginType === 'automatic') {
 				await apiClient.SignupGuestUser(undefined, {});
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, {
-					invalidate: [key('user'), key('public/participation')]
-				});
+				await goToFirstWorkflow([key('user'), key('public/participation')]);
 			} else {
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, {
-					invalidate: [key('public/participation')]
-				});
+				await goToFirstWorkflow([key('public/participation')]);
 			}
 		} catch (e) {
 			console.error(e);
@@ -78,13 +81,6 @@
 		await apiClient.AcceptInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
-	}
-
-	async function rejectInvite() {
-		await apiClient.RejectInvite(undefined, {
-			params: { conversation_id: conversation!.id, invite_id: invite!.id }
-		});
-		goto('/');
 	}
 
 	onMount(() => {
