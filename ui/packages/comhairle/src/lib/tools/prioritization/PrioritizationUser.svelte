@@ -369,6 +369,11 @@
 		currentIndex += 1;
 	}
 
+	function reviewMoreReason(count: number): string {
+		if (count === 1) return m.prioritization_review_one_more_to_continue();
+		return m.prioritization_review_more_to_continue({ count });
+	}
+
 	let isLastProposal = $derived(currentIndex === proposals.length - 1);
 
 	function browseLastProposal() {
@@ -408,6 +413,7 @@
 		return {
 			next: proposalForward(),
 			previous: currentIndex > 0 ? goBack : undefined,
+			blockedReason: canContinue ? undefined : reviewMoreReason(reviewsRemaining),
 			progress: submittedIds.size / proposals.length,
 			position: m.prioritization_proposal_x_of_y({
 				current: currentIndex + 1,

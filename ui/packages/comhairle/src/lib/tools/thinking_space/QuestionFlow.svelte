@@ -48,11 +48,13 @@
 	// The chrome's bar shows progress (ADR-0047). Extension mode runs after the summary, so the
 	// segment stays full there.
 	$effect(() => {
+		const blockedReason = m.thinking_space_answer_to_continue();
 		if (flow.mode === 'extension') {
-			onSequenceChange?.({ progress: 1 });
+			onSequenceChange?.({ progress: 1, blockedReason });
 			return;
 		}
 		onSequenceChange?.({
+			blockedReason,
 			progress: flow.progress / 100,
 			position: m.question_x_of_y({
 				current: flow.currentQuestionIndex + 1,
