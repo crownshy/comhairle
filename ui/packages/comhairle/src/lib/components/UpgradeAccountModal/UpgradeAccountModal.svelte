@@ -13,16 +13,20 @@
 	import { UserCheck, Mail, Lock } from 'lucide-svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
+	import type { Snippet } from 'svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-	let {
-		open = $bindable(false),
-		onSuccess = () => {},
-		currentUser
-	}: {
+	type UpgradeError = { response?: { data?: { err?: string; message?: string } } };
+
+	type Props = {
 		open?: boolean;
 		onSuccess?: (upgradedUser: UserDto) => void;
 		currentUser: UserDto;
-	} = $props();
+		/** Replaces the default "Upgrade Account" button. Spread `props` onto your trigger element. */
+		trigger?: Snippet<[{ props: Record<string, unknown> }]>;
+	};
+
+	let { open = $bindable(false), onSuccess = () => {}, currentUser, trigger }: Props = $props();
 
 	let saving = $state(false);
 
@@ -37,7 +41,11 @@
 			validators: zodClient(upgradeAccountSchema),
 			taintedMessage: false,
 			validationMethod: 'oninput',
-			onSubmit: handleUpgrade
+			// Submit through the API only; the pages using this modal have no form action.
+			onSubmit: async ({ cancel }) => {
+				cancel();
+				await handleUpgrade();
+			}
 		}
 	);
 
@@ -47,42 +55,49 @@
 		const result = await validateForm({ update: true });
 		if (!result.valid) return;
 
-		try {
-			saving = true;
-
-			const upgradedUser = await apiClient.UpgradeAccount({
+		saving = true;
+		const upgrade = await tryCatchAsync<UserDto, UpgradeError>(() =>
+			apiClient.UpgradeAccount({
 				username: result.data.username,
 				email: result.data.email,
 				password: result.data.password
-			});
+			})
+		);
+		saving = false;
 
-			notifications.send({
-				message: 'Account upgraded successfully! You can now receive email notifications.',
-				priority: 'SUCCESS'
-			});
-
-			open = false;
-			await invalidate(key('user'));
-			onSuccess(upgradedUser);
-		} catch (error: any) {
+		if (upgrade.err !== null) {
 			notifications.send({
 				message:
-					error?.response?.data?.err ||
-					error?.response?.data?.message ||
+					upgrade.err.response?.data?.err ||
+					upgrade.err.response?.data?.message ||
 					'Failed to upgrade account. Please try again.',
 				priority: 'ERROR'
 			});
-		} finally {
-			saving = false;
+			return;
 		}
+
+		notifications.send({
+			message: 'Account upgraded successfully! You can now receive email notifications.',
+			priority: 'SUCCESS'
+		});
+
+		open = false;
+		await invalidate(key('user'));
+		onSuccess(upgrade.ok);
 	}
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class="w-full">
-		<Button class="w-full" variant="secondary">Upgrade Account</Button>
+	<Dialog.Trigger>
+		{#snippet child({ props })}
+			{#if trigger}
+				{@render trigger({ props })}
+			{:else}
+				<Button {...props} class="w-full" variant="secondary">Upgrade Account</Button>
+			{/if}
+		{/snippet}
 	</Dialog.Trigger>
-	<Dialog.Content class="sm:max-w-md">
+	<Dialog.Content class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<UserCheck class="h-5 w-5" />

@@ -1,42 +1,32 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        conversation::{ConversationFilterOptions, ConversationOrderOptions},
-        media::{FromWithMedia, MediaResolver},
-        organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{
-            PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
-            conversation as conversation_permissions, has_resource_permission,
-            list_user_permissions, organization as organization_permissions, system,
-        },
-        users::{UpdateUserRequest, UpgradeAccountRequest},
-    },
-    routes::{
-        conversations::dto::{LocalizedConversationDto, PermittedConversationDto},
-        organizations::dto::LocalizedOrganizationDto,
-        user::dto::UserDto,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::conversation::{ConversationFilterOptions, ConversationOrderOptions};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::organization::{self, OrganizationFilterOptions, OrganizationOrderOptions};
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
+    conversation as conversation_permissions, has_resource_permission, list_user_permissions,
+    organization as organization_permissions, system,
 };
+use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
+use crate::models::{self};
+use crate::routes::conversations::dto::{LocalizedConversationDto, PermittedConversationDto};
+use crate::routes::organizations::dto::LocalizedOrganizationDto;
+use crate::routes::user::dto::UserDto;
 
 pub mod dto;
 
@@ -517,13 +507,12 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_organization_id,
     };

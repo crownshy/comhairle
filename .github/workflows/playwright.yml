@@ -1,0 +1,124 @@
+name: playwright
+
+# Admin e2e suite (ui/packages/comhairle/e2e) against a throwaway Postgres and a locally built API.
+on:
+  workflow_dispatch: # Enable manual trigger from GH UI
+  schedule:
+    - cron: '0 0 * * *' # Runs every night at 00:00 UTC
+
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgis/postgis:15-3.5
+        env:
+          POSTGRES_USER: comhairle
+          POSTGRES_PASSWORD: comhairle
+          POSTGRES_DB: comhairle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U comhairle -d comhairle"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgres://comhairle:comhairle@localhost:5432/comhairle
+      RESOURCE_BUCKET: comhairle_resources
+      ADMIN_USERS: admin@crown-shy.com
+      DOMAIN: http://localhost:4173
+      # Every test logs in afresh, which trips the login rate limit.
+      ENABLE_RATE_LIMITING: 'false'
+      WORKER_SERVICE__REDIS_URL: redis://127.0.0.1:6379
+      # No bot service: the base environment's host isn't reachable from here, and creating a
+      # conversation fails when one is configured but down. The Learning Assistant test skips.
+      # Matches the defaults in scripts/seed-minimal.sh. The database only lives for this job.
+      PLAYWRIGHT_ADMIN_USERNAME: admin@crown-shy.com
+      PLAYWRIGHT_ADMIN_PASSWORD: adminPassword123!
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Build API
+        run: cargo build --locked --bin comhairle_api
+
+      - name: Start API
+        run: |
+          nohup ./target/debug/comhairle_api > api.log 2>&1 &
+          for i in {1..60}; do
+            curl -sf -o /dev/null http://localhost:3000/health && echo "API is up" && exit 0
+            sleep 2
+          done
+          echo "API failed to start" && cat api.log && exit 1
+
+      - name: Seed admin user
+        run: ./scripts/seed-minimal.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: ui/packages/comhairle
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: ui/packages/comhairle
+        run: pnpm build
+
+      - name: Run Playwright tests
+        working-directory: ui/packages/comhairle
+        run: pnpm exec playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            ui/packages/comhairle/playwright-report/
+            ui/packages/comhairle/test-results/
+          retention-days: 14
+
+      - name: Upload API log
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: api.log
+          retention-days: 7

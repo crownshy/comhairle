@@ -5,11 +5,13 @@ use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, translation_service::TranslationService};
+use crate::error::ComhairleError;
+use crate::translation_service::TranslationService;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "polis_statement_translation")]
@@ -241,15 +243,12 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        models::polis_statement_aux::{self, UpsertFromPolis},
-        test_helpers::{extract, polis_tool_config},
-        translation_service::{MockTranslationService, TranslationService},
-        wiki_poll_service::ModerationStatus,
-    };
-
     use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, UpsertFromPolis};
+    use crate::test_helpers::{extract, polis_tool_config};
+    use crate::translation_service::{MockTranslationService, TranslationService};
+    use crate::wiki_poll_service::ModerationStatus;
 
     async fn seed_aux(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(pool).await?;

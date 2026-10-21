@@ -2,28 +2,23 @@ pub mod dto;
 
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleError, ComhairleState,
-    models::email_template_config::{
-        self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
-        EmailTypeSchema, UpdateEmailTemplateConfig,
-    },
-    routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
+use crate::models::email_template_config::{
+    self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
+    EmailTypeSchema, UpdateEmailTemplateConfig,
 };
+use crate::routes::auth::RequiredAdminUser;
+use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
+use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
 async fn create(
@@ -237,21 +232,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            email_template_config::{DefaultEmailSlots, EmailType},
-            model_test_helpers::setup_default_app_and_session,
-        },
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
-
-    use super::*;
-
     use std::error::Error;
 
     use sqlx::PgPool;
+
+    use super::*;
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::email_template_config::{DefaultEmailSlots, EmailType};
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_email_template_config(pool: PgPool) -> Result<(), Box<dyn Error>> {

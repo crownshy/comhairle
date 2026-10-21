@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { cn } from '$lib/utils';
+	import { SUB_TAB_LIST_OFFSET, sectionTabClass, subTabClass } from './sectionTabClass';
 
 	type Item = { label: string; value: string };
 
@@ -8,10 +10,10 @@
 		paramName?: string;
 		defaultValue?: string;
 		/**
-		 * Which layout row this strip sits in, which sets its background tone:
-		 * - `'secondary'` (default) = the deepest sub-tab strip → `bg-accent`.
-		 * - `'primary'` = a section's sole strip directly under the section tabs
-		 *   (e.g. Recruit/invites) → `bg-secondary`.
+		 * Which layout row this strip sits in:
+		 * - `'secondary'` (default) = a sub-tab strip under the section's tabs, on `bg-accent`.
+		 * - `'primary'` = the section's own tabs directly under the section header
+		 *   (e.g. Recruit), styled like the other section strips.
 		 */
 		tone?: 'primary' | 'secondary';
 		/**
@@ -37,8 +39,12 @@
 			: (page.url.searchParams.get(paramName) ?? defaultValue ?? items[0]?.value)
 	);
 
+	let isSectionStrip = $derived(tone === 'primary');
+
 	function hrefFor(value: string): string {
 		if (basePath) return `${basePath}/${value}`;
+		// A throwaway copy to build one href, not reactive state.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set(paramName, value);
 		return `${page.url.pathname}?${params.toString()}`;
@@ -49,29 +55,31 @@
 	 sub-tabs, e.g. a workflow step), a tall page below it would otherwise let flexbox crush the
 	 strip to its 1px border. Harmless where it sits inside a `shrink-0` header block (Events). -->
 <nav
-	class="border-border scrollbar-none flex w-full shrink-0 overflow-x-auto border-b {tone ===
-	'primary'
-		? 'bg-secondary'
-		: 'bg-accent'}"
+	class={cn(
+		'border-border scrollbar-none px-gutter flex w-full shrink-0 overflow-x-auto border-b',
+		!isSectionStrip && 'bg-accent'
+	)}
 	aria-label="Sub sections"
 >
-	<!-- Left padding is one item's px-3.5 short of the full gutter so the first tab's text
-		 lands on the gutter column, matching the Row 2 strip above. See TabStripShell. -->
-	<ul class="flex min-w-full items-center gap-1.5 pr-5 pl-[calc(var(--spacing-gutter)-0.875rem)]">
+	<ul
+		class={cn(
+			'max-w-admin mx-auto flex w-full items-center',
+			isSectionStrip ? 'gap-6' : cn(SUB_TAB_LIST_OFFSET, 'gap-1.5')
+		)}
+	>
 		{#each items as item (item.value)}
 			{@const active = item.value === currentValue}
 			<li class="shrink-0">
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- hrefFor builds on basePath or this page's URL -->
 				<a
 					href={hrefFor(item.value)}
 					data-sveltekit-replacestate
-					class="text-foreground inline-flex h-10 items-center px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-					class:text-primary={active}
-					class:opacity-70={!active}
-					class:hover:opacity-100={!active}
+					class={isSectionStrip ? sectionTabClass(active) : subTabClass(active)}
 					aria-current={active ? 'page' : undefined}
 				>
 					{item.label}
 				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			</li>
 		{/each}
 	</ul>

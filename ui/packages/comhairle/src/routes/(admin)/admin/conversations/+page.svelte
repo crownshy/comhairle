@@ -1,25 +1,31 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { Home } from 'lucide-svelte';
+	import { LayoutGrid, List } from 'lucide-svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import { Pager } from '$lib/pagination';
-	import { m } from '$lib/paraglide/messages';
 	import { permissions } from '$lib/permissions.svelte';
-	import { CONVERSATION_STATUS_FILTER_LABELS, isPageTurn } from './conversationFilters';
+	import {
+		conversationCountLabel,
+		conversationNoun,
+		isPageTurn,
+		listViewFromUrl,
+		listViewHref
+	} from './conversationFilters';
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
 
 	let { data }: PageProps = $props();
-	let filteredNoun = $derived(
-		data.filter === 'all'
-			? 'conversations'
-			: `${CONVERSATION_STATUS_FILTER_LABELS[data.filter].toLowerCase()} conversations`
-	);
 
+	let view = $derived(listViewFromUrl(page.url));
+	let total = $derived(data.conversations.total);
+	let searchTerm = $derived(data.search.trim());
+	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
 	let pageTop: HTMLElement | undefined = $state();
 
 	let turningPage = $derived(!!navigating.to && isPageTurn(page.url, navigating.to.url));
@@ -30,72 +36,96 @@
 		if (from && to && isPageTurn(from.url, to.url))
 			pageTop?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 	});
+
+	// In the URL so the choice survives a reload and the pager's links. The load doesn't read
+	// `view`, so switching doesn't refetch.
+	function showView(next: string) {
+		if (next !== 'card' && next !== 'list') return;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- only swaps the query on this page's URL
+		goto(listViewHref(page.url, next), { replaceState: true, noScroll: true, keepFocus: true });
+	}
+
+	const VIEW_ITEM_CLASS =
+		'text-muted-foreground hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground rounded-full p-2 first:rounded-full last:rounded-full hover:bg-transparent data-[state=on]:shadow-sm';
 </script>
 
 <svelte:head>
-	<title>Admin Dashboard - Comhairle</title>
+	<title>Your conversations - Comhairle</title>
 </svelte:head>
 
-<div
-	bind:this={pageTop}
-	class="bg-muted pt-page-top px-gutter flex w-full pb-8 sm:pr-8 sm:pb-12 lg:pr-16"
+{#snippet viewSwitch()}
+	<ToggleGroup.Root
+		type="single"
+		value={view}
+		onValueChange={showView}
+		aria-label="Layout"
+		class="bg-muted shrink-0 gap-1 rounded-full p-1"
+	>
+		<ToggleGroup.Item value="card" aria-label="Card view" class={VIEW_ITEM_CLASS}>
+			<LayoutGrid class="size-4" />
+		</ToggleGroup.Item>
+		<ToggleGroup.Item value="list" aria-label="List view" class={VIEW_ITEM_CLASS}>
+			<List class="size-4" />
+		</ToggleGroup.Item>
+	</ToggleGroup.Root>
+{/snippet}
+
+<!-- Page-turn scroll target (see beforeNavigate above). -->
+<div bind:this={pageTop} aria-hidden="true"></div>
+
+<SectionHeader
+	content={{
+		title: 'Your conversations',
+		description:
+			'Conversations you created or that were shared with you. Open one to set it up, run it or see the results.'
+	}}
 >
-	<div class="@container flex w-full max-w-300 flex-col gap-11">
-		<Breadcrumb.Root>
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/admin">{m.workspace()}</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>Conversations</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
+	{#snippet actions()}
+		{#if permissions.can('system', 'conversation_create')}
+			<NewConversationButton class="w-full sm:w-auto" label="Create new conversation" />
+		{/if}
+	{/snippet}
+</SectionHeader>
 
-		<!-- The right padding matches the card padding so the button lines up with the card images. -->
-		<div
-			class="mb-10 flex flex-col items-start gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"
-		>
-			<div class="flex items-center gap-2">
-				<Home class="size-7 sm:size-9" />
-				<h1 class="text-2xl sm:text-4xl">Your conversations</h1>
-			</div>
-			{#if permissions.can('system', 'conversation_create')}
-				<NewConversationButton class="w-full sm:w-auto" label="Create New Conversation" />
-			{/if}
-		</div>
-		<div class="flex w-full flex-col gap-11 overflow-y-auto">
-			<div
-				class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between @4xl:pr-6"
-			>
-				<StatusFilterChips active={data.filter} />
+<TabContent>
+	<div class="@container flex w-full flex-col gap-11">
+		<div class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between">
+			<StatusFilterChips active={data.filter} />
+			<div class="flex items-center gap-3">
 				<ConversationSearch />
+				{@render viewSwitch()}
 			</div>
-
-			<div
-				class={[
-					'grid w-full grid-cols-1 gap-x-2 gap-y-16 transition-opacity',
-					turningPage && 'pointer-events-none opacity-50'
-				]}
-				aria-busy={turningPage}
-			>
-				{#each data.conversations.records as conversation (conversation.id)}
-					<ConversationCard {conversation} isShared={conversation.isShared} />
-				{:else}
-					<p class="text-muted-foreground text-base">
-						{#if data.search.trim()}
-							No {filteredNoun} match "{data.search.trim()}"
-						{:else if data.filter === 'all'}
-							You don't have any conversations yet.
-						{:else}
-							No {filteredNoun}.
-						{/if}
-					</p>
-				{/each}
-			</div>
-
-			{#if data.conversations.total > data.pageSize}
-				<Pager pageSize={data.pageSize} count={data.conversations.total} url={page.url} />
-			{/if}
 		</div>
+		{#if total > 0}
+			<p class="text-muted-foreground text-base" aria-live="polite">{countLabel}</p>
+		{/if}
+		<div
+			class={[
+				view === 'card'
+					? 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3'
+					: 'flex w-full flex-col gap-3',
+				'transition-opacity',
+				turningPage && 'pointer-events-none opacity-50'
+			]}
+			aria-busy={turningPage}
+		>
+			{#each data.conversations.records as conversation (conversation.id)}
+				<ConversationCard {conversation} isShared={conversation.isShared} layout={view} />
+			{:else}
+				<p class="text-muted-foreground text-base">
+					{#if searchTerm}
+						No {conversationNoun(data.filter, 0)} match "{searchTerm}"
+					{:else if data.filter === 'all'}
+						You don't have any conversations yet.
+					{:else}
+						No {conversationNoun(data.filter, 0)}.
+					{/if}
+				</p>
+			{/each}
+		</div>
+
+		{#if total > data.pageSize}
+			<Pager pageSize={data.pageSize} count={total} url={page.url} />
+		{/if}
 	</div>
-</div>
+</TabContent>

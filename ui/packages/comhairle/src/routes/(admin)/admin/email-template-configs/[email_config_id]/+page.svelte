@@ -9,11 +9,14 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { LoaderCircle } from 'lucide-svelte';
 	import { key } from '$lib/utils/invalidationKey';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;
@@ -93,7 +96,7 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			goto('/admin/email-template-configs', {
+			goto(resolve('/(admin)/admin/email-template-configs'), {
 				invalidate: [key('admin/email-template-config')]
 			});
 		} catch (e) {
@@ -134,72 +137,80 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
-
-<div class="flex justify-end gap-2">
-	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}
-		>Delete</Button
-	>
-	<Button
-		variant="default"
-		type="button"
-		onclick={() => {
-			debouncedPreviewEmail();
-			openPreviewModal = true;
-		}}>Preview</Button
-	>
-</div>
-
-{#if schema.variables.length > 0}
-	<EmailTemplateVariables templateVariables={schema.variables} />
-{/if}
-
-<form onsubmit={handleSubmit}>
-	<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
-		<Label
-			class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-			for="subject">Email subject</Label
+<SectionHeader
+	content={{
+		eyebrow: 'Library',
+		title: snakeToStartCase(emailConfig.emailType),
+		description: 'Edit the subject and content of this custom email.'
+	}}
+>
+	{#snippet actions()}
+		<Button
+			variant="outline"
+			type="button"
+			onclick={() => {
+				debouncedPreviewEmail();
+				openPreviewModal = true;
+			}}
 		>
-		<Input
-			placeholder="Subject"
-			name="subject"
-			defaultValue={formState.subject}
-			onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
-		/>
-	</div>
-	{#each schema.slots as slot (slot.key)}
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
+			Preview
+		</Button>
+		<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}>
+			Delete
+		</Button>
+	{/snippet}
+</SectionHeader>
+<TabContent>
+	{#if schema.variables.length > 0}
+		<EmailTemplateVariables templateVariables={schema.variables} />
+	{/if}
+
+	<form onsubmit={handleSubmit}>
+		<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
 			<Label
 				class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-				for={slot.key}
+				for="subject">Email subject</Label
 			>
-				<span>{slot.label}</span>
-				<span class="text-sm font-normal">{slot.hint}</span>
-			</Label>
-			{#if slot.content_type === 'plain_text'}
-				<Input
-					placeholder="Enter email content..."
-					defaultValue={formState.slots[slot.key]}
-					onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
-				/>
-			{:else}
-				<RichTextEditor
-					width="100%"
-					value={formState.slots[slot.key]}
-					placeholder="Enter email content..."
-					onChange={(json) => (formState.slots[slot.key] = json)}
-				/>
-			{/if}
+			<Input
+				placeholder="Subject"
+				name="subject"
+				defaultValue={formState.subject}
+				onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
+			/>
 		</div>
-	{/each}
+		{#each schema.slots as slot (slot.key)}
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Label
+					class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					for={slot.key}
+				>
+					<span>{slot.label}</span>
+					<span class="text-sm font-normal">{slot.hint}</span>
+				</Label>
+				{#if slot.content_type === 'plain_text'}
+					<Input
+						placeholder="Enter email content..."
+						defaultValue={formState.slots[slot.key]}
+						onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
+					/>
+				{:else}
+					<RichTextEditor
+						width="100%"
+						value={formState.slots[slot.key]}
+						placeholder="Enter email content..."
+						onChange={(json) => (formState.slots[slot.key] = json)}
+					/>
+				{/if}
+			</div>
+		{/each}
 
-	<div class="flex justify-center">
-		<Button type="submit">Submit</Button>
-	</div>
-</form>
-
+		<div class="flex">
+			<Button type="submit">Save changes</Button>
+		</div>
+	</form>
+</TabContent>
 <Dialog.Root bind:open={openPreviewModal}>
 	<Dialog.Content class="h-[70vh] w-full max-w-6xl sm:w-full sm:max-w-6xl">
 		<Dialog.Header>

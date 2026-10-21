@@ -1,39 +1,39 @@
 pub mod config;
+
 pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
 pub mod process_wiki_poll_summary;
 pub mod scheduled_emails;
 
-use std::{future::Future, str::FromStr, sync::Arc, time::Duration};
+use std::future::Future;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
 
 use apalis::prelude::*;
 use apalis_cron::{CronStream, Schedule};
 use apalis_redis::RedisStorage;
 use async_trait::async_trait;
-use sensemakar_jobs::WikiPollSummaryJob;
-use tokio::{sync::Mutex, time::timeout};
-use tracing::{error, instrument};
-
-use crate::{
-    ComhairleState,
-    config::WorkerConfig,
-    error::ComhairleError,
-    worker_service::{
-        process_documents::{DocumentJob, process_document_handler},
-        process_video_call_transcriptions::{
-            TranscribeRecording, generate_sensemaking_report, transcribe_recording,
-        },
-        process_wiki_poll_summary::wiki_poll_summary_handler,
-        scheduled_emails::{
-            ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
-            send_scheduled_email,
-        },
-    },
-};
-
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+use sensemakar_jobs::WikiPollSummaryJob;
+use tokio::sync::Mutex;
+use tokio::time::timeout;
+use tracing::instrument;
+
+use crate::ComhairleState;
+use crate::config::WorkerConfig;
+use crate::error::ComhairleError;
+use crate::worker_service::process_documents::{DocumentJob, process_document_handler};
+use crate::worker_service::process_video_call_transcriptions::{
+    TranscribeRecording, generate_sensemaking_report, transcribe_recording,
+};
+use crate::worker_service::process_wiki_poll_summary::wiki_poll_summary_handler;
+use crate::worker_service::scheduled_emails::{
+    ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
+    send_scheduled_email,
+};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -120,23 +120,16 @@ pub struct WorkerStorage {
 }
 
 pub async fn init_worker_service(
-    config: &Option<WorkerConfig>,
-) -> Option<(Arc<dyn WorkerService>, WorkerStorage)> {
-    let config = config.as_ref()?;
-
+    config: &WorkerConfig,
+) -> Result<(Arc<dyn WorkerService>, WorkerStorage), ComhairleError> {
     // Manually handle connection timeout as apalis default too long
     let redis_connection = timeout(
         Duration::from_secs(10),
         apalis_redis::connect(config.redis_url.clone()),
     )
     .await
-    .ok()
-    .and_then(|r| r.ok())
-    .or_else(|| {
-        error!("Timed out attempting to establish connection to Redis");
-        error!("Worker service unavailable");
-        None
-    })?;
+    .map_err(|_| ComhairleError::RedisError("Timed out conncecting to Redis after 10s".into()))?
+    .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
 
     let documents_config =
         apalis_redis::Config::default().set_namespace("worker_service_documents");
@@ -168,7 +161,7 @@ pub async fn init_worker_service(
         wiki_poll_summary: Arc::new(Mutex::new(wiki_poll_summary_storage.clone())),
     });
 
-    Some((
+    Ok((
         worker_service,
         WorkerStorage {
             documents: documents_storage,
@@ -205,6 +198,10 @@ pub fn init_monitor(
             .backend(storage.transcriptions.clone())
             .build_stepped(transcription_worker_steps);
 
+        #[allow(
+            clippy::expect_used,
+            reason = "hardcoded cron expression, validated on every startup"
+        )]
         let scheduled_emails_schedule = Schedule::from_str("0 */5 * * * *")
             .expect("Unable to create cron schedule for background worker");
         let scheduled_emails_cron_stream = CronStream::new(scheduled_emails_schedule);

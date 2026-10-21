@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
@@ -27,7 +26,7 @@
 	import { getLanguageName } from '$lib/config/languages';
 	import { key } from '$lib/utils/invalidationKey';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import TabContent from '../TabContent.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
@@ -304,11 +303,6 @@
 	<title>Learning Assistant - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader
-	title="Learning Assistant"
-	description="Enable the Learning Assistant and manage the documents it answers from"
-/>
-
 <TabContent>
 	<div class="flex flex-col">
 		<!-- Enable toggle. Mirrors the Configure page's two-column row (label left, control right,
@@ -541,22 +535,15 @@
 				{#await data.streamedChatInstructions}
 					<Skeleton class="h-9 w-full" />
 				{:then chatInstructions}
-					{#if chatInstructions.err !== null}
-						{notifications.addFlash({
-							message: 'Could not load chat instructions, please try again',
-							priority: 'ERROR'
-						})}
-					{:else}
-						<Input
-							name="target_reading_age"
-							disabled={!canEdit}
-							type="number"
-							defaultValue={chatInstructions.ok.targetReadingAge ?? 9}
-							min="5"
-							max="18"
-							oninput={updateChatInstructions}
-						/>
-					{/if}
+					<Input
+						name="target_reading_age"
+						disabled={!canEdit}
+						type="number"
+						defaultValue={chatInstructions.ok?.targetReadingAge ?? 9}
+						min="5"
+						max="18"
+						oninput={updateChatInstructions}
+					/>
 				{/await}
 			</div>
 		</div>

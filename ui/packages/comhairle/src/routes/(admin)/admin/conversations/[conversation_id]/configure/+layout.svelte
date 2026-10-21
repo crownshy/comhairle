@@ -3,7 +3,7 @@
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
-	import TabContent from '../TabContent.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	import { permissions } from '$lib/permissions.svelte';
 
 	let { data, children, params } = $props();

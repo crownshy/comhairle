@@ -14,7 +14,8 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{self, SqlxResultExt, users::User};
+use crate::models::users::User;
+use crate::models::{self, SqlxResultExt};
 use crate::wiki_poll_service::ModerationStatus;
 
 impl From<ModerationStatus> for sea_query::Value {
@@ -772,12 +773,9 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        test_helpers::{extract, polis_tool_config},
-    };
-
     use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::test_helpers::{extract, polis_tool_config};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn upsert_from_polis_refreshes_moderation_status(

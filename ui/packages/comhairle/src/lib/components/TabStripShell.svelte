@@ -13,22 +13,16 @@
 	let { ariaLabel, ariaHidden = false, children }: Props = $props();
 </script>
 
-<!-- Shared shell for the conversation layout's "Row 2" primary strip (section sub-tabs,
-	 workflow steps, events). Owns the row's chrome — background, bottom border, gutter
-	 alignment, horizontal scroll, wrap behaviour — so every strip and its loading skeleton
-	 stay pixel-identical. `bg-secondary` is the Row 2 tone (Row 1 is `bg-background`, the
-	 Row 3 sub-strip is `bg-accent`). -->
+<!-- Shared shell for a section's tab strip (configure, workflow steps, events). It sits
+	 directly under the section header and shares its background, so the two read as one
+	 block. Items style themselves with `sectionTabClass`. -->
 <nav
-	class="border-border bg-secondary scrollbar-none w-full shrink-0 overflow-x-auto border-b"
+	class="border-border scrollbar-none px-gutter w-full shrink-0 overflow-x-auto border-b"
 	aria-label={ariaLabel}
 	aria-hidden={ariaHidden || undefined}
 >
-	<!-- Left padding is one item's px-3.5 short of the full gutter so that every item's
-		 text (each item carries px-3.5) starts on the gutter column. Compensating here rather
-		 than with -ml-3.5 on the first item means wrapped rows' first items land on the gutter
-		 too, not just row 1's. -->
 	<ul
-		class="flex min-w-max items-center gap-x-1.5 gap-y-0.5 py-1 pr-5 pl-[calc(var(--spacing-gutter)-0.875rem)] sm:w-full sm:min-w-0 sm:flex-wrap"
+		class="sm:max-w-admin flex min-w-max items-center gap-x-6 sm:mx-auto sm:w-full sm:min-w-0 sm:flex-wrap"
 	>
 		{@render children()}
 	</ul>

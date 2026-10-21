@@ -340,7 +340,7 @@
 </svelte:head>
 
 <div class="mb-6 flex flex-row items-center gap-4">
-	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
+	<h2 class="text-xl font-bold">Event: {event?.name}</h2>
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}

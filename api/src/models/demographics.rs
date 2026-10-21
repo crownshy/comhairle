@@ -23,9 +23,8 @@ use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use sqlx::prelude::FromRow;
-use sqlx::{Decode, Postgres, Type};
+use sqlx::{Decode, PgPool, Postgres, Type};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -792,10 +791,9 @@ pub async fn delete_demographics_response(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::test_helpers::UserSession;
-
-    use super::*;
 
     // Test can create, get, update and delete a demographics question.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

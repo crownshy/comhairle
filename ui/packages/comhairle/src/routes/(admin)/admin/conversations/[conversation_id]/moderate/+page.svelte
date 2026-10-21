@@ -2,7 +2,6 @@
 	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 
 	let { data } = $props();
@@ -16,8 +15,6 @@
 <svelte:head>
 	<title>Moderate Conversation - Comhairle Admin</title>
 </svelte:head>
-
-<PageHeader title="Moderate" description="Use this space to moderate the conversation" />
 
 <div class="mb-5 flex flex-col gap-y-5">
 	{#each workflowSteps as step (step.id)}
@@ -37,7 +34,7 @@
 						{#if activeToolConfig(step).type === 'learn'}
 							<BookOpen />
 						{/if}
-						<h1 class="text-xl">{step.name}</h1>
+						<h2 class="text-xl">{step.name}</h2>
 					</div>
 				</div>
 			</Card.Header>
