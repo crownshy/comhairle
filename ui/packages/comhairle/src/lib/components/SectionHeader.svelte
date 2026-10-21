@@ -3,41 +3,40 @@
 	export type GuideLink = { href: string; label: string };
 
 	export type SectionHeaderContent = {
+		/** A link back to the parent page, shown above the eyebrow. */
+		back?: { href: string; label: string };
 		/** Small label above the title: the conversation stage, or the sidebar group. */
 		eyebrow?: string;
 		title: string;
 		description?: string;
 		/** Handbook topic for this page. Leave out when there is none yet. */
 		guide?: GuideLink;
-		/** A tab strip follows, so the header leaves its bottom edge to the strip. */
-		hasTabs?: boolean;
-		/** One short row, so an editor below keeps its height. */
-		compact?: boolean;
 	};
 </script>
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { BookOpen, ArrowUpRight } from '@lucide/svelte';
+	import { ArrowLeft, ArrowUpRight, BookOpen } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		content: SectionHeaderContent;
+		/** A tab strip follows, so the header leaves its bottom edge to the strip. */
+		hasTabs?: boolean;
+		/** One short row, so an editor below keeps its height. */
+		compact?: boolean;
 		/** Page buttons shown at the right of the title row. */
 		actions?: Snippet;
 	};
 
-	let { content, actions }: Props = $props();
-
-	let spacing = $derived.by(() => {
-		if (content.compact) return content.hasTabs ? 'pt-3 pb-1' : 'border-border border-b py-3';
-		return content.hasTabs ? 'pt-page-top pb-4' : 'border-border border-b pt-page-top pb-6';
-	});
+	let { content, hasTabs = false, compact = false, actions }: Props = $props();
 </script>
 
-{#snippet guideLink()}
+{#snippet trailing()}
 	<div class="flex shrink-0 items-center gap-2 self-start">
 		{@render actions?.()}
 		{#if content.guide}
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- guide hrefs are built with resolve() -->
 			<a
 				href={content.guide.href}
 				target="_blank"
@@ -49,28 +48,47 @@
 				<span class="max-w-60 truncate">{content.guide.label}</span>
 				<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
 			</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		{/if}
 	</div>
 {/snippet}
 
 <!-- When a tab strip follows, it supplies the bottom border so header and tabs read as one block. -->
-<header class="bg-admin-background px-gutter shrink-0 {spacing}">
-	{#if content.compact}
+<header
+	class={cn(
+		'bg-admin-background px-gutter shrink-0',
+		!hasTabs && 'border-border border-b',
+		compact && (hasTabs ? 'pt-3 pb-1' : 'py-3'),
+		!compact && (hasTabs ? 'pt-page-top pb-4' : 'pt-page-top pb-6')
+	)}
+>
+	{#if compact}
 		<div class="max-w-admin mx-auto flex w-full items-center justify-between gap-3">
-			<div class="flex min-w-0 items-center gap-1.5 text-sm">
+			<div class="flex min-w-0 items-center gap-1.5 text-base">
 				{#if content.eyebrow}
 					<span class="text-muted-foreground shrink-0">{content.eyebrow}</span>
 					<span class="text-muted-foreground" aria-hidden="true">/</span>
 				{/if}
 				<h1 class="text-foreground truncate font-semibold">{content.title}</h1>
 			</div>
-			{@render guideLink()}
+			{@render trailing()}
 		</div>
 	{:else}
 		<div
 			class="max-w-admin mx-auto flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
 		>
 			<div class="flex min-w-0 flex-col gap-1">
+				{#if content.back}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- back hrefs are built with resolve() -->
+					<a
+						href={content.back.href}
+						class="text-muted-foreground hover:text-foreground mb-2 inline-flex items-center gap-1.5 self-start text-base font-medium transition-colors"
+					>
+						<ArrowLeft class="size-4" />
+						{content.back.label}
+					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
+				{/if}
 				{#if content.eyebrow}
 					<p class="text-muted-foreground text-sm font-semibold">{content.eyebrow}</p>
 				{/if}
@@ -79,7 +97,7 @@
 					<p class="text-muted-foreground text-base">{content.description}</p>
 				{/if}
 			</div>
-			{@render guideLink()}
+			{@render trailing()}
 		</div>
 	{/if}
 </header>

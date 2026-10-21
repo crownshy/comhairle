@@ -106,7 +106,14 @@
 	);
 
 	// Follows the navigation target so the header changes together with the skeleton below it.
-	let header = $derived(sectionHeader(effectivePathname, conversation));
+	let headerSteps = $derived(
+		(data.workflowSteps ?? []).map((step) => ({
+			id: step.id,
+			name: step.name,
+			toolType: (conversation.isLive ? step.toolConfig : step.previewToolConfig)?.type
+		}))
+	);
+	let header = $derived(sectionHeader(effectivePathname, conversation, headerSteps));
 </script>
 
 <!-- Mobile only: the sidebar is a drawer there, so keep the title visible and leave room for
@@ -129,7 +136,7 @@
 	{/if}
 
 	{#if header}
-		<SectionHeader content={header} />
+		<SectionHeader {...header} />
 	{/if}
 
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists

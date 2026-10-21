@@ -28,11 +28,9 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<!-- Row 4: the step's sub-tab strip, real routes (Configure/Setup/Moderation/Insights).
-	 Rendered here from `data` (server-rendered) so a hard refresh of /design/step/* paints it
-	 immediately, rather than flashing in after hydration. The parent conversation layout gives
-	 the step route a full-bleed region (no padded wrapper) so this strip sits flush under Row 3. -->
-<SubTabStrip items={subtabItems} {basePath} />
+<!-- The step's own tabs (Setup/Configure/Moderation/Insights), the only strip under the step
+	 header. Rendered from `data` so a hard refresh of /design/step/* paints it straight away. -->
+<SubTabStrip tone="primary" items={subtabItems} {basePath} />
 
 {#if isHeyformSetup}
 	<div class="bg-admin-background min-h-0 grow overflow-hidden">
