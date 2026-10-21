@@ -21,7 +21,7 @@
 		<a
 			class="mb-3 flex items-center gap-2 rounded-full p-2 pr-5 pl-3 transition-colors {active
 				? 'bg-primary/30'
-				: ''}"
+				: 'hover:bg-slate-500/30'}"
 			href={resolve(`/(public)/settings/${href}`)}
 		>
 			<Icon class="size-8 rounded-full p-2 {active ? 'bg-primary' : 'bg-slate-500'}" />
