@@ -214,18 +214,19 @@
 		serverURL.startsWith('https://') ? serverURL : `https://${serverURL}`
 	);
 
-	let url = $derived(
-		`${base_url}/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&comhairle_user_id=${userId}&hideAfterSubmit=true&autoClose=1&hostScroll=true`
-	);
-
 	let fullUrl = $derived.by(() => {
 		// Caller params last: a step that wants a specific colour outranks the ambient palette.
 		const params = new URLSearchParams({
+			polis_id: userId,
+			comhairle_user_id: userId,
+			hideAfterSubmit: 'true',
+			autoClose: '1',
+			hostScroll: 'true',
 			locale: toHeyFormLocale(getLocale()),
 			...bootPalette,
 			...extraSurveyParams
-		}).toString();
-		return params ? url + '&' + params : url;
+		});
+		return `${base_url}/form/${surveyId}?${params}`;
 	});
 </script>
 
