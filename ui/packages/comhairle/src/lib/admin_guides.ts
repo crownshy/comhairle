@@ -580,7 +580,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Choose who can take part in your conversation and what participants can do before and after completing it.',
 				image: {
 					src: configureAccessImage,
-					alt: 'The Access tab under Configure, listing settings with on and off switches, including Show conversation publicly, Only allow participation by invite, Automatically log in with an anonymous account and Enable signup prompts.'
+					alt: 'The Access tab under Configure, with on and off switches grouped under Visibility (Show conversation publicly), Who can take part (Only allow participation by invite, Automatically log in with an anonymous account) and After finishing (Allow revisit after finishing).'
 				},
 				steps: [
 					'Go to **Configure** → **Access**.',
@@ -588,10 +588,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Use **Show conversation publicly** to allow anyone to view the conversation’s data once it has been launched.',
 					'Use **Only allow participation by invite** to restrict participation to people invited and managed by admins.',
 					'Use **Automatically log in with an anonymous account** to create a temporary account for participants who are not signed in.',
-					'Use **Enable sign up prompts** to show participants an option to sign up after taking part.',
-					'Use **Show thank you page anonymous instruction** to show a thank you page to anonymous participants after they finish.',
-					'Use the **feedback** setting to show a feedback button on the thank you page.',
-					'Use **Allow revisit later** to let participants return to the conversation steps after they have finished.'
+					'Use **Allow revisit after finishing** to let participants return to the conversation steps after they have finished.',
+					'Use **Enable signup prompts** to show participants an option to sign up after taking part.',
+					'Use **Show thank you page anonymous instructions** to show a thank you page to anonymous participants after they finish.',
+					'Use **Show thank you page feedback button** to show a feedback button on the thank you page.'
 				],
 				tips: [
 					'Review these settings before launching, as they affect how participants access and move through your conversation.',
@@ -608,7 +608,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'[Launch](/admin/info/glossary#term-launch) your conversation when it is ready for participants to take part.',
 				image: {
 					src: launchAConversationImage,
-					alt: 'The launch confirmation window, warning that launching will make the conversation live for participants and that it can no longer be modified, with Launch and cancel buttons.'
+					alt: 'The Launch page. Before you launch lists Preview it as a participant, Process design, Details and access, and Team. Below it, a warning box explains what happens when you launch, above the Launch conversation button, highlighted in yellow.'
 				},
 				steps: [
 					'Open **Launch** in the sidebar.',
