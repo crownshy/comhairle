@@ -1,33 +1,29 @@
+use std::str::FromStr;
+
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{
-    Decode, Encode, PgPool, Postgres,
-    prelude::{FromRow, Type},
-};
+use sqlx::prelude::{FromRow, Type};
+use sqlx::{Decode, Encode, PgPool, Postgres};
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
-use std::str::FromStr;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
-
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-        scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
-        translations::{TextContentId, TextFormat, new_translation},
-        users::User,
-    },
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::scheduled_email::{
+    self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
 };
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::users::User;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct BasicEventAgendaItem {
@@ -249,13 +245,13 @@ impl<'r> Decode<'r, Postgres> for EventLocation {
     }
 }
 
-impl From<EventLocation> for sea_query::Value {
-    fn from(l: EventLocation) -> Self {
-        Self::Json(Some(Box::new(
-            // `expect` should be safe here as serialization should fail at the api
-            // layer if invalid
-            serde_json::to_value(l).expect("EventLocation serialization failed"),
-        )))
+impl TryFrom<EventLocation> for sea_query::Value {
+    type Error = ComhairleError;
+
+    fn try_from(l: EventLocation) -> Result<Self, Self::Error> {
+        let json = serde_json::to_value(l)?;
+
+        Ok(Self::Json(Some(Box::new(json))))
     }
 }
 
@@ -489,7 +485,7 @@ pub async fn create(
 }
 
 impl PartialEvent {
-    pub fn to_values(&self) -> Vec<(EventIden, sea_query::SimpleExpr)> {
+    pub fn try_to_values(&self) -> Result<Vec<(EventIden, sea_query::SimpleExpr)>, ComhairleError> {
         let mut values = vec![];
         if let Some(value) = &self.name {
             values.push((EventIden::Name, value.into()));
@@ -513,7 +509,8 @@ impl PartialEvent {
             values.push((EventIden::Agenda, value.into()));
         }
         if let Some(value) = &self.location {
-            values.push((EventIden::Location, value.clone().into()));
+            let location = sea_query::Value::try_from(value.clone())?;
+            values.push((EventIden::Location, location.into()));
         }
         if let Some(value) = &self.format {
             values.push((EventIden::Format, value.clone().into()));
@@ -535,7 +532,7 @@ impl PartialEvent {
             values.push((EventIden::Metadata, value.clone().into()));
         }
 
-        values
+        Ok(values)
     }
 }
 
@@ -545,7 +542,7 @@ pub async fn update(
     id: &Uuid,
     update_event: &PartialEvent,
 ) -> Result<Event, ComhairleError> {
-    let values = update_event.to_values();
+    let values = update_event.try_to_values()?;
 
     if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
@@ -641,8 +638,9 @@ impl EventOrderOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(order) = &self.name {
             let tt_name_alias = Alias::new("tt_name");
@@ -852,17 +850,15 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use chrono::Duration;
 
-    use crate::models::{
-        event_attendance::{self, CreateEventAttendance},
-        model_test_helpers::{
-            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
-        },
-    };
-
     use super::*;
-    use std::error::Error;
+    use crate::models::event_attendance::{self, CreateEventAttendance};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
+    };
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

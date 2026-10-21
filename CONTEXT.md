@@ -12,7 +12,12 @@ _Avoid_: Topic (used loosely in the UI/design), consultation
 The ordered sequence of Steps a Conversation routes participants through. Every Conversation has exactly one active Workflow.
 
 **Step**:
-A single stage in a Workflow, backed by one engagement tool (learn/onboarding, survey, Pol.is poll, prioritisation, etc.).
+A single position in a Workflow, backed by one engagement tool (learn/onboarding, survey, Pol.is poll, prioritisation, etc.).
+_Avoid_: stage (that word belongs to [[#conversation-stage]])
+
+**Conversation Stage**:
+Where a Conversation is in its admin lifecycle: **Set up**, **Launch**, **Engage**, **Close**, **Results**. Groups the admin sections of a Conversation; Engage, Close and Results stay locked until launch. Unrelated to Workflow Steps, and Results is not the per-Step Insights.
+_Avoid_: phase, step, Insight/Insights (for the last stage), Learn (for the last stage)
 
 **Design board**:
 The primary editing surface of a Conversation's Workflow, on the `…/design` route. A horizontal, left-to-right sequence of Step cards with a persistent left **Tool palette**. Historically labelled "Manage"; the tab is now labelled **Design**.
@@ -69,6 +74,10 @@ Entry does not grant additional permissions.
 The point at which a participant has a `done` progress row for **every** Step in a Workflow. Reaching it is what lands them on the Thank You page. Distinct from a Conversation being **complete** (`is_complete`), which is an admin closing the whole Conversation, and from a single Step's `progressStatus: 'done'`. Matches what participants see: the last step's button is labelled "Finish".
 _Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
 _Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
+
+**Taken part**:
+A person has taken part in a Conversation once they have a `done` progress row for at least one Step in any of its Workflows. Registering for a Workflow is not enough. This is what the participation count on the Thank You page counts. See [ADR-0057](documentation/adr/0057-the-participation-count-counts-people-with-a-done-step.md).
+_Avoid_: Participant count meaning registrations; notification recipients still use everyone who registered.
 
 **Sealed**:
 A participant who has [[#finished-a-participant-is-finished]] in a Conversation with [[#revisit-after-finishing]] turned off. A sealed participant can reach no Step and comhairle rejects their writes. Sealed is **derived**, never stored: it is recomputed from the Workflow's Steps and that participant's progress rows. One consequence of deriving it: adding a Step to a live Workflow un-seals everyone who had already finished.

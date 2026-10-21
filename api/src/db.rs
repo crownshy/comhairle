@@ -17,8 +17,7 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), ComhairleError> {
     sqlx::migrate!("./migrations")
         .run(pool)
         .await
-        .map_err(|e| ComhairleError::DbError(e.to_string()))
-        .expect("Failed to run migrations");
+        .map_err(|e| ComhairleError::DbError(format!("Failed to run migrations: {}", e)))?;
 
     info!("Finished running migrations");
     Ok(())

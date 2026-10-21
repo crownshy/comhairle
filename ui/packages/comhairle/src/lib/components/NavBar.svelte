@@ -98,7 +98,7 @@
 					variant="nav"
 					class="h-10 text-base font-normal {page.url.pathname === link.href ||
 					(link.href !== '/' && page.url.pathname.startsWith(link.href))
-						? 'bg-sidebar/50 shadow-xs'
+						? 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary shadow-xs'
 						: ''}">{link.name}</Button
 				>
 			{/each}

@@ -9,6 +9,7 @@
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { Download } from 'lucide-svelte';
+	import { downloadTextFile } from '$lib/utils/downloadFile';
 
 	let { data } = $props();
 	let backTo = page.url.searchParams.get('backTo') ?? '/';
@@ -23,14 +24,10 @@
 	}
 
 	function downloadId() {
-		const text = `Your Comhairle Guest ID: ${data?.user?.guestCode}\n\nSave this — you'll need it to log in.`;
-		const blob = new Blob([text], { type: 'text/plain' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = 'comhairle-guest-id.txt';
-		a.click();
-		URL.revokeObjectURL(url);
+		downloadTextFile(
+			'comhairle-guest-id.txt',
+			m.guest_id_file_text({ guestCode: data?.user?.guestCode ?? '' })
+		);
 	}
 </script>
 

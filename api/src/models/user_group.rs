@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 pub const CACHE_TTL_SECONDS: u64 = 300;
 
@@ -97,7 +98,8 @@ pub async fn set_organization_member(
     caller_id: Uuid,
     administrator: bool,
 ) -> Result<(), ComhairleError> {
-    use super::permissions::{self, ActorId, organization::Action};
+    use super::permissions::organization::Action;
+    use super::permissions::{self, ActorId};
     if user_id == caller_id {
         return Err(ComhairleError::UserNotAuthorized);
     }
@@ -163,7 +165,8 @@ pub async fn remove_organization_member(
     user_id: Uuid,
     caller_id: Uuid,
 ) -> Result<(), ComhairleError> {
-    use super::permissions::{self, ActorId, organization::Action};
+    use super::permissions::organization::Action;
+    use super::permissions::{self, ActorId};
     if user_id == caller_id {
         return Err(ComhairleError::UserNotAuthorized);
     }

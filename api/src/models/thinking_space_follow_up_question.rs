@@ -3,11 +3,13 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_follow_up_question")]
@@ -207,22 +209,19 @@ pub async fn delete(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::{
-        models::{
-            model_test_helpers::{
-                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-            },
-            users,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::thinking_space_tool_config,
-        tools::{ToolConfig, thinking_space::ThinkingSpaceToolConfig},
-    };
+    use std::error::Error;
 
     use serde_json::json;
-    use std::error::Error;
+
+    use super::*;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+    };
+    use crate::models::users;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::thinking_space_tool_config;
+    use crate::tools::ToolConfig;
+    use crate::tools::thinking_space::ThinkingSpaceToolConfig;
 
     async fn create_thinking_space_resources(
         pool: &PgPool,

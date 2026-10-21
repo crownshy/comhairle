@@ -26,7 +26,8 @@ export const test = base.extend<Fixtures>({
 
 		await use((fn) => cleanups.push(fn));
 
-		for (const cleanup of cleanups) {
+		// Undo in reverse, so later changes come off before the things they were made on.
+		for (const cleanup of [...cleanups].reverse()) {
 			await cleanup();
 		}
 

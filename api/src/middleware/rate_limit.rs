@@ -1,11 +1,10 @@
+use std::sync::Arc;
+
 use axum::body::Body;
 use governor::middleware::{NoOpMiddleware, StateInformationMiddleware};
-use std::sync::Arc;
-use tower_governor::{
-    GovernorLayer,
-    governor::{GovernorConfig, GovernorConfigBuilder},
-    key_extractor::SmartIpKeyExtractor,
-};
+use tower_governor::GovernorLayer;
+use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
+use tower_governor::key_extractor::SmartIpKeyExtractor;
 
 /// Configuration for rate limiting
 #[derive(Clone)]
@@ -183,6 +182,10 @@ fn governor_builder(
         .key_extractor(SmartIpKeyExtractor)
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "only run when starting api so acceptable to panic"
+)]
 fn build_governor_config(
     config: RateLimitConfig,
 ) -> GovernorConfig<SmartIpKeyExtractor, NoOpMiddleware> {
@@ -191,6 +194,10 @@ fn build_governor_config(
         .expect("Failed to create rate limiter configuration")
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "only run when starting api so acceptable to panic"
+)]
 fn build_governor_config_with_headers(
     config: RateLimitConfig,
 ) -> GovernorConfig<SmartIpKeyExtractor, StateInformationMiddleware> {
@@ -216,15 +223,14 @@ pub fn create_custom_rate_limiter(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use axum::{
-        Router,
-        http::{Request, StatusCode},
-        routing::get,
-    };
     use std::time::Duration;
+
+    use axum::Router;
+    use axum::http::{Request, StatusCode};
+    use axum::routing::get;
     use tower::ServiceExt;
+
+    use super::*;
 
     #[test]
     fn test_auth_strict_config() {

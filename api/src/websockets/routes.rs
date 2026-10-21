@@ -1,23 +1,20 @@
 use std::sync::Arc;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredAdminUser};
-use aide::{
-    OperationIo,
-    axum::{
-        ApiRouter,
-        routing::{get_with, post_with},
-    },
-};
-use axum::{Json, extract::State, routing::get};
-use serde::{Deserialize, Serialize};
-
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
+use axum::Json;
+use axum::extract::State;
+use axum::routing::get;
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{
-    messages::{NotificationLevel, WebSocketMessage},
-    websocket_handler,
-};
+use super::messages::{NotificationLevel, WebSocketMessage};
+use super::websocket_handler;
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::routes::auth::RequiredAdminUser;
 
 #[derive(Serialize, OperationIo, JsonSchema)]
 struct WebSocketStats {

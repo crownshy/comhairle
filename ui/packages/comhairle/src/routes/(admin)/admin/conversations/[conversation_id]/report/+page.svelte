@@ -2,7 +2,6 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -10,6 +9,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { ReportTranslations } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { m } from '$lib/paraglide/messages';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -31,6 +31,7 @@
 
 	let { data } = $props();
 	let report = $derived(data.report);
+	let translations = $derived(ReportTranslations.parse(report.translations));
 	let conversation = $derived(data.conversation);
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation.id)
@@ -51,11 +52,56 @@
 	let feedbackOpen = $state(false);
 
 	const summaryTranslationSource = createTextContentSource({
-		getTranslation: () => report.translations.summary,
+		getTranslation: () => translations.summary,
 		getPrimaryLocale: () => conversation.primaryLocale as Locale,
 		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
 		refresh: () => invalidate(key('admin/conversation/report'))
 	});
+
+	const bodyTranslationSource = createTextContentSource({
+		getTranslation: () => translations.body ?? undefined,
+		getPrimaryLocale: () => conversation.primaryLocale as Locale,
+		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
+		refresh: () => invalidate(key('admin/conversation/report')),
+		ensureTextContentId: upsertBodyTranslation
+	});
+
+	async function upsertBodyTranslation(content: string): Promise<string | undefined> {
+		const textContentRes = await tryCatchAsync(() =>
+			apiClient.CreateTextContent({
+				content,
+				format: 'rich',
+				primary_locale: conversation.primaryLocale
+			})
+		);
+
+		if (textContentRes.err !== null) {
+			notifications.send({
+				message: 'Failed to create translatable content',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		const updateReportRes = await tryCatchAsync(() =>
+			apiClient.UpdateReport(
+				{
+					body: textContentRes.ok.id
+				},
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (updateReportRes.err !== null) {
+			notifications.send({
+				message: 'Failed to update report',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		return textContentRes.ok.id;
+	}
 
 	async function createFeedback() {}
 
@@ -80,8 +126,6 @@
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader title="Report" description="Use this space to edit the report for this conversation" />
-
 <div class="flex flex-col gap-4">
 	<div class="flex w-full flex-row items-center justify-end gap-2">
 		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
@@ -92,7 +136,9 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Summary</Card.Title>
-			<Card.Description>Overall summary of the conversation</Card.Description>
+			<Card.Description
+				>A short introduction shown at the top of the public report.</Card.Description
+			>
 		</Card.Header>
 		<Card.Content>
 			{#if canEdit}
@@ -102,15 +148,48 @@
 					primaryLocale={conversation.primaryLocale as Locale}
 					supportedLanguages={conversation.supportedLanguages as Locale[]}
 					inputType="textarea"
-					placeholder="Summary to be filled out by the facilitator"
 					editorType="rich"
+					placeholder="Write a short introduction to the report"
 					minHeight="100px"
+					conversationId={conversation.id}
 					reportEmbedSteps={data.reportEmbedSteps}
 				/>
 			{:else}
 				<div class="bg-card border-border rounded-lg border p-4">
 					<ContentRenderer
 						content={summaryTranslationSource.contents[
+							conversation.primaryLocale as Locale
+						] ?? ''}
+					/>
+				</div>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Report body</Card.Title>
+			<Card.Description
+				>The full report, including sections and embedded report components</Card.Description
+			>
+		</Card.Header>
+		<Card.Content>
+			{#if canEdit}
+				<TranslatableField
+					source={bodyTranslationSource}
+					disabled={!canEdit}
+					primaryLocale={conversation.primaryLocale as Locale}
+					supportedLanguages={conversation.supportedLanguages as Locale[]}
+					inputType="textarea"
+					placeholder="Write the full content of  introduction to the report. Add data visualisations and provide context to help readers understand the findings."
+					editorType="rich"
+					minHeight="100px"
+					conversationId={conversation.id}
+					reportEmbedSteps={data.reportEmbedSteps}
+				/>
+			{:else}
+				<div class="bg-card border-border rounded-lg border p-4">
+					<ContentRenderer
+						content={bodyTranslationSource.contents[
 							conversation.primaryLocale as Locale
 						] ?? ''}
 					/>

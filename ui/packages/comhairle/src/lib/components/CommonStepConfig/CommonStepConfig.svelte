@@ -133,28 +133,42 @@
 	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
 
-	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
-		if (!canEdit) return;
-		try {
-			await apiClient.UpdateConversationWorkflowStep(
-				{ [camelToSnakeCase(field)]: checked },
-				{
-					params: {
-						conversation_id,
-						workflow_id: step.workflowId,
-						workflow_step_id: step.id
-					}
-				}
-			);
-			await invalidate(key('admin/conversation/workflow'));
-		} catch {
-			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
-		}
-	}, 500);
+	type StepFlag = 'required' | 'canRevisit' | 'requestUserSharePermission';
 
-	function handleSwitchChange(checked: boolean, field: string) {
+	function debouncedFlagUpdate(field: StepFlag) {
+		return useDebounce(async (checked: boolean) => {
+			if (!canEdit) return;
+			try {
+				await apiClient.UpdateConversationWorkflowStep(
+					{ [camelToSnakeCase(field)]: checked },
+					{
+						params: {
+							conversation_id,
+							workflow_id: step.workflowId,
+							workflow_step_id: step.id
+						}
+					}
+				);
+				await invalidate(key('admin/conversation/workflow'));
+			} catch {
+				notifications.send({
+					message: `Failed to update ${field} status`,
+					priority: 'ERROR'
+				});
+			}
+		}, 500);
+	}
+
+	// One debounce per switch: a shared one would drop the first of two quick toggles.
+	const flagUpdates: Record<StepFlag, ReturnType<typeof debouncedFlagUpdate>> = {
+		required: debouncedFlagUpdate('required'),
+		canRevisit: debouncedFlagUpdate('canRevisit'),
+		requestUserSharePermission: debouncedFlagUpdate('requestUserSharePermission')
+	};
+
+	function handleSwitchChange(checked: boolean, field: StepFlag) {
 		if (!canEdit) return;
-		debouncedUpdateRequired(checked, field);
+		flagUpdates[field](checked);
 	}
 
 	let deleteOpen = $state(false);

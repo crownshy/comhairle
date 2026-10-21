@@ -1,18 +1,14 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-    middleware::{from_fn, from_fn_with_state},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
+use axum::middleware::{from_fn, from_fn_with_state};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
@@ -21,11 +17,10 @@ use crate::middleware::permissions::{
     PermissionRequirement, PermissionUserFilter, authenticate, authorize, authorize_or_self,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::system;
 use crate::models::permissions::{
     self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionManagementAction,
     PermissionTargetResource, PermissionTriplet, RevokeRoleRequest, SystemResource,
-    UserWithPermissionDto, grant_role, list_permissions, revoke_role,
+    UserWithPermissionDto, grant_role, list_permissions, revoke_role, system,
 };
 use crate::models::users;
 use crate::routes::auth::RequiredUser;
@@ -155,10 +150,14 @@ async fn grant(
         ActorId::User(uid) => {
             let user = users::get_user_by_id(&uid, &state.db).await?;
 
-            if let Some(email) = user.email {
-                state
-                    .mailer
-                    .send_permission_notification_email(&email, &permission, "granted")?;
+            // The role is already granted, so a failed notification shouldn't fail the request.
+            if let Some(email) = user.email
+                && let Err(error) =
+                    state
+                        .mailer
+                        .send_permission_notification_email(&email, &permission, "granted")
+            {
+                warn!("Granted {permission:?} but could not email {email}: {error}");
             }
         }
         ActorId::Group(_) => {}
@@ -548,22 +547,24 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::get_random_conversation_id;
-    use crate::models::pagination::PaginatedResults;
-    use crate::models::permissions::{
-        self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
-        ResourcePermission, grant_role, has_resource_permission, list_permissions, system::Role,
-    };
-    use crate::routes::permissions::{
-        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
-    };
-    use crate::test_helpers::{test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
+    use std::sync::Arc;
 
     use axum::body::Body;
     use hyper::StatusCode;
     use sqlx::PgPool;
-    use std::sync::Arc;
+
+    use crate::models::model_test_helpers::get_random_conversation_id;
+    use crate::models::pagination::PaginatedResults;
+    use crate::models::permissions::system::Role;
+    use crate::models::permissions::{
+        self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
+        ResourcePermission, grant_role, has_resource_permission, list_permissions,
+    };
+    use crate::routes::permissions::{
+        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
+    };
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_config, test_state};
 
     // Role definitions for testing
     const RESOURCE_TYPE: &str = "conversation";
@@ -802,6 +803,71 @@ mod tests {
             "Admin users should be auto-assigned the system admin role"
         );
 
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn grant_succeeds_when_the_notification_email_fails(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::error::ComhairleError;
+        use crate::mailer::MockComhairleMailer;
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer
+            .expect_send_permission_notification_email()
+            .once()
+            .returning(|_, _, _| Err(ComhairleError::BadRequest("SMTP is down".into())));
+        let state = Arc::new(test_state().db(pool).mailer(Arc::new(mailer)).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let signed_up_id = |user: &std::collections::HashMap<String, Option<serde_json::Value>>| {
+            user.get("id")
+                .and_then(|value| value.as_ref())
+                .and_then(|value| value.as_str())
+                .map(uuid::Uuid::parse_str)
+                .ok_or("missing signup user id")
+        };
+
+        let mut owner = UserSession::new_admin();
+        let (_, owner_user, _) = owner.signup(&app).await?;
+        let owner_id = signed_up_id(&owner_user)??;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(owner_id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
+                granted_by: &owner_id,
+                grant_reason: "Test setup",
+            },
+        )
+        .await?;
+        let conversation_id = get_random_conversation_id(&app, &mut owner).await?;
+
+        let mut target = UserSession::new(
+            "notified_user",
+            crate::test_helpers::TEST_PASSWORD,
+            "notified@example.com",
+        );
+        let (_, target_user, _) = target.signup(&app).await?;
+        let user_id = signed_up_id(&target_user)??;
+
+        let body = GrantPermissionBody {
+            user_id: Some(user_id),
+            organization_id: None,
+            user_email: None,
+            role_name: "content_editor".into(),
+            grant_reason: "Test a failed notification email".into(),
+        };
+        let (status, response, _) = owner
+            .post(
+                &app,
+                &format!("/permissions/conversation/{conversation_id}"),
+                serde_json::to_vec(&body)?.into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         Ok(())
     }
 

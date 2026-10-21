@@ -1,18 +1,14 @@
+use std::sync::Arc;
+
 use apalis::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    models::{
-        job::{self, CreateJob},
-        scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails},
-    },
-};
-
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
+use crate::ComhairleState;
+use crate::models::job::{self, CreateJob};
+use crate::models::scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SendScheduledEmailJob {

@@ -1,16 +1,13 @@
 use std::sync::Arc;
 
+use aide::axum::routing::{get, get_with};
+use aide::axum::{ApiRouter, IntoApiResponse};
+use aide::openapi::OpenApi;
+use aide::redoc::Redoc;
+use aide::scalar::Scalar;
 use aide::swagger::Swagger;
-use aide::{
-    axum::{
-        ApiRouter, IntoApiResponse,
-        routing::{get, get_with},
-    },
-    openapi::OpenApi,
-    redoc::Redoc,
-    scalar::Scalar,
-};
-use axum::{Extension, Json, response::IntoResponse};
+use axum::response::IntoResponse;
+use axum::{Extension, Json};
 
 pub fn docs_routes() -> ApiRouter {
     // We infer the return types for these routes
