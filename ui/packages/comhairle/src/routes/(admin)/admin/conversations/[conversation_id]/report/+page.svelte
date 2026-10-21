@@ -121,7 +121,6 @@
 		impactOpen = false;
 		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 	}
-
 </script>
 
 <svelte:head>

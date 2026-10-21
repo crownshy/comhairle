@@ -2,6 +2,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ReportEmbedLive from '$lib/reports/polis/ReportEmbedLive.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import { toSlug } from '$lib/utils/casingUtils';
 
 	/**
 	 * Renders a report `summary` document with LIVE embedded components (ADR-0012): it walks
@@ -14,11 +15,14 @@
 	let {
 		content = '',
 		conversationId = '',
-		availableDocuments = []
+		availableDocuments = [],
+		headingIdPrefix = 'section'
 	}: {
 		content?: string;
 		conversationId?: string;
 		availableDocuments?: ComhairleDocument[];
+		/** Keeps heading ids unique when two documents render on one page. */
+		headingIdPrefix?: string;
 	} = $props();
 	type SummaryNode = {
 		type?: string;
@@ -76,12 +80,7 @@
 
 				if (!label) continue;
 
-				const slug = label
-					.toLowerCase()
-					.replace(/[^a-z0-9]+/g, '-')
-					.replace(/^-|-$/g, '');
-
-				const baseId = `section-${slug || 'untitled'}`;
+				const baseId = `${headingIdPrefix}-${toSlug(label) || 'untitled'}`;
 				const count = usedIds[baseId] ?? 0;
 				usedIds[baseId] = count + 1;
 

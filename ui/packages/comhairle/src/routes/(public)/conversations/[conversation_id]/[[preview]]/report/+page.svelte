@@ -7,6 +7,7 @@
 	import ReportBody from '$lib/reports/ReportBody.svelte';
 	import { onMount } from 'svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import { toSlug } from '$lib/utils/casingUtils';
 
 	let { data } = $props();
 	let { conversation, workflowSteps, report } = $derived(data);
@@ -19,7 +20,7 @@
 
 	let reportCreatedAt = $derived(format(new Date(report.createdAt), 'd MMMM yyyy'));
 	// The sticky navigation container, used to keep the active pill visible.
-	let reportNavElement: HTMLElement;
+	let reportNavElement = $state<HTMLElement>();
 	// The report content container, used to calculate Back to top visibility.
 	let reportElement: HTMLElement;
 	let showBackToTop = $state(false);
@@ -65,12 +66,7 @@
 
 				if (!label) continue;
 
-				const slug = label
-					.toLowerCase()
-					.replace(/[^a-z0-9]+/g, '-')
-					.replace(/^-|-$/g, '');
-
-				const baseId = `section-${slug || 'untitled'}`;
+				const baseId = `section-${toSlug(label) || 'untitled'}`;
 				const count = usedIds[baseId] ?? 0;
 				usedIds[baseId] = count + 1;
 
@@ -144,7 +140,8 @@
 		};
 	});
 	function revealActiveNavItem(sectionId: string) {
-		const activeItem = reportNavElement?.querySelector<HTMLElement>(
+		if (!reportNavElement) return;
+		const activeItem = reportNavElement.querySelector<HTMLElement>(
 			`[data-report-nav-id="${sectionId}"]`
 		);
 
