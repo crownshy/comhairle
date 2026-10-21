@@ -2,7 +2,7 @@ import { generateValue, sleep, testWithRefresh } from '..';
 import type { Page } from '../types';
 import type { Refs } from './types';
 import { expect, type Locator } from '@playwright/test';
-import Textboxes from './inputs/Textboxes';
+import Textbox from './inputs/Textbox';
 import Design from '../navigation/Design';
 
 const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
@@ -30,7 +30,7 @@ type DraggableListItemComponent<T> = DraggableListItem<T> & {
 const DraggableList = async <const T extends string>(refs: Refs) => {
 	const list: DraggableListItem<T>[] = [];
 
-	refs.cleanup(async () => {
+	refs.cleanup?.(async () => {
 		const count = await Menu(refs.page).count();
 		for (let i = 0; i < count; i++) {
 			const MenuBtn = Menu(refs.page).first();
@@ -109,11 +109,11 @@ const DraggableList = async <const T extends string>(refs: Refs) => {
 					rename: async (newName = generateValue()) => {
 						await MenuBtn.click();
 						await MenuItem(refs.page, 'Rename').click();
-						const NewNameTextbox = refs.page.getByRole('textbox');
+						const NewNameTextbox = await Textbox(undefined, { page: refs.page });
 						listItem.name = newName;
 
-						await Textboxes.write(NewNameTextbox, newName);
-						await NewNameTextbox.press('Enter');
+						await NewNameTextbox.write(newName);
+						await NewNameTextbox.locator().press('Enter');
 						await sleep(1);
 					},
 					delete: async () => {
