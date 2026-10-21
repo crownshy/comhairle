@@ -88,6 +88,9 @@
 	<div class="footer">
 	    <p>This email is sent by</p>
 	    <img class="logo" src="{{ footer_logo_url }}" style="margin: 20px 0;" />
+	    {% if organization_name %}
+		<p>on behalf of {{ organization_name }}</p>
+	    {% endif %}
 	    <p>Copyright {{year}} &copy; Crown Shy</p>
 	</div>
     </div>
