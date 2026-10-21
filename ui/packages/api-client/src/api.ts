@@ -1413,6 +1413,12 @@ export const NotificationRecipientsResponse = z
 export type NotificationRecipientsResponse = z.infer<
   typeof NotificationRecipientsResponse
 >;
+export const ParticipationCountResponse = z
+  .object({ participantCount: z.number().int().gte(0) })
+  .passthrough();
+export type ParticipationCountResponse = z.infer<
+  typeof ParticipationCountResponse
+>;
 export const RegisterEmailRequest = z
   .object({
     email: z.string(),
@@ -3646,6 +3652,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendNotificationRequest,
   SendEmailNotificationResponse,
   NotificationRecipientsResponse,
+  ParticipationCountResponse,
   RegisterEmailRequest,
   RegisterEmailResponse,
   WorkflowDto,
@@ -5118,6 +5125,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     description: `Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.`,
     requestFormat: "json",
     response: NotificationRecipientsResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/participation-count",
+    alias: "GetParticipationCount",
+    description: `Returns how many distinct people have at least one done step in this conversation.`,
+    requestFormat: "json",
+    response: z.object({ participantCount: z.number().int().gte(0) }).passthrough(),
   },
   {
     method: "get",
