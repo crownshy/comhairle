@@ -187,6 +187,7 @@
 	"polis_tip_come_back": "Dewch yn ôl yn aml i bleidleisio ar y syniadau newydd y mae pobl eraill wedi'u cyflwyno",
 	"polis_opinion_submitted": "Mae eich barn wedi'i chyflwyno. Diolch!",
 	"polis_opinion_not_submitted": "Ni chafodd eich barn ei chyflwyno. Rhowch gynnig arall arni.",
+	"polis_vote_not_saved": "Ni chafodd eich pleidlais ei chadw.",
 	"polis_opinion_placeholder": "Rhowch eich barn eich hun yma",
 	"polis_tip_max_length": "Cadwch hi'n fyr: hyd at {max} nod",
 	"polis_characters_left": "{count} nod ar ôl",

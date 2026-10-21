@@ -187,6 +187,7 @@
 	"polis_tip_come_back": "Revenez souvent pour voter sur les nouvelles idées soumises par d'autres personnes",
 	"polis_opinion_submitted": "Votre opinion a été soumise. Merci !",
 	"polis_opinion_not_submitted": "Votre avis n'a pas été envoyé. Veuillez réessayer.",
+	"polis_vote_not_saved": "Votre vote n'a pas été enregistré.",
 	"polis_opinion_placeholder": "Entrez votre propre opinion ici",
 	"polis_tip_max_length": "Soyez bref : jusqu'à {max} caractères",
 	"polis_characters_left": "{count} caractères restants",

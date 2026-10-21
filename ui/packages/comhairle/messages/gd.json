@@ -187,6 +187,7 @@
 	"polis_tip_come_back": "Thig air ais gu tric gus bhòtadh air na beachdan ùra a chuir daoine eile a-steach",
 	"polis_opinion_submitted": "Chaidh do bheachd a chur a-steach. Tapadh leat!",
 	"polis_opinion_not_submitted": "Cha deach do bheachd a chur a-steach. Feuch ris a-rithist.",
+	"polis_vote_not_saved": "Cha deach do bhòt a shàbhaladh.",
 	"polis_opinion_placeholder": "Cuir a-steach do bheachd fhèin an seo",
 	"polis_tip_max_length": "Cùm goirid e: suas ri {max} caractar",
 	"polis_characters_left": "{count} caractar air fhàgail",
