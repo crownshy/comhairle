@@ -126,6 +126,10 @@
 	let alignPending = false;
 	let alignTimer: ReturnType<typeof setTimeout> | undefined;
 
+	// The form shows its thank-you screen for a moment before the step completes.
+	const DONE_DELAY_MS = 2000;
+	let doneTimer: ReturnType<typeof setTimeout> | undefined;
+
 	function alignFrameTop() {
 		alignPending = false;
 		clearTimeout(alignTimer);
@@ -163,7 +167,7 @@
 		switch (data.eventName) {
 			case 'HIDE_EMBED_MODAL':
 				onSequenceChange?.({ progress: 1 });
-				setTimeout(() => onDone(), 2000);
+				doneTimer = setTimeout(() => onDone(), DONE_DELAY_MS);
 				break;
 			case 'FORM_RESIZE':
 				if (typeof data.height === 'number' && Number.isFinite(data.height)) {
@@ -186,6 +190,8 @@
 			window.removeEventListener('message', onFrameMessage);
 			stopResizePing();
 			clearTimeout(alignTimer);
+			// Leaving within the delay must not complete whichever step is open by then.
+			clearTimeout(doneTimer);
 		};
 	});
 
