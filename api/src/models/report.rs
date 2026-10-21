@@ -154,6 +154,9 @@ impl PartialReport {
                 serde_json::to_string_pretty(value)?.into(),
             ));
         }
+        if let Some(value) = &self.body {
+            values.push((ReportIden::Body, value.into_uuid().into()));
+        }
         Ok(values)
     }
 }
