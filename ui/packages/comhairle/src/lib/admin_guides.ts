@@ -218,10 +218,9 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: "The Team tab under Configure, where the owner enters a colleague's email address to grant them content editor access, above the list of the conversation's content editor users."
 				},
 				steps: [
-					'Conversations you create appear under **Owned Conversations**. As the owner, you can edit everything and decide who else has access.',
+					'Conversations you create appear in **Your conversations**. As the owner, you can edit everything and decide who else has access.',
 					'To bring in a colleague, open the Conversation and go to **Configure** → **Team**. Find them by email address and grant them content editor permission.',
-					'Conversations that others have shared with you appear under **Permitted Conversations**.',
-					'To give another organisation read access, go to **Configure** → **Access** and add it under **Co-hosting organizations**.'
+					'Conversations that others have shared with you appear there too. Select the **Shared** filter to see only those.'
 				],
 				tips: [
 					'Only the owner of a Conversation sees the **Team** tab.',
@@ -247,7 +246,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: "The Choose a template window, listing workflow templates such as Informed-participants survey, Understand opinion groups and Citizen workshop, with a preview of the selected template's steps."
 				},
 				steps: [
-					'Click **+ New Conversation**.',
+					'Click **Create new conversation**.',
 					'Choose **Start from blank** to create a conversation from scratch, or **Choose from template** to start with a ready-made set of steps.',
 					'If you choose **Start from blank**, the Conversation is created with a placeholder title like "Untitled 2026-10-05 2:24:30PM".'
 				],
@@ -292,7 +291,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
 				],
 				tips: [
-					'Select :preview: in the top-right corner to see how the conversation will appear to participants.',
+					'Select :preview: at the top of the sidebar, next to the conversation’s status, to see how it will appear to participants.',
 					'To customise other participant-facing text, go to **Configure** → **Content**. Here you can edit the **Call to action**, **FAQs**, **Privacy policy**, and **Thank you message**.',
 					'If you leave fields under **Content** blank, Comhairle’s default text will be used.',
 					'If you use specialist or unfamiliar terms, explain them under **Configure** → **Glossary**. Their definitions will appear as tooltips when those terms are used in the conversation.'
@@ -363,7 +362,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					}
 				],
 				steps: [
-					'Click :preview: in the top-right corner. The preview opens in a new tab.',
+					'Click :preview: at the top of the sidebar, next to the conversation’s status. The preview opens in a new tab.',
 					'Check the **Title**, **Short description**, **Description**, and **Banner image** on the landing page.',
 					'Select the join button and go through the conversation steps as a participant would.',
 					'If you need to make changes, return to the admin tab and edit your conversation.',
@@ -538,7 +537,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					}
 				],
 				steps: [
-					'Click :preview: in the top-right corner.',
+					'Click :preview: at the top of the sidebar, next to the conversation’s status.',
 					'Go through the conversation from beginning to end as a participant would.',
 					'Check that the content, steps, [engagement tools](/admin/info/glossary#term-engagement-tool), and participant journey work as expected.',
 					'Return to the admin workspace to make any final changes.'
@@ -587,10 +586,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'The launch confirmation window, warning that launching will make the conversation live for participants and that it can no longer be modified, with Launch and cancel buttons.'
 				},
 				steps: [
-					'Go to **Configure** → **Access**.',
-					'Complete a final **Preview** to make sure everything is ready.',
-					'Click **Launch Conversation**, then confirm by clicking **Launch**.',
-					'Once launched, a **Launched** badge appears and **Recruit**, **Monitor**, **Notify**, and **Report** become available.'
+					'Open **Launch** in the sidebar.',
+					'Work through **Before you launch**, including a final **Preview**, to make sure everything is ready.',
+					'Click **Launch conversation**, then confirm by clicking **Launch**.',
+					'Once launched, the sidebar shows **Launched**, and **Engage** (**Recruit**, **Notify**, **Monitor**, and **Moderate** if you have a Participant-led poll), **Close** and **Report** become available.'
 				],
 				tips: [
 					'Previewing does not launch your conversation or make it available to participants.',
@@ -639,7 +638,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				},
 				steps: [
 					'Open **Monitor**. It becomes available after you launch the conversation.',
-					'Check **Overview** to see participation over time.',
+					'Check **Overview** for total users, how many are **Active now**, time spent and completions, and the daily signups chart.',
 					'Under **Progress**, see how many participants have **Started** and **Completed** each step.',
 					'Check **Time to complete** to see the median time participants take to finish.',
 					'Under **Follow up**, click **Download Contacts** for a list of participants who agreed to be contacted, or **Download Demographics** for demographic data from participants’ profiles.'
@@ -704,7 +703,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				},
 				steps: [
 					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
-					'In **Process design**, open the Participant-led poll step and go to its **Moderation** tab.',
+					'Open **Moderate** under **Engage** in the sidebar, then click **Moderate step** on the Participant-led poll step.',
 					'Filter statements by **Pending**, **Accepted**, **Rejected**, **Seeded** or **All**, or search for a word.',
 					'Accept or reject each statement. When you reject a statement, choose a reason from your moderation policy.'
 				],
@@ -752,7 +751,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Open **Close** in the sidebar. It becomes available after you launch the conversation.',
 					'Work through **Before you close**: let participants know, check the final numbers in **Monitor**, and start your **Report**.',
 					'Read **What happens when you close**.',
-					'Click **Close conversation**, then confirm by clicking **End**.',
+					'Click **Close conversation**, then confirm by clicking **End Conversation**.',
 					'Once closed, the sidebar shows **Closed** and the page says **This conversation is closed.**'
 				],
 				tips: [
