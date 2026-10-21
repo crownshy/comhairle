@@ -649,7 +649,7 @@
 
 /* Light, floating admin sidebar: a white card on the admin background instead of a dark
    panel. Scoped to the admin layout (`data-sidebar-tone="light"`) because the public site
-   uses the same sidebar tokens for its dark nav. Remove the attribute to go back. */
+   uses the same sidebar tokens for its dark nav. */
 [data-sidebar-tone='light'] {
 	--sidebar: var(--card);
 	--sidebar-foreground: var(--foreground);
@@ -660,10 +660,5 @@
 	--sidebar-secondary: var(--primary);
 	--sidebar-active-bg: var(--secondary);
 	--sidebar-ring: var(--ring);
-	--sidebar-border: #e7e5e4;
-}
-
-/* sidebar border for dark mode */
-.dark [data-sidebar-tone='light'] {
 	--sidebar-border: var(--border);
 }

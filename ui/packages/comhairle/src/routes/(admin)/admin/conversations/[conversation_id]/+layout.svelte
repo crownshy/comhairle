@@ -11,12 +11,10 @@
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
-	let displayTitle = $derived(conversationTitle(conversation));
 
 	// Only the design board itself is full-bleed (it renders its own white card + palette
 	// + scroll region). Every other tab, including the design step config pages under
@@ -115,16 +113,6 @@
 	);
 	let header = $derived(sectionHeader(effectivePathname, conversation, headerSteps));
 </script>
-
-<!-- Mobile only: the sidebar is a drawer there, so keep the title visible and leave room for
-	 the floating menu button. On larger screens the sidebar shows the name and status. -->
-<div
-	class="border-border bg-background flex w-full shrink-0 items-center border-b py-2 pr-3 pl-14 md:hidden"
->
-	<p class="text-primary truncate text-lg leading-7 font-semibold" title={displayTitle}>
-		{displayTitle}
-	</p>
-</div>
 
 <!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
 	 within it. shrink-0 keeps their height inside the viewport-capped `main`. -->
