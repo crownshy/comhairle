@@ -65,6 +65,18 @@
 	{#if compact}
 		<div class="max-w-admin mx-auto flex w-full items-center justify-between gap-3">
 			<div class="flex min-w-0 items-center gap-1.5 text-base">
+				{#if content.back}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- back hrefs are built with resolve() -->
+					<a
+						href={content.back.href}
+						class="text-muted-foreground hover:text-foreground inline-flex shrink-0 items-center gap-1.5 font-medium transition-colors"
+					>
+						<ArrowLeft class="size-4" />
+						{content.back.label}
+					</a>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
+					<span class="text-muted-foreground" aria-hidden="true">/</span>
+				{/if}
 				{#if content.eyebrow}
 					<span class="text-muted-foreground shrink-0">{content.eyebrow}</span>
 					<span class="text-muted-foreground" aria-hidden="true">/</span>

@@ -70,7 +70,7 @@ function isEditorPage(segment: string, subSegment: string | undefined): boolean 
 
 /**
  * A workflow step names itself rather than the section: its tool, its name and a way back to
- * the board. Its own tabs are the only strip under it.
+ * the board, in one short row so the step's editor keeps its height.
  */
 function stepHeader(
 	conversationId: string,
@@ -92,7 +92,7 @@ function stepHeader(
 			guide
 		},
 		hasTabs: true,
-		compact: false
+		compact: true
 	};
 }
 
