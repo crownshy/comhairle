@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
@@ -61,13 +60,6 @@
 <svelte:head>
 	<title>{conversation.isLive ? 'Launched' : 'Launch'} - Comhairle Admin</title>
 </svelte:head>
-
-<PageHeader
-	title={conversation.isLive ? 'Launched' : 'Launch'}
-	description={conversation.isLive
-		? undefined
-		: 'Check everything is ready, then make the conversation live for participants.'}
-/>
 
 {#if conversation.isLive}
 	<div class="flex max-w-3xl flex-col gap-6">

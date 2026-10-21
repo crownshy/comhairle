@@ -40,22 +40,17 @@
 	);
 	let lastSetUpSection = $derived(stages.find((stage) => stage.id === 'set-up')?.sections.at(-1));
 
-	// Engage and Results fold, and so does Set up once launched. Locked stages and a
-	// launched Set up start folded, but admins can still open them to look or make changes.
-	// A stage holding the page you're on always starts open.
+	// Engage and Results fold. Locked stages start folded, but admins can still open them to
+	// look. Set up stays open and editable after launch (ADR-0001). A stage holding the page
+	// you're on always starts open.
 	function isFoldable(stage: ConversationStage): boolean {
-		return stage.id === 'engage' || stage.id === 'results' || isFrozen(stage);
-	}
-	/** Set up after launch: still editable, but marked locked so changes feel deliberate. */
-	function isFrozen(stage: ConversationStage): boolean {
-		return stage.id === 'set-up' && conversation.isLive;
+		return stage.id === 'engage' || stage.id === 'results';
 	}
 	let folded = $state<Partial<Record<ConversationStage['id'], boolean>>>({});
 	function isOpen(stage: ConversationStage): boolean {
 		if (!isFoldable(stage)) return true;
 		const startsFolded =
-			(stage.state === 'locked' || isFrozen(stage)) &&
-			!stage.sections.some((link) => link.active);
+			stage.state === 'locked' && !stage.sections.some((link) => link.active);
 		return !(folded[stage.id] ?? startsFolded);
 	}
 	function toggle(stage: ConversationStage) {
@@ -166,17 +161,9 @@
 					class={cn(MILESTONE_ROW, 'text-left', ROW_HOVER)}
 				>
 					{@render stageHeading(stage, index)}
-					{#if isFrozen(stage)}
-						<Lock
-							class="text-sidebar-foreground/60 ml-auto size-3.5 shrink-0"
-							aria-hidden="true"
-						/>
-						<span class="sr-only">Locked after launch, still editable</span>
-					{/if}
 					<ChevronDown
 						class={cn(
-							'text-sidebar-foreground/70 size-4 shrink-0 transition-transform',
-							!isFrozen(stage) && 'ml-auto',
+							'text-sidebar-foreground/70 ml-auto size-4 shrink-0 transition-transform',
 							!open && '-rotate-90'
 						)}
 						aria-hidden="true"

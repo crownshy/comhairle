@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
@@ -17,13 +16,6 @@
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
 	let endModalOpen = $state(false);
 </script>
-
-<PageHeader
-	title={conversation.isComplete ? 'Closed' : 'Close'}
-	description={conversation.isComplete
-		? 'Participants can no longer take part in this conversation.'
-		: 'Wrap up the conversation when participation is finished.'}
-/>
 
 {#if !conversation.isLive}
 	<Card.Root>

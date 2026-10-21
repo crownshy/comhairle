@@ -140,6 +140,7 @@
 </script>
 
 <PageHeader
+	level="h2"
 	title="Content"
 	description="Participant-facing copy shown throughout the conversation."
 />
