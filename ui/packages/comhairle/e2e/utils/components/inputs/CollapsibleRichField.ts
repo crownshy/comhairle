@@ -1,39 +1,32 @@
-import { exists, sleep } from '../..';
+import { expect } from '@playwright/test';
 import UserInput from './UserInput';
 import type { Refs } from '../types';
-import Tiptap from './Tiptap';
 
 type Options = {
 	resetTo?: string;
 };
 
-const CollapsibleRichField = async (
-	name: string,
-	fallbackIndex: number,
-	refs: Refs,
-	options: Options = {}
-) => {
+/**
+ * A rich text field that sits collapsed behind an "Add <label>" or "Edit <label>" button until
+ * opened. Only one is open at a time, so the open editor is the only one on the page.
+ */
+const CollapsibleRichField = async (label: string, refs: Refs, options: Options = {}) => {
+	const collapsed = () =>
+		refs.page.getByRole('button', { name: new RegExp(`^(Add|Edit) ${label}$`, 'i') });
+
 	const userInput = await UserInput({
-		async focus() {
-			const btn = refs.page.getByRole('button', { name });
-			if (await exists(btn)) {
-				await btn.click();
-				return;
-			}
-			await refs.page.getByRole('button', { name: 'Edit' }).nth(fallbackIndex).click();
-		},
+		focus: () => collapsed().click(),
 		async update(value) {
-			// Wait for tiptap to load
-			await sleep(0.2);
-			const tiptap = Tiptap(fallbackIndex, { page: refs.page });
-			await tiptap.write(value);
+			const editor = refs.page.locator('.tiptap.ProseMirror');
+			await editor.click();
+			await editor.fill(value);
 			await refs.page.getByRole('button', { name: 'Done' }).click();
 		},
-		expector: (currentValue) => exists(refs.page.getByRole('button', { name: currentValue }))
+		expector: (currentValue) => expect(collapsed()).toContainText(currentValue)
 	});
 
 	refs.cleanup?.(async () => {
-		await userInput.write(options?.resetTo ?? ' ');
+		await userInput.write(options.resetTo ?? ' ');
 	});
 
 	return userInput;

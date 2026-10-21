@@ -1,8 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { eventually, test } from './utils/testing';
-import { exists } from './utils';
+import { test } from './utils/testing';
 import { Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
@@ -11,45 +10,63 @@ test.beforeEach(async ({ page }) => {
 	await Conversation.openTab(page, 'Configure', 'Team');
 });
 
-test('Configure/team page', async ({ page, cleanup }) => {
-	const EmailTextbox = await Textbox('Grant a user "content editor', { page, cleanup });
-	const EmailTextboxLabel = page.getByText('Grant a user "content editor');
-	const Submit = page.getByRole('button', { name: 'Submit' });
+test('Configure/team page', async ({ page }) => {
+	const main = page.getByRole('main');
+	// Adding and editing use the same dialog under different titles, and only one is open at a time.
+	const dialog = page.getByRole('dialog');
+	const Email = await Textbox('Email', { page }, { exact: true });
+	const contentEditor = dialog.getByRole('checkbox', { name: /^Content Editor/ });
+	const save = dialog.getByRole('button', { name: 'Save changes' });
 
-	// Error input
-	await EmailTextbox.write('test@crown-shy');
-	await Submit.click();
-	await eventually(() => expect(EmailTextboxLabel).toHaveAttribute('data-fs-error'));
+	const NEW_USER = 'admin@crown-shy.com';
+	// Rows are labelled by username, so find the row by its email.
+	const editNewUser = main
+		.getByRole('listitem')
+		.filter({ hasText: NEW_USER })
+		.getByRole('button', { name: /^Edit roles for/ });
 
-	// Error user
-	await EmailTextbox.write('test@crown-shy.com');
-	await Submit.click();
-	await eventually(async () => {
-		await expect(EmailTextboxLabel).not.toHaveAttribute('data-fs-error');
-		await expect(page.getByText('Something went wrong granting').first()).toBeVisible();
-	});
+	// A failed earlier run can leave the role behind.
+	await expect(main.getByRole('heading', { name: 'Team', level: 2 })).toBeVisible();
+	if (await editNewUser.isVisible()) {
+		await removeAllRoles();
+	}
 
-	// Valid user
-	await EmailTextbox.write('admin@crown-shy.com');
-	await Submit.click();
-	await eventually(async () =>
-		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true)
-	);
+	await main.getByRole('button', { name: 'Add people' }).first().click();
+	await contentEditor.click();
 
-	const RevokePermission = page.getByRole('button', { name: 'Revoke permission' });
-	await RevokePermission.click();
+	await Email.write('not-an-email');
+	expect(await Email.isValid()).toBe(false);
 
-	const Cancel = page.getByRole('button', { name: 'Cancel' });
-	await Cancel.click();
+	await Email.write('test@crown-shy.com');
+	await save.click();
+	await expect(dialog.getByRole('alert')).toContainText('Could not save roles');
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-	expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
+	await main.getByRole('button', { name: 'Add people' }).first().click();
+	await Email.write(NEW_USER);
+	await contentEditor.click();
+	await save.click();
+	await expect(dialog).toBeHidden();
+	await expect(editNewUser).toBeVisible();
 
-	await RevokePermission.click();
+	// Cancelling keeps the role.
+	await editNewUser.click();
+	await expect(contentEditor).toBeChecked();
+	await contentEditor.click();
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(editNewUser).toBeVisible();
 
-	const Revoke = page.getByRole('button', { name: 'Revoke', exact: true });
-	await Revoke.click();
+	await removeAllRoles();
 
-	await eventually(async () => {
-		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(false);
-	});
+	async function removeAllRoles() {
+		await editNewUser.click();
+		const checked = dialog.getByRole('checkbox', { checked: true });
+		await expect(checked.first()).toBeVisible();
+		while ((await checked.count()) > 0) {
+			await checked.first().click();
+		}
+		await save.click();
+		await expect(dialog).toBeHidden();
+		await expect(editNewUser).toBeHidden();
+	}
 });

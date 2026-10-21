@@ -11,13 +11,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Content page', async ({ page, cleanup }) => {
-	const PrivacyPolicy = await CollapsibleRichField('Add privacy policy', 0, { page, cleanup });
-	const ShortPrivacyPolicy = await CollapsibleRichField('Add short privacy policy', 1, {
+	const PrivacyPolicy = await CollapsibleRichField('privacy policy', { page, cleanup });
+	const ShortPrivacyPolicy = await CollapsibleRichField('short privacy policy', {
 		page,
 		cleanup
 	});
-	const Faqs = await CollapsibleRichField('Add faqs', 2, { page, cleanup });
-	const ThankYou = await CollapsibleRichField('Add thank you message', 3, { page, cleanup });
+	const Faqs = await CollapsibleRichField('faqs', { page, cleanup });
+	const ThankYou = await CollapsibleRichField('thank you message', { page, cleanup });
 	const CTA = await Textbox('Call to action', { page, cleanup });
 
 	await PrivacyPolicy.write();

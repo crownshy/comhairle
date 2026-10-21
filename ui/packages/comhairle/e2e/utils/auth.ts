@@ -1,37 +1,20 @@
 import { m } from '../../src/lib/paraglide/messages';
 import type { Page } from './types';
-import { exists } from '.';
 
+// Every test gets a fresh browser context, so there is never a session to reuse.
 export async function login(page: Page) {
-	const workspace = page.getByRole('link', { name: m.workspace() });
-
-	// Already logged in
-	if (await exists(workspace)) {
-		await workspace.click();
-		return;
-	}
-
-	if (
-		process.env.PLAYWRIGHT_ADMIN_USERNAME === undefined ||
-		process.env.PLAYWRIGHT_ADMIN_PASSWORD === undefined
-	) {
+	const username = process.env.PLAYWRIGHT_ADMIN_USERNAME;
+	const password = process.env.PLAYWRIGHT_ADMIN_PASSWORD;
+	if (username === undefined || password === undefined) {
 		throw new Error(
 			'Missing PLAYWRIGHT_ADMIN_USERNAME or PLAYWRIGHT_ADMIN_PASSWORD in the .playwright.env file'
 		);
 	}
 
-	// Login
-	await page.getByRole('link', { name: m.login() }).click();
-
-	const email = page.getByRole('textbox', { name: m.email() });
-	await email.click();
-	await email.fill(process.env.PLAYWRIGHT_ADMIN_USERNAME ?? '');
-	await email.press('Tab');
-
-	await page
-		.getByRole('textbox', { name: 'Password' })
-		.fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '');
-	await page.getByRole('button', { name: 'Log In' }).click();
+	await page.goto('/auth/login');
+	await page.getByRole('textbox', { name: m.email() }).fill(username);
+	await page.getByRole('textbox', { name: 'Password' }).fill(password);
+	await page.getByRole('button', { name: m.login() }).click();
 
 	// /admin redirects to the conversations list for now, so accept either.
 	await page.waitForURL(/\/admin(\/conversations)?$/);

@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Refs } from './types';
-import { eventually } from '../testing';
+
+const dataState = (isOn: boolean) => (isOn ? 'checked' : 'unchecked');
 
 async function Switch(name: string, refs: Refs) {
 	const locator = () => refs.page.getByRole('switch', { name });
@@ -10,12 +11,8 @@ async function Switch(name: string, refs: Refs) {
 			.getAttribute('data-state')
 			.then((state) => state === 'checked');
 
-	const startsOn = await (async () => {
-		await eventually(async () => {
-			await locator().isVisible();
-		});
-		return isSwitchOn();
-	})();
+	await expect(locator(), `Can't find switch: "${name}"`).toBeVisible();
+	const startsOn = await isSwitchOn();
 
 	let isOn = startsOn;
 
@@ -25,14 +22,13 @@ async function Switch(name: string, refs: Refs) {
 	};
 
 	async function set(shouldBeOn: boolean) {
-		const isOn = await isSwitchOn();
-		if ((isOn && shouldBeOn) || (!isOn && !shouldBeOn)) {
+		if ((await isSwitchOn()) === shouldBeOn) {
 			return;
 		}
 		await toggle();
 	}
 
-	const expector = async () => expect(isOn).toBe(await isSwitchOn());
+	const expector = () => expect(locator()).toHaveAttribute('data-state', dataState(isOn));
 
 	refs.cleanup?.(async () => {
 		await set(startsOn);
