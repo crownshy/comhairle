@@ -33,8 +33,10 @@ body {
 /* For controls inside a scrolling strip, which clips anything drawn outside them:
    draw the same two bands just inside the edge instead. */
 .focus-inset:focus-visible {
-	outline-offset: -4px;
-	box-shadow: inset 0 0 0 2px var(--focus-ring-outer);
+	outline-color: transparent;
+	box-shadow:
+		inset 0 0 0 2px var(--focus-ring-outer),
+		inset 0 0 0 4px var(--focus-ring-inner);
 }
 
 /* Make prose respect theme colors in both light and dark mode. Every colour the plugin
