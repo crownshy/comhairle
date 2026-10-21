@@ -22,6 +22,7 @@ use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::job::CreateJob;
+use crate::models::moderation_policy::{self, PublishedReason};
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::conversation::Action;
 use crate::models::polis_statement_aux::{
@@ -303,6 +304,21 @@ impl ToolImpl for PolisTool {
                              required-votes progress from server data.",
                         )
                         .response::<200, Json<VoteCountResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/moderation_policy",
+                get_with(get_published_moderation_policy, |op| {
+                    op.id("PolisGetPublishedModerationPolicy")
+                        .tag("Tools")
+                        .summary("Get the moderation policy participants can read for a step")
+                        .description(
+                            "Lists the reject reasons (label and description) the step's \
+                             moderators pick from, so participants can read the rules before \
+                             they write a statement. Reads the draft config when preview is \
+                             set or the step isn't launched.",
+                        )
+                        .response::<200, Json<Vec<PublishedReason>>>()
                 }),
             )
             .api_route(
@@ -835,6 +851,45 @@ async fn get_user_vote_count(
     };
 
     Ok((StatusCode::OK, Json(VoteCountResponse { vote_count })))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct PublishedModerationPolicyQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(default)]
+    pub preview: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_published_moderation_policy(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<PublishedModerationPolicyQuery>,
+) -> Result<(StatusCode, Json<Vec<PublishedReason>>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &query.workflow_step_id).await?;
+
+    let config = match (query.preview, workflow_step.tool_config) {
+        (false, Some(live)) => live,
+        _ => workflow_step.preview_tool_config,
+    };
+    let ToolConfig::Polis(config) = config else {
+        return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()));
+    };
+
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+
+    let reasons = moderation_policy::published_reasons_for_step(
+        &state.db,
+        conversation_id,
+        config.moderation_policy_id,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(reasons)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

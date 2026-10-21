@@ -28,6 +28,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
+	import ModerationPolicySheet from './ModerationPolicySheet.svelte';
 	import { statementSourceOf } from './statementSource';
 	import { cn } from '$lib/utils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -582,6 +583,7 @@
 					</div>
 				</Drawer.Content>
 			</Drawer.Root>
+			<ModerationPolicySheet workflowStepId={stepId} {isPreview} />
 
 			{#if opinionSubmitted}
 				<div

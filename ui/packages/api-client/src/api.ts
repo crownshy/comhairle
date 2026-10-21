@@ -542,6 +542,13 @@ export const VoteCountResponse = z
   .object({ vote_count: z.number().int().gte(0) })
   .passthrough();
 export type VoteCountResponse = z.infer<typeof VoteCountResponse>;
+export const PublishedReason = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    label: z.string(),
+  })
+  .passthrough();
+export type PublishedReason = z.infer<typeof PublishedReason>;
 export const UpdatePolisConfigRequest = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
@@ -3588,6 +3595,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ParticipantReportData,
   WikiPollReport,
   VoteCountResponse,
+  PublishedReason,
   UpdatePolisConfigRequest,
   WikiPoll,
   PostSeedRequest,
@@ -6844,6 +6852,26 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: WikiPoll,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/moderation_policy",
+    alias: "PolisGetPublishedModerationPolicy",
+    description: `Lists the reject reasons (label and description) the step&#x27;s moderators pick from, so participants can read the rules before they write a statement. Reads the draft config when preview is set or the step isn&#x27;t launched.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "preview",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PublishedReason),
   },
   {
     method: "get",

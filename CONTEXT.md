@@ -246,7 +246,7 @@ The [[#reject-reason]]s a moderator can pick when rejecting a statement. A polic
 _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` flag is a different thing).
 
 **Reject reason**:
-One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Only moderators see reasons. Editing the policy never rewrites reasons already recorded.
+One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Participants can read a step's reasons from the statement composer as the published moderation policy (ADR-0059). Editing the policy never rewrites reasons already recorded.
 _Avoid_: rejection code, category letter.
 
 **Theme**:
