@@ -26,7 +26,7 @@ test('Configure/team page', async ({ page }) => {
 		.getByRole('button', { name: /^Edit roles for/ });
 
 	// A failed earlier run can leave the role behind.
-	await expect(main.getByRole('heading', { name: 'Team', level: 1 })).toBeVisible();
+	await expect(main.getByRole('heading', { name: 'Team', level: 2 })).toBeVisible();
 	if (await editNewUser.isVisible()) {
 		await removeAllRoles();
 	}

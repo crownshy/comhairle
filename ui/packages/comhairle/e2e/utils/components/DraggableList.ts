@@ -27,8 +27,8 @@ async function openBoard(page: Page) {
 	const board = page.getByRole('heading', { name: 'Process steps' });
 	if (!(await board.isVisible())) {
 		await page
-			.getByRole('navigation', { name: 'Workflow steps' })
-			.getByRole('tab', { name: 'Design', exact: true })
+			.getByRole('list', { name: 'Conversation sections' })
+			.getByRole('link', { name: /^Process design/ })
 			.click();
 	}
 	// Steps stream in after the page renders, so wait for the board to settle either way.

@@ -35,26 +35,45 @@ const sidebarLink = (page: Page, tab: keyof Tabs) =>
 	});
 
 async function openOrCreate(page: Page, title: string) {
-	await page.goto('/admin/conversations');
+	// Search rather than scan, because the list is paginated.
+	await page.goto(`/admin/conversations?q=${encodeURIComponent(title)}`);
 	const list = page.getByRole('main');
 	await expect(list.getByRole('heading', { name: 'Your conversations', level: 1 })).toBeVisible();
 
-	// The innermost element holding both the card heading and its edit link is the card.
 	const card = list
-		.locator('*')
-		.filter({ has: page.getByRole('heading', { name: title, exact: true, level: 2 }) })
-		.filter({ has: page.getByRole('link', { name: 'Edit conversation' }) })
-		.last();
+		.getByRole('article')
+		.filter({ has: page.getByRole('link', { name: title, exact: true }) });
 
 	if ((await card.count()) > 0) {
-		await card.getByRole('link', { name: 'Edit conversation' }).click();
+		await card.first().getByRole('link', { name: 'Edit conversation' }).click();
+		await page.waitForURL(/\/admin\/conversations\/[^/?]+\//);
 	} else {
-		await list.getByRole('button', { name: 'Create new conversation' }).click();
-		await page.getByRole('menuitem', { name: 'Start from blank' }).click();
+		// The list is server-rendered, so the button shows before the app has hydrated and an
+		// early click does nothing. Retry until the menu opens.
+		const startFromBlank = page.getByRole('menuitem', { name: 'Start from blank' });
+		await expect(async () => {
+			await list.getByRole('button', { name: 'Create new conversation' }).click();
+			await expect(startFromBlank).toBeVisible({ timeout: 1000 });
+		}).toPass();
+		await startFromBlank.click();
+		// Same race on the new conversation's Details page: typing before hydration never saves.
+		await page.waitForURL(/\/configure\/details$/);
+		await page.waitForLoadState('networkidle');
+		// The title saves after a debounce, and reloading before then would cancel it.
+		const saved = page.waitForResponse(
+			(response) => response.url().includes('/api/') && response.request().method() !== 'GET'
+		);
 		await page.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
+		await saved;
 	}
 
-	await expect(page.getByRole('heading', { name: title, exact: true, level: 1 })).toBeVisible();
+	// Autosave doesn't reload the page, so a just-renamed conversation only shows its title
+	// in the sidebar after a reload. Reload until the save has landed.
+	const heading = page.getByRole('heading', { name: title, exact: true, level: 1 });
+	await expect(async () => {
+		if (!(await heading.isVisible())) await page.reload();
+		await expect(heading).toBeVisible({ timeout: 2000 });
+	}).toPass();
 }
 
 const Conversation = {
@@ -73,8 +92,15 @@ const Conversation = {
 		}
 
 		await sidebar(page).getByRole('link', { name: 'Launch', exact: true }).click();
-		await page.getByRole('button', { name: 'Launch conversation' }).click();
-		await page.getByRole('dialog').getByRole('button', { name: 'Launch', exact: true }).click();
+		const confirm = page
+			.getByRole('dialog')
+			.getByRole('button', { name: 'Launch', exact: true });
+		// Retry like the create button: a click before hydration doesn't open the dialog.
+		await expect(async () => {
+			await page.getByRole('button', { name: 'Launch conversation' }).click();
+			await expect(confirm).toBeVisible({ timeout: 1000 });
+		}).toPass();
+		await confirm.click();
 		await expect(launched).toBeVisible();
 	},
 	openTab: async <T extends keyof Tabs>(page: Page, tab: T, subtab: Subtabs<T>) => {

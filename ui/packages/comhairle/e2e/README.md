@@ -71,6 +71,12 @@ Assert on those (`openTab` already does), then use `expect(locator)` assertions,
 `locator.isVisible()` and `count()` answer straight away without waiting, so only use them to
 branch on state you already know has loaded. Don't add `sleep()`.
 
+**Expect clicks before hydration.** Pages are server-rendered, so a button can be visible
+before the app has attached its handlers, and an early click does nothing. Locally this rarely
+shows, but it broke every test on the slower CI runner. When a click should open a menu or
+dialog, retry it until that appears (`expect(...).toPass()`, see `Conversation.open`), and wait
+for `networkidle` before typing into a page you just navigated to.
+
 **Know how saving works.** Autosave sends the data without reloading the page, so anything
 rendered from server data (the sidebar title, the workflow step strip) only updates after a
 reload or a later navigation. Check server-rendered state after `testWithRefresh`, or wait for
