@@ -26,6 +26,7 @@ import nameAConversationImage from './assets/admin-guide/name-a-conversation.web
 import addADescriptionImage from './assets/admin-guide/add-a-description.webp';
 import multilingualConversationImage from './assets/admin-guide/multilingual-conversation.webp';
 import addBannerImageImage from './assets/admin-guide/add-banner-image.webp';
+import selectBannerImageImage from './assets/admin-guide/select-banner-image.webp';
 import previewImage from './assets/admin-guide/preview.webp';
 import chooseATemplateImage from './assets/admin-guide/choose-a-template.webp';
 import designStepsImage from './assets/admin-guide/design-steps.webp';
@@ -256,7 +257,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Create a new [conversation](/admin/info/glossary#term-conversation) from scratch or start with a template that already contains a set of [steps](/admin/info/glossary#term-step).',
 				image: {
 					src: createAConversationImage,
-					alt: "The Choose a template window, listing workflow templates such as Informed-participants survey, Understand opinion groups and Citizen workshop, with a preview of the selected template's steps."
+					alt: 'Your conversations, with the Create new conversation button highlighted in yellow at the top right.'
 				},
 				steps: [
 					'Click **Create new conversation**.',
@@ -277,7 +278,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Give your conversation a clear name that colleagues and participants can easily recognise.',
 				image: {
 					src: nameAConversationImage,
-					alt: "The Details tab under Configure, with the conversation's Title field highlighted."
+					alt: 'The Details tab under Configure, with the Title field highlighted in yellow.'
 				},
 				steps: [
 					'Go to **Configure** → **Details**.',
@@ -297,10 +298,11 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Describe what the conversation is about, why you’re asking for input, and what might happen as a result.',
 				image: {
 					src: addADescriptionImage,
-					alt: 'The Details tab under Configure, showing the Short description and Description fields filled in.'
+					alt: 'The Details tab under Configure, with the Short description field highlighted in yellow, between the Title and Description fields.'
 				},
 				steps: [
 					'Go to **Configure** → **Details**.',
+					'In **Short description**, sum up the conversation in a sentence. It appears under the title on the landing page and on the conversation’s card.',
 					'In **Description**, explain the topic, why you’re asking for input, and what might happen as a result.'
 				],
 				tips: [
@@ -318,7 +320,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Add other languages to your conversation so participants can read and take part in their preferred language.',
 				image: {
 					src: multilingualConversationImage,
-					alt: 'Language options on the Details tab, with English as the primary language and Gaelic added as a supported language. Translated fields show a Gaelic Draft label.'
+					alt: 'The Details tab under Configure with a list of languages open, showing English selected and other languages such as Gaelic, Welsh, Chinese, Spanish, French and Arabic.'
 				},
 				steps: [
 					'Go to **Configure** → **Details**.',
@@ -338,10 +340,21 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Add a banner image',
 				summary:
 					'Add a banner image to help participants recognise your conversation. It appears alongside the description on the conversation landing and invitation pages.',
-				image: {
-					src: addBannerImageImage,
-					alt: 'The upload window for a banner image, with an area to drag and drop a file, Filename and Alt fields, and an Upload button.'
-				},
+				images: [
+					{
+						src: addBannerImageImage,
+						alt: 'The Banner image setting on the Details tab, with Media library and Upload buttons above the current banner, a photo looking up at tall trees.',
+						caption:
+							'Choose Upload for a new image, or Media library for one you’ve already uploaded.',
+						step: 2
+					},
+					{
+						src: selectBannerImageImage,
+						alt: 'The Media library window, with an image named CrownShy banner selected and a Select button at the top right.',
+						caption: 'In the Media library, select an image and click Select.',
+						step: 3
+					}
+				],
 				steps: [
 					'Go to **Configure** → **Details** and find **Banner image**.',
 					'Select **Upload** to add a new image from your computer, or **Media library** to choose an image you’ve already uploaded.',
@@ -362,14 +375,14 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				images: [
 					{
 						src: findPreviewButtonImage,
-						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						alt: 'A conversation’s Configure page, with the Preview button highlighted in yellow at the top of the sidebar, next to the Draft status.',
 						caption:
-							'The Preview button is at the top right of every conversation page.',
+							'Preview is at the top of the sidebar, next to the conversation’s status.',
 						step: 1
 					},
 					{
 						src: previewImage,
-						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description and banner image.',
+						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description, a Join the conversation button and the banner image.',
 						caption: 'The preview shows your landing page as participants will see it.',
 						step: 2
 					}
@@ -536,9 +549,9 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				images: [
 					{
 						src: findPreviewButtonImage,
-						alt: 'The top of a conversation in the admin workspace, with the Preview button at the top right, next to the Launched button and the more actions menu.',
+						alt: 'A conversation’s Configure page, with the Preview button highlighted in yellow at the top of the sidebar, next to the Draft status.',
 						caption:
-							'The Preview button is at the top right of every conversation page.',
+							'Preview is at the top of the sidebar, next to the conversation’s status.',
 						step: 1
 					},
 					{
