@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "Nous recherchons les fils conducteurs de vos réponses…",
 	"thinking_space_summary_loading_3": "Presque terminé — nous élaborons une déclaration qui reflète ce que vous avez partagé.",
 	"thinking_space_summary_gen_failure": "Impossible de générer votre résumé. Veuillez réessayer.",
+	"thinking_space_summary_continue_without": "Vos réponses sont enregistrées, vous pouvez donc aussi appuyer sur Suivant pour continuer sans résumé.",
 	"thinking_space_summary_gen_round_failure": "Impossible de générer la nouvelle version du résumé.",
 	"thinking_space_summary_still_writing": "Votre résumé est encore en cours de rédaction.",
 	"thinking_space_summary_needs_text": "Ajoutez du texte à votre résumé pour continuer.",

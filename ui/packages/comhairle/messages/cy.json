@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "Chwilio am y themâu sy'n rhedeg trwy'ch atebion…",
 	"thinking_space_summary_loading_3": "Bron yno — yn llunio datganiad sy'n adlewyrchu'r hyn a rannoch.",
 	"thinking_space_summary_gen_failure": "Methu cynhyrchu eich crynodeb. Rhowch gynnig arall arni.",
+	"thinking_space_summary_continue_without": "Mae eich atebion wedi'u cadw, felly gallwch hefyd bwyso Nesaf i barhau heb grynodeb.",
 	"thinking_space_summary_gen_round_failure": "Methu cynhyrchu'r rownd newydd o'r crynodeb.",
 	"thinking_space_summary_still_writing": "Mae eich crynodeb yn dal i gael ei ysgrifennu.",
 	"thinking_space_summary_needs_text": "Ychwanegwch ychydig o destun at eich crynodeb i barhau.",
