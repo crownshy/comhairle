@@ -241,6 +241,8 @@
 	"conversation_closed_title": "This conversation is closed",
 	"conversation_closed_description": "Participation in the conversation has now ended.",
 	"conversation_closed_link": "Return to other conversations",
+	"invite_unusable_title": "This invite link can't be used",
+	"invite_unusable_description": "It may be mistyped or no longer available.",
 	"continue_to_home": "Continue to Home",
 	"privacy_title": "Privacy",
 	"privacy_intro": "To execute the functionality of the website and provide accountability and moderation, we collect and associate responses on the platform with one of the following account types:",

@@ -211,6 +211,8 @@
 	"conversation_closed_title": "Esta conversación está cerrada",
 	"conversation_closed_description": "La participación en la conversación ha finalizado.",
 	"conversation_closed_link": "Volver a otras conversaciones",
+	"invite_unusable_title": "Este enlace de invitación no se puede usar",
+	"invite_unusable_description": "Puede que esté mal escrito o que ya no esté disponible.",
 	"continue_to_home": "Continuar al inicio",
 	"privacy_title": "Privacidad",
 	"privacy_intro": "Para ejecutar la funcionalidad del sitio web y proporcionar responsabilidad y moderación, recopilamos y asociamos las respuestas en la plataforma con uno de los siguientes tipos de cuenta:",
