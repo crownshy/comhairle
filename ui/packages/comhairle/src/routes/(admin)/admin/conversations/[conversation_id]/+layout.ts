@@ -3,13 +3,12 @@ import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
 	MediaDto,
-	UserWithPermissionDto,
 	WorkflowStats,
 	WorkflowStepsListResponse
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
-import { canPerformAction, loadUserActions } from '$lib/utils/permissions';
+import { loadUserActions } from '$lib/utils/permissions';
 
 // Events load here, in parallel with the workflow fetch, so the layout can server-render the
 // events strip from `data.events` the same way it renders the step strip.
@@ -58,26 +57,6 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			media = await api.GetMedia({ params: { media_id: conversation.image } });
 		}
 
-		const configureTabs: { id: string; label: string }[] = [
-			{ id: 'details', label: 'Details' },
-			{ id: 'content', label: 'Content' },
-			{ id: 'glossary', label: 'Glossary' },
-			{ id: 'moderation', label: 'Moderation policy' },
-			{ id: 'access', label: 'Access' }
-		];
-
-		let usersWithPermission: UserWithPermissionDto[] = [];
-		if (canPerformAction(conversationActions, 'list_permission')) {
-			configureTabs.push({ id: 'team', label: 'Team' });
-			usersWithPermission = await api.ListUsersWithPermission({
-				params: {
-					resource_type: 'conversation',
-					resource_id: conversation.id
-				},
-				queries: { role_name: 'content_editor' }
-			});
-		}
-
 		if (workflows.length > 0) {
 			stats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
@@ -103,8 +82,6 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 			media,
 			user,
 			cohostOrganizations,
-			usersWithPermission,
-			configureTabs,
 			// Read here once: the Configure editor and the Moderation tab both use them.
 			moderationPolicies,
 			defaultRejectReasons
