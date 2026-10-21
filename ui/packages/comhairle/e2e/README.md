@@ -31,8 +31,9 @@ To debug one test: `npx playwright test e2e/admin.conversation.design.test.ts --
 test fails, `test-results/<test>/error-context.md` has the page's accessibility tree at the
 moment it failed. Read that first: it shows the real labels and roles on the page.
 
-CI runs the Chromium project on pull requests to `staging`
-(`.github/workflows/playwright.yml`).
+CI runs the Chromium project every night at 00:00 UTC against `staging`
+(`.github/workflows/playwright.yml`). To run it sooner, open the workflow in the GitHub Actions tab
+and click "Run workflow". Pull requests don't run it.
 
 ## Layout
 
