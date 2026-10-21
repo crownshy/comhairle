@@ -112,7 +112,7 @@
 		<span
 			class={cn(
 				'text-xs leading-5 font-medium uppercase',
-				step.status === 'completed-locked' ? 'text-secondary-foreground/60' : 'text-ring'
+				step.status === 'completed-locked' ? 'text-secondary-foreground' : 'text-ring'
 			)}
 		>
 			Step {index + 1}
@@ -128,9 +128,7 @@
 			<span
 				class={cn(
 					'px-3 text-sm leading-5 font-medium',
-					step.status === 'completed-locked'
-						? 'text-muted-foreground/60'
-						: 'text-foreground'
+					step.status === 'completed-locked' ? 'text-muted-foreground' : 'text-foreground'
 				)}
 			>
 				{step.name}
