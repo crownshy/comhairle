@@ -56,8 +56,12 @@
 
 	let sortedSteps = $derived(workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder));
 
+	// Preview never writes progress, even on a live conversation, so the admin is not
+	// enrolled as a participant by clicking through.
+	let recordsProgress = $derived(conversation.isLive && !isPreview);
+
 	let actualCurrentStep = $derived(
-		conversation.isLive
+		recordsProgress
 			? (sortedSteps.find((ws) => ws.progressStatus !== 'done') ?? null)
 			: workflowStep
 	);
@@ -190,13 +194,10 @@
 	}
 
 	function goToThankYouPage() {
-		return navigateTo(
-			thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString
-		);
+		return navigateTo(thank_you_page(conversation.id, workflow_id, isPreview) + queryString);
 	}
 
 	function goToNextRevisitableStep() {
-		const isPreview = !conversation.isLive;
 		const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
 		const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
 		const target = nextRevisitable ?? actualCurrentStep;
@@ -231,8 +232,7 @@
 		const next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
 		if (!next) return goToThankYouPage();
 		return navigateTo(
-			workflow_step_url(conversation.id, workflow_id, next.id, !conversation.isLive) +
-				queryString
+			workflow_step_url(conversation.id, workflow_id, next.id, isPreview) + queryString
 		);
 	}
 
@@ -242,7 +242,7 @@
 
 		const completed = await tryCatchAsync<void, Error>(() => {
 			if (isRevisiting) return goToNextRevisitableStep();
-			if (conversation.isLive) return completeLiveStep();
+			if (recordsProgress) return completeLiveStep();
 			return goToNextPreviewStep();
 		});
 

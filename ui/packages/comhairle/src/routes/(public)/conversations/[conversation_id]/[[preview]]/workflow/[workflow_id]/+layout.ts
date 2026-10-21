@@ -19,8 +19,10 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 	// so it needs the same key the conversation layout declares.
 	depends(key('public/participation'));
 
+	// Previewing a live conversation shows every step fresh, the same as a draft, rather than
+	// the admin's own progress as a participant.
 	let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
-	if (conversation.isLive) {
+	if (conversation.isLive && !preview) {
 		workflowSteps = (await api.ListConversationWorkflowSteps({
 			params: { conversation_id: conversation.id, workflow_id },
 			queries: { withUserProgress: true }
