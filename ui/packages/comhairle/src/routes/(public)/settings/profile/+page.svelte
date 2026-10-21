@@ -189,6 +189,11 @@
 				<Form class="grid gap-4 md:grid-cols-2" handleSubmission={handleDemographics}>
 					{#snippet children(isSubmitting)}
 						{#each demographicQuestions as question (question.slug)}
+							<Select
+								id={question.slug}
+								name={question.slug}
+								options={[{ label: 'hello', value: 'world' }]}
+							/>
 							<div class="space-y-2">
 								<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
 								<Label for={question.slug}>{question.displayName}</Label>
