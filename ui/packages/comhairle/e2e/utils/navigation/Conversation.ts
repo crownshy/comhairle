@@ -6,7 +6,7 @@ type Tabs = {
 	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
 	'Process Design': readonly ['Add step', string];
 	'Learning Assistant': undefined;
-	Events: readonly ['Add event'];
+	Events: readonly ['Add event', string];
 	Recruit: readonly ['Email', 'Open Links'];
 	Monitor: undefined;
 	Notify: undefined;

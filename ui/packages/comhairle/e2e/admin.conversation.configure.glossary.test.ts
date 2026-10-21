@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 test('Configure/glossary page', async ({ page }) => {
 	const GlossaryEditorTerm = await Textbox('Term and synonyms in English', { page });
 	await GlossaryEditorTerm.write();
-	await GlossaryEditorTerm.locator().press('Tab');
+	await (await GlossaryEditorTerm.locator()).press('Tab');
 
 	const GlossaryEditorExplanation = await Textbox('Explanation in English', { page });
 	await GlossaryEditorExplanation.write();
@@ -30,12 +30,10 @@ test('Configure/glossary page', async ({ page }) => {
 	await page.getByRole('button', { name: 'Remove term' }).nth(1).click();
 	await page.getByRole('textbox', { name: 'Search terms' }).click();
 
-	const incorrectSearchTerm = GlossaryEditorTerm.currentValue() + 'a';
+	const incorrectSearchTerm = GlossaryEditorTerm.value() + 'a';
 	await page.getByRole('textbox', { name: 'Search terms' }).fill(incorrectSearchTerm);
 	await expect(page.getByText(`No terms match "${incorrectSearchTerm}"`)).toBeVisible();
 	await page.getByRole('textbox', { name: 'Search terms' }).click();
-	await page
-		.getByRole('textbox', { name: 'Search terms' })
-		.fill(GlossaryEditorTerm.currentValue());
-	await expect(GlossaryEditorTerm.locator()).toBeVisible();
+	await page.getByRole('textbox', { name: 'Search terms' }).fill(GlossaryEditorTerm.value());
+	await expect(await GlossaryEditorTerm.locator()).toBeVisible();
 });

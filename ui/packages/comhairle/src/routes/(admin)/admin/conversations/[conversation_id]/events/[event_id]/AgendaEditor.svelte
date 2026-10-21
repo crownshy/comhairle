@@ -183,10 +183,11 @@
 					<!-- Time -->
 					<div class="flex items-center gap-2">
 						<div class="flex flex-col gap-1">
-							<Label class="font-bold">Time</Label>
+							<Label class="font-bold" for="session-duration">Time</Label>
 							<span class="text-muted-foreground text-sm">Session duration</span>
 						</div>
 						<Input
+							id="session-duration"
 							type="number"
 							disabled={!editable}
 							bind:value={item.duration}
@@ -201,10 +202,11 @@
 					<!-- Group size -->
 					<div class="flex items-center gap-2">
 						<div class="flex flex-col gap-1">
-							<Label class="font-bold">Group size</Label>
+							<Label class="font-bold" for="group-size">Group size</Label>
 							<span class="text-muted-foreground text-sm">People per room</span>
 						</div>
 						<Input
+							id="group-size"
 							type="number"
 							disabled={!editable}
 							bind:value={item.groupSize}
@@ -326,6 +328,7 @@
 			{#if editable}
 				<div class="flex flex-col items-center gap-2 pt-6">
 					<button
+						title="Reorder item"
 						class="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
 						draggable="true"
 						ondragstart={(e) => handleDragStart(e, index)}
@@ -334,6 +337,7 @@
 						<GripVertical class="h-5 w-5" />
 					</button>
 					<button
+						title="Delete item"
 						class="text-muted-foreground hover:text-destructive"
 						onclick={() => removeItem(index)}
 					>

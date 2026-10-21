@@ -286,6 +286,7 @@ pub async fn build_app(
     let mut allowed_origins = vec![
         HeaderValue::from_static("http://localhost"),
         HeaderValue::from_static("http://localhost:3000"),
+        HeaderValue::from_static("http://localhost:4173"),
         HeaderValue::from_static("http://localhost:5173"),
         HeaderValue::from_static("https://stage.comhairle.scot"),
     ];

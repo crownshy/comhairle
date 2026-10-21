@@ -1,7 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { gotoComhairle } from './navigation';
 import { sleep } from '.';
-import { Minute, Second } from '../../src/lib/utils/units';
+import { Second } from '../../src/lib/utils/units';
 
 type CleanupCallback = () => Promise<void>;
 
@@ -35,15 +35,19 @@ export const test = base.extend<Fixtures>({
 	}
 });
 
+type Options = {
+	interval?: number;
+	timeout?: number;
+};
 /**
  * @important *IMPORTANT: Make sure to use an `expect` inside of the function callback*
  * @description Poll periodically to check whether the test has passed. Used for things which take a variable amount of time to update, such as saving spinners or fetch requests
  * @param callback - The `expect` you want to check
- * @param timeout - Timeout (in minutes) until the test gives up and fails, defaults to 1 minute
+ * @param options - Timeout (in seconds) until the test gives up and fails, defaults to 10 seconds & Interval at which the test will check if it's succeeded, defaults to 2 seconds
  */
-export const eventually = async (callback: () => Promise<void>, timeout?: number) => {
+export const eventually = async (callback: () => Promise<void>, options?: Options) => {
 	await expect(callback).toPass({
-		intervals: [5 * Second],
-		timeout: (timeout ?? 1) * Minute
+		intervals: [(options?.interval ?? 2) * Second],
+		timeout: (options?.timeout ?? 10) * Second
 	});
 };
