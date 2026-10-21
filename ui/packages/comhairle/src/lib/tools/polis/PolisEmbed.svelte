@@ -257,12 +257,24 @@
 		}
 	});
 
-	function doVote(type: 'agree' | 'disagree' | 'pass') {
+	type Vote = 'agree' | 'disagree' | 'pass';
+	/** The vote Polis failed to save, kept so Try again can resend it. */
+	let failedVote = $state<Vote | undefined>(undefined);
+
+	async function doVote(type: Vote) {
 		if (voteCooldown || !polisCurrentStatement) return;
 		waitingForNext = true;
 		voteCooldown = true;
+		failedVote = undefined;
 
-		polis.submitVote(type);
+		// Count the vote only once Polis has saved it, so Next never unlocks on lost votes.
+		const saved = await polis.submitVote(type);
+		if (!saved) {
+			failedVote = type;
+			waitingForNext = false;
+			voteCooldown = false;
+			return;
+		}
 		totalVotes++;
 		votesSoFar++;
 
@@ -463,6 +475,18 @@
 					</div>
 				{/if}
 			</div>
+
+			{#if failedVote && !waitingForNext}
+				<div
+					class="border-destructive/20 bg-destructive/5 flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+					role="alert"
+				>
+					<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
+					<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
+						{m.try_again()}
+					</Button>
+				</div>
+			{/if}
 
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}

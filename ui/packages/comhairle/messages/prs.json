@@ -187,6 +187,7 @@
 	"polis_tip_come_back": "بارها برگردید تا به نظرهای جدیدی که دیگران ثبت کرده‌اند رأی بدهید",
 	"polis_opinion_submitted": "نظر شما ثبت شد. تشکر!",
 	"polis_opinion_not_submitted": "نظر شما ارسال نشد. لطفاً دوباره تلاش کنید.",
+	"polis_vote_not_saved": "رأی شما ذخیره نشد.",
 	"polis_opinion_placeholder": "نظر خود را اینجا وارد کنید",
 	"polis_tip_max_length": "کوتاه بنویسید: حد اکثر {max} حرف",
 	"polis_characters_left": "{count} حرف باقی مانده",
