@@ -486,13 +486,11 @@
 		</div>
 	</div>
 
-	{#if data.workflows[0]}
-		<AccessSettings
-			{conversation}
-			workflow={data.workflows[0]}
-			previewPasswordStatus={data.previewPasswordStatus}
-		/>
-	{/if}
+	<AccessSettings
+		{conversation}
+		workflow={data.workflows[0]}
+		previewPasswordStatus={data.previewPasswordStatus}
+	/>
 
 	{#if canDelete}
 		<div class="border-destructive/30 my-6 flex flex-col gap-4 rounded-lg border p-6">

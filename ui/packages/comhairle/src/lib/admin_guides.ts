@@ -584,7 +584,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Choose who can take part in your conversation and what participants can do before and after completing it.',
 				image: {
 					src: configureAccessImage,
-					alt: 'The Access tab under Configure, with on and off switches grouped under Visibility (Show conversation publicly), Who can take part (Only allow participation by invite, Automatically log in with an anonymous account) and After finishing (Allow revisit after finishing).'
+					alt: 'The Access section of Configure Details, with on and off switches grouped under Visibility (Show conversation publicly), Who can take part (Only allow participation by invite, Automatically log in with an anonymous account) and After finishing (Allow revisit after finishing).'
 				},
 				steps: [
 					'Go to **Configure** → **Details** and scroll to **Access**.',
@@ -988,8 +988,8 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Get to know the **Access** settings, then decide who can see your conversation, who can take part, and what people see when they finish. Make these decisions before you launch.',
 				image: {
 					src: configureAccessImage,
-					alt: 'The Access page under Configure, with toggles for who can see and take part in the conversation.',
-					caption: 'The Access page under Configure.'
+					alt: 'The Access section of Configure Details, with toggles for who can see and take part in the conversation.',
+					caption: 'The Access section of Configure Details.'
 				},
 				environment: {
 					title: 'The Access settings',
@@ -1115,9 +1115,9 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'Participants who finish can’t reach any step, the revisit links disappear, and further contributions are rejected. Adding a step to a live conversation re-opens it for everyone who had already finished.',
 							image: {
 								src: toggleRevisitAfterFinishImage,
-								alt: 'The Access page under Configure, with the Allow revisit after finishing toggle turned off, below the thank-you page settings.',
+								alt: 'The Access section of Configure Details, with the Allow revisit after finishing toggle turned off, below the thank-you page settings.',
 								caption:
-									'Allow revisit after finishing, turned off, on the Access page.'
+									'Allow revisit after finishing, turned off, in the Access section.'
 							}
 						}
 					]

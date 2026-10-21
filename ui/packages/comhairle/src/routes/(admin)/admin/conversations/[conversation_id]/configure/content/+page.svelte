@@ -309,4 +309,6 @@
 	</Form.Field>
 </div>
 
-<GlossaryEditor {conversation} {primaryLocale} {supportedLanguages} {canEdit} />
+{#key conversation.id}
+	<GlossaryEditor {conversation} {primaryLocale} {supportedLanguages} {canEdit} />
+{/key}

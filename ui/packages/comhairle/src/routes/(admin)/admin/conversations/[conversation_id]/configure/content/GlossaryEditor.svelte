@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
@@ -33,8 +33,6 @@
 
 	let { conversation, primaryLocale, supportedLanguages, canEdit }: Props = $props();
 
-	let initial = $derived(localizedGlossaryFromMetadata(conversation.metadata, primaryLocale));
-
 	// A row holds the terms and the explanation per locale, each as a plain string while editing
 	// (terms are comma-separated, split into an array on save). `id` is a stable {#each} key.
 	type Row = {
@@ -50,21 +48,22 @@
 		tooltips
 	});
 
-	let rows = $derived<Row[]>(
-		initial.length > 0
-			? initial.map((entry) =>
-					toRow(
-						Object.fromEntries(
-							Object.entries(entry.text).map(([locale, terms]) => [
-								locale,
-								terms.join(', ')
-							])
-						),
-						{ ...entry.tooltip }
-					)
-				)
-			: [toRow({}, {})]
-	);
+	function rowsFromConversation(): Row[] {
+		const saved = localizedGlossaryFromMetadata(conversation.metadata, primaryLocale);
+		if (saved.length === 0) return [toRow({}, {})];
+		return saved.map((entry) =>
+			toRow(
+				Object.fromEntries(
+					Object.entries(entry.text).map(([locale, terms]) => [locale, terms.join(', ')])
+				),
+				{ ...entry.tooltip }
+			)
+		);
+	}
+
+	// Read once on mount. Other Content fields reload the conversation as they save, and
+	// rebuilding the rows then would wipe glossary edits that haven't saved yet.
+	let rows = $state<Row[]>(untrack(rowsFromConversation));
 
 	// The language currently being edited. Starts on the primary locale.
 	let activeLocale = $derived(primaryLocale);
@@ -145,19 +144,16 @@
 	}
 
 	function setTerms(row: Row, value: string) {
-		if (!canEdit) return;
 		row.terms[activeLocale] = value;
 		autosave.schedule();
 	}
 
 	function setTooltip(row: Row, value: string) {
-		if (!canEdit) return;
 		row.tooltips[activeLocale] = value;
 		autosave.schedule();
 	}
 
 	async function addRow() {
-		if (!canEdit) return;
 		const row = toRow({}, {});
 		rows = [...rows, row];
 		// Clear any filter so the new row is visible, then focus its term cell.
@@ -167,7 +163,6 @@
 	}
 
 	function removeRow(id: number) {
-		if (!canEdit) return;
 		rows = rows.filter((row) => row.id !== id);
 		if (rows.length === 0) rows = [toRow({}, {})];
 		autosave.schedule();
@@ -189,7 +184,6 @@
 				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
 
 				const imported = await parseGlossaryCsv(await file.text());
-				if (!canEdit) return 0;
 				if (imported.length === 0) throw 'NO_ENTRIES_FOUND';
 
 				const existing = rows.filter((row) => !isBlank(row));
@@ -206,7 +200,6 @@
 		importing = false;
 		// Reset so re-importing the same file fires onchange again.
 		input.value = '';
-		if (!canEdit) return;
 
 		if (result.err !== null) {
 			const message =
