@@ -3,10 +3,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{
-    media::{Media, MediaContentType},
-    pagination::PaginatedResults,
-};
+use crate::models::media::{Media, MediaContentType};
+use crate::models::pagination::PaginatedResults;
 
 /// Data transfer object (public API representation) for a Media record.
 ///

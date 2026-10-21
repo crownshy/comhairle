@@ -31,6 +31,9 @@ const SECTION_STRIP_SKELETONS: Record<string, TabStripSkeletonShape> = {
 	invites: { leadingIcon: false, widths: [4, 5] }
 };
 
+/** A workflow step's own tabs: Setup, Configure and sometimes Moderation and Insights. */
+const STEP_STRIP_SKELETON: TabStripSkeletonShape = { leadingIcon: false, widths: [3.5, 5, 6] };
+
 /**
  * The placeholder skeleton shape for the given conversation-admin route's primary sub-tab
  * strip, or `null` if the route has no such strip (so the layout renders nothing).
@@ -45,6 +48,7 @@ export function conversationPrimaryStripSkeleton(
 	const base = `/admin/conversations/${conversationId}`;
 	if (pathname !== base && !pathname.startsWith(`${base}/`)) return null;
 	const rest = pathname.slice(base.length).replace(/^\/+/, '');
-	const section = rest.split('/')[0];
+	const [section, subSegment] = rest.split('/');
+	if (section === 'design' && subSegment === 'step') return STEP_STRIP_SKELETON;
 	return SECTION_STRIP_SKELETONS[section] ?? null;
 }

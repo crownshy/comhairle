@@ -1,30 +1,26 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-
 #[cfg(test)]
 use fake::Dummy;
-
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Cond, Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
-
-use super::{
-    SqlxResultExt,
-    event::EventIden,
-    user_conversation_preferences,
-    user_participation::{self, UserParticipation, UserParticipationIden},
-    user_progress::{self, UserProgressIden},
-    users::User,
-    workflow_step::{self, WorkflowStepIden},
-};
+use super::event::EventIden;
+use super::user_participation::{self, UserParticipation, UserParticipationIden};
+use super::user_progress::{self, UserProgressIden};
+use super::users::User;
+use super::workflow_step::{self, WorkflowStepIden};
+use super::{SqlxResultExt, user_conversation_preferences};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
@@ -491,17 +487,13 @@ pub async fn get_workflow_signup_stats(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        routes::{
-            conversations::dto::ConversationDto, regions::dto::RegionDto,
-            workflows::dto::WorkflowDto,
-        },
-    };
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::regions::dto::RegionDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_workflow_with_region_id(pool: PgPool) -> Result<(), Box<dyn Error>> {

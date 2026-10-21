@@ -10,12 +10,13 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models::conversation::{
-    self, ConversationFilterOptions, ConversationOrderOptions, ConversationWithTranslations,
-    CreateConversation, IdOrSlug, PartialConversation,
+    self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
+    ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
 };
 use crate::models::conversation_email_notification_recipients::{
     self as email_recipients_model, CreateConversationEmailNotificationRecipients,
@@ -27,21 +28,17 @@ use crate::models::notification::{
 use crate::models::notification_delivery::{
     self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
 };
-use crate::models::organization;
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::conversation::{Action, Role};
 use crate::models::permissions::{
     self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
-    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action,
-    conversation::{Action, Role},
-    grant_role,
+    PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action, grant_role,
 };
-use crate::models::user_conversation_preferences;
 use crate::models::user_participation::{self};
-use crate::models::user_profile;
+use crate::models::users::User;
+use crate::models::{organization, user_conversation_preferences, user_profile, user_progress};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::translations::LocaleExtractor;
-
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
 pub mod dto;
 
@@ -165,6 +162,32 @@ pub enum ConversationResponse {
     Localized(LocalizedConversationDto),
 }
 
+/// A conversation that isn't live yet is only visible to people who can read it.
+async fn ensure_can_read(
+    state: &Arc<ComhairleState>,
+    conversation: &Conversation,
+    user: Option<&User>,
+) -> Result<(), ComhairleError> {
+    if conversation.is_live {
+        return Ok(());
+    }
+    let Some(user) = user else {
+        return Err(ComhairleError::NoLoggedInUser);
+    };
+    if !can_perform_action(
+        state,
+        &conversation.id,
+        Action::Read,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?
+    {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+    Ok(())
+}
+
 /// Get a specific conversation
 #[instrument(err(Debug), skip(state))]
 async fn get_conversation(
@@ -180,24 +203,7 @@ async fn get_conversation(
     let original_conversation =
         conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
 
-    // If this isn't a live conversation and the user is not the owner
-    if !original_conversation.is_live {
-        if let Some(user) = &user {
-            if !can_perform_action(
-                &state,
-                &original_conversation.id,
-                Action::Read,
-                &user.id,
-                Some(&original_conversation.owner_id),
-            )
-            .await?
-            {
-                return Err(ComhairleError::UserNotAuthorized);
-            }
-        } else {
-            return Err(ComhairleError::NoLoggedInUser);
-        }
-    }
+    ensure_can_read(&state, &original_conversation, user.as_ref()).await?;
 
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = if query.with_translations
@@ -390,6 +396,31 @@ pub struct NotificationRecipientsResponse {
     pub email_recipients: Vec<String>,
     /// Convenience count of `email_recipients`.
     pub email_recipient_count: i32,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ParticipationCountResponse {
+    pub participant_count: u64,
+}
+
+/// Open to participants so the thank-you page can show it, with the same draft gate as
+/// `get_conversation`.
+#[instrument(err(Debug), skip(state))]
+async fn get_participation_count(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    OptionalUser(user): OptionalUser,
+) -> Result<(StatusCode, Json<ParticipationCountResponse>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    ensure_can_read(&state, &conversation, user.as_ref()).await?;
+    let participant_count =
+        user_progress::count_people_who_have_taken_part(&state.db, &conversation_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ParticipationCountResponse { participant_count }),
+    ))
 }
 
 /// Preview the recipient lists for the notify page (count + email list).
@@ -1004,6 +1035,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                 .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
+            "/{conversation_id}/participation-count",
+            get_with(get_participation_count, |op| {
+                op.id("GetParticipationCount")
+                    .summary("Count the people who have taken part")
+                    .description("Returns how many distinct people have at least one done step in this conversation.")
+                    .response::<200, Json<ParticipationCountResponse>>()
+                    .tag("Conversation")
+            }),
+        )
+        .api_route(
             "/{conversation_id}/email-updates",
             post_with(register_email_for_updates, |op| {
                 op.id("RegisterEmailForUpdates")
@@ -1038,6 +1079,15 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::StatusCode;
+    use serde_json::json;
+    use sqlx::PgPool;
+
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
@@ -1045,24 +1095,18 @@ mod tests {
     use crate::models::demographics::{
         CreateConversationDemographics, create_conversation_demographics,
     };
+    use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
-        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole,
-        conversation::Role, grant_role, system,
+        ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
+        system,
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
     use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{MultipartBodyBuilder, test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
-    use axum::body::Body;
-    use axum::http::StatusCode;
-    use serde_json::json;
-    use sqlx::PgPool;
-    use std::collections::HashMap;
-    use std::error::Error;
-    use std::sync::Arc;
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_config, test_state};
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
@@ -2379,12 +2423,13 @@ mod tests {
     fn broadcast_email_only_sent_to_opted_in_authenticated_users(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::user_conversation_preferences::{
             self, CreateUserConversationPreferences,
         };
         use crate::models::users::create_user;
         use crate::routes::auth::SignupRequest;
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent.clone());
@@ -2498,10 +2543,11 @@ mod tests {
     fn broadcast_email_respects_anonymous_opt_in_flag(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::conversation_email_notification_recipients::{
             self as anon_model, CreateConversationEmailNotificationRecipients,
         };
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent.clone());
@@ -2618,6 +2664,8 @@ mod tests {
     fn recipients_endpoint_lists_only_opted_in_emails(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
         use crate::models::conversation_email_notification_recipients::{
             self as anon_model, CreateConversationEmailNotificationRecipients,
         };
@@ -2626,7 +2674,6 @@ mod tests {
         };
         use crate::models::users::create_user;
         use crate::routes::auth::SignupRequest;
-        use std::sync::{Arc, Mutex};
 
         let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
         let mailer = recording_mailer(sent);
@@ -3057,6 +3104,152 @@ mod tests {
 
         // Keep this variable used to avoid accidental changes to the test setup where user lookup fails.
         assert_eq!(member_user.email.as_deref(), Some("org_member@example.com"));
+
+        Ok(())
+    }
+
+    async fn register_and_mark_step_done(
+        session: &mut UserSession,
+        app: &crate::App,
+        conversation_id: &str,
+        workflow_id: &str,
+        step: &serde_json::Value,
+    ) -> Result<(), Box<dyn Error>> {
+        let step_id = step["id"].as_str().unwrap();
+        let workflow_url = format!("/conversation/{conversation_id}/workflow/{workflow_id}");
+        session
+            .post(app, &format!("{workflow_url}/register"), Body::empty())
+            .await?;
+        session
+            .put(
+                app,
+                &format!("{workflow_url}/progress/{step_id}"),
+                serde_json::json!({ "status": "done" }).to_string().into(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_only_counts_people_with_a_done_step(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+        let workflow_id = workflow["id"].as_str().unwrap().to_string();
+        let steps = admin
+            .create_random_workflow_steps(&app, &conversation_id, &workflow_id, 2)
+            .await?;
+        let count_url = format!("/conversation/{conversation_id}/participation-count");
+
+        let mut registered_only = UserSession::new_guest();
+        registered_only.signup_guest(&app).await?;
+        registered_only
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/register"),
+                Body::empty(),
+            )
+            .await?;
+
+        let (status, value, _) = registered_only.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 0);
+
+        let mut done_both = UserSession::new_guest();
+        done_both.signup_guest(&app).await?;
+        for step in &steps {
+            register_and_mark_step_done(&mut done_both, &app, &conversation_id, &workflow_id, step)
+                .await?;
+        }
+
+        let (status, value, _) = done_both.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 1);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_spans_every_workflow_in_the_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let mut first_steps = vec![];
+        for _ in 0..2 {
+            let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+            let workflow_id = workflow["id"].as_str().unwrap().to_string();
+            let steps = admin
+                .create_random_workflow_steps(&app, &conversation_id, &workflow_id, 1)
+                .await?;
+            first_steps.push((workflow_id, steps[0].clone()));
+        }
+
+        let mut in_both = UserSession::new_guest();
+        in_both.signup_guest(&app).await?;
+        for (workflow_id, step) in &first_steps {
+            register_and_mark_step_done(&mut in_both, &app, &conversation_id, workflow_id, step)
+                .await?;
+        }
+
+        let mut in_second_only = UserSession::new_guest();
+        in_second_only.signup_guest(&app).await?;
+        let (second_workflow_id, second_step) = &first_steps[1];
+        register_and_mark_step_done(
+            &mut in_second_only,
+            &app,
+            &conversation_id,
+            second_workflow_id,
+            second_step,
+        )
+        .await?;
+
+        let (status, value, _) = in_second_only
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/participation-count"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 2);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_is_hidden_until_the_conversation_is_live(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_unlaunched_conversation(&app).await?;
+        let count_url = format!(
+            "/conversation/{}/participation-count",
+            conversation["id"].as_str().unwrap()
+        );
+
+        let mut guest = UserSession::new_guest();
+        guest.signup_guest(&app).await?;
+        let (status, _, _) = guest.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = admin.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
 
         Ok(())
     }

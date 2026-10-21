@@ -10,6 +10,7 @@
 </script>
 
 <PageHeader
+	level="h2"
 	title="Team"
 	description="Choose who works on this conversation and what each person can do."
 >

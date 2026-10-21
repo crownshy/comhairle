@@ -27,5 +27,5 @@
 		admin_password={toolConfig.admin_password}
 	/>
 {:else}
-	<h1>No moderation available for this step</h1>
+	<p class="text-muted-foreground text-base">No moderation available for this step.</p>
 {/if}

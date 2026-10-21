@@ -1,5 +1,4 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
@@ -46,11 +45,6 @@
 	<title>Monitor Conversation - Comhairle Admin</title>
 </svelte:head>
 
-<PageHeader
-	title="Monitor"
-	description="See how your conversation is working, monitor recruitment and user progress and check out your reach"
-/>
-
 <h2 class="my-10 text-2xl">Overview</h2>
 <StatsBar {stats} />
 
@@ -92,12 +86,12 @@
 			<Card.Content class="h-full">
 				<div class="flex flex-col items-center justify-center">
 					{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
-						<h1 class="pt-[70px] text-3xl">1 Minute</h1>
+						<p class="pt-[70px] text-3xl">1 Minute</p>
 						<p>median</p>
 					{:else}
-						<h1 class="pt-[70px] text-center text-2xl">
+						<p class="pt-[70px] text-center text-2xl">
 							No users have completed this step yet
-						</h1>
+						</p>
 					{/if}
 				</div>
 			</Card.Content>

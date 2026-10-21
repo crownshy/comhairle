@@ -9,10 +9,13 @@
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { key } from '$lib/utils/invalidationKey';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 
 	type FormState = {
 		subject?: string;
@@ -78,9 +81,14 @@
 				message: 'Successfully create new custom email'
 			});
 
-			goto(`/admin/email-template-configs/${emailConfig.id}`, {
-				invalidate: [key('admin/email-template-config')]
-			});
+			goto(
+				resolve('/(admin)/admin/email-template-configs/[email_config_id]', {
+					email_config_id: emailConfig.id
+				}),
+				{
+					invalidate: [key('admin/email-template-config')]
+				}
+			);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -120,100 +128,112 @@
 	<title>New Custom Email - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Create new custom email</h1>
+<SectionHeader
+	content={{
+		eyebrow: 'Library',
+		title: 'New custom email',
+		description: 'Choose an email type, then write the subject and content.'
+	}}
+>
+	{#snippet actions()}
+		<Button
+			variant="outline"
+			type="button"
+			onclick={() => {
+				debouncedPreviewEmail();
+				openPreviewModal = true;
+			}}
+		>
+			Preview
+		</Button>
+	{/snippet}
+</SectionHeader>
 
-<div class="flex justify-between">
-	<div class="flex flex-col gap-4">
-		<h2 class="text-xl font-semibold">Email type:</h2>
+<TabContent>
+	<div class="flex flex-col gap-2">
+		<h2 class="text-xl font-semibold">Email type</h2>
 		<Select.Root
 			type="single"
 			value={selectedSchema.email_type}
 			onValueChange={handleSelectSchema}
 		>
-			<Select.Trigger class="">{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger>
+			<Select.Trigger class="w-fit"
+				>{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger
+			>
 			<Select.Content>
 				{#each schemas as schema (schema.email_type)}
-					<Select.Item value={schema.email_type}
-						>{snakeToStartCase(schema.email_type)}</Select.Item
-					>
+					<Select.Item value={schema.email_type}>
+						{snakeToStartCase(schema.email_type)}
+					</Select.Item>
 				{/each}
 			</Select.Content>
 		</Select.Root>
 	</div>
-	<Button
-		variant="default"
-		type="button"
-		onclick={() => {
-			debouncedPreviewEmail();
-			openPreviewModal = true;
-		}}>Preview</Button
-	>
-</div>
+	{#if selectedSchema.variables.length > 0}
+		<EmailTemplateVariables templateVariables={selectedSchema.variables} />
+	{/if}
 
-{#if selectedSchema.variables.length > 0}
-	<EmailTemplateVariables templateVariables={selectedSchema.variables} />
-{/if}
-
-<form onsubmit={handleSubmit}>
-	<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
-		<Label
-			class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-			for="subject">Email subject</Label
-		>
-		<Input
-			placeholder="Subject"
-			name="subject"
-			defaultValue={formState.subject}
-			onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
-		/>
-	</div>
-	{#each selectedSchema.slots as slot (slot.key)}
-		<div
-			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-		>
+	<form onsubmit={handleSubmit}>
+		<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
 			<Label
 				class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-				for={slot.key}
+				for="subject">Email subject</Label
 			>
-				<span>{slot.label}</span>
-				<span class="text-sm font-normal">{slot.hint}</span>
-			</Label>
-			{#if slot.content_type === 'plain_text'}
-				<Input
-					placeholder="Enter email content..."
-					defaultValue={formState.slots[slot.key]}
-					onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
-				/>
-			{:else}
-				<RichTextEditor
-					width="100%"
-					value={formState.slots[slot.key]}
-					placeholder="Enter email content..."
-					onChange={(json) => (formState.slots[slot.key] = json)}
-				/>
-			{/if}
+			<Input
+				placeholder="Subject"
+				name="subject"
+				defaultValue={formState.subject}
+				onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
+			/>
 		</div>
-	{/each}
-
-	<div class="flex justify-center">
-		<Button type="submit">Submit</Button>
-	</div>
-</form>
-
-<Dialog.Root bind:open={openPreviewModal}>
-	<Dialog.Content class="h-[70vh] w-full max-w-6xl sm:w-full sm:max-w-6xl">
-		<Dialog.Header>
-			<Dialog.Title class="flex items-center gap-2">Email preview</Dialog.Title>
-			<Dialog.Description>
-				{#if previewIframeSrc}
-					<iframe
-						src={previewIframeSrc}
-						class="h-[63vh] w-full"
-						title="Email preview"
-						sandbox="allow-same-origin"
-					></iframe>
+		{#each selectedSchema.slots as slot (slot.key)}
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Label
+					class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					for={slot.key}
+				>
+					<span>{slot.label}</span>
+					<span class="text-sm font-normal">{slot.hint}</span>
+				</Label>
+				{#if slot.content_type === 'plain_text'}
+					<Input
+						placeholder="Enter email content..."
+						defaultValue={formState.slots[slot.key]}
+						onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
+					/>
+				{:else}
+					<RichTextEditor
+						width="100%"
+						value={formState.slots[slot.key]}
+						placeholder="Enter email content..."
+						onChange={(json) => (formState.slots[slot.key] = json)}
+					/>
 				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
-	</Dialog.Content>
-</Dialog.Root>
+			</div>
+		{/each}
+
+		<div class="flex">
+			<Button type="submit">Create email</Button>
+		</div>
+	</form>
+
+	<Dialog.Root bind:open={openPreviewModal}>
+		<Dialog.Content class="h-[70vh] w-full max-w-6xl sm:w-full sm:max-w-6xl">
+			<Dialog.Header>
+				<Dialog.Title class="flex items-center gap-2">Email preview</Dialog.Title>
+				<Dialog.Description>
+					{#if previewIframeSrc}
+						<iframe
+							src={previewIframeSrc}
+							class="h-[63vh] w-full"
+							title="Email preview"
+							sandbox="allow-same-origin"
+						></iframe>
+					{/if}
+				</Dialog.Description>
+			</Dialog.Header>
+		</Dialog.Content>
+	</Dialog.Root>
+</TabContent>

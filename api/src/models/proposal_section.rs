@@ -4,17 +4,14 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        translations::{TextContentId, TextFormat, new_translation},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 /// A single translatable body section of a [`crate::models::proposal::Proposal`].
 ///

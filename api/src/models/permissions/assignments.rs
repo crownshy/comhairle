@@ -7,7 +7,8 @@ use strum::IntoEnumIterator;
 use uuid::Uuid;
 
 use super::{self as permissions, ActorId, ResourceType};
-use crate::{ComhairleState, error::ComhairleError};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "id", rename_all = "snake_case")]

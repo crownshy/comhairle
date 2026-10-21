@@ -36,6 +36,9 @@ Monorepo layout:
 - `pnpm lint`: `prettier --check` + eslint.
 - `pnpm prettier --write <files>`: format only the files you touched. **Do not** run the
   repo-wide `pnpm format`; it reformats hundreds of unrelated files and buries your diff.
+- `npx playwright test --project=chromium`: the e2e suite. Needs the local API on `:3000`.
+  Read **[e2e/README.md](ui/packages/comhairle/e2e/README.md)** before adding or changing
+  e2e tests.
 
 ## Non-negotiables
 
