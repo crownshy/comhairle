@@ -3,7 +3,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::email_template_config::{EmailTemplateConfig, EmailTemplateSlots, EmailType};
+use crate::models::email_template_config::{
+    EmailTemplateConfig, EmailTemplateConfigWithScope, EmailTemplateSlots, EmailType,
+};
 
 /// Data transfer object (public API representation) for an EmailTemplateConfig.
 ///
@@ -35,6 +37,34 @@ impl From<EmailTemplateConfig> for EmailTemplateConfigDto {
             slots: c.slots,
             subject: c.subject,
             created_at: c.created_at,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct EmailTemplateConfigWithScopeDto {
+    pub id: Uuid,
+    pub email_type: EmailType,
+    pub owner_id: Uuid,
+    pub organization_id: Option<Uuid>,
+    pub slots: EmailTemplateSlots,
+    pub subject: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub conversation_title: Option<String>,
+}
+
+impl From<EmailTemplateConfigWithScope> for EmailTemplateConfigWithScopeDto {
+    fn from(value: EmailTemplateConfigWithScope) -> Self {
+        Self {
+            id: value.config.id,
+            email_type: value.config.email_type,
+            owner_id: value.config.owner_id,
+            organization_id: value.config.organization_id,
+            slots: value.config.slots,
+            subject: value.config.subject,
+            created_at: value.config.created_at,
+            conversation_title: value.conversation_title,
         }
     }
 }
