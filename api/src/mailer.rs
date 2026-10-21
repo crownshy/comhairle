@@ -24,7 +24,7 @@ use crate::models::email_template_config::{
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
-use crate::models::{conversation, otp};
+use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
@@ -315,6 +315,15 @@ impl ComhairleMailer for Mailer {
         let conversation =
             conversation::get_localised_by_id(&state.db, &conversation_id, locale).await?;
 
+        let organization = match conversation.organization_id {
+            Some(org_id) => {
+                organization::get_localized_by_id(&state.db, &org_id, &conversation.primary_locale)
+                    .await
+                    .ok()
+            }
+            None => None,
+        };
+
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -349,7 +358,12 @@ impl ComhairleMailer for Mailer {
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
-        let context = context! { invite_link, domain => state.config.domain, ..rendered_map };
+        let context = context! {
+            invite_link,
+            domain => state.config.domain,
+            organization_name => organization.map(|org| org.name),
+            ..rendered_map
+        };
 
         self.send_email(
             to,
