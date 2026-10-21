@@ -112,7 +112,7 @@
 		<span
 			class={cn(
 				'text-xs leading-5 font-medium uppercase',
-				step.status === 'completed-locked' ? 'text-secondary-foreground' : 'text-ring'
+				step.status === 'completed-locked' ? 'text-secondary-foreground' : 'text-primary'
 			)}
 		>
 			Step {index + 1}
