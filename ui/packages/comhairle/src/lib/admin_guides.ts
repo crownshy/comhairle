@@ -32,7 +32,6 @@ import chooseATemplateImage from './assets/admin-guide/choose-a-template.webp';
 import designStepsImage from './assets/admin-guide/design-steps.webp';
 import arrangeStepOrderImage from './assets/admin-guide/arrange-step-order.webp';
 import configureAStepImage from './assets/admin-guide/configure-a-step.webp';
-import previewBeforeLaunchImage from './assets/admin-guide/preview-before-launch.webp';
 import configureAccessImage from './assets/admin-guide/configure-access.webp';
 import launchAConversationImage from './assets/admin-guide/launch-a-conversation.webp';
 import recruitImage from './assets/admin-guide/recruit.webp';
@@ -555,10 +554,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						step: 1
 					},
 					{
-						src: previewBeforeLaunchImage,
-						alt: 'A conversation in preview, marked This is a preview of the conversation, showing the first step: a Learn page about waste management.',
+						src: previewImage,
+						alt: 'A preview of the conversation landing page, marked This is a preview of the conversation, showing the title, short description, a Join the conversation button and the banner image.',
 						caption:
-							'Going through the conversation in preview, starting with its first step.',
+							'The preview opens on the landing page. Select Join the conversation to go through the steps.',
 						step: 2
 					}
 				],
