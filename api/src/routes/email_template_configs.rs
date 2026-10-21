@@ -257,6 +257,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -292,6 +293,7 @@ mod tests {
         let params = CreateEmailTemplateConfig {
             slots: create_slots,
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -340,6 +342,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -378,6 +381,7 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         session
             .post(
@@ -390,6 +394,7 @@ mod tests {
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         session
             .post(
@@ -431,6 +436,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -480,6 +486,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
