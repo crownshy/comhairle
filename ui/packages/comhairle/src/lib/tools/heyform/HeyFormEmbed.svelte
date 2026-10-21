@@ -154,6 +154,7 @@
 	}
 
 	onMount(() => {
+		onSequenceChange?.({ progress: 0, blockedReason: m.heyform_submit_to_continue() });
 		startLoadTimer();
 		return () => clearTimeout(loadTimer);
 	});
@@ -184,7 +185,10 @@
 	// typing, not paging. An older fork sends no numbers.
 	function reportProgress(index: unknown, total: unknown) {
 		if (typeof index !== 'number' || typeof total !== 'number' || total <= 1) return;
-		onSequenceChange?.({ progress: Math.min(1, Math.max(0, index / (total - 1))) });
+		onSequenceChange?.({
+			progress: Math.min(1, Math.max(0, index / (total - 1))),
+			blockedReason: m.heyform_submit_to_continue()
+		});
 	}
 
 	function onFrameMessage(e: MessageEvent) {
