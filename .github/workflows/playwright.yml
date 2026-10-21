@@ -1,0 +1,124 @@
+name: playwright
+
+# Admin e2e suite (ui/packages/comhairle/e2e) against a throwaway Postgres and a locally built API.
+on:
+  pull_request:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: base
+
+    services:
+      postgres:
+        image: postgis/postgis:15-3.5
+        env:
+          POSTGRES_USER: comhairle
+          POSTGRES_PASSWORD: comhairle
+          POSTGRES_DB: comhairle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U comhairle -d comhairle"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgres://comhairle:comhairle@localhost:5432/comhairle
+      RESOURCE_BUCKET: comhairle_resources
+      ADMIN_USERS: admin@crown-shy.com
+      DOMAIN: http://localhost:4173
+      # Every test logs in afresh, which trips the login rate limit.
+      ENABLE_RATE_LIMITING: 'false'
+      WORKER_SERVICE__REDIS_URL: redis://127.0.0.1:6379
+      # The Learning Assistant test syncs learn content into the knowledge base.
+      BOT_SERVICE__HOST: ${{ secrets.BOT_SERVICE__HOST }}
+      BOT_SERVICE__API_KEY: ${{ secrets.BOT_SERVICE__API_KEY }}
+      BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID: ${{ secrets.BOT_SERVICE__DEFAULT_KNOWLEDGE_BASE_ID }}
+      BOT_SERVICE__ELICITATION_BOT_AGENT_ID: ${{ secrets.BOT_SERVICE__ELICITATION_BOT_AGENT_ID }}
+      BOT_SERVICE__THINKING_SPACE_AGENT_ID: ${{ secrets.BOT_SERVICE__THINKING_SPACE_AGENT_ID }}
+      BOT_SERVICE__THINKING_SPACE_SUMMARY_AGENT_ID: ${{ secrets.BOT_SERVICE__THINKING_SPACE_SUMMARY_AGENT_ID }}
+      # Matches the defaults in scripts/seed-minimal.sh. The database only lives for this job.
+      PLAYWRIGHT_ADMIN_USERNAME: admin@crown-shy.com
+      PLAYWRIGHT_ADMIN_PASSWORD: adminPassword123!
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+
+      - name: Build API
+        run: cargo build --locked --bin comhairle_api
+
+      - name: Start API
+        run: |
+          nohup ./target/debug/comhairle_api > api.log 2>&1 &
+          for i in {1..60}; do
+            curl -sf -o /dev/null http://localhost:3000/health && echo "API is up" && exit 0
+            sleep 2
+          done
+          echo "API failed to start" && cat api.log && exit 1
+
+      - name: Seed admin user
+        run: ./scripts/seed-minimal.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: ui/packages/comhairle
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        working-directory: ui/packages/comhairle
+        run: pnpm exec playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: ui/packages/comhairle/playwright-report/
+          retention-days: 14
+
+      - name: Upload API log
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-log
+          path: api.log
+          retention-days: 7
