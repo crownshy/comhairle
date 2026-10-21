@@ -182,6 +182,16 @@
 			</div>
 
 			{#if demographicQuestions.length === 0}
+				<Select
+					id="hello"
+					name="hello"
+					placeholder="Ethnicity"
+					options={[
+						{ label: 'hello', value: 'world' },
+						{ label: 'a', value: 'b' },
+						{ label: 'c', value: 'd' }
+					]}
+				/>
 				<span class="text-muted-foreground mt-4 text-sm italic">
 					No demographic questions are currently available.
 				</span>
@@ -189,11 +199,6 @@
 				<Form class="grid gap-4 md:grid-cols-2" handleSubmission={handleDemographics}>
 					{#snippet children(isSubmitting)}
 						{#each demographicQuestions as question (question.slug)}
-							<Select
-								id={question.slug}
-								name={question.slug}
-								options={[{ label: 'hello', value: 'world' }]}
-							/>
 							<div class="space-y-2">
 								<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
 								<Label for={question.slug}>{question.displayName}</Label>
@@ -201,7 +206,12 @@
 									<Select
 										id={question.slug}
 										name={question.slug}
-										options={[{ label: 'hello', value: 'world' }]}
+										placeholder="Ethnicity"
+										options={[
+											{ label: 'hello', value: 'world' },
+											{ label: 'a', value: 'b' },
+											{ label: 'c', value: 'd' }
+										]}
 									/>
 								{:else}
 									<Input
