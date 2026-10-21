@@ -61,15 +61,9 @@
 	let generatingNextRound = $state(false);
 	let generationError = $state(false);
 
-	let canContinue = $derived(phase === 'summary');
-
+	// QuestionFlow and Summary each report to the pager while they are mounted.
 	$effect(() => {
-		onCanContinueChange?.(canContinue);
-	});
-
-	// QuestionFlow reports while it is mounted; the summary is the end of the step.
-	$effect(() => {
-		if (phase === 'summary') onSequenceChange?.({ progress: 1 });
+		if (phase === 'questions') onCanContinueChange?.(false);
 	});
 
 	let configIncomplete = $derived(
@@ -250,6 +244,8 @@
 				onRetryGenerate={handleRetryGenerate}
 				{onDone}
 				onAnswerMore={handleAnswerMore}
+				{onCanContinueChange}
+				{onSequenceChange}
 			/>
 		{/if}
 	</div>

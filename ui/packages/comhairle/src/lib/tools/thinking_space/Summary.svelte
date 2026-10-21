@@ -21,6 +21,7 @@
 	import ConsentToggle from './ConsentToggle.svelte';
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		topic: string;
@@ -57,6 +58,8 @@
 		onDone?: () => void;
 		/** Fired when the participant clicks "I want to answer more questions". */
 		onAnswerMore?: () => void;
+		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -74,7 +77,9 @@
 		progressStatus = 'not_started',
 		onRetryGenerate,
 		onDone,
-		onAnswerMore
+		onAnswerMore,
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	let submitting = $state(false);
@@ -284,6 +289,31 @@
 		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
 
+	let latestHasText = $derived(
+		rounds.length > 0 && valueFor(rounds[rounds.length - 1]).trim().length > 0
+	);
+	let canSubmit = $derived(latestHasText && !pendingNextRound && !submitting);
+	let blockedReason = $derived.by(() => {
+		if (canSubmit) return undefined;
+		if (pendingNextRound || rounds.length === 0)
+			return m.thinking_space_summary_still_writing();
+		if (!latestHasText) return m.thinking_space_summary_needs_text();
+		return undefined;
+	});
+
+	// The pager's Next runs the same submit as Confirm & Save, so it can't skip the
+	// consent question or the final save.
+	$effect(() => {
+		onCanContinueChange?.(canSubmit);
+	});
+	$effect(() => {
+		onSequenceChange?.({
+			progress: 1,
+			next: canSubmit ? () => void submit() : undefined,
+			blockedReason
+		});
+	});
+
 	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
 	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
@@ -366,7 +396,7 @@
 						{:else if saveStateById[round.id] === 'saved'}
 							<span class="inline-flex items-center gap-1 text-xs text-green-600">
 								<Check class="size-3" />
-								{m.saving()}
+								{m.saved()}
 							</span>
 						{:else if saveStateById[round.id] === 'error'}
 							<span class="text-destructive inline-flex items-center gap-1 text-xs">
@@ -485,7 +515,7 @@
 					size="lg"
 					class="w-full sm:w-auto"
 					onclick={submit}
-					disabled={!valueFor(rounds[rounds.length - 1]).trim() || submitting}
+					disabled={!latestHasText || submitting}
 				>
 					<Check class="size-4" />
 					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
