@@ -34,9 +34,13 @@ import arrangeStepOrderImage from './assets/admin-guide/arrange-step-order.webp'
 import configureAStepImage from './assets/admin-guide/configure-a-step.webp';
 import configureAccessImage from './assets/admin-guide/configure-access.webp';
 import launchAConversationImage from './assets/admin-guide/launch-a-conversation.webp';
+import launchedImage from './assets/admin-guide/launched.webp';
 import recruitImage from './assets/admin-guide/recruit.webp';
 import monitorImage from './assets/admin-guide/monitor.webp';
 import moderateImage from './assets/admin-guide/moderate.webp';
+import stepNavigationImage from './assets/admin-guide/step-navigation.webp';
+import moderationInDepthImage from './assets/admin-guide/moderation-in-depth.webp';
+import closeAConversationImage from './assets/admin-guide/close-a-conversation.webp';
 import toggleRevisitAfterFinishImage from './assets/admin-guide/toggle-revisit-after-finish.webp';
 import rejectStatementImage from './assets/admin-guide/reject-statement.webp';
 import splitStatementImage from './assets/admin-guide/split-statement.webp';
@@ -413,12 +417,12 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Start with a ready-made conversation flow, then adapt the [steps](/admin/info/glossary#term-step) to suit your topic and what you want participants to do.',
 				image: {
 					src: chooseATemplateImage,
-					alt: "The Choose a template window. Templates such as Informed-participants survey and Citizen workshop are listed on the left, with the selected template's workflow steps on the right and an Apply template button."
+					alt: "The Choose a template window. Templates such as Informed-participants survey, Understand opinion groups and Citizen workshop are listed on the left, with the selected template's workflow steps on the right and a Get started button."
 				},
 				steps: [
 					'Before choosing a template, consider what you want to learn from the conversation, what you want participants to contribute, how they will contribute, and what they need to know first.',
 					'Go to **Process design** and click **Choose from templates**.',
-					'Choose a template that best matches the conversation you want to run.',
+					'Choose a template that best matches the conversation you want to run, then click **Get started**.',
 					'Adapt the template by adding, removing, or rearranging steps.'
 				],
 				tips: [
@@ -434,13 +438,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Build your own conversation flow by deciding what participants need to learn, consider, and contribute at each step.',
 				image: {
 					src: designStepsImage,
-					alt: "The Add a step window, listing step types such as Topic onboarding, Participant-led poll and Survey. The selected tool's description, examples and Best for list appear on the right, with an Add this step button."
+					alt: "The Add a step window. Step types such as Topic onboarding, Participant-led poll, Survey and Individual view exploration are listed on the left. The selected type's description, a link to its Introduction & setup guide, examples and a Best for list appear on the right, with an Add this step button."
 				},
 				steps: [
 					'Before designing your steps, consider what you want to learn from the conversation, what you want participants to contribute, how they will contribute, and what they need to know first.',
 					'Go to **Process design** and choose **Start from blank**.',
 					'Click **Add step**. You’ll be asked to choose an [engagement tool](/admin/info/glossary#term-engagement-tool) for the step, based on what you want participants to do.',
-					'Choose a tool to add the step to your conversation.',
+					'Choose a tool, then click **Add this step** to add it to your conversation.',
 					'Repeat this for each stage of your conversation, then arrange the steps in the order you want participants to go through them.'
 				],
 				tips: [
@@ -458,13 +462,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Set the order of your [steps](/admin/info/glossary#term-step). Participants will go through them from top to bottom.',
 				image: {
 					src: arrangeStepOrderImage,
-					alt: "The Process steps page with two step cards. A step's actions menu is open, showing Move up, Move down, Rename, Learn more and Delete."
+					alt: "Process design with two step cards, New Survey Step and New Polis Step. The second step's actions menu is open, showing Move up, Move down, Rename, Learn more and Delete."
 				},
 				steps: [
 					'Go to **Process design**.',
 					'Drag a step card up or down to change its position.',
 					'Alternatively, open the step’s actions menu :actions: and select **Move up** or **Move down**.',
-					'You can also use this menu to **Rename** or **Delete** a step.'
+					'You can also use this menu to **Rename** or **Delete** a step, or select **Learn more** to read about its engagement tool.'
 				],
 				tips: [
 					'Think about the participant journey when ordering your steps: what do they need to know or consider before moving on to the next activity?',
@@ -606,10 +610,22 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Launch a conversation',
 				summary:
 					'[Launch](/admin/info/glossary#term-launch) your conversation when it is ready for participants to take part.',
-				image: {
-					src: launchAConversationImage,
-					alt: 'The Launch page. Before you launch lists Preview it as a participant, Process design, Details and access, and Team. Below it, a warning box explains what happens when you launch, above the Launch conversation button, highlighted in yellow.'
-				},
+				images: [
+					{
+						src: launchAConversationImage,
+						alt: 'The Launch page. Before you launch lists Preview it as a participant, Process design, Details and access, and Team. Below it, a warning box explains what happens when you launch, above the Launch conversation button, highlighted in yellow.',
+						caption:
+							'The Launch page, with the Launch conversation button below Before you launch.',
+						step: 3
+					},
+					{
+						src: launchedImage,
+						alt: 'The Launched page, confirming Your conversation is launched, with a Conversation link card (Copy link and Open buttons) and Next steps such as Invite participants, Keep participants informed and Follow participation.',
+						caption:
+							'After launching, the page shows your conversation link and what to do next.',
+						step: 4
+					}
+				],
 				steps: [
 					'Open **Launch** in the sidebar.',
 					'Work through **Before you launch**, including a final **Preview**, to make sure everything is ready.',
@@ -636,10 +652,11 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Once your conversation is launched, use **Recruit** to invite people to take part by link, QR code or email.',
 				image: {
 					src: recruitImage,
-					alt: 'The Recruit page on its Email tab, with an Emails field for a comma-separated list of addresses, Invite valid for options and a Submit button, above the Email Invite List. Open Links and Physical tabs are at the top.'
+					alt: 'The Recruit page on its Email tab. A Conversation link card with Copy link and Open buttons sits above an Emails field, Invite valid for options and a Submit button. Open Links and Physical tabs are at the top.'
 				},
 				steps: [
 					'Open **Recruit**. It becomes available after you launch the conversation.',
+					'Under **Conversation link**, click **Copy link** to share the conversation’s main link, or **Open** to check it.',
 					'Go to **Open Links**.',
 					'Click **New Invite Link** to create a link you can share. Give it a **Label**, such as "Newsletter" or "Town hall", so you can tell your links apart.',
 					'Copy the **Link**, or use its **QR code** on posters and at in-person events.',
@@ -659,7 +676,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Use **Monitor** to see how many people are taking part, how far they get through your steps, and how long it takes them.',
 				image: {
 					src: monitorImage,
-					alt: 'The Monitor page. Overview shows Total Users, Active Now, Time Spent and Completed, above a Daily signups chart.'
+					alt: 'The Monitor page under Engage. Overview shows Total Users, Active Now, Time Spent and Completed, above a Daily signups chart with Signups and Active counts.'
 				},
 				steps: [
 					'Open **Monitor**. It becomes available after you launch the conversation.',
@@ -701,7 +718,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Send a message to everyone who has taken part in your conversation, for example to share an update or invite them back.',
 				image: {
 					src: notifyImage,
-					alt: 'The Notify page, with Delivery method set to In-app notification, Notification title and Message content fields, a Send notification to all participants button, and a Recipients preview showing how many participants will receive it.'
+					alt: 'The Notify page under Engage, with Delivery method set to In-app notification, Notification title and Message content fields and a Send notification to all participants button. A Recipients preview on the right shows who will receive it.'
 				},
 				steps: [
 					'Open **Notify**. It becomes available after you launch the conversation.',
@@ -724,11 +741,11 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In a Participant-led poll, participants can write their own statements. Moderate them so that only appropriate statements are shown to others.',
 				image: {
 					src: moderateImage,
-					alt: 'The Moderation tab of a Participant-led poll step. Statements can be filtered by All, Seeded, Accepted, Pending and Rejected, and the Reject statement window lists reasons such as Off-topic or unclear, Harmful or abusive, and Advertising or campaigning.'
+					alt: 'The Moderation tab of a Participant-led poll step in Process design. Statements moderation has Download CSV, Sync from Polis and Add seed statements buttons, a search box, the All, Seeded, Accepted, Pending and Rejected filters, and a list of statements. The Reject statement popover is open, with an optional Reason and Note, and Cancel and Reject buttons.'
 				},
 				steps: [
 					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
-					'Open **Moderate** under **Engage** in the sidebar, then click **Moderate step** on the Participant-led poll step.',
+					'In **Process design**, open the Participant-led poll step and go to its **Moderation** tab.',
 					'Filter statements by **Pending**, **Accepted**, **Rejected**, **Seeded** or **All**, or search for a word.',
 					'Accept or reject each statement. When you reject a statement, choose a reason from your moderation policy.'
 				],
@@ -752,11 +769,12 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Use **Report** to summarise what came out of your conversation, record its impact, and share the results.',
 				image: {
 					src: reportImage,
-					alt: 'The Report page, with View Report and Publish Report at the top and a Summary editor containing an executive summary of participants, statements and votes cast.'
+					alt: 'The Report page under Results, with View Report and a Publish Report switch at the top, then a Summary editor and a Report body editor, each with formatting tools and an Embed report component button.'
 				},
 				steps: [
 					'Open **Report**. It becomes available after you launch the conversation.',
-					'Under **Summary**, write an overall summary of the conversation.',
+					'Under **Summary**, write a short introduction. It appears at the top of the public report.',
+					'Under **Report body**, write the full report. Click **Embed report component** to add findings from the conversation, such as charts, into the text.',
 					'Under **Facilitator Notes**, click **Add feedback** to record notes gathered by facilitators.',
 					'Under **Impacts**, click **Add an impact** to record what the conversation has led to, and choose an **Impact Type**: **Policy**, **Debate** or **Followup Conversation**.',
 					'Turn on **Publish Report** to make the report public, then click **View Report** to see it as others will.'
@@ -772,6 +790,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Close a conversation',
 				summary:
 					'Close your conversation when the engagement period is over. Participants can no longer take part, and everything collected so far stays available.',
+				image: {
+					src: closeAConversationImage,
+					alt: 'The Close page, with a Before you close checklist: Let participants know, Check final participation and Start your report. Below it, a What happens when you close box explains that participants can no longer take part, everything collected stays available in Monitor and Report, and the conversation can be re-opened. A Close conversation button sits at the bottom.'
+				},
 				steps: [
 					'Open **Close** in the sidebar. It becomes available after you launch the conversation.',
 					'Work through **Before you close**: let participants know, check the final numbers in **Monitor**, and start your **Report**.',
@@ -799,9 +821,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				summary:
 					'Get to know the [moderation](/admin/info/glossary#term-moderation) screen for a Participant-led poll, then work through the decision each new statement needs and how to carry it out.',
 				image: {
-					src: moderateImage,
-					alt: 'The Statements moderation screen, with Download CSV, Sync from Polis and Add seed statements buttons above a search box, the All, Seeded, Accepted, Pending and Rejected tabs, and a list of statements with edit, accept and reject icons.',
-					caption: 'The moderation screen for a Participant-led poll step.'
+					src: moderationInDepthImage,
+					alt: 'The Moderation tab of a Participant-led poll step, filtered to Accepted. Two statements have an Edited badge and Edited from: the original statement about park benches and bins. Each row has translate, pencil, tick and cross icons, and Download CSV, Sync from Polis and Add seed statements buttons sit above the search box and filters.',
+					caption:
+						'The moderation screen for a Participant-led poll step, showing two statements split from one.'
 				},
 				environment: {
 					title: 'The moderation screen',
@@ -867,7 +890,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.',
 							image: {
 								src: rejectStatementImage,
-								alt: 'The Reject statement popover next to a pending statement about high street shops, with an empty Reason field, a Note reading "This statement isn’t about air quality, so it’s outside the scope of this conversation. - moderator: SL", and Cancel and Reject buttons.',
+								alt: 'The Reject statement popover open on a statement’s row, with the Reason "Off-topic or unclear" chosen, a Note reading "This statement isn’t about trees", and Cancel and Reject buttons.',
 								caption:
 									'Rejecting an off-topic statement, with a note for the moderation log.'
 							}
@@ -883,7 +906,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.',
 							image: {
 								src: splitStatementImage,
-								alt: 'The Split or reword statement dialog. The original statement asks for air quality monitors outside every school and free buses for under-18s; below it are two replacement statements, one for each proposal, with Add another statement and Split statement buttons.',
+								alt: 'The Split or reword statement dialog. The original statement, "The park needs more benches near the playground and the bins should be emptied more often.", is split into two replacement statements, one about benches and one about bins, with Add another statement, Cancel and Split statement buttons.',
 								caption:
 									'Splitting a statement that makes two proposals into two separate statements.'
 							}
@@ -1043,8 +1066,8 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				summary:
 					'Three settings decide whether participants can skip steps, go back to them, and return after they have finished. Their effects overlap, so make these decisions together.',
 				image: {
-					src: configureAStepImage,
-					alt: 'A step’s Configure tab in Process design, showing its settings.',
+					src: stepNavigationImage,
+					alt: 'A step’s Configure tab in Process design, with Name, Description and Data protocol fields. Below them, highlighted, are the Revisitable step toggle (Can users revisit this step?), turned off, and the Required step toggle (Can users skip this step?), turned on.',
 					caption:
 						'A step’s Configure tab, where Required step and Revisitable step are set.'
 				},
