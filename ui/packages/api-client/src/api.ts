@@ -3259,6 +3259,7 @@ export const EmailTemplateConfigDto = z
 export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
 export const CreateEmailTemplateConfig = z
   .object({
+    conversation_id: z.union([z.string(), z.null()]).optional(),
     slots: EmailTemplateSlots,
     subject: z.union([z.string(), z.null()]).optional(),
   })
