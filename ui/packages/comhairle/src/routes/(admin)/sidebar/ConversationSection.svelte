@@ -130,7 +130,10 @@
 	</Tooltip.Root>
 {/snippet}
 
-<ol class="flex flex-col gap-5 pr-4 group-data-[collapsible=icon]:hidden">
+<ol
+	aria-label="Conversation sections"
+	class="flex flex-col gap-5 pr-4 group-data-[collapsible=icon]:hidden"
+>
 	{#each stages as stage, index (stage.id)}
 		{@const open = isOpen(stage)}
 		<li class="flex flex-col gap-2">
