@@ -122,9 +122,9 @@ export default class PolisApi {
 			});
 	}
 
+	/** Returns null on failure. The caller shows the error, so it stays off the shared voting error. */
 	async submitStatement(statement: string): Promise<{ tid: number; pid: number } | null> {
 		this._loading = true;
-		this._error = undefined;
 		this.notify();
 
 		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
@@ -152,7 +152,6 @@ export default class PolisApi {
 			return { tid: data.tid, pid: this._pid ?? 0 };
 		} catch (err) {
 			console.error('[PolisApi] Error submitting statement:', err);
-			this._error = err instanceof Error ? err.message : String(err);
 			return null;
 		} finally {
 			this._loading = false;

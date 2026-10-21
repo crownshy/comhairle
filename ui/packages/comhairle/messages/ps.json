@@ -186,6 +186,7 @@
 	"polis_tip_many_statements": "تاسو کولی شئ څومره وايي چې غواړئ هومره اظهارات وسپارئ.",
 	"polis_tip_come_back": "ډېر ځله راشئ ترڅو په هغو نویو نظرونو رایه ورکړئ چې نورو خلکو سپارلي دي",
 	"polis_opinion_submitted": "ستاسو نظر وسپارل شو. مننه!",
+	"polis_opinion_not_submitted": "ستاسو نظر ونه سپارل شو. مهرباني وکړئ بیا هڅه وکړئ.",
 	"polis_opinion_placeholder": "خپل نظر دلته دننه کړئ",
 	"polis_tip_max_length": "لنډ یې ولیکئ: تر {max} تورو پورې",
 	"polis_characters_left": "{count} توري پاتې دي",

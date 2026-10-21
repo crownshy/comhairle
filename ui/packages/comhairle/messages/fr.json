@@ -186,6 +186,7 @@
 	"polis_tip_many_statements": "Vous pouvez soumettre autant de déclarations que vous le souhaitez.",
 	"polis_tip_come_back": "Revenez souvent pour voter sur les nouvelles idées soumises par d'autres personnes",
 	"polis_opinion_submitted": "Votre opinion a été soumise. Merci !",
+	"polis_opinion_not_submitted": "Votre avis n'a pas été envoyé. Veuillez réessayer.",
 	"polis_opinion_placeholder": "Entrez votre propre opinion ici",
 	"polis_tip_max_length": "Soyez bref : jusqu'à {max} caractères",
 	"polis_characters_left": "{count} caractères restants",
