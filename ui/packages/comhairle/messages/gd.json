@@ -139,6 +139,7 @@
 	"verify_user_error_body": "Bha rudeigin ceàrr fhad ‘s a bha sinn a’ dearbhadh do sheòladh post-d. Feuch <a href=\"/auth/login\" class=\"underline\">log a-steach.</a>",
 	"verify_user_conflict_error_body": "Tha do sheòladh post-d air a dhearbhadh mu thràth. Faodaidh tu a-nis coimhead agus <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhraidhean.</a>",
 	"something_went_wrong": "Bha rudeigin ceàrr",
+	"heyform_load_failed": "Cha b' urrainn dhuinn an suirbhidh a luchdadh. Thoir sùil air a' cheangal agad is feuch ris a-rithist.",
 	"send_again": "Cuir a-rithist",
 	"back_to_login": "Air ais gu log a-steach",
 	"go_home": "Dhachaigh",

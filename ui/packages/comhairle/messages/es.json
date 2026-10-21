@@ -139,6 +139,7 @@
 	"verify_user_error_body": "Ocurrió un error al verificar tu correo electrónico. Intenta <a href=\"/auth/login\" class=\"underline\">iniciar sesión.</a>",
 	"verify_user_conflict_error_body": "Tu correo electrónico ya ha sido verificado. Ahora puedes ver y <a href=\"/conversations\" class=\"underline\">unirte a conversaciones.</a>",
 	"something_went_wrong": "Algo salió mal",
+	"heyform_load_failed": "No hemos podido cargar la encuesta. Comprueba tu conexión e inténtalo de nuevo.",
 	"send_again": "Enviar de nuevo",
 	"back_to_login": "Volver a iniciar sesión",
 	"go_home": "Ir al inicio",

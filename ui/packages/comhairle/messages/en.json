@@ -161,6 +161,7 @@
 	"back_to_login": "Back to login",
 	"go_home": "Go home",
 	"something_went_wrong": "Something went wrong",
+	"heyform_load_failed": "We couldn't load the survey. Check your connection and try again.",
 	"signup": "Signup",
 	"sign_up": "Sign Up",
 	"about_us": "About Us",

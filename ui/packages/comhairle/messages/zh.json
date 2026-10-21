@@ -142,6 +142,7 @@
 	"back_to_login": "返回登录",
 	"go_home": "返回首页",
 	"something_went_wrong": "出了点问题",
+	"heyform_load_failed": "无法加载问卷。请检查网络连接后重试。",
 	"signup": "注册",
 	"sign_up": "注册",
 	"about_us": "关于我们",
