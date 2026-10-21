@@ -1,9 +1,14 @@
 const STORAGE_PREFIX = 'comhairle-polis-votes';
 
 interface PolisVoteData {
+	/** Every vote this participant has cast on this step, including on other devices. */
 	totalVotes: number;
 	hasMetThreshold: boolean;
+	/** `totalVotes` when they last chose Keep voting. The prompt comes back one round of required votes later. */
+	votesAtLastPrompt: number;
 }
+
+const EMPTY: PolisVoteData = { totalVotes: 0, hasMetThreshold: false, votesAtLastPrompt: 0 };
 
 // `scopeKey` must be unique per workflow step (and per preview vs live), not per
 // Polis poll. Two Polis steps can point at the same poll, so keying by poll id
@@ -13,12 +18,12 @@ function storageKey(userId: string, scopeKey: string): string {
 }
 
 function load(userId: string, scopeKey: string): PolisVoteData {
-	if (typeof window === 'undefined') return { totalVotes: 0, hasMetThreshold: false };
+	if (typeof window === 'undefined') return { ...EMPTY };
 	try {
 		const raw = localStorage.getItem(storageKey(userId, scopeKey));
-		return raw ? JSON.parse(raw) : { totalVotes: 0, hasMetThreshold: false };
+		return raw ? { ...EMPTY, ...JSON.parse(raw) } : { ...EMPTY };
 	} catch {
-		return { totalVotes: 0, hasMetThreshold: false };
+		return { ...EMPTY };
 	}
 }
 
@@ -35,9 +40,9 @@ export function getVoteData(userId: string, scopeKey: string): PolisVoteData {
 	return load(userId, scopeKey);
 }
 
-export function resetVoteCount(userId: string, scopeKey: string): PolisVoteData {
+export function startNextVotingRound(userId: string, scopeKey: string): PolisVoteData {
 	const data = load(userId, scopeKey);
-	data.totalVotes = 0;
+	data.votesAtLastPrompt = data.totalVotes;
 	save(userId, scopeKey, data);
 	return data;
 }

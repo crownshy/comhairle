@@ -21,7 +21,7 @@
 		getVoteData,
 		incrementVotes,
 		reconcileServerVotes,
-		resetVoteCount
+		startNextVotingRound
 	} from './polisVoteStore';
 	import { m } from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
@@ -150,9 +150,6 @@
 
 	const initialData = getVoteData(user_id, voteScopeKey);
 	let totalVotes = $state(initialData.totalVotes);
-	// `totalVotes` restarts at every prompt, because the threshold counts against it. The prompt
-	// shows everything this participant has voted on so far.
-	let votesSoFar = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
 
@@ -276,7 +273,6 @@
 			return;
 		}
 		totalVotes++;
-		votesSoFar++;
 
 		if (anchoredRemaining !== null && anchoredRemaining > 0) {
 			anchoredRemaining--;
@@ -286,7 +282,7 @@
 		hasMetThreshold = data.hasMetThreshold;
 
 		// Flip now: a delay shows the between-statements skeleton first, then swaps it out.
-		if (data.totalVotes === safeRequiredVotes) {
+		if (data.totalVotes - data.votesAtLastPrompt === safeRequiredVotes) {
 			screen = 'continue-prompt';
 			voteCooldown = false;
 			waitingForNext = false;
@@ -299,8 +295,7 @@
 	}
 
 	function resumeVoting() {
-		resetVoteCount(user_id, voteScopeKey);
-		totalVotes = 0;
+		startNextVotingRound(user_id, voteScopeKey);
 		screen = 'voting';
 	}
 
@@ -664,9 +659,9 @@
 			<div class="flex flex-col items-center gap-3">
 				<CheckCircle2 class="text-primary size-8" />
 				<h2 class="text-card-foreground text-2xl leading-tight font-semibold">
-					{votesSoFar === 1
-						? m.polis_votes_counted_one({ count: votesSoFar })
-						: m.polis_votes_counted({ count: votesSoFar })}
+					{totalVotes === 1
+						? m.polis_votes_counted_one({ count: totalVotes })
+						: m.polis_votes_counted({ count: totalVotes })}
 				</h2>
 				<p class="text-muted-foreground max-w-[44ch] text-base">
 					{opinionsLeft > 0
