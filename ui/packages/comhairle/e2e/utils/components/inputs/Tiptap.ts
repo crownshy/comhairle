@@ -13,31 +13,27 @@ const getTiptap = async (page: Page, index: number = 0) => {
 	return page.locator('.tiptap').nth(index);
 };
 
-const Tiptap = (refs: Refs) => {
-	const values: string[] = [];
+function Tiptap(index: number, refs: Refs) {
+	let value: string | undefined;
+
+	refs.cleanup?.(async () => {
+		const tiptap = await getTiptap(refs.page, index);
+		await tiptap.click();
+		await tiptap.fill('');
+	});
 
 	return {
-		write: async (text: string = generateValue(), index: number = 0): Promise<void> => {
+		write: async (text = generateValue()): Promise<void> => {
 			const tiptap = await getTiptap(refs.page, index);
-			values[index] = text;
+			value = text;
 			await tiptap.click();
 			await tiptap.fill(text);
-
-			refs.cleanup(async () => {
-				await tiptap.click();
-				await tiptap.fill('');
-			});
 		},
 		expect: async () => {
-			for (let i = 0; i < values.length; i++) {
-				const value = values[i];
-				if (value === undefined) {
-					continue;
-				}
-				await expect(await getTiptap(refs.page, i)).toContainText(value);
-			}
+			if (value === undefined) return;
+			await expect(await getTiptap(refs.page, index)).toContainText(value);
 		}
 	} as const;
-};
+}
 
 export default Tiptap;
