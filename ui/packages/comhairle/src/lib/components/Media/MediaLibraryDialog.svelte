@@ -63,36 +63,36 @@
 			showCloseButton={false}
 			class="max-h-[80vh] overflow-y-auto pt-0 sm:max-w-3xl"
 		>
-			<div
-				class="bg-background sticky top-0 z-10 -mx-6 mb-5 flex flex-row items-center justify-between px-6 pt-6 pb-3"
-			>
-				<div class="flex flex-row items-center gap-1">
-					<Dialog.Title>Media library</Dialog.Title>
-					<Button
-						href="/admin/media-library"
-						variant="ghost"
-						size="sm"
-						title="Go to media library"
-						aria-label="Go to media library"
-					>
-						<SquareArrowOutUpLeft />
-					</Button>
-				</div>
-				<div class="flex items-center gap-2">
-					<Button
-						disabled={!selectedMedia}
-						onclick={() => {
-							if (!selectedMedia) return;
-							onconfirm(selectedMedia);
-							open = false;
-						}}>Select</Button
-					>
-					<Dialog.Close
-						class="focus-visible:outline-ring rounded-sm p-2 opacity-70 hover:opacity-100 focus-visible:outline-2"
-						aria-label="Close media library"
-					>
-						<X class="h-4 w-4" />
-					</Dialog.Close>
+			<div class="bg-background sticky top-0 z-10 -mx-6 mb-5 px-6 pt-6 pb-3">
+				<div class=" flex flex-row items-center justify-between">
+					<div class="flex flex-row items-center gap-1">
+						<Dialog.Title>Media library</Dialog.Title>
+						<Button
+							href="/admin/media-library"
+							variant="ghost"
+							size="sm"
+							title="Go to media library"
+							aria-label="Go to media library"
+						>
+							<SquareArrowOutUpLeft />
+						</Button>
+					</div>
+					<div class="flex items-center gap-2">
+						<Button
+							disabled={!selectedMedia}
+							onclick={() => {
+								if (!selectedMedia) return;
+								onconfirm(selectedMedia);
+								open = false;
+							}}>Select</Button
+						>
+						<Dialog.Close
+							class="focus-visible:outline-ring rounded-sm p-2 opacity-70 hover:opacity-100 focus-visible:outline-2"
+							aria-label="Close media library"
+						>
+							<X class="h-4 w-4" />
+						</Dialog.Close>
+					</div>
 				</div>
 			</div>
 
