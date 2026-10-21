@@ -20,6 +20,7 @@
 
 import environmentImage from './assets/admin-guide/environment.webp';
 import rolesAndPermissionsImage from './assets/admin-guide/roles-and-permissions.webp';
+import addPeopleImage from './assets/admin-guide/add-people.webp';
 import createAConversationImage from './assets/admin-guide/create-a-conversation.webp';
 import nameAConversationImage from './assets/admin-guide/name-a-conversation.webp';
 import addADescriptionImage from './assets/admin-guide/add-a-description.webp';
@@ -166,7 +167,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					},
 					{
 						src: findWorkspaceImage,
-						alt: 'The Comhairle homepage while logged in as an admin. The top navigation bar shows Home, About, Participate, Your Rights, a language menu, a Workspace button and the account menu.',
+						alt: 'The Comhairle homepage while logged in as an admin. The header shows Home, About, Participate, Your Rights, a language menu, a Workspace button and the account menu.',
 						caption:
 							'Admins see **Workspace** in the top navigation bar on the homepage.',
 						tip: 1
@@ -189,7 +190,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'The workspace is where you create and manage [conversations](/admin/info/glossary#term-conversation), [launch](/admin/info/glossary#term-launch) them to participants, and moderate participant contributions.',
 				image: {
 					src: environmentImage,
-					alt: 'The workspace. The sidebar on the left lists Home, Workspace, Organisations, Emails, Media library and your conversations. On the right, Your conversations shows each conversation with its status, such as Draft or Live, and an Edit conversation button.'
+					alt: 'The workspace. The sidebar on the left lists Conversations, then Media library and Email templates under Library, and Organisations, Regions and System roles under Administration, with the Handbook and your account at the bottom. On the right, Your conversations has status filters, a search box and a card for each conversation showing its status and an Edit conversation button.'
 				},
 				steps: [
 					'Use the sidebar to navigate between different areas of the workspace. The content on the right updates based on your selection.',
@@ -213,14 +214,26 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				navLabel: 'Your role and permissions',
 				summary:
 					'What you can see and change depends on whether you created a Conversation or were added to it by someone else.',
-				image: {
-					src: rolesAndPermissionsImage,
-					alt: "The Team tab under Configure, where the owner enters a colleague's email address to grant them content editor access, above the list of the conversation's content editor users."
-				},
+				images: [
+					{
+						src: rolesAndPermissionsImage,
+						alt: 'The Team tab under Configure, listing the people who work on the conversation with their roles, such as a colleague with the Observer role. Role filters (Admin, Observer, Content Editor, Moderator, Translator and Data Access) and an Add people button sit above the list.',
+						caption: 'The Team tab lists everyone with a role on the conversation.',
+						step: 3
+					},
+					{
+						src: addPeopleImage,
+						alt: "The Add people window. Person is selected, a colleague's email address is entered and the Observer role is ticked, with Cancel and Save changes buttons at the bottom. Organization is the other option at the top.",
+						caption: 'Choose a person or an organisation, then the roles they get.',
+						step: 4
+					}
+				],
 				steps: [
 					'Conversations you create appear in **Your conversations**. As the owner, you can edit everything and decide who else has access.',
-					'To bring in a colleague, open the Conversation and go to **Configure** → **Team**. Find them by email address and grant them content editor permission.',
-					'Conversations that others have shared with you appear there too. Select the **Shared** filter to see only those.'
+					'Conversations that others have shared with you appear there too. Select the **Shared** filter to see only those.',
+					'To see who works on a conversation, open it and go to **Configure** → **Team**. Each person is listed with their roles.',
+					'To bring in a colleague, click **Add people**, choose **Person** and enter their email address. Tick the roles they need, such as **Content Editor** or **Moderator**, then click **Save changes**.',
+					'To give everyone in another organisation access, choose **Organization** instead of **Person** and select the organisation.'
 				],
 				tips: [
 					'Only the owner of a Conversation sees the **Team** tab.',
