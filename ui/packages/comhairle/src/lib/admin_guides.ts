@@ -468,6 +468,45 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'The settings available under **Setup** depend on the **engagement tool** used for that step.',
 					'Use **Preview** as you configure your steps to check how they will appear and work for participants.'
 				]
+			},
+			{
+				key: 'set-up-the-learning-assistant',
+				title: 'Set up the Learning Assistant',
+				navLabel: 'Set up the Learning Assistant',
+				summary:
+					'The Learning Assistant answers participants’ questions about your topic, using your Learn steps and the documents you upload.',
+				steps: [
+					'Open **Learning Assistant** in the sidebar.',
+					'Turn on **Show Learning Assistant**.',
+					'Under **Learn content**, click **Sync learn content** so the assistant can answer questions about your Learn steps. Wait until it says **Learn content synced and ready**.',
+					'Under **Documents**, upload any other files the assistant should answer from. You can upload PDF, text, image and MP4 files up to 50 MB each.',
+					'Under **Cross-language Search**, choose the languages participants might ask in, so they get answers from documents written in another language.',
+					'Under **Target reading age**, enter an age between 5 and 18. The assistant writes its answers for that reading level.'
+				],
+				tips: [
+					'The Learning Assistant only appears to participants once at least one document has finished processing.',
+					'Changes to Learn steps are not picked up automatically. Click **Sync learn content** again after you finish editing them.',
+					'Re-syncing replaces the learning material document, so sources cited in earlier answers will no longer open for participants.'
+				]
+			},
+			{
+				key: 'run-events',
+				title: 'Run events',
+				navLabel: 'Run events',
+				summary:
+					'Use **Events** to plan online or in-person meetings for your conversation, invite people, and manage breakout rooms and recordings.',
+				steps: [
+					'Open **Events** in the sidebar and click **Add event**.',
+					'Enter a **Title**, **Description** and **Capacity**, choose a **Default time zone**, **Event date** and **Time**, and choose a **Signup mode**: **Invite** or **Open**. Click **Save changes**.',
+					'To change an event later, click **Edit event** on its card.',
+					'On the **Details** tab, choose a **Format**: **Online** or **In-person**. Online events use a Jitsi meeting link unless you enter a **Custom event link**.',
+					'On the **Event Structure** tab, click **+ Add agenda item** or **+ Add breakout session** to plan how the meeting will run, then click **Save Agenda**.',
+					'Use the **Facilitators**, **Location**, **Invites**, **Breakout Rooms** and **Recordings** tabs to set up the rest of the event.'
+				],
+				tips: [
+					'On **Breakout Rooms**, click **Auto-assign** to sort attendees into rooms, or **Edit rooms** to arrange them yourself.',
+					'Click **Event Link** to open the event page participants see.'
+				]
 			}
 		]
 	},
@@ -611,6 +650,26 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				]
 			},
 			{
+				key: 'see-insights',
+				title: 'See insights for a step',
+				navLabel: 'See insights for a step',
+				summary:
+					'Each step has its own [Insights](/admin/info/glossary#term-insights) tab showing the responses and results collected in that step. For results across the whole conversation, use **Report**.',
+				steps: [
+					'In **Process design**, open the step you want to look at.',
+					'Go to its **Insights** tab.',
+					'In a Participant-led poll, see the totals for **Participants**, **Statements** and **Vote cast**, then the **Consensus continuum**, **Area of consensus**, **Area of disagreement** and **Opinion groups**.',
+					'Click **Generate summary** to add an AI summary of the poll. Click **Regenerate summary** to update it after more votes come in.',
+					'Click **Download CSV** to export the results.'
+				],
+				tips: [
+					'The **Insights** tab appears for Participant-led poll, Thinking space, Prioritization and Survey steps. Learn steps have no Insights tab.',
+					'A Participant-led poll shows **No insights yet** until participants start voting.',
+					'To show a live Participant-led poll on a screen in the room, click **Open room display**. It opens in a new window.',
+					'Downloaded files may contain personal data. Store and share them in line with your organisation’s data protection policy.'
+				]
+			},
+			{
 				key: 'notify',
 				title: 'Notify participants',
 				navLabel: 'Notify participants',
@@ -680,7 +739,26 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				],
 				tips: [
 					'To look at the responses to a single step, open the step in **Process design** and go to its [Insights](/admin/info/glossary#term-insights) tab.',
-					'When the engagement period is over, open the more actions menu at the top right and choose **End Conversation**. Ending is reversible: choose **Re-open Conversation** to let people take part again.'
+					'When the engagement period is over, [close the conversation](/admin/info/how-to/manage-a-conversation/close-a-conversation). You can still write and publish the report after closing.'
+				]
+			},
+			{
+				key: 'close-a-conversation',
+				title: 'Close a conversation',
+				navLabel: 'Close a conversation',
+				summary:
+					'Close your conversation when the engagement period is over. Participants can no longer take part, and everything collected so far stays available.',
+				steps: [
+					'Open **Close** in the sidebar. It becomes available after you launch the conversation.',
+					'Work through **Before you close**: let participants know, check the final numbers in **Monitor**, and start your **Report**.',
+					'Read **What happens when you close**.',
+					'Click **Close conversation**, then confirm by clicking **End**.',
+					'Once closed, the sidebar shows **Closed** and the page says **This conversation is closed.**'
+				],
+				tips: [
+					'Closing is reversible. On the **Close** page, click **Re-open Conversation** to let people take part again.',
+					'Results in **Monitor**, **Report** and each step’s [Insights](/admin/info/glossary#term-insights) tab stay available after you close.',
+					'You need permission to launch the conversation before you can close or re-open it.'
 				]
 			}
 		]
