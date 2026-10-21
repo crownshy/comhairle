@@ -194,6 +194,7 @@
 	"polis_submit_and_add_another": "Enviar e adicionar outra",
 	"polis_back_to_voting": "Voltar à votação",
 	"polis_voted_everything": "Você votou em todas as opiniões desta etapa até agora. Obrigado!",
+	"polis_no_opinions_yet": "Ainda não há opiniões para votar. Pode adicionar a sua.",
 	"polis_come_back_later": "As pessoas continuam adicionando novas opiniões, então vale a pena voltar mais tarde.",
 	"polis_error_description": "Não foi possível carregar as opiniões neste momento. Pode ser um problema temporário.",
 	"polis_seed_statement": "Iniciador de conversa:",

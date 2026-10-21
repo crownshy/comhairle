@@ -194,6 +194,7 @@
 	"polis_submit_and_add_another": "Soumettre et en ajouter une autre",
 	"polis_back_to_voting": "Retour au vote",
 	"polis_voted_everything": "Vous avez voté sur toutes les opinions de cette étape pour l'instant. Merci !",
+	"polis_no_opinions_yet": "Il n'y a pas encore d'avis sur lesquels voter. Vous pouvez ajouter le vôtre.",
 	"polis_come_back_later": "D'autres personnes ajoutent encore de nouvelles opinions, alors n'hésitez pas à revenir plus tard.",
 	"polis_error_description": "Nous n'avons pas pu charger les opinions pour le moment. Il peut s'agir d'un problème temporaire.",
 	"polis_seed_statement": "Amorce de conversation :",

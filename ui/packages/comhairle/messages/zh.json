@@ -194,6 +194,7 @@
 	"polis_submit_and_add_another": "提交并添加另一条",
 	"polis_back_to_voting": "返回投票",
 	"polis_voted_everything": "到目前为止，您已对此步骤中的所有意见投票。谢谢！",
+	"polis_no_opinions_yet": "目前还没有可以投票的观点。你可以添加自己的观点。",
 	"polis_come_back_later": "其他人仍在不断添加新的意见，值得稍后再来看看。",
 	"polis_error_description": "我们目前无法加载意见。这可能是一个临时问题。",
 	"polis_seed_statement": "对话开场白：",
