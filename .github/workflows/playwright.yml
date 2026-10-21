@@ -2,10 +2,10 @@ name: playwright
 
 # Admin e2e suite (ui/packages/comhairle/e2e) against a throwaway Postgres and a locally built API.
 on:
-  pull_request:
-    branches: [staging]
-  workflow_dispatch:
-
+  workflow_dispatch: # Enable manual trigger from GH UI
+  schedule:
+    - cron: '0 0 * * *' # Runs every night at 00:00 UTC
+    
 concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
