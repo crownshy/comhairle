@@ -6,9 +6,8 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
 	import { notifications } from '$lib/notifications.svelte';
-	import { Form, Input, Submit } from '$lib/components/EasyForm';
+	import { Form, Input, Select, Submit } from '$lib/components/EasyForm';
 	import Demographics from '$lib/interfaces/Demographics';
 	import { Second } from '$lib/utils/units';
 
@@ -117,20 +116,11 @@
 								<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
 								<Label for={question.slug}>{question.displayName}</Label>
 								{#if question.bucketConfig?.type === 'string' && question.bucketConfig?.options?.length > 0}
-									{@const options = question.bucketConfig.options}
-									<Select.Root type="single">
-										<Select.Trigger id={question.slug} class="w-full">
-											<!-- {options.find((o) => o.value === $formData[question.slug]) -->
-											<!-- ?.label ?? `Select ${question.displayName.toLowerCase()}`} -->
-										</Select.Trigger>
-										<Select.Content>
-											{#each options as option (option.value)}
-												<Select.Item value={option.value}>
-													{option.label}
-												</Select.Item>
-											{/each}
-										</Select.Content>
-									</Select.Root>
+									<Select
+										id={question.slug}
+										name={question.slug}
+										options={[{ label: 'hello', value: 'world' }]}
+									/>
 								{:else}
 									<Input
 										id={question.slug}
@@ -141,7 +131,11 @@
 							</div>
 						{/each}
 
-						<Submit text="Make changes" {isSubmitting} />
+						<Submit
+							text="Make changes"
+							class="self-end justify-self-end"
+							{isSubmitting}
+						/>
 					{/snippet}
 				</Form>
 			{/if}
