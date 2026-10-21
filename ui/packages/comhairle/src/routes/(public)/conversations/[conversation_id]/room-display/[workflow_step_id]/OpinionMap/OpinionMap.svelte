@@ -135,12 +135,6 @@
 						outlined: false
 					},
 					{
-						key: 'disagreed',
-						label: 'Disagreed',
-						color: 'var(--vote-disagreed)',
-						outlined: false
-					},
-					{
 						key: 'passed',
 						label: 'Passed',
 						color: 'var(--vote-passed)',
@@ -151,6 +145,12 @@
 						label: 'Not voted',
 						color: 'var(--vote-not-voted)',
 						outlined: true
+					},
+					{
+						key: 'disagreed',
+						label: 'Disagreed',
+						color: 'var(--vote-disagreed)',
+						outlined: false
 					}
 				]
 	);

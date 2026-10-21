@@ -1,6 +1,6 @@
 <!--
 	@component A horizontal stacked vote bar using LayerCake.
-	Takes a GroupVotePercent and renders agreed/disagreed/passed/not-voted segments.
+	Takes a GroupVotePercent and renders agreed/passed/not-voted/disagreed segments.
 -->
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
@@ -9,17 +9,17 @@
 	import type { GroupVotePercent } from '$lib/types/report';
 
 	const voteColorScale = scaleOrdinal<string, string>()
-		.domain(['agreed', 'disagreed', 'passed', 'notVoted'])
+		.domain(['agreed', 'passed', 'notVoted', 'disagreed'])
 		.range([
 			'var(--vote-agreed)',
-			'var(--vote-disagreed)',
 			'var(--vote-passed)',
-			'var(--vote-not-voted)'
+			'var(--vote-not-voted)',
+			'var(--vote-disagreed)'
 		]);
 
 	const voteBorderScale = scaleOrdinal<string, string | undefined>()
-		.domain(['agreed', 'disagreed', 'passed', 'notVoted'])
-		.range([undefined, undefined, undefined, 'var(--vote-not-voted-border)']);
+		.domain(['agreed', 'passed', 'notVoted', 'disagreed'])
+		.range([undefined, undefined, 'var(--vote-not-voted-border)', undefined]);
 
 	interface Props {
 		data: GroupVotePercent;
@@ -28,7 +28,7 @@
 
 	let { data, showLabels = true }: Props = $props();
 
-	const voteKeys = ['agreed', 'disagreed', 'passed', 'notVoted'] as const;
+	const voteKeys = ['agreed', 'passed', 'notVoted', 'disagreed'] as const;
 
 	const segments: BarSegment[] = $derived(
 		voteKeys.map((key) => ({
