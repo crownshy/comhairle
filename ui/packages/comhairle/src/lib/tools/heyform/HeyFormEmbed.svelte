@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { offsetInStepScroll, scrollStepTo, stepScrollTop } from '$lib/utils/stepScroll';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
 	import { browser } from '$app/environment';
@@ -126,6 +128,36 @@
 	let alignPending = false;
 	let alignTimer: ReturnType<typeof setTimeout> | undefined;
 
+	// A cross-origin `load` fires even for a browser error page, so the form's own first message is
+	// the sign it loaded. A host that hangs never sends one.
+	const FORM_LOAD_TIMEOUT_MS = 15000;
+	let loadFailed = $state(false);
+	let frameAttempt = $state(0);
+	let heardFromForm = false;
+	let loadTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function startLoadTimer() {
+		clearTimeout(loadTimer);
+		heardFromForm = false;
+		loadTimer = setTimeout(() => {
+			if (!heardFromForm) loadFailed = true;
+		}, FORM_LOAD_TIMEOUT_MS);
+	}
+
+	function retryLoad() {
+		loadFailed = false;
+		ready = false;
+		firstLoad = true;
+		measuredHeight = null;
+		frameAttempt += 1;
+		startLoadTimer();
+	}
+
+	onMount(() => {
+		startLoadTimer();
+		return () => clearTimeout(loadTimer);
+	});
+
 	// The form shows its thank-you screen for a moment before the step completes.
 	const DONE_DELAY_MS = 2000;
 	let doneTimer: ReturnType<typeof setTimeout> | undefined;
@@ -162,6 +194,8 @@
 
 		// Any message from the frame means its renderer has mounted and can hear a theme.
 		frameListening = true;
+		heardFromForm = true;
+		clearTimeout(loadTimer);
 		syncFrameTheme(paletteKey());
 
 		switch (data.eventName) {
@@ -237,26 +271,36 @@
 <!-- A single-cell grid rather than absolute positioning: both children claim the same cell, so the
 	skeleton inherits the iframe's exact box without restating its height clamp. -->
 <div class="grid w-full grid-cols-1 grid-rows-1">
-	{#if !ready}
+	{#if loadFailed}
+		<div
+			class="border-destructive/20 bg-destructive/5 mx-auto flex w-full max-w-2xl flex-col items-center gap-4 rounded-xl border p-6 text-center"
+			role="alert"
+		>
+			<p class="text-foreground text-base">{m.heyform_load_failed()}</p>
+			<Button variant="outline" onclick={retryLoad}>{m.try_again()}</Button>
+		</div>
+	{:else if !ready}
 		<div class="z-10 [grid-area:1/1]" out:fade={{ duration: 200 }}>
 			<HeyFormEmbedSkeleton />
 		</div>
 	{/if}
-	{#if browser}
+	{#if browser && !loadFailed}
 		<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
-			<iframe
-				bind:this={iframeEl}
-				src={fullUrl}
-				title="survey"
-				onload={handleLoad}
-				allow="microphone; camera"
-				style={measuredHeight ? `height:${measuredHeight}px` : undefined}
-				class="{measuredHeight
-					? ''
-					: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
-					? 'opacity-100'
-					: 'opacity-0'}"
-			></iframe>
+			{#key frameAttempt}
+				<iframe
+					bind:this={iframeEl}
+					src={fullUrl}
+					title="survey"
+					onload={handleLoad}
+					allow="microphone; camera"
+					style={measuredHeight ? `height:${measuredHeight}px` : undefined}
+					class="{measuredHeight
+						? ''
+						: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
+						? 'opacity-100'
+						: 'opacity-0'}"
+				></iframe>
+			{/key}
 		</div>
 	{/if}
 </div>

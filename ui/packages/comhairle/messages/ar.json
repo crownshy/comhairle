@@ -139,6 +139,7 @@
 	"verify_user_error_body": "حدث خطأ ما أثناء التحقق من بريدك الإلكتروني. حاول <a href=\"/auth/login\" class=\"underline\">تسجيل الدخول.</a>",
 	"verify_user_conflict_error_body": "تم التحقق من بريدك الإلكتروني مسبقًا. يمكنك الآن عرض و <a href=\"/conversations\" class=\"underline\">الانضمام إلى المحادثات.</a>",
 	"something_went_wrong": "حدث خطأ ما",
+	"heyform_load_failed": "تعذّر تحميل الاستبيان. تحقق من اتصالك وحاول مرة أخرى.",
 	"send_again": "أعد الإرسال",
 	"back_to_login": "العودة إلى تسجيل الدخول",
 	"go_home": "الذهاب إلى الصفحة الرئيسية",

@@ -139,6 +139,7 @@
 	"verify_user_error_body": "Digwyddodd rhywbeth o’i le wrth wirio eich cyfeiriad e-bost. Ceisiwch <a href=\"/auth/login\" class=\"underline\">fewngofnodi.</a>",
 	"verify_user_conflict_error_body": "Mae eich cyfeiriad e-bost eisoes wedi’i wirio. Gallwch nawr weld a <a href=\"/conversations\" class=\"underline\">ymuno â sgwrsiau.</a>",
 	"something_went_wrong": "Aeth rhywbeth o'i le",
+	"heyform_load_failed": "Doedd dim modd llwytho'r arolwg. Gwiriwch eich cysylltiad a rhowch gynnig arall arni.",
 	"send_again": "Anfon eto",
 	"back_to_login": "Yn ôl i fewngofnodi",
 	"go_home": "Mynd i'r hafan",
