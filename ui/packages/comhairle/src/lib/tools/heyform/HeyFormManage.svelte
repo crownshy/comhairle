@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { Maximize2, Minimize2 } from '@lucide/svelte';
+	import { Maximize2, Minimize2 } from 'lucide-svelte';
 	import HeyFormBuilderSkeleton from './HeyFormBuilderSkeleton.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { Form, FormField } from '@crownshy/api-client/api';

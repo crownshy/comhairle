@@ -86,12 +86,12 @@
 			<Card.Content class="h-full">
 				<div class="flex flex-col items-center justify-center">
 					{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
-						<h1 class="pt-[70px] text-3xl">1 Minute</h1>
+						<p class="pt-[70px] text-3xl">1 Minute</p>
 						<p>median</p>
 					{:else}
-						<h1 class="pt-[70px] text-center text-2xl">
+						<p class="pt-[70px] text-center text-2xl">
 							No users have completed this step yet
-						</h1>
+						</p>
 					{/if}
 				</div>
 			</Card.Content>

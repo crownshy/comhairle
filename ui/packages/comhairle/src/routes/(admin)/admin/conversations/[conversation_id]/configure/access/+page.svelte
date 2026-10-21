@@ -139,9 +139,9 @@
 	</Form.Field>
 {/snippet}
 
-<div class="divide-border flex flex-col divide-y">
+<div class="divide-border flex max-w-3xl flex-col divide-y">
 	<section class="flex flex-col py-6">
-		<h2 class="text-base font-semibold">Visibility</h2>
+		<h3 class="text-base font-semibold">Visibility</h3>
 		<div class="flex flex-col">
 			{@render toggleRow(
 				'isPublic',
@@ -154,7 +154,7 @@
 	</section>
 
 	<section class="flex flex-col py-6">
-		<h2 class="text-base font-semibold">Who can take part</h2>
+		<h3 class="text-base font-semibold">Who can take part</h3>
 		<div class="flex flex-col">
 			{@render toggleRow(
 				'isInviteOnly',
@@ -174,7 +174,7 @@
 	</section>
 
 	<section class="flex flex-col py-6">
-		<h2 class="text-base font-semibold">After finishing</h2>
+		<h3 class="text-base font-semibold">After finishing</h3>
 		<div class="flex flex-col">
 			{@render toggleRow(
 				'allowRevisitAfterFinishing',

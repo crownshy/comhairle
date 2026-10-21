@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from 'lucide-svelte';
 	import { permissions } from '$lib/permissions.svelte';
-	import PageHeader from '$lib/components/PageHeader.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	let props: PageProps = $props();

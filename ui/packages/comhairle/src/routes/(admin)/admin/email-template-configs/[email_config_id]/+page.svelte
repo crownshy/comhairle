@@ -9,6 +9,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
@@ -95,7 +96,7 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			goto('/admin/email-template-configs', {
+			goto(resolve('/(admin)/admin/email-template-configs'), {
 				invalidate: [key('admin/email-template-config')]
 			});
 		} catch (e) {
@@ -138,7 +139,7 @@
 
 <SectionHeader
 	content={{
-		eyebrow: 'Email templates',
+		eyebrow: 'Library',
 		title: snakeToStartCase(emailConfig.emailType),
 		description: 'Edit the subject and content of this custom email.'
 	}}

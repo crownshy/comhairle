@@ -9,6 +9,7 @@
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
@@ -80,9 +81,14 @@
 				message: 'Successfully create new custom email'
 			});
 
-			goto(`/admin/email-template-configs/${emailConfig.id}`, {
-				invalidate: [key('admin/email-template-config')]
-			});
+			goto(
+				resolve('/(admin)/admin/email-template-configs/[email_config_id]', {
+					email_config_id: emailConfig.id
+				}),
+				{
+					invalidate: [key('admin/email-template-config')]
+				}
+			);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -124,7 +130,7 @@
 
 <SectionHeader
 	content={{
-		eyebrow: 'Email templates',
+		eyebrow: 'Library',
 		title: 'New custom email',
 		description: 'Choose an email type, then write the subject and content.'
 	}}
