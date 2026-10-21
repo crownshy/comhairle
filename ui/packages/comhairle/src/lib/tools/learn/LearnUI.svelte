@@ -58,7 +58,8 @@
 			conversation?.primaryLocale ?? 'en'
 		)
 	);
-	let isLastPage = $derived(currentPageNo === pages.length - 1);
+	// `>=` so a step with no pages counts as being on its last page and Next completes it.
+	let isLastPage = $derived(currentPageNo >= pages.length - 1);
 	let pageHeading = $derived(
 		(currentPageTranslation[0] as { title?: string } | undefined)?.title ?? ''
 	);
