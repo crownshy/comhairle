@@ -2125,6 +2125,115 @@ export const PartialWorkflowStep = z
   .partial()
   .passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const CreateThemeCollection = z
+  .object({
+    context: z.string(),
+    originSubId: z.union([z.string(), z.null()]).optional().default(null),
+    originTool: z.string().optional().default("manual"),
+    requestedByUserId: z.union([z.string(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type CreateThemeCollection = z.infer<typeof CreateThemeCollection>;
+export const StatementDto = z
+  .object({
+    aiGenerated: z.boolean(),
+    content: z.string(),
+    context: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sourceSubId: z.union([z.string(), z.null()]).optional(),
+    sourceTool: z.string(),
+    themeId: z.union([z.string(), z.null()]).optional(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.union([z.string(), z.null()]).optional(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type StatementDto = z.infer<typeof StatementDto>;
+export const ThemeDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    createdByAi: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    pinned: z.boolean(),
+    statements: z.array(StatementDto),
+    themeCollectionId: z.string().uuid(),
+    title: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ThemeDto = z.infer<typeof ThemeDto>;
+export const ThemeCollectionDto = z
+  .object({
+    context: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    originSubId: z.union([z.string(), z.null()]).optional(),
+    originTool: z.string(),
+    requestedByUserId: z.union([z.string(), z.null()]).optional(),
+    themes: z.array(ThemeDto),
+    updatedAt: z.string().datetime({ offset: true }),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThemeCollectionDto = z.infer<typeof ThemeCollectionDto>;
+export const GenerateThemeCollectionRequest = z
+  .object({
+    additionalInstructions: z
+      .union([z.string(), z.null()])
+      .optional()
+      .default(null),
+    context: z.string(),
+    sourceTool: z.string(),
+    subScope: z.union([z.string(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type GenerateThemeCollectionRequest = z.infer<
+  typeof GenerateThemeCollectionRequest
+>;
+export const GenerateThemeCollectionResponse = z
+  .object({ job_id: z.string().uuid(), theme_collection_id: z.string().uuid() })
+  .passthrough();
+export type GenerateThemeCollectionResponse = z.infer<
+  typeof GenerateThemeCollectionResponse
+>;
+export const source_tool = z
+  .union([z.string(), z.null()])
+  .optional()
+  .default(null);
+export type source_tool = z.infer<typeof source_tool>;
+export const NewTheme = z
+  .object({
+    createdByAi: z.boolean().optional().default(false),
+    description: z.string(),
+    title: z.string(),
+  })
+  .passthrough();
+export type NewTheme = z.infer<typeof NewTheme>;
+export const UpdateTheme = z
+  .object({ description: z.string(), title: z.string() })
+  .passthrough();
+export type UpdateTheme = z.infer<typeof UpdateTheme>;
+export const UpdateThemePinned = z
+  .object({ pinned: z.boolean() })
+  .passthrough();
+export type UpdateThemePinned = z.infer<typeof UpdateThemePinned>;
+export const CreateStatement = z
+  .object({
+    aiGenerated: z.boolean().optional().default(false),
+    content: z.string(),
+    context: z.string(),
+    sourceSubId: z.union([z.string(), z.null()]).optional().default(null),
+    sourceTool: z.string().optional().default("manual"),
+    userId: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateStatement = z.infer<typeof CreateStatement>;
+export const UpdateStatement = z
+  .object({ content: z.string(), context: z.string() })
+  .passthrough();
+export type UpdateStatement = z.infer<typeof UpdateStatement>;
 export const UserProgressDto = z
   .object({
     id: z.string().uuid(),
@@ -3739,6 +3848,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateWorkflowStep,
   WorkflowStepDto,
   PartialWorkflowStep,
+  CreateThemeCollection,
+  StatementDto,
+  ThemeDto,
+  ThemeCollectionDto,
+  GenerateThemeCollectionRequest,
+  GenerateThemeCollectionResponse,
+  source_tool,
+  NewTheme,
+  UpdateTheme,
+  UpdateThemePinned,
+  CreateStatement,
+  UpdateStatement,
   UserProgressDto,
   UpdateUserProgress,
   RecruitmentTargetDto,
@@ -5518,6 +5639,153 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements",
+    alias: "ListStatements",
+    requestFormat: "json",
+    response: z.array(StatementDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements",
+    alias: "CreateStatement",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateStatement,
+      },
+    ],
+    response: StatementDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements/:statement_id",
+    alias: "UpdateStatement",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateStatement,
+      },
+    ],
+    response: StatementDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements/:statement_id",
+    alias: "DeleteStatement",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections",
+    alias: "CreateThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateThemeCollection,
+      },
+    ],
+    response: ThemeCollectionDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id",
+    alias: "ListThemeCollectionThemes",
+    requestFormat: "json",
+    response: ThemeCollectionDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id",
+    alias: "DeleteThemeCollection",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes",
+    alias: "AddTheme",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: NewTheme,
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id",
+    alias: "UpdateTheme",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateTheme,
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id",
+    alias: "DeleteTheme",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id/pin",
+    alias: "SetThemePinned",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ pinned: z.boolean() }).passthrough(),
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/generate",
+    alias: "GenerateThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: GenerateThemeCollectionRequest,
+      },
+    ],
+    response: GenerateThemeCollectionResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/latest",
+    alias: "GetLatestThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "source_tool",
+        type: "Query",
+        schema: source_tool,
+      },
+    ],
+    response: ThemeCollectionDto,
   },
   {
     method: "get",

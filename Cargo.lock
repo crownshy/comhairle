@@ -1629,6 +1629,7 @@ dependencies = [
  "hyper-util",
  "icalendar",
  "jsonwebtoken",
+ "language-tags",
  "lettre",
  "minijinja",
  "minijinja-embed",

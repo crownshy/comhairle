@@ -17,6 +17,9 @@ pub struct StatementDto {
     pub content: String,
     pub ai_generated: bool,
     pub context: String,
+    pub source_tool: String,
+    pub source_sub_id: Option<String>,
+    pub theme_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -30,6 +33,9 @@ impl From<Statement> for StatementDto {
             content: statement.content,
             ai_generated: statement.ai_generated,
             context: statement.context,
+            source_tool: statement.source_tool,
+            source_sub_id: statement.source_sub_id,
+            theme_id: statement.theme_id,
             created_at: statement.created_at,
             updated_at: statement.updated_at,
         }

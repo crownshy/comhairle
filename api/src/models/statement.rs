@@ -23,20 +23,32 @@ pub struct Statement {
     pub content: String,
     pub ai_generated: bool,
     pub context: String,
+    pub source_tool: String,
+    pub source_sub_id: Option<String>,
+    pub theme_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const STATEMENT_COLUMNS: [StatementIden; 8] = [
+const STATEMENT_COLUMNS: [StatementIden; 11] = [
     StatementIden::Id,
     StatementIden::WorkflowStepId,
     StatementIden::UserId,
     StatementIden::Content,
     StatementIden::AiGenerated,
     StatementIden::Context,
+    StatementIden::SourceTool,
+    StatementIden::SourceSubId,
+    StatementIden::ThemeId,
     StatementIden::CreatedAt,
     StatementIden::UpdatedAt,
 ];
+
+/// Statements created manually via the API (e.g. an admin adding a statement by hand)
+/// default to the "manual" source, since they don't originate from a tool.
+fn default_source_tool() -> String {
+    "manual".to_string()
+}
 
 #[derive(Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +58,10 @@ pub struct CreateStatement {
     pub context: String,
     #[serde(default)]
     pub ai_generated: bool,
+    #[serde(default = "default_source_tool")]
+    pub source_tool: String,
+    #[serde(default)]
+    pub source_sub_id: Option<String>,
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -81,6 +97,8 @@ pub async fn create(
             StatementIden::Content,
             StatementIden::Context,
             StatementIden::AiGenerated,
+            StatementIden::SourceTool,
+            StatementIden::SourceSubId,
         ])
         .values([
             workflow_step_id.into(),
@@ -88,8 +106,121 @@ pub async fn create(
             content.into(),
             context.into(),
             payload.ai_generated.into(),
+            payload.source_tool.clone().into(),
+            payload.source_sub_id.clone().into(),
         ])?
         .returning(Query::returning().columns(STATEMENT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Statement")
+}
+
+/// Inserts a statement if none exists yet for this
+/// `(workflow_step_id, source_tool, source_sub_id)`, otherwise refreshes its content.
+/// Used by tool harvesters to mirror source text into generic statements without
+/// duplicating rows on repeated runs.
+#[instrument(err(Debug), skip(db))]
+pub async fn upsert_from_source(
+    db: &PgPool,
+    workflow_step_id: Uuid,
+    payload: &CreateStatement,
+) -> Result<Statement, ComhairleError> {
+    let content = clean_text("Content", &payload.content)?;
+    let context = clean_text("Context", &payload.context)?;
+
+    let (sql, values) = Query::select()
+        .columns(STATEMENT_COLUMNS)
+        .from(StatementIden::Table)
+        .and_where(Expr::col(StatementIden::WorkflowStepId).eq(workflow_step_id))
+        .and_where(Expr::col(StatementIden::SourceTool).eq(payload.source_tool.clone()))
+        .and_where(match &payload.source_sub_id {
+            Some(sub_id) => Expr::col(StatementIden::SourceSubId).eq(sub_id.clone()),
+            None => Expr::col(StatementIden::SourceSubId).is_null(),
+        })
+        .build_sqlx(PostgresQueryBuilder);
+
+    let existing: Option<Statement> = query_as_with(&sql, values).fetch_optional(db).await?;
+
+    if let Some(existing) = existing {
+        let (sql, values) = Query::update()
+            .table(StatementIden::Table)
+            .values([
+                (StatementIden::Content, content.into()),
+                (StatementIden::UpdatedAt, Expr::current_timestamp().into()),
+            ])
+            .and_where(Expr::col(StatementIden::Id).eq(existing.id))
+            .returning(Query::returning().columns(STATEMENT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        return query_as_with(&sql, values)
+            .fetch_one(db)
+            .await
+            .resolve_db_err("Statement");
+    }
+
+    let (sql, values) = Query::insert()
+        .into_table(StatementIden::Table)
+        .columns([
+            StatementIden::WorkflowStepId,
+            StatementIden::UserId,
+            StatementIden::Content,
+            StatementIden::Context,
+            StatementIden::AiGenerated,
+            StatementIden::SourceTool,
+            StatementIden::SourceSubId,
+        ])
+        .values([
+            workflow_step_id.into(),
+            payload.user_id.into(),
+            content.into(),
+            context.into(),
+            payload.ai_generated.into(),
+            payload.source_tool.clone().into(),
+            payload.source_sub_id.clone().into(),
+        ])?
+        .returning(Query::returning().columns(STATEMENT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Statement")
+}
+
+/// Sets which theme a statement was classified under. Used by the theme-extraction
+/// worker after it gets assignments back from the sensemaker model; not exposed
+/// through the public statements API (manual edits only touch content/context).
+#[instrument(err(Debug), skip(db))]
+pub async fn assign_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme_id: Option<Uuid>,
+) -> Result<Statement, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(StatementIden::Table)
+        .values([
+            (StatementIden::ThemeId, theme_id.into()),
+            (StatementIden::UpdatedAt, Expr::current_timestamp().into()),
+        ])
+        .and_where(Expr::col(StatementIden::Id).eq(id))
+        .returning(Query::returning().columns(STATEMENT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Statement")
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Statement, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(STATEMENT_COLUMNS)
+        .from(StatementIden::Table)
+        .and_where(Expr::col(StatementIden::Id).eq(id))
         .build_sqlx(PostgresQueryBuilder);
 
     query_as_with(&sql, values)
@@ -108,6 +239,38 @@ pub async fn list_for_workflow_step(
         .from(StatementIden::Table)
         .and_where(Expr::col(StatementIden::WorkflowStepId).eq(workflow_step_id))
         .order_by(StatementIden::CreatedAt, Order::Asc)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let statements = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(statements)
+}
+
+/// Lists the statements classified under any theme in the given theme collection,
+/// for embedding into a `ThemeCollectionDto` response.
+#[instrument(err(Debug), skip(db))]
+pub async fn list_for_theme_collection(
+    db: &PgPool,
+    theme_collection_id: Uuid,
+) -> Result<Vec<Statement>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(STATEMENT_COLUMNS.map(|c| (StatementIden::Table, c)))
+        .from(StatementIden::Table)
+        .inner_join(
+            crate::models::theme::ThemeIden::Table,
+            Expr::col((StatementIden::Table, StatementIden::ThemeId)).equals((
+                crate::models::theme::ThemeIden::Table,
+                crate::models::theme::ThemeIden::Id,
+            )),
+        )
+        .and_where(
+            Expr::col((
+                crate::models::theme::ThemeIden::Table,
+                crate::models::theme::ThemeIden::ThemeCollectionId,
+            ))
+            .eq(theme_collection_id),
+        )
+        .order_by((StatementIden::Table, StatementIden::CreatedAt), Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
     let statements = query_as_with(&sql, values).fetch_all(db).await?;
@@ -214,6 +377,8 @@ mod tests {
                 content: "More buses".into(),
                 context: "Submitted via form".into(),
                 ai_generated: false,
+                source_tool: "manual".into(),
+                source_sub_id: None,
             },
         )
         .await?;
@@ -239,6 +404,8 @@ mod tests {
                 content: "Original".into(),
                 context: "Context".into(),
                 ai_generated: true,
+                source_tool: "manual".into(),
+                source_sub_id: None,
             },
         )
         .await?;

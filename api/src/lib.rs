@@ -11,6 +11,7 @@ pub mod models;
 pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;
+pub mod sensemaking;
 #[cfg(test)]
 mod test_helpers;
 mod tools;

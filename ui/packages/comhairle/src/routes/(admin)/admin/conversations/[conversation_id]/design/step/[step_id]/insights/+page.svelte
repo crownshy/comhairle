@@ -10,6 +10,9 @@
 	let { data } = $props();
 
 	let step = $derived(data.step);
+	const polisTopic = $derived(
+		data.toolConfig?.type === 'polis' ? (data.toolConfig.topic ?? null) : null
+	);
 
 	// The Room display is a public, chrome-free page meant for a projector, so it
 	// opens in its own window rather than inside the admin shell.
@@ -27,10 +30,13 @@
 {#if data.polis && step && roomDisplayUrl}
 	<PolisInsights
 		conversationId={data.conversation.id}
+		workflowId={step.workflowId}
 		workflowStepId={step.id}
 		reportData={data.polis.reportData ?? null}
 		statementAux={data.polis.statementAux ?? []}
 		summary={data.polis.summary ?? null}
+		topic={polisTopic}
+		initialThemeCollection={data.polis.themeCollection ?? null}
 	>
 		{#snippet actions()}
 			<Button
