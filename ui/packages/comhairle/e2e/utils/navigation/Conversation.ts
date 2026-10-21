@@ -28,7 +28,8 @@ const Conversation = {
 		}
 
 		// Make conversation
-		await page.getByRole('button', { name: 'New conversation', exact: true }).click();
+		// The list page's button reads "Create new conversation".
+		await page.getByRole('button', { name: 'New conversation' }).first().click();
 		await page.getByRole('menuitem', { name: 'Start from blank' }).click();
 		await page.getByRole('textbox', { name: 'Title' }).fill(TEST_CONVERSATION_TITLE);
 	},

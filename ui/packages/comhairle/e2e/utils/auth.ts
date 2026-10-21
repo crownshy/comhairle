@@ -33,5 +33,6 @@ export async function login(page: Page) {
 		.fill(process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? '');
 	await page.getByRole('button', { name: 'Log In' }).click();
 
-	await page.waitForURL('**/admin');
+	// /admin redirects to the conversations list for now, so accept either.
+	await page.waitForURL(/\/admin(\/conversations)?$/);
 }
