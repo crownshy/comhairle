@@ -201,7 +201,7 @@ impl Mailer {
         );
         env.add_global(
             "footer_logo_url",
-            minijinja::Value::from(logo_url.unwrap_or(DEFAULT_FOOTER_LOGO_URL)),
+            minijinja::Value::from(DEFAULT_FOOTER_LOGO_URL),
         );
         minijinja_embed::load_templates!(&mut env);
         Self {
