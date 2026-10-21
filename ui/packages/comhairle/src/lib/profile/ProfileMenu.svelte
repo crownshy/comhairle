@@ -42,7 +42,10 @@
 {#if user}
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger
-			class={`py-5 hover:bg-white/90 ${buttonVariants({ variant: triggerVariant })}`}
+			class={buttonVariants({
+				variant: triggerVariant,
+				class: 'dark:bg-accent dark:hover:bg-secondary py-5 hover:bg-white/90'
+			})}
 		>
 			<Avatar.Root class="mr-4 h-6 w-6">
 				{#if user.avatarUrl}
