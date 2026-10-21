@@ -1,14 +1,13 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
-	import { workflow_step_url } from '$lib/urls';
 	import type { PageProps } from './$types';
 	import GuestIdCard from './GuestIdCard.svelte';
 	import ParticipationCount from './ParticipationCount.svelte';
 	import ProjectUpdatesDialog from './ProjectUpdatesDialog.svelte';
+	import RevisitStepCards from '../RevisitStepCards.svelte';
 
 	let { data }: PageProps = $props();
 	let user = $derived(data.user);
@@ -103,24 +102,22 @@
 	</section>
 
 	{#if revisitableSteps.length > 0}
-		<section aria-labelledby="revisit-heading" class="flex flex-col gap-4 lg:px-4">
-			<div class="flex flex-col gap-1">
+		<section
+			aria-labelledby="revisit-heading"
+			class="flex flex-col gap-5 rounded-md border px-4 py-3.5 lg:px-6 lg:py-5"
+		>
+			<div class="flex flex-col gap-2">
 				<h2 id="revisit-heading" class="text-2xl font-semibold">
 					{m.thank_you_revisit_heading()}
 				</h2>
 				<p class="text-base md:text-lg">{m.thank_you_revisit_body()}</p>
 			</div>
-			<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-				{#each revisitableSteps as step (step.id)}
-					<Button
-						variant="secondary"
-						size="xl"
-						href={workflow_step_url(conversation.id, workflow.id, step.id, isPreview)}
-					>
-						{step.name}
-					</Button>
-				{/each}
-			</div>
+			<RevisitStepCards
+				steps={revisitableSteps}
+				conversationId={conversation.id}
+				workflowId={workflow.id}
+				{isPreview}
+			/>
 		</section>
 	{/if}
 
