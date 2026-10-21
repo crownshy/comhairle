@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "Procurando os fios condutores das suas respostas…",
 	"thinking_space_summary_loading_3": "Quase pronto — a criar uma declaração que reflita o que partilhou.",
 	"thinking_space_summary_gen_failure": "Não foi possível gerar o seu resumo. Tente novamente.",
+	"thinking_space_summary_continue_without": "As suas respostas estão guardadas, por isso também pode carregar em Seguinte para continuar sem resumo.",
 	"thinking_space_summary_gen_round_failure": "Não foi possível gerar a nova versão do resumo.",
 	"thinking_space_summary_still_writing": "O seu resumo ainda está a ser escrito.",
 	"thinking_space_summary_needs_text": "Adicione algum texto ao seu resumo para continuar.",

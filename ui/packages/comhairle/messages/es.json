@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "Buscando los hilos comunes que recorren tus respuestas…",
 	"thinking_space_summary_loading_3": "Ya casi está: estamos elaborando una declaración que refleje lo que compartiste.",
 	"thinking_space_summary_gen_failure": "No se pudo generar tu resumen. Inténtalo de nuevo.",
+	"thinking_space_summary_continue_without": "Tus respuestas están guardadas, así que también puedes pulsar Siguiente para continuar sin resumen.",
 	"thinking_space_summary_gen_round_failure": "No se pudo generar la nueva versión del resumen.",
 	"thinking_space_summary_still_writing": "Tu resumen todavía se está escribiendo.",
 	"thinking_space_summary_needs_text": "Añade algo de texto a tu resumen para continuar.",

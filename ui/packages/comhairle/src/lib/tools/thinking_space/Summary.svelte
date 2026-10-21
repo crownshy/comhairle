@@ -188,10 +188,7 @@
 	}
 
 	async function submit() {
-		const latest = rounds[rounds.length - 1];
-		if (!latest) return;
-		const value = valueFor(latest).trim();
-		if (!value || submitting) return;
+		if (!canSubmit) return;
 		// First-ever submit on this step: gate on the consent modal. Returning
 		// participants (progressStatus === 'done') have already decided and skip
 		// straight to doSubmit.
@@ -203,12 +200,12 @@
 	}
 
 	async function doSubmit() {
-		const latest = rounds[rounds.length - 1];
-		if (!latest) return;
-		const value = valueFor(latest).trim();
-		if (!value || submitting) return;
+		if (submitting) return;
+		// With no summary (generation failed) there is nothing to save, so the step just completes.
+		const latest = rounds.at(-1);
+		const value = latest ? valueFor(latest).trim() : '';
 		submitting = true;
-		if (editsById[latest.id] !== undefined) {
+		if (latest && editsById[latest.id] !== undefined) {
 			const res = await tryCatchAsync(() =>
 				saveRound({ workflowStepId, roundId: latest.id, submittedText: value })
 			);
@@ -293,7 +290,9 @@
 	let latestHasText = $derived(
 		rounds.length > 0 && valueFor(rounds[rounds.length - 1]).trim().length > 0
 	);
-	let canSubmit = $derived(latestHasText && !pendingNextRound && !submitting);
+	// A failed generation must not trap the participant: their answers are already saved.
+	let summaryFailed = $derived(loadError && rounds.length === 0 && !pendingNextRound);
+	let canSubmit = $derived((latestHasText || summaryFailed) && !pendingNextRound && !submitting);
 	let blockedReason = $derived.by(() => {
 		if (canSubmit) return undefined;
 		if (pendingNextRound || rounds.length === 0)
@@ -315,7 +314,7 @@
 		});
 	});
 
-	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
+	let showFirstGenError = $derived(summaryFailed);
 	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
 
@@ -469,6 +468,9 @@
 			<div class="space-y-3 text-center">
 				<p class="text-muted-foreground text-sm">
 					{m.thinking_space_summary_gen_failure()}
+				</p>
+				<p class="text-muted-foreground text-sm">
+					{m.thinking_space_summary_continue_without()}
 				</p>
 				<div class="flex justify-center">
 					<Button

@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "ستاسو د ځوابونو ګډې اړیکې لټوو…",
 	"thinking_space_summary_loading_3": "نږدې بشپړ شو — داسې وینا جوړوو چې ستاسو شریک کړي خبرې منعکس کړي.",
 	"thinking_space_summary_gen_failure": "ستاسو لنډیز جوړ نه شو. مهرباني وکړئ بیا هڅه وکړئ.",
+	"thinking_space_summary_continue_without": "ستاسو ځوابونه خوندي شوي، نو تاسو کولی شئ بل هم کېکاږئ او له لنډیز پرته دوام ورکړئ.",
 	"thinking_space_summary_gen_round_failure": "د لنډیز نوې بڼه جوړه نه شوه.",
 	"thinking_space_summary_still_writing": "ستاسو لنډیز لا لیکل کېږي.",
 	"thinking_space_summary_needs_text": "د دوام لپاره خپل لنډیز ته یو څه متن ورزیات کړئ.",

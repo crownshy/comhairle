@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "正在寻找贯穿你回答的共同线索…",
 	"thinking_space_summary_loading_3": "快完成了——正在生成一段反映你所分享内容的陈述。",
 	"thinking_space_summary_gen_failure": "无法生成你的摘要。请重试。",
+	"thinking_space_summary_continue_without": "你的回答已保存，你也可以点击“下一步”在没有摘要的情况下继续。",
 	"thinking_space_summary_gen_round_failure": "无法生成新一轮摘要。",
 	"thinking_space_summary_still_writing": "你的摘要仍在生成中。",
 	"thinking_space_summary_needs_text": "请在摘要中添加一些内容以继续。",

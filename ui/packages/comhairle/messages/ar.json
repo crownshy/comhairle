@@ -380,6 +380,7 @@
 	"thinking_space_summary_loading_2": "نبحث عن الخيوط المشتركة بين إجاباتك…",
 	"thinking_space_summary_loading_3": "أوشكنا على الانتهاء — نُنشئ بياناً يعكس ما شاركته.",
 	"thinking_space_summary_gen_failure": "تعذر إنشاء ملخصك. يرجى المحاولة مرة أخرى.",
+	"thinking_space_summary_continue_without": "تم حفظ إجاباتك، لذا يمكنك أيضًا الضغط على التالي للمتابعة دون ملخص.",
 	"thinking_space_summary_gen_round_failure": "تعذر إنشاء الجولة الجديدة من الملخص.",
 	"thinking_space_summary_still_writing": "لا يزال ملخصك قيد الكتابة.",
 	"thinking_space_summary_needs_text": "أضف بعض النص إلى ملخصك للمتابعة.",

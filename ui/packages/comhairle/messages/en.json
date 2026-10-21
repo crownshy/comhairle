@@ -410,6 +410,7 @@
 	"thinking_space_summary_loading_2": "Looking for the threads that run through your answers…",
 	"thinking_space_summary_loading_3": "Almost there — building a statement that reflects what you shared.",
 	"thinking_space_summary_gen_failure": "Couldn't generate your summary. Please try again.",
+	"thinking_space_summary_continue_without": "Your answers are saved, so you can also press Next to continue without a summary.",
 	"thinking_space_summary_gen_round_failure": "Couldn't generate the new summary round.",
 	"thinking_space_summary_still_writing": "Your summary is still being written.",
 	"thinking_space_summary_needs_text": "Add some text to your summary to continue.",
