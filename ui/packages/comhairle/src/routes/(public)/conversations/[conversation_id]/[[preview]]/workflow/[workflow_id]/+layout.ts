@@ -1,4 +1,7 @@
 import { key } from '$lib/utils/invalidationKey';
+import { apiErrorStatus, tryCatchAsync } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
+import { redirectToLoginToTakePart } from './loginToTakePart';
 import type { LayoutLoad } from './$types';
 import type {
 	LocalizedWorkflowStepDto,
@@ -6,7 +9,7 @@ import type {
 	UserParticipationDto
 } from '@crownshy/api-client/api';
 
-export const load: LayoutLoad = async ({ parent, params, depends }) => {
+export const load: LayoutLoad = async ({ parent, params, depends, url }) => {
 	// Documents (the Learning Assistant gate + in-content source badges) are fetched once in the
 	// conversation [[preview]] layout, the nearest shared ancestor of every page that renders
 	// participant-facing rich content. Read them from there rather than re-fetching.
@@ -21,21 +24,24 @@ export const load: LayoutLoad = async ({ parent, params, depends }) => {
 
 	// Previewing a live conversation shows every step fresh, the same as a draft, rather than
 	// the admin's own progress as a participant.
-	let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
-	if (conversation.isLive && !preview) {
-		workflowSteps = (await api.ListConversationWorkflowSteps({
+	const withUserProgress = conversation.isLive && !preview;
+	const steps = await tryCatchAsync(() =>
+		api.ListConversationWorkflowSteps({
 			params: { conversation_id: conversation.id, workflow_id },
-			queries: { withUserProgress: true }
-		})) as LocalizedWorkflowStepWithProgressDto[];
-	} else {
-		const steps = (await api.ListConversationWorkflowSteps({
-			params: { conversation_id: conversation.id, workflow_id }
-		})) as LocalizedWorkflowStepDto[];
-		workflowSteps = steps.map((s) => ({
-			...s,
-			progressStatus: 'not_started' as const
-		}));
+			queries: withUserProgress ? { withUserProgress: true } : undefined
+		})
+	);
+	if (steps.err !== null) {
+		// A step link opened while signed out lands here first, so this is where it gets a way back.
+		if (apiErrorStatus(steps.err) === HttpStatus.Unauthorized) redirectToLoginToTakePart(url);
+		throw steps.err;
 	}
+	const workflowSteps: LocalizedWorkflowStepWithProgressDto[] = withUserProgress
+		? (steps.ok as LocalizedWorkflowStepWithProgressDto[])
+		: (steps.ok as LocalizedWorkflowStepDto[]).map((step) => ({
+				...step,
+				progressStatus: 'not_started' as const
+			}));
 
 	// The conversation layout fetches participation for the conversation's first workflow,
 	// which is the one this flow runs in every case we ship today. If this layout is ever
