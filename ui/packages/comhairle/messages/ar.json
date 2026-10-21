@@ -186,6 +186,7 @@
 	"polis_tip_many_statements": "يمكنك إرسال عدد غير محدود من الآراء.",
 	"polis_tip_come_back": "عد بشكل متكرر للتصويت على الأفكار الجديدة التي قدمها الآخرون",
 	"polis_opinion_submitted": "تم إرسال رأيك. شكراً لك!",
+	"polis_opinion_not_submitted": "لم يتم إرسال رأيك. يرجى المحاولة مرة أخرى.",
 	"polis_opinion_placeholder": "أدخل رأيك الخاص هنا",
 	"polis_tip_max_length": "اجعله قصيرًا: حتى {max} حرف",
 	"polis_characters_left": "متبقٍّ {count} حرف",

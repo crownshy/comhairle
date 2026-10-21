@@ -574,7 +574,7 @@
 				<div
 					class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
 				>
-					{m.something_went_wrong()}
+					{m.polis_opinion_not_submitted()}
 				</div>
 			{/if}
 
