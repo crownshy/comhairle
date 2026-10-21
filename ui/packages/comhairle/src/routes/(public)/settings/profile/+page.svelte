@@ -166,7 +166,7 @@
 				{/snippet}
 			</Form>
 
-			<span class="block font-medium">Password</span>
+			<span class="block text-sm font-medium">Password</span>
 			<UpdatePasswordDialog>
 				<Button>Change password</Button>
 			</UpdatePasswordDialog>
