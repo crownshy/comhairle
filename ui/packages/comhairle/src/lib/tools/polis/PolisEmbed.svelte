@@ -705,7 +705,7 @@
 			in:fade={{ duration: 300 }}
 		>
 			<p class="text-card-foreground text-3xl font-normal">
-				{m.polis_voted_everything()}
+				{totalVotes === 0 ? m.polis_no_opinions_yet() : m.polis_voted_everything()}
 			</p>
 			<p class="text-muted-foreground text-lg">
 				{m.polis_come_back_later()}

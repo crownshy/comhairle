@@ -194,6 +194,7 @@
 	"polis_submit_and_add_another": "إرسال وإضافة رأي آخر",
 	"polis_back_to_voting": "العودة إلى التصويت",
 	"polis_voted_everything": "لقد صوّتت على كل الآراء في هذه الخطوة حتى الآن. شكراً لك!",
+	"polis_no_opinions_yet": "لا توجد آراء للتصويت عليها بعد. يمكنك إضافة رأيك.",
 	"polis_come_back_later": "لا يزال الناس يضيفون آراء جديدة، لذا يستحق الأمر العودة لاحقاً.",
 	"polis_error_description": "لم نتمكن من تحميل الآراء الآن. قد تكون هذه مشكلة مؤقتة.",
 	"polis_seed_statement": "بادئ محادثة:",

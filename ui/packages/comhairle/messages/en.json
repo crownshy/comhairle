@@ -213,6 +213,7 @@
 	"polis_submit_and_add_another": "Submit and add another one",
 	"polis_back_to_voting": "Back to voting",
 	"polis_voted_everything": "You've voted on every opinion in this step so far. Thank you!",
+	"polis_no_opinions_yet": "There are no opinions to vote on yet. You can add your own.",
 	"polis_votes_counted": "You've voted on {count} opinions",
 	"polis_votes_counted_one": "You've voted on {count} opinion",
 	"polis_continue_prompt_body": "Every vote so far is saved. You can keep going for as long as you like, or finish voting here.",
