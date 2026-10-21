@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -23,7 +24,10 @@
 	 from the surrounding content wrapper, not from here, so pages stay vertically aligned. -->
 <div class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
 	<div class="flex flex-col gap-1">
-		<svelte:element this={level} class="font-bold {level === 'h1' ? 'text-2xl' : 'text-xl'}">
+		<svelte:element
+			this={level}
+			class={cn('font-bold', level === 'h1' ? 'text-2xl' : 'text-xl')}
+		>
 			{title}
 		</svelte:element>
 		{#if description}

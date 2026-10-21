@@ -22,6 +22,7 @@
 	}
 </script>
 
+<!-- eslint-disable svelte/no-navigation-without-resolve -- every href is built on basePath, this conversation's events route -->
 <TabStripShell ariaLabel="Events">
 	<li>
 		<a
@@ -39,7 +40,7 @@
 			<a
 				href={`${basePath}/${event.id}`}
 				title={event.name || 'Unnamed event'}
-				class="{sectionTabClass(active)} max-w-[220px]"
+				class={sectionTabClass(active, 'max-w-[220px]')}
 				aria-current={active ? 'page' : undefined}
 			>
 				<span class="truncate">{event.name || 'Unnamed event'}</span>
@@ -53,3 +54,4 @@
 		</a>
 	</li>
 </TabStripShell>
+<!-- eslint-enable svelte/no-navigation-without-resolve -->
