@@ -162,7 +162,7 @@
 	{/if}
 {/if}
 
-{#if error}
+{#if error !== undefined}
 	<div class="flex h-full flex-col items-center align-middle">
 		<div class="my-auto text-center">
 			{#if error == 'Invite does not match logged in user'}
@@ -170,11 +170,13 @@
 				<p>
 					If you think you should be, check if you are logged in with the correct account
 				</p>
-				<Button class="mt-10" href="/conversations">Find Other Conversations</Button>
-			{/if}
-			{#if error == 'This invite has expired'}
+			{:else if error == 'This invite has expired'}
 				<h1>This invite has expired</h1>
+			{:else}
+				<h1>{m.invite_unusable_title()}</h1>
+				<p>{m.invite_unusable_description()}</p>
 			{/if}
+			<Button class="mt-10" href="/conversations">{m.conversation_closed_link()}</Button>
 		</div>
 	</div>
 {/if}

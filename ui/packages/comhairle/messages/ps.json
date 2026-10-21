@@ -211,6 +211,8 @@
 	"conversation_closed_title": "دا خبرې اترې تړل شوې دي",
 	"conversation_closed_description": "په خبرو اترو کې ګډون اوس پای ته رسېدلی.",
 	"conversation_closed_link": "نورو خبرو اترو ته بیرته لاړ شئ",
+	"invite_unusable_title": "دا د بلنې لینک نشي کارول کېدای",
+	"invite_unusable_description": "کېدای شي غلط لیکل شوی وي یا نور شتون ونلري.",
 	"continue_to_home": "کور ته دوام ورکړئ",
 	"privacy_title": "محرمیت",
 	"privacy_intro": "د وېب پاڼې د کړنو د اجرا او د حساب ورکونې او څارنې د چمتو کولو لپاره، موږ په پلیټ فارم کې ځوابونه د لاندې حساب ډولونو یو سره راټولوو او تړو:",

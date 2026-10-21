@@ -211,6 +211,8 @@
 	"conversation_closed_title": "Tha an còmhradh seo dùinte",
 	"conversation_closed_description": "Tha com-pàirteachadh sa chòmhradh a-nis seachad.",
 	"conversation_closed_link": "Till gu còmhraidhean eile",
+	"invite_unusable_title": "Cha ghabh an ceangal cuiridh seo a chleachdadh",
+	"invite_unusable_description": "Dh'fhaodadh gu bheil e air a dhroch sgrìobhadh no nach eil e ri fhaighinn tuilleadh.",
 	"continue_to_home": "Lean air adhart chun dachaigh",
 	"privacy_title": "Prìobhaideachd",
 	"privacy_intro": "Gus gnìomhachd na làraich-lìn a chur an gnìomh agus cunntachalachd is maorsainneachd a thoirt seachad, bidh sinn a' cruinneachadh fhreagairtean air an àrd-ùrlar agus gan ceangal ri aon de na seòrsaichean cunntais a leanas:",

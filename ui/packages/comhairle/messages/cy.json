@@ -211,6 +211,8 @@
 	"conversation_closed_title": "Mae'r sgwrs hon wedi'i chau",
 	"conversation_closed_description": "Mae cyfranogiad yn y sgwrs wedi dod i ben bellach.",
 	"conversation_closed_link": "Dychwelyd at sgyrsiau eraill",
+	"invite_unusable_title": "Does dim modd defnyddio'r ddolen wahodd hon",
+	"invite_unusable_description": "Efallai ei bod wedi'i theipio'n anghywir neu nad yw ar gael mwyach.",
 	"continue_to_home": "Parhau i'r hafan",
 	"privacy_title": "Preifatrwydd",
 	"privacy_intro": "Er mwyn gweithredu swyddogaethau'r wefan a darparu atebolrwydd a chymedroli, rydym yn casglu ac yn cysylltu ymatebion ar y platfform ag un o'r mathau canlynol o gyfrif:",

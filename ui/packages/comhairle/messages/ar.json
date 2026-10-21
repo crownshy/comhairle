@@ -211,6 +211,8 @@
 	"conversation_closed_title": "هذه المحادثة مغلقة",
 	"conversation_closed_description": "لقد انتهت المشاركة في المحادثة الآن.",
 	"conversation_closed_link": "العودة إلى المحادثات الأخرى",
+	"invite_unusable_title": "لا يمكن استخدام رابط الدعوة هذا",
+	"invite_unusable_description": "ربما كُتب بشكل خاطئ أو لم يعد متاحًا.",
 	"continue_to_home": "المتابعة إلى الصفحة الرئيسية",
 	"privacy_title": "الخصوصية",
 	"privacy_intro": "لتشغيل وظائف الموقع الإلكتروني وتوفير المساءلة والإشراف، نقوم بجمع الردود على المنصة وربطها بأحد أنواع الحسابات التالية:",
