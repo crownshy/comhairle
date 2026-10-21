@@ -8,10 +8,10 @@ import { Textbox } from './utils/components';
 test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
-	await Conversation.openTab(page, 'Configure', 'Glossary');
+	await Conversation.openTab(page, 'Configure', 'Content');
 });
 
-test('Configure/glossary page', async ({ page }) => {
+test('Configure/Content glossary', async ({ page }) => {
 	const GlossaryEditorTerm = await Textbox('Term and synonyms in English', { page });
 	await GlossaryEditorTerm.write();
 	await GlossaryEditorTerm.locator().press('Tab');

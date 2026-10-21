@@ -33,9 +33,10 @@
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { Autosave } from '../moderation-policy/autosave.svelte';
+	import { Autosave } from '../autosave.svelte';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
+	import AccessSettings from './AccessSettings.svelte';
 
 	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
@@ -286,7 +287,11 @@
 	});
 </script>
 
-<PageHeader level="h2" title="Details" description="Title, description, language and banner." />
+<PageHeader
+	level="h2"
+	title="Details"
+	description="Title, description, language, banner and who can take part."
+/>
 
 <!-- One superForm still backs every field (its inline validation + $form binding); there is
 	 no submit — every field autosaves (see ADR-0004), so this is a plain container. -->
@@ -480,6 +485,14 @@
 			</div>
 		</div>
 	</div>
+
+	{#if data.workflows[0]}
+		<AccessSettings
+			{conversation}
+			workflow={data.workflows[0]}
+			previewPasswordStatus={data.previewPasswordStatus}
+		/>
+	{/if}
 
 	{#if canDelete}
 		<div class="border-destructive/30 my-6 flex flex-col gap-4 rounded-lg border p-6">

@@ -7,10 +7,10 @@ import { testWithRefresh } from './utils';
 test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
-	await Conversation.openTab(page, 'Configure', 'Access');
+	await Conversation.openTab(page, 'Configure', 'Details');
 });
 
-test('Configure/Access page', async ({ page, cleanup }) => {
+test('Configure/Details access settings', async ({ page, cleanup }) => {
 	const ShowConversationPublicy = await Switch('Show conversation publicly', { page, cleanup });
 	const OnlyAllowParticipationBy = await Switch('Only allow participation by', { page, cleanup });
 	const AutomaticallyLogInWithAn = await Switch('Automatically log in with an', {

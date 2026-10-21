@@ -312,7 +312,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Select :preview: at the top of the sidebar, next to the conversation’s status, to see how it will appear to participants.',
 					'To customise other participant-facing text, go to **Configure** → **Content**. Here you can edit the **Call to action**, **FAQs**, **Privacy policy**, and **Thank you message**.',
 					'If you leave fields under **Content** blank, Comhairle’s default text will be used.',
-					'If you use specialist or unfamiliar terms, explain them under **Configure** → **Glossary**. Their definitions will appear as tooltips when those terms are used in the conversation.'
+					'If you use specialist or unfamiliar terms, explain them under **Glossary** in **Configure** → **Content**. Their definitions will appear as tooltips when those terms are used in the conversation.'
 				]
 			},
 			{
@@ -587,7 +587,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					alt: 'The Access tab under Configure, with on and off switches grouped under Visibility (Show conversation publicly), Who can take part (Only allow participation by invite, Automatically log in with an anonymous account) and After finishing (Allow revisit after finishing).'
 				},
 				steps: [
-					'Go to **Configure** → **Access**.',
+					'Go to **Configure** → **Details** and scroll to **Access**.',
 					'Review the access and participation settings and turn on the options that suit your conversation.',
 					'Use **Show conversation publicly** to allow anyone to view the conversation’s data once it has been launched.',
 					'Use **Only allow participation by invite** to restrict participation to people invited and managed by admins.',
@@ -664,7 +664,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				],
 				tips: [
 					'Create a separate link for each channel you use. The **Accepted** column shows how many people joined through each link, so you can see which channels work best.',
-					'If **Only allow participation by invite** is turned on under **Configure** → **Access**, only people you invite can take part.',
+					'If **Only allow participation by invite** is turned on under **Access** in **Configure** → **Details**, only people you invite can take part.',
 					'You can find the conversation’s public address at any time under **Live Conversation Link** in the more actions menu at the top right.'
 				]
 			},
@@ -985,15 +985,15 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'Access and participation settings',
 				navLabel: 'Access and participation settings',
 				summary:
-					'Get to know the **Access** page, then decide who can see your conversation, who can take part, and what people see when they finish. Make these decisions before you launch.',
+					'Get to know the **Access** settings, then decide who can see your conversation, who can take part, and what people see when they finish. Make these decisions before you launch.',
 				image: {
 					src: configureAccessImage,
 					alt: 'The Access page under Configure, with toggles for who can see and take part in the conversation.',
 					caption: 'The Access page under Configure.'
 				},
 				environment: {
-					title: 'The Access page',
-					intro: 'Go to **Configure** → **Access**. Each setting is a toggle.',
+					title: 'The Access settings',
+					intro: 'Go to **Configure** → **Details** and scroll to **Access**. Each setting is a toggle.',
 					parts: [
 						{
 							name: 'Show conversation publicly',
@@ -1087,7 +1087,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						{
 							name: 'Allow revisit after finishing',
 							description:
-								'In **Configure** → **Access**. On by default. Applies to the whole conversation after a participant finishes every step.'
+								'In **Configure** → **Details**, under **Access**. On by default. Applies to the whole conversation after a participant finishes every step.'
 						}
 					]
 				},
@@ -1110,7 +1110,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							title: 'Close the conversation to people who have finished',
 							when: 'Contributions should be final once someone finishes, for example so results can’t shift after the fact.',
 							how: [
-								'Turn off **Allow revisit after finishing** in **Configure** → **Access**.'
+								'Turn off **Allow revisit after finishing** under **Access** in **Configure** → **Details**.'
 							],
 							result: 'Participants who finish can’t reach any step, the revisit links disappear, and further contributions are rejected. Adding a step to a live conversation re-opens it for everyone who had already finished.',
 							image: {

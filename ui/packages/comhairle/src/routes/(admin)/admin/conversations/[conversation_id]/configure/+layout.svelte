@@ -11,7 +11,7 @@
 		permissions.can('conversation', 'conversation_admin', data.conversation.id)
 	);
 
-	const tabs = ['details', 'content', 'glossary', 'moderation-policy', 'access'] as const;
+	const tabs = ['details', 'content', 'moderation-policy'] as const;
 </script>
 
 {#snippet Tab(tab: (typeof tabs)[number] | 'team')}

@@ -3,7 +3,7 @@ import { TEST_CONVERSATION_TITLE, TEST_LAUNCHED_CONVERSATION_TITLE } from '../co
 import type { Page } from '../types';
 
 type Tabs = {
-	Configure: readonly ['Details', 'Content', 'Glossary', 'Moderation policy', 'Access', 'Team'];
+	Configure: readonly ['Details', 'Content', 'Moderation policy', 'Team'];
 	'Process design': undefined;
 	'Learning Assistant': undefined;
 	Events: undefined;
