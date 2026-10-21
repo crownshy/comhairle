@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
-import { eventually, test } from './utils/testing';
-import { sleep, testWithRefresh } from './utils';
+import { test } from './utils/testing';
+import { testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
@@ -13,7 +13,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Details page', async ({ page, cleanup }) => {
-	const Title = await Textbox('Title', { page, cleanup }, { resetTo: TEST_CONVERSATION_TITLE });
+	const Title = await Textbox(
+		'Title',
+		{ page, cleanup },
+		{ resetTo: TEST_CONVERSATION_TITLE, exact: true }
+	);
 	const ShortDescription = await Textbox('Short description', { page, cleanup }, { exact: true });
 	const Description = await Textbox('Description', { page, cleanup }, { exact: true });
 
@@ -41,22 +45,10 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	// });
 
-	await sleep(1.5);
-	await page.reload();
-
 	await testWithRefresh(page, async () => {
 		await Title.expect();
 		await ShortDescription.expect();
 		await Description.expect();
-
-		const header = page.getByRole('heading', {
-			description: Title.currentValue(),
-			exact: true
-		});
-		await eventually(() => expect(header).toBeVisible());
-
-		const conversation = page.getByRole('link', { name: Title.currentValue() });
-		await eventually(() => expect(conversation).toBeVisible());
 
 		// Translation stuff
 		// await expect(
@@ -65,6 +57,12 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 		// await expect(page.getByRole('button', { name: 'English approved' })).toBeVisible();
 		// await expect(page.getByRole('button', { name: 'Welsh draft' })).toBeVisible();
 	});
+
+	// Autosave doesn't reload the page, so the sidebar heading only shows the new title after
+	// the reload above.
+	await expect(
+		page.getByRole('heading', { name: Title.currentValue(), exact: true, level: 1 })
+	).toBeVisible();
 
 	// Image stuff
 	// await page.getByLabel('Open media library').click();

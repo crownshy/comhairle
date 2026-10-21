@@ -1,24 +1,20 @@
-import { generateValue, sleep, testWithRefresh } from '..';
+import { generateValue, testWithRefresh } from '..';
 import type { Page } from '../types';
 import type { Refs } from './types';
 import { expect, type Locator } from '@playwright/test';
-import Textbox from './inputs/Textbox';
 import Design from '../navigation/Design';
 
-const MoveUpBtn = (locator: Locator) => locator.getByLabel('Move step up');
-const MoveDownBtn = (locator: Locator) => locator.getByLabel('Move step down');
-const Menu = (page: Page) => page.getByRole('button', { name: 'Step actions' });
-
-type MenuItemName = 'Delete' | 'Move up' | 'Move down' | 'Rename' | 'Learn more';
+type MenuItemName = 'Delete' | 'Move up' | 'Move down' | 'Rename';
 const MenuItem = (page: Page, name: MenuItemName) => page.getByRole('menuitem', { name });
+const MenuButton = (card: Locator) => card.getByRole('button', { name: 'Step actions' });
+const NO_STEPS = 'No steps yet. Add your first';
 
 type DraggableListItem<T> = {
 	id: T;
 	name: string;
-	position: number;
 };
 
-type DraggableListItemComponent<T> = DraggableListItem<T> & {
+type DraggableListItemComponent = {
 	reorder: (movement: 'up' | 'down') => Promise<void>;
 	menu: () => {
 		rename: (newName?: string) => Promise<void>;
@@ -27,123 +23,131 @@ type DraggableListItemComponent<T> = DraggableListItem<T> & {
 	};
 };
 
+async function openBoard(page: Page) {
+	const board = page.getByRole('heading', { name: 'Process steps' });
+	if (!(await board.isVisible())) {
+		await page
+			.getByRole('navigation', { name: 'Workflow steps' })
+			.getByRole('tab', { name: 'Design', exact: true })
+			.click();
+	}
+	// Steps stream in after the page renders, so wait for the board to settle either way.
+	await expect(Design.stepCards(page).first().or(page.getByText(NO_STEPS))).toBeVisible();
+}
+
+async function deleteAllSteps(page: Page) {
+	await openBoard(page);
+	const cards = Design.stepCards(page);
+	for (let remaining = await cards.count(); remaining > 0; remaining--) {
+		// Arriving from a step page refreshes the board once more, which can close a menu
+		// that opened too early, so retry opening it.
+		await expect(async () => {
+			await page.keyboard.press('Escape');
+			await MenuButton(cards.first()).click();
+			await MenuItem(page, 'Delete').click({ timeout: 2000 });
+		}).toPass();
+		await expect(cards).toHaveCount(remaining - 1);
+	}
+}
+
+/**
+ * Tracks the steps a test adds, in board order, and checks the board and the workflow step
+ * strip against it. The strip renders from the server, so it only changes once a save lands.
+ */
 const DraggableList = async <const T extends string>(refs: Refs) => {
+	const { page } = refs;
 	const list: DraggableListItem<T>[] = [];
 
-	refs.cleanup?.(async () => {
-		const count = await Menu(refs.page).count();
-		for (let i = 0; i < count; i++) {
-			const MenuBtn = Menu(refs.page).first();
-			if (!(await MenuBtn.isVisible())) {
-				continue;
-			}
-			await MenuBtn.click();
-			const DeleteBtn = MenuItem(refs.page, 'Delete');
-			if (!(await DeleteBtn.isVisible())) {
-				continue;
-			}
-			await DeleteBtn.click();
-			await sleep(0.5);
-		}
-	});
+	await deleteAllSteps(page);
+	refs.cleanup?.(() => deleteAllSteps(page));
 
-	type params = Parameters<typeof Design.addStep>;
-	async function add(id: T, from: params[1], type: params[2]) {
-		const stepName = await Design.addStep(refs.page, from, type);
-		list.push({ id, name: stepName, position: list.length + 1 });
+	async function expectOrder() {
+		const names = list.map((item) => item.name);
+		const cards = Design.stepCards(page);
+		await expect(cards).toHaveCount(names.length);
+		for (const [index, name] of names.entries()) {
+			await expect(cards.nth(index).getByRole('link', { name, exact: true })).toBeVisible();
+		}
+		await expect(Design.stepTabs(page)).toHaveText(['Design', ...names]);
 	}
 
-	async function reorder(
-		locator: Locator,
-		listItem: (typeof list)[number],
-		movement: 'up' | 'down'
+	async function add(
+		id: T,
+		from: Parameters<typeof Design.addStep>[1],
+		type: Parameters<typeof Design.addStep>[2]
 	) {
-		switch (movement) {
-			case 'up': {
-				await MoveUpBtn(locator).click();
-				const targetPosition = listItem.position - 1;
-				const targetItem = list.find((l) => l.position === targetPosition);
-				if (!targetItem) {
-					return;
-				}
-				listItem.position -= 1;
-				targetItem.position += 1;
-				break;
-			}
-			case 'down': {
-				await MoveDownBtn(locator).click();
-				const targetPosition = listItem.position + 1;
-				const targetItem = list.find((l) => l.position === targetPosition);
-				if (!targetItem) {
-					return;
-				}
-				listItem.position += 1;
-				targetItem.position -= 1;
-				break;
-			}
-		}
-		await sleep(1);
+		const name = await Design.addStep(page, from, type);
+		list.push({ id, name });
+		await expectOrder();
 	}
 
-	async function get(id: T): Promise<DraggableListItemComponent<T>> {
-		const itemIndex = list.findIndex((l) => l.id === id);
-		const listItem = list[itemIndex];
-		if (!listItem) {
-			throw new Error(`Cannot find item! List: ${list}, id: ${id}`);
+	function indexOf(id: T) {
+		const index = list.findIndex((item) => item.id === id);
+		if (index < 0) {
+			throw new Error(`Cannot find item "${id}" in ${JSON.stringify(list)}`);
 		}
+		return index;
+	}
 
-		const locator = refs.page.getByRole('listitem').filter({
-			hasText: `${listItem.position} ${listItem.name}`
-		});
-		if (!(await locator.isVisible())) {
-			throw new Error(`Locator not found: "${listItem.position} ${listItem.name}"`);
-		}
+	async function move(id: T, movement: 'up' | 'down', click: (card: Locator) => Promise<void>) {
+		const from = indexOf(id);
+		const to = movement === 'up' ? from - 1 : from + 1;
+		await click(Design.stepCards(page).nth(from));
+		[list[from], list[to]] = [list[to], list[from]];
+		await expectOrder();
+	}
+
+	async function get(id: T): Promise<DraggableListItemComponent> {
+		indexOf(id);
+		const card = () => Design.stepCards(page).nth(indexOf(id));
 
 		return {
-			...listItem,
-			reorder: (movement) => reorder(locator, listItem, movement),
-			menu: () => {
-				const MenuBtn = Menu(refs.page).nth(listItem.position - 1);
-
-				return {
-					rename: async (newName = generateValue()) => {
-						await MenuBtn.click();
-						await MenuItem(refs.page, 'Rename').click();
-						const NewNameTextbox = await Textbox(undefined, { page: refs.page });
-						listItem.name = newName;
-
-						await NewNameTextbox.write(newName);
-						await NewNameTextbox.locator().press('Enter');
-						await sleep(1);
-					},
-					delete: async () => {
-						await MenuBtn.click();
-						await MenuItem(refs.page, 'Delete').click();
-						list.splice(itemIndex, 1);
-					},
-					reorder: (movement) => reorder(locator, listItem, movement)
-				};
-			}
+			reorder: (movement) =>
+				move(id, movement, (c) =>
+					c
+						.getByRole('button', {
+							name: movement === 'up' ? 'Move step up' : 'Move step down'
+						})
+						.click()
+				),
+			menu: () => ({
+				rename: async (newName = generateValue()) => {
+					await MenuButton(card()).click();
+					await MenuItem(page, 'Rename').click();
+					const nameField = card().getByRole('textbox');
+					await nameField.fill(newName);
+					// The field commits on blur too, so if a board refresh has already blurred it,
+					// the name is saved and this Enter is a no-op.
+					await page.keyboard.press('Enter');
+					list[indexOf(id)].name = newName;
+					await expectOrder();
+				},
+				delete: async () => {
+					await MenuButton(card()).click();
+					await MenuItem(page, 'Delete').click();
+					list.splice(indexOf(id), 1);
+					await expectOrder();
+				},
+				reorder: (movement) =>
+					move(id, movement, async (c) => {
+						await MenuButton(c).click();
+						await MenuItem(page, movement === 'up' ? 'Move up' : 'Move down').click();
+					})
+			})
 		};
 	}
 
 	async function expected() {
 		if (list.length === 0) {
-			expect(refs.page.getByText('No steps yet. Add your first')).toBeVisible();
+			await expect(page.getByText(NO_STEPS)).toBeVisible();
 			return;
 		}
-		for (const item of list) {
-			const count = await refs.page
-				.getByRole('listitem')
-				.filter({ hasText: item.name })
-				.count();
-			expect(count).toBe(2);
-		}
+		await expectOrder();
 	}
 
 	return {
 		add,
-		expect: () => testWithRefresh(refs.page, () => expected()),
+		expect: () => testWithRefresh(page, expected),
 		get
 	};
 };
