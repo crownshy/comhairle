@@ -17,7 +17,10 @@ use crate::models::email_template_config::{
     EmailTypeSchema, UpdateEmailTemplateConfig,
 };
 use crate::routes::auth::RequiredAdminUser;
-use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
+use crate::routes::email_template_configs::dto::{
+    EmailTemplateConfigDto, EmailTemplateConfigWithScopeDto,
+};
+use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
@@ -47,12 +50,14 @@ async fn list(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Query(filter_options): Query<EmailTemplateConfigFilterOptions>,
-) -> Result<(StatusCode, Json<Vec<EmailTemplateConfigDto>>), ComhairleError> {
-    let email_configs = email_template_config::list(&state.db, &user.id, filter_options)
-        .await?
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<Vec<EmailTemplateConfigWithScopeDto>>), ComhairleError> {
+    let email_configs =
+        email_template_config::list_with_scope(&state.db, user.id, filter_options, &locale)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
     Ok((StatusCode::OK, Json(email_configs)))
 }
@@ -170,7 +175,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("List custom email template configurations")
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
-                    .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
+                    .response::<200, Json<Vec<EmailTemplateConfigWithScopeDto>>>()
             }),
         )
         .api_route(

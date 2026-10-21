@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
-    Cond, Expr, Order, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def,
+    Alias, Cond, Expr, Func, JoinType, Order, PostgresQueryBuilder, Query, SelectStatement,
+    SimpleExpr, enum_def,
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::conversation::ConversationIden;
+use crate::models::translations::{TextContentIden, TextTranslationIden};
 use crate::models::{SqlxResultExt, users};
 
 /// A client-configured email template, persisted to the `email_template_config` table.
@@ -653,7 +656,13 @@ impl EmailTemplateConfigFilterOptions {
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
         if let Some(email_type) = &self.email_type {
             query = query
-                .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
+                .and_where(
+                    Expr::col((
+                        EmailTemplateConfigIden::Table,
+                        EmailTemplateConfigIden::EmailType,
+                    ))
+                    .eq(email_type.to_owned()),
+                )
                 .to_owned();
         }
 
@@ -671,6 +680,107 @@ pub async fn list(
         .from(EmailTemplateConfigIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(EmailTemplateConfigIden::OwnerId).eq(user_id.to_owned()))
+        .to_owned();
+
+    let query = filter_options.apply(query);
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let email_configs = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(email_configs)
+}
+
+/// An [`EmailTemplateConfig`] together with display details of the scope it
+/// applies to, so templates of the same email type can be told apart.
+///
+/// `conversation_title` is `None` when the template is not scoped to a
+/// conversation.
+#[derive(Debug, FromRow)]
+pub struct EmailTemplateConfigWithScope {
+    #[sqlx(flatten)]
+    pub config: EmailTemplateConfig,
+    pub conversation_title: Option<String>,
+}
+
+/// Lists the email templates owned by `user_id`, each paired with the title of
+/// the conversation it is scoped to.
+///
+/// Unlike [`list`], this joins the conversation and its title translations so
+/// the admin list can tell apart several templates of the same email type, such
+/// as `conversation_invite` templates scoped to different conversations.
+/// Unscoped templates are still returned, with `conversation_title` set to `None`.
+///
+/// The title is returned in `locale` when a translation exists, falling back to
+/// the conversation's primary locale.
+///
+/// # Arguments
+///
+/// * `user_id` - Only templates owned by this user are returned.
+/// * `filter_options` - Optional filters, such as `email_type`.
+/// * `locale` - The preferred locale for `conversation_title`.
+#[instrument(err(Debug), skip(db))]
+pub async fn list_with_scope(
+    db: &PgPool,
+    user_id: Uuid,
+    filter_options: EmailTemplateConfigFilterOptions,
+    locale: &str,
+) -> Result<Vec<EmailTemplateConfigWithScope>, ComhairleError> {
+    let tc = Alias::new("tc_title");
+    let tt = Alias::new("tt_title");
+    let tt_primary = Alias::new("tt_primary_title");
+
+    let query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EmailTemplateConfigIden::Table, col)))
+        .expr_as(
+            Func::coalesce([
+                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
+                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
+            ]),
+            Alias::new("conversation_title"),
+        )
+        .from(EmailTemplateConfigIden::Table)
+        .left_join(
+            ConversationIden::Table,
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::ConversationId,
+            ))
+            .equals((ConversationIden::Table, ConversationIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextContentIden::Table,
+            tc.clone(),
+            Expr::col((ConversationIden::Table, ConversationIden::Title))
+                .equals((tc.clone(), TextContentIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt.clone(), TextTranslationIden::ContentId))
+                .and(Expr::col((tt.clone(), TextTranslationIden::Locale)).eq(locale)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt_primary.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt_primary.clone(), TextTranslationIden::ContentId))
+                .and(
+                    Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
+                        .equals((tc.clone(), TextContentIden::PrimaryLocale)),
+                ),
+        )
+        .and_where(
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::OwnerId,
+            ))
+            .eq(user_id),
+        )
         .to_owned();
 
     let query = filter_options.apply(query);
@@ -702,6 +812,7 @@ mod tests {
     use fake::{Fake, Faker};
 
     use super::*;
+    use crate::models::conversation;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
@@ -1174,6 +1285,82 @@ mod tests {
                 .iter()
                 .any(|c| c.email_type == EmailType::ConversationInvite),
             "incorrectly email_type included"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_with_scope_conversation_title_and_unscoped_configs(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+
+        let scoped = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let unscoped = create(&pool, user.id, &conversation_invite_params(None)).await?;
+
+        let configs = list_with_scope(&pool, user.id, Default::default(), "en").await?;
+
+        assert_eq!(configs.len(), 2, "incorrect total");
+
+        let scoped_result = configs
+            .iter()
+            .find(|c| c.config.id == scoped.id)
+            .ok_or("missing scoped config")?;
+        assert_eq!(
+            scoped_result.conversation_title.as_deref(),
+            Some(conversation.title.as_str()),
+            "incorrect conversation_title"
+        );
+
+        let unscoped_result = configs
+            .iter()
+            .find(|c| c.config.id == unscoped.id)
+            .ok_or("missing scoped config")?;
+        assert_eq!(
+            unscoped_result.conversation_title.as_deref(),
+            None,
+            "unscoped config should have no conversation_title"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_with_scope_primary_locale_title_when_locale_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+
+        let configs = list_with_scope(&pool, user.id, Default::default(), "xx").await?;
+
+        assert_eq!(
+            configs.len(),
+            1,
+            "translation joins should not duplicate rows"
+        );
+        assert_eq!(
+            configs[0].conversation_title.as_deref(),
+            Some(conversation.title.as_str()),
+            "expected primary locale title"
         );
 
         Ok(())
