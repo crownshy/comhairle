@@ -146,15 +146,45 @@ pub struct Mailer {
 }
 
 #[cfg(test)]
+pub struct SentEmail {
+    pub to: String,
+    pub subject: String,
+    pub template: String,
+    pub context: String,
+}
+
+#[cfg(test)]
 impl MockComhairleMailer {
     pub fn base() -> MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
+        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
+        Self::expect_other_emails(&mut mailer);
+        mailer
+    }
 
+    /// A mailer that records everything sent through `send_email` into `sent`.
+    pub fn recording(sent: Arc<std::sync::Mutex<Vec<SentEmail>>>) -> MockComhairleMailer {
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_email()
+            .returning(move |to, subject, template, context, _| {
+                sent.lock().unwrap().push(SentEmail {
+                    to: to.to_string(),
+                    subject: subject.to_string(),
+                    template: template.to_string(),
+                    context: context.to_string(),
+                });
+                Ok(())
+            });
+        Self::expect_other_emails(&mut mailer);
+        mailer
+    }
+
+    fn expect_other_emails(mailer: &mut MockComhairleMailer) {
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
         mailer
             .expect_send_verification_email()
             .returning(|_, _, _| Ok(()));
-        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
         mailer
             .expect_send_conversation_invite_email()
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
@@ -185,8 +215,6 @@ impl MockComhairleMailer {
         mailer
             .expect_preview_email()
             .returning(|_, _, _| Ok(String::new()));
-
-        mailer
     }
 }
 
