@@ -371,8 +371,11 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
-					{:else if toolConfig?.type === DemographicsForm.TOOL_NAME}
-						<DemographicsForm.UserUI />
+					{:else if toolConfig?.type === 'demographicform'}
+						<DemographicsForm.UserUI
+							organizationId={conversation.organizationId}
+							formId={toolConfig.form_id}
+						/>
 					{/if}
 				{/key}
 			</div>
