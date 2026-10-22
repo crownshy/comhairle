@@ -1,4 +1,4 @@
-//! Shared guard for public report-data endpoints (ADR-0046).
+//! Shared guard for public report-data endpoints (ADR-0061).
 //!
 //! Each embeddable report widget gets its own unauthenticated endpoint that returns only the
 //! aggregated, moderated fields that widget draws. Every one of them must go through
@@ -34,16 +34,15 @@ pub async fn public_report_tool_config(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            workflow_step::{self, PartialWorkflowStep},
-        },
-        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
-    };
+    use std::error::Error;
 
     use super::*;
-    use std::error::Error;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::workflow_step::{self, PartialWorkflowStep};
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_only_serve_steps_that_opted_in(pool: PgPool) -> Result<(), Box<dyn Error>> {
