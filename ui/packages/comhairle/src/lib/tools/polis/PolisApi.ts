@@ -163,14 +163,13 @@ export default class PolisApi {
 	}
 
 	/**
-	 * Every statement a participant may see, with vote counts. Unlike the report, this does not
-	 * wait for Polis's math to run, so statements added a moment ago are included.
+	 * Every statement a participant may see. Unlike the report, this does not wait for Polis's
+	 * math to run, so statements added a moment ago are included. It carries no vote counts.
 	 */
 	async fetchStatements(): Promise<PolisCommentRow[]> {
-		const r = await fetch(
-			`${this.baseUrl}/api/v3/comments?conversation_id=${this.polisId}&include_voting_patterns=true`,
-			{ credentials: 'include' }
-		);
+		const r = await fetch(`${this.baseUrl}/api/v3/comments?conversation_id=${this.polisId}`, {
+			credentials: 'include'
+		});
 		if (!r.ok) throw new Error(`comments failed: ${r.status}`);
 		return r.json();
 	}

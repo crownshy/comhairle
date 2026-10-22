@@ -382,6 +382,7 @@
 		{#snippet bar()}
 			<StepPager
 				{forwardMode}
+				nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
 				{canGoBack}
 				{canGoForward}
 				loading={isSubmitting}

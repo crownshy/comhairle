@@ -47,7 +47,7 @@ function statement(
 
 describe('toPracticeStatements', () => {
 	const rows: PolisCommentRow[] = [
-		{ tid: 1, txt: 'accepted', is_seed: true, mod: 1, agree_count: 2 },
+		{ tid: 1, txt: 'accepted', is_seed: true, mod: 1 },
 		{ tid: 2, txt: 'unmoderated', is_seed: false, mod: 0 },
 		{ tid: 3, txt: 'rejected', is_seed: false, mod: -1 },
 		{ tid: 4, txt: 'meta', is_seed: false, mod: 1, is_meta: true },
@@ -55,16 +55,15 @@ describe('toPracticeStatements', () => {
 	];
 
 	it('keeps unmoderated statements unless the step moderates strictly', () => {
-		expect(toPracticeStatements(rows, false).map((s) => s.tid)).toEqual([1, 2, 5]);
-		expect(toPracticeStatements(rows, true).map((s) => s.tid)).toEqual([1, 5]);
+		expect(toPracticeStatements(rows, false, undefined).map((s) => s.tid)).toEqual([1, 2, 5]);
+		expect(toPracticeStatements(rows, true, undefined).map((s) => s.tid)).toEqual([1, 5]);
 	});
 
-	it('carries the vote counts across', () => {
-		expect(toPracticeStatements(rows, true)[0].votes).toEqual({
-			agrees: 2,
-			disagrees: 0,
-			passes: 0
-		});
+	it('takes the vote counts from the report, and leaves them unknown when it has none', () => {
+		const withCounts = report({ comments: [comment(1, true, [2, 1, 0])] });
+		const [first, second] = toPracticeStatements(rows, true, withCounts);
+		expect(first.votes).toEqual({ agrees: 2, disagrees: 1, passes: 0 });
+		expect(second.votes).toBeUndefined();
 	});
 });
 
@@ -110,11 +109,17 @@ describe('stages', () => {
 
 describe('crowdBar', () => {
 	it('adds the participant vote Polis has not counted yet', () => {
-		const bar = crowdBar(statement(1, true, [1, 1, 1]), 'agree');
-		expect(bar.voters).toBe(4);
-		expect(bar.agreed).toBe(50);
-		expect(bar.disagreed).toBe(25);
-		expect(bar.passed).toBe(25);
+		expect(crowdBar(statement(1, true, [1, 1, 1]), 'agree')).toEqual({
+			agreed: 50,
+			disagreed: 25,
+			passed: 25,
+			voters: 4
+		});
+	});
+
+	it('claims nothing when the counts are not known', () => {
+		const unknown = { ...statement(1, true, [0, 0, 0]), votes: undefined };
+		expect(crowdBar(unknown, 'agree')).toBeUndefined();
 	});
 
 	it('is all zero with no voters', () => {

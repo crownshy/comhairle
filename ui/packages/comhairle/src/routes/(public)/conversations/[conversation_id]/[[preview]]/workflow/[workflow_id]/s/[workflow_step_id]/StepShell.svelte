@@ -40,7 +40,9 @@
 	</div>
 
 	{#if bar}
+		<!-- Kept lit over the Polis onboarding spotlight, since its Next lives here. -->
 		<div
+			data-spotlight-keep
 			class="bg-background/70 border-border/40 absolute inset-x-0 bottom-0 z-10 border-t backdrop-blur-lg"
 			bind:clientHeight={barHeight}
 		>

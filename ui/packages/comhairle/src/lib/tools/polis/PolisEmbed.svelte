@@ -1,18 +1,19 @@
 <script lang="ts">
-	import { Button, LoadingButton, buttonVariants } from '$lib/components/ui/button';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import * as Drawer from '$lib/components/ui/drawer';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
 		ThumbsUp,
 		ThumbsDown,
 		CheckCircle2,
-		X,
-		ChevronRight,
 		MessageSquare,
 		MessageSquarePlus,
 		AlertTriangle,
-		Lightbulb,
+		ShieldCheck,
+		ArrowLeft,
 		Languages
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -28,13 +29,13 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
-	import ModerationPolicySheet from './ModerationPolicySheet.svelte';
+	import ModerationPolicy from './ModerationPolicy.svelte';
 	import { statementSourceOf } from './statementSource';
 	import { cn } from '$lib/utils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
-	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import type { OnSequenceChange, ToolSequence } from '$lib/tools/toolSequence';
 	import type { PolisReportData } from './reportTypes';
 	import {
 		FREE_VOTES,
@@ -54,6 +55,7 @@
 	import GuideScreen from './onboarding/GuideScreen.svelte';
 	import GroupsReveal from './onboarding/GroupsReveal.svelte';
 	import CrowdStatement from './onboarding/CrowdStatement.svelte';
+	import Spotlight from './onboarding/Spotlight.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -107,6 +109,7 @@
 	);
 	let pick = $state<PracticePick>({ seed: undefined, participant: undefined });
 	let seedVote = $state<Vote | undefined>(undefined);
+	let participantVote = $state<Vote | undefined>(undefined);
 	let practisedAny = false;
 	// Someone who started with only organisers' statements gets the "someone like you" line on
 	// the first participant statement Polis serves them instead.
@@ -114,7 +117,6 @@
 	let someoneElseSeen = $state(false);
 	let freeVotes = $state(0);
 	let votesSinceOnboarding = 0;
-	let groupsAfterOpinion = false;
 	// After onboarding, the groups screen comes back every few votes.
 	let groupsShown = $state(false);
 	let report = $state<PolisReportData | undefined>(undefined);
@@ -214,11 +216,33 @@
 
 	const polis = new PolisApi(user_id, polis_id, handlePolisChange, 'en', polis_url);
 
-	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
+	type Screen = 'voting' | 'continue-prompt' | 'completed';
 
 	let totalVotes = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
+	// Writing an opinion opens over the voting card, so closing it leaves them where they were.
+	let opinionOpen = $state(false);
+	// The moderation policy and the thank-you open in place of the form rather than as a
+	// second sheet on top.
+	let opinionView = $state<'form' | 'policy' | 'thanks'>('form');
+	// The thank-you is short, so it sits centred in the same box rather than resizing it.
+	const opinionThanks = $derived(opinionView === 'thanks');
+	let submittedOpinion = $state('');
+	let opinionScroller = $state<HTMLElement | null>(null);
+	let opinionBox = $state<HTMLTextAreaElement | null>(null);
+	const isMobile = new IsMobile();
+	// Each view starts at its top, not wherever the last one was scrolled to.
+	function showOpinionView(view: typeof opinionView) {
+		opinionView = view;
+		opinionScroller?.scrollTo({ top: 0 });
+	}
+
+	const OPINION_TITLES = {
+		form: m.polis_add_your_own_opinion,
+		policy: m.polis_moderation_policy_title,
+		thanks: m.polis_opinion_thanks_title
+	};
 
 	// Seed progress from the server so the required-votes threshold is correct
 	// across devices, not just this browser. Best-effort: on failure we keep the
@@ -258,10 +282,16 @@
 			return;
 		}
 		// Polis's own list rather than the report, which leaves out statements its math has
-		// not reached yet. Without either, onboarding runs on whatever Polis serves.
-		const result = await tryCatchAsync(() => polis.fetchStatements());
+		// not reached yet; the report only adds the counts. Without the list, onboarding runs
+		// on whatever Polis serves.
+		const [result] = await Promise.all([
+			tryCatchAsync(() => polis.fetchStatements()),
+			loadReport()
+		]);
 		const statements =
-			result.err === null ? toPracticeStatements(result.ok, strictModeration ?? false) : [];
+			result.err === null
+				? toPracticeStatements(result.ok, strictModeration ?? false, report)
+				: [];
 		pick = pickPractice(statements);
 		firstHere = !pick.participant;
 		stage = 'intro';
@@ -298,7 +328,7 @@
 	}
 
 	function closeGroups() {
-		if (stage === 'groups') finishOnboarding();
+		if (stage === 'groups') stage = 'missing';
 		else groupsShown = false;
 	}
 
@@ -331,10 +361,26 @@
 
 	/** An onboarding screen that replaces the voting UI, if one is due. */
 	const guideStage = $derived.by(() => {
-		if (stage === 'intro' || stage === 'seed-result' || stage === 'missing') return stage;
+		if (
+			stage === 'intro' ||
+			stage === 'seed-result' ||
+			stage === 'participant-result' ||
+			stage === 'missing'
+		)
+			return stage;
 		if (stage === 'groups' || groupsShown) return 'groups';
 		return undefined;
 	});
+
+	const spotlightMoment = $derived(
+		screen === 'voting' && !opinionOpen && onboarding && stage !== 'deciding'
+			? (guideStage ?? stage)
+			: undefined
+	);
+
+	// Their first opinion comes from the "Do you want to add something?" stage, so there is
+	// one Submit and no "add another" yet.
+	const firstOpinion = $derived(stage === 'missing');
 
 	const portrait = $derived(report ? groupPortrait(report, polisPid) : undefined);
 	const snapshot = $derived(earlySnapshot(report));
@@ -345,11 +391,8 @@
 
 	let voteCooldown = $state(false);
 	let opinionText = $state('');
-	let opinionSubmitted = $state(false);
 	let opinionSubmitting = $state(false);
 	let opinionError = $state(false);
-	let returningToVoting = $state(false);
-	const submitBusy = $derived(opinionSubmitting || returningToVoting);
 	const MAX_STATEMENT_LENGTH = 200;
 	const charactersLeft = $derived(MAX_STATEMENT_LENGTH - opinionText.length);
 	let previousText = '';
@@ -440,7 +483,7 @@
 	function afterLiveVote() {
 		if (stage === 'free') {
 			freeVotes++;
-			if (freeVotes >= FREE_VOTES) stage = 'missing';
+			if (freeVotes >= FREE_VOTES) showOnboardingGroups();
 		} else if (stage === 'done') {
 			votesSinceOnboarding++;
 			if (isRevealDue(votesSinceOnboarding)) revealGroupsIfAny();
@@ -448,9 +491,12 @@
 	}
 
 	async function practiceVote(statement: PracticeStatement, vote: Vote) {
+		// The statement skeleton shows while the vote saves, as it does between live votes.
 		voteCooldown = true;
+		waitingForNext = true;
 		const ok = await polis.voteOn(statement.tid, vote);
 		voteCooldown = false;
+		waitingForNext = false;
 		if (!ok) {
 			skipOnboarding();
 			return;
@@ -461,7 +507,8 @@
 			seedVote = vote;
 			stage = 'seed-result';
 		} else {
-			startFreeVoting();
+			participantVote = vote;
+			stage = 'participant-result';
 		}
 	}
 
@@ -500,17 +547,11 @@
 		}, 800);
 	}
 
-	/** Back from writing a statement: on to the groups if the missing screen sent them there. */
-	function returnToVoting() {
-		if (groupsAfterOpinion) {
-			groupsAfterOpinion = false;
-			showOnboardingGroups();
-		}
-		if (polis.state.remaining === 0 && !guideStage) {
-			screen = 'completed';
-		} else {
-			screen = 'voting';
-		}
+	/** Closes the opinion box. Coming from the missing screen, that ends onboarding. */
+	function closeOpinion() {
+		opinionOpen = false;
+		if (stage === 'missing') finishOnboarding();
+		if (screen === 'voting' && polis.state.remaining === 0 && !guideStage) screen = 'completed';
 	}
 
 	function resumeVoting() {
@@ -539,33 +580,15 @@
 		const text = opinionText.trim();
 		if (!text || opinionSubmitting) return;
 		if (!(await submitOpinion(text))) return;
-		opinionSubmitted = true;
-		returningToVoting = true;
-		setTimeout(() => {
-			returnToVoting();
-			opinionSubmitted = false;
-			returningToVoting = false;
-		}, 2000);
-	}
-
-	async function handleSubmitAndAddAnother() {
-		const text = opinionText.trim();
-		if (!text || opinionSubmitting) return;
-		if (!(await submitOpinion(text))) return;
-
-		opinionSubmitted = true;
-		setTimeout(() => {
-			opinionSubmitted = false;
-		}, 2000);
+		submittedOpinion = text;
+		showOpinionView('thanks');
 	}
 
 	function openAddOpinion() {
-		if (stage === 'missing') groupsAfterOpinion = true;
 		visibleStatementWhenOpened = shownStatement;
-		screen = 'add-opinion';
-		opinionSubmitted = false;
+		opinionView = 'form';
+		opinionOpen = true;
 		opinionError = false;
-		returningToVoting = false;
 	}
 
 	// Polis reports to the chrome's bar instead of drawing its own (ADR-0047).
@@ -580,8 +603,14 @@
 		return m.polis_vote_more_to_continue({ count: votesRemaining });
 	});
 
+	// While the spotlight is on, each screen's own Next sits in the lit card, and the pager's
+	// forward corner is the way out of onboarding.
+	const pagerStep = $derived<Pick<ToolSequence, 'next' | 'nextLabel'>>(
+		spotlightMoment ? { next: skipOnboarding, nextLabel: m.polis_onboarding_skip() } : {}
+	);
+
 	$effect(() => {
-		onSequenceChange?.({ progress, blockedReason });
+		onSequenceChange?.({ progress, blockedReason, ...pagerStep });
 	});
 </script>
 
@@ -596,19 +625,204 @@
 	</ul>
 {/snippet}
 
-{#snippet skipIntro()}
-	<Button
-		variant="link"
-		class="text-muted-foreground hover:text-foreground h-auto px-0 text-base"
-		onclick={skipOnboarding}
-	>
-		{m.polis_onboarding_skip()}
-	</Button>
+<!-- The form and the policy swap in one scrolling body above a pinned footer, so the box
+     keeps its size and Submit stays in view. -->
+{#snippet opinionBody()}
+	{#key opinionView}
+		<div class="flex flex-col gap-5" in:fade={{ duration: 150 }}>
+			{#if opinionView === 'policy'}
+				<ModerationPolicy workflowStepId={stepId} {isPreview} />
+			{:else if opinionView === 'thanks'}
+				<p class="text-card-foreground text-center text-lg">
+					{strictModeration
+						? m.polis_opinion_thanks_body_moderated()
+						: m.polis_opinion_thanks_body()}
+				</p>
+				<blockquote
+					class="bg-muted/40 text-card-foreground rounded-xl border p-4 text-lg leading-snug"
+				>
+					"{submittedOpinion}"
+				</blockquote>
+			{:else}
+				{@render opinionForm()}
+			{/if}
+		</div>
+	{/key}
 {/snippet}
 
-<div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
-	{#if screen === 'voting' && guideStage}
+{#snippet opinionFooter()}
+	{#if opinionView === 'policy'}
+		<Button
+			variant="outline"
+			size="lg"
+			class="h-12 w-full gap-2 px-6 text-lg sm:w-auto"
+			onclick={() => showOpinionView('form')}
+		>
+			<ArrowLeft class="size-5 rtl:-scale-x-100" />
+			{m.polis_back_to_your_opinion()}
+		</Button>
+	{:else if opinionView === 'thanks'}
+		<Button size="lg" class="h-12 w-full px-6 text-lg sm:w-auto" onclick={closeOpinion}>
+			{m.polis_back_to_voting()}
+		</Button>
+		{#if !firstOpinion}
+			<Button
+				variant="ghost"
+				size="lg"
+				class="h-12 w-full px-6 text-lg sm:w-auto"
+				onclick={() => showOpinionView('form')}
+			>
+				{m.polis_add_another_opinion()}
+			</Button>
+		{/if}
+	{:else}
+		<LoadingButton
+			size="lg"
+			loading={opinionSubmitting}
+			disabled={!opinionText.trim()}
+			onclick={handleSubmitOpinion}
+			class="h-12 w-full px-6 text-lg sm:w-auto"
+		>
+			{m.submit()}
+		</LoadingButton>
+	{/if}
+{/snippet}
+
+{#snippet opinionGuidance()}
+	<div class="text-card-foreground text-base">
+		{@render opinionTips()}
+	</div>
+	<button
+		type="button"
+		class="text-primary inline-flex items-start gap-2 self-start text-start text-base font-medium underline underline-offset-4"
+		onclick={() => showOpinionView('policy')}
+	>
+		<ShieldCheck class="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+		{m.polis_moderation_policy_notice()}
+	</button>
+{/snippet}
+
+{#snippet opinionBoxAndStatus()}
+	{#if opinionError}
 		<div
+			class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
+		>
+			{m.polis_opinion_not_submitted()}
+		</div>
+	{/if}
+
+	<div class="w-full">
+		<textarea
+			bind:this={opinionBox}
+			bind:value={opinionText}
+			oninput={() => (opinionError = false)}
+			placeholder={m.polis_opinion_placeholder()}
+			aria-label={m.polis_add_your_own_opinion()}
+			maxlength={MAX_STATEMENT_LENGTH}
+			aria-describedby="polis-opinion-characters-left"
+			class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
+		></textarea>
+		<p
+			id="polis-opinion-characters-left"
+			class="mt-2 text-end text-base {charactersLeft === 0
+				? 'text-destructive'
+				: 'text-muted-foreground'}"
+		>
+			{m.polis_characters_left({ count: charactersLeft })}
+		</p>
+	</div>
+{/snippet}
+
+<!-- On a phone the box comes first so it is above the fold; the tips follow it. -->
+{#snippet opinionForm()}
+	{#if isMobile.current}
+		{@render opinionBoxAndStatus()}
+		{@render opinionGuidance()}
+	{:else}
+		{@render opinionGuidance()}
+		{@render opinionBoxAndStatus()}
+	{/if}
+{/snippet}
+
+<!-- A centred dialog on a desktop and a bottom sheet on a phone, where the keyboard and Submit
+     then share the bottom of the screen. -->
+{#if isMobile.current}
+	<!-- No close button: the sheet is swiped down, or closed by tapping above it. -->
+	<Drawer.Root bind:open={opinionOpen} onOpenChange={(open) => !open && closeOpinion()}>
+		<Drawer.Content class="data-[vaul-drawer-direction=bottom]:max-h-[92dvh]">
+			<div class="flex min-h-0 flex-1 flex-col">
+				<div
+					class={cn(
+						'flex shrink-0 flex-col gap-3 px-6 pt-4 pb-4',
+						opinionThanks && 'items-center pt-6 text-center'
+					)}
+				>
+					{#if opinionThanks}
+						<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
+					{/if}
+					<Drawer.Title class="text-card-foreground text-xl font-semibold">
+						{OPINION_TITLES[opinionView]()}
+					</Drawer.Title>
+				</div>
+				<div bind:this={opinionScroller} class="min-h-0 grow overflow-y-auto px-6 pb-4">
+					{@render opinionBody()}
+				</div>
+				<div class="border-border flex shrink-0 flex-col gap-3 border-t px-6 pt-4 pb-6">
+					{@render opinionFooter()}
+				</div>
+			</div>
+		</Drawer.Content>
+	</Drawer.Root>
+{:else}
+	<Dialog.Root bind:open={opinionOpen} onOpenChange={(open) => !open && closeOpinion()}>
+		<Dialog.Content
+			class={cn(
+				'flex h-[min(40rem,85dvh)] flex-col gap-5 p-8 sm:max-w-2xl',
+				opinionThanks && 'justify-center'
+			)}
+			onOpenAutoFocus={(event) => {
+				event.preventDefault();
+				opinionBox?.focus();
+			}}
+		>
+			<Dialog.Header
+				class={cn('shrink-0', opinionThanks && 'items-center gap-3 pt-2 text-center')}
+			>
+				{#if opinionThanks}
+					<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
+				{/if}
+				<Dialog.Title class="text-card-foreground text-2xl font-semibold">
+					{OPINION_TITLES[opinionView]()}
+				</Dialog.Title>
+			</Dialog.Header>
+			<div
+				bind:this={opinionScroller}
+				class={cn('-mx-1 min-h-0 overflow-y-auto px-1', !opinionThanks && 'grow')}
+			>
+				{@render opinionBody()}
+			</div>
+			<Dialog.Footer
+				class={cn(
+					'shrink-0 gap-3',
+					opinionThanks ? 'sm:justify-center' : 'sm:justify-start'
+				)}
+			>
+				{@render opinionFooter()}
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
+
+<Spotlight target="polis-onboarding" moment={spotlightMoment} onSkip={skipOnboarding} />
+
+<div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
+	{#if screen === 'voting' && stage === 'deciding'}
+		<!-- Blank until we know whether onboarding runs, so an intro never follows statement
+		     skeletons. -->
+		<div class="min-h-80 w-full" aria-busy="true"></div>
+	{:else if screen === 'voting' && guideStage}
+		<div
+			data-tour="polis-onboarding"
 			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
 		>
 			{#if guideStage === 'intro'}
@@ -630,11 +844,19 @@
 						{m.polis_onboarding_seed_result_changes()}
 					</p>
 				</GuideScreen>
+			{:else if guideStage === 'participant-result' && pick.participant && participantVote}
+				<GuideScreen
+					title={m.polis_onboarding_seed_result()}
+					next={m.polis_onboarding_next()}
+					onNext={startFreeVoting}
+				>
+					<CrowdStatement statement={pick.participant} ownVote={participantVote} />
+				</GuideScreen>
 			{:else if guideStage === 'missing'}
 				<GuideScreen
 					title={m.polis_onboarding_missing_title()}
 					next={m.polis_onboarding_keep_voting()}
-					onNext={showOnboardingGroups}
+					onNext={finishOnboarding}
 				>
 					<p class="text-card-foreground text-lg">{missingText}</p>
 					{#snippet actions()}
@@ -657,31 +879,29 @@
 					title={portrait
 						? m.polis_onboarding_groups_title()
 						: m.polis_onboarding_no_groups_title()}
-					next={m.polis_onboarding_keep_voting()}
+					next={m.polis_onboarding_next()}
 					onNext={closeGroups}
 				>
 					<GroupsReveal {portrait} {snapshot} />
 				</GuideScreen>
 			{/if}
-			{#if onboarding}
-				{@render skipIntro()}
-			{/if}
 		</div>
 	{:else if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
+			data-tour="polis-onboarding"
 			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
-			in:fade={{ duration: 300 }}
 		>
 			{#if votingGuide && !polisError}
-				{#key votingGuide}
-					<p
-						class="text-card-foreground text-xl leading-snug font-medium sm:text-2xl"
-						in:fade={{ duration: 300 }}
-					>
-						{votingGuide}
-					</p>
-				{/key}
+				<p
+					class={cn(
+						'text-card-foreground text-xl leading-snug font-medium sm:text-2xl',
+						onboarding &&
+							'bg-card w-full rounded-2xl border px-5 py-4 shadow-lg sm:px-6 sm:py-5'
+					)}
+				>
+					{votingGuide}
+				</p>
 			{/if}
 
 			<div class="flex w-full flex-col gap-1 md:gap-6">
@@ -700,7 +920,7 @@
 								{m.polis_error_description()}
 							</p>
 						</div>
-					{:else if !polisReady || waitingForNext || polisLoading || !shownStatement || stage === 'deciding'}
+					{:else if !polisReady || waitingForNext || polisLoading || !shownStatement}
 						<!-- Loading, between statements, or briefly empty before the screen
 					     flips to "completed". Rows match a one-line source label, the statement
 					     box and its line heights so nothing below moves when the statement arrives. -->
@@ -811,7 +1031,10 @@
 						<Button
 							variant="ghost"
 							size="lg"
-							class="text-foreground/80 hover:text-foreground h-12 w-full px-0 text-lg hover:bg-transparent has-[>svg]:px-0 sm:w-auto sm:justify-start"
+							class={cn(
+								VOTE_BUTTON_CLASS,
+								'text-foreground/80 hover:text-foreground w-full sm:w-auto'
+							)}
 							disabled={disabled || !polisReady}
 							onclick={() => doVote('pass')}
 						>
@@ -821,12 +1044,10 @@
 				{/if}
 			</div>
 
-			{#if onboarding}
-				{@render skipIntro()}
-			{:else if !polisError && (!polisReady || shownStatement)}
+			{#if !onboarding && !polisError && (!polisReady || shownStatement)}
 				<Button
 					variant="ghost"
-					class="text-muted-foreground hover:text-foreground mt-3 h-auto w-full px-0 py-1 text-center text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0 sm:mt-0 sm:w-auto sm:justify-start sm:text-start"
+					class="text-muted-foreground hover:text-foreground mt-3 h-auto w-full px-0 py-1 text-center text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0 sm:mt-0 sm:w-auto sm:justify-start sm:text-start dark:hover:bg-transparent"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>
@@ -834,127 +1055,6 @@
 					{m.polis_add_your_own_opinion()}
 				</Button>
 			{/if}
-		</div>
-	{:else if screen === 'add-opinion'}
-		<!-- Add Opinion Screen -->
-		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
-			in:fade={{ duration: 300 }}
-		>
-			<div class="flex w-full items-start justify-between gap-2 sm:items-center">
-				<div class="flex items-center gap-3 sm:gap-4">
-					<MessageSquare
-						fill="currentColor"
-						class="text-card-foreground size-6 shrink-0 sm:size-8"
-					/>
-					<h2 class="text-card-foreground text-xl font-semibold sm:text-3xl">
-						{m.polis_add_your_own_opinion()}
-					</h2>
-				</div>
-				<Button
-					variant="link"
-					class="text-foreground/80 hover:text-foreground/60 shrink-0 text-xl transition-colors"
-					onclick={returnToVoting}
-					aria-label={m.polis_close()}
-				>
-					<X class="h-5 w-5" />
-				</Button>
-			</div>
-
-			<!-- Phones open the tips in a sheet so the text box stays above the fold. -->
-			<div class="text-card-foreground hidden text-base sm:block sm:px-4">
-				{@render opinionTips()}
-			</div>
-			<Drawer.Root>
-				<Drawer.Trigger
-					class="text-primary inline-flex items-center gap-2 text-base font-medium underline-offset-4 hover:underline sm:hidden"
-				>
-					<Lightbulb class="size-5" aria-hidden="true" />
-					{m.polis_tips_for_your_opinion()}
-				</Drawer.Trigger>
-				<Drawer.Content>
-					<div class="flex flex-col gap-4 overflow-y-auto px-6 pt-4 pb-8">
-						<Drawer.Title class="text-card-foreground text-xl font-semibold">
-							{m.polis_tips_for_your_opinion()}
-						</Drawer.Title>
-						<div class="text-card-foreground text-base">
-							{@render opinionTips()}
-						</div>
-						<Drawer.Close
-							class={cn(buttonVariants({ size: 'lg' }), 'mt-2 w-full text-lg')}
-						>
-							{m.polis_close()}
-						</Drawer.Close>
-					</div>
-				</Drawer.Content>
-			</Drawer.Root>
-			<ModerationPolicySheet workflowStepId={stepId} {isPreview} />
-
-			{#if opinionSubmitted}
-				<div
-					class="bg-primary/10 text-primary w-full rounded-lg p-4 text-center font-medium"
-				>
-					{m.polis_opinion_submitted()}
-				</div>
-			{:else if opinionError}
-				<div
-					class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
-				>
-					{m.polis_opinion_not_submitted()}
-				</div>
-			{/if}
-
-			<div class="w-full sm:pb-6">
-				<textarea
-					bind:value={opinionText}
-					oninput={() => (opinionError = false)}
-					placeholder={m.polis_opinion_placeholder()}
-					maxlength={MAX_STATEMENT_LENGTH}
-					aria-describedby="polis-opinion-characters-left"
-					class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
-				></textarea>
-				<p
-					id="polis-opinion-characters-left"
-					class="mt-2 text-end text-base {charactersLeft === 0
-						? 'text-destructive'
-						: 'text-muted-foreground'}"
-				>
-					{m.polis_characters_left({ count: charactersLeft })}
-				</p>
-			</div>
-
-			<div
-				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
-			>
-				<LoadingButton
-					variant="default"
-					size="lg"
-					loading={submitBusy}
-					disabled={!opinionText.trim()}
-					onclick={handleSubmitOpinion}
-					class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
-				>
-					{m.submit()}
-				</LoadingButton>
-				<LoadingButton
-					variant="ghost"
-					size="lg"
-					class="text-lg"
-					loading={submitBusy}
-					disabled={!opinionText.trim()}
-					onclick={handleSubmitAndAddAnother}
-				>
-					{m.polis_submit_and_add_another()}
-					{#if !submitBusy}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
-				</LoadingButton>
-			</div>
-
-			<button
-				class="text-muted-foreground hover:text-foreground self-center text-base font-medium transition-colors sm:mt-2 sm:self-start"
-				onclick={returnToVoting}
-			>
-				&larr; {m.polis_back_to_voting()}
-			</button>
 		</div>
 	{:else if screen === 'continue-prompt'}
 		<!-- The threshold is met, so this is a fork and not a gate. Both ways on get the same weight,

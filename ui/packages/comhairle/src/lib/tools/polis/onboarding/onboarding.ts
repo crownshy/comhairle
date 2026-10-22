@@ -5,7 +5,7 @@ export type Vote = 'agree' | 'disagree' | 'pass';
 
 /**
  * Where a first-timer is in onboarding. Each stage is one thing on screen: an instruction
- * with a Next button, or one instruction line above a statement to vote on.
+ * the pager moves on from, or one instruction line above a statement to vote on.
  */
 export type Stage =
 	| 'deciding'
@@ -13,6 +13,7 @@ export type Stage =
 	| 'seed'
 	| 'seed-result'
 	| 'participant'
+	| 'participant-result'
 	| 'free'
 	| 'missing'
 	| 'groups'
@@ -24,29 +25,29 @@ export const FREE_VOTES = 3;
 /** After onboarding, the groups screen comes back every this many votes. */
 export const REVEAL_EVERY = 15;
 
-/** A statement as Polis lists it for participants, with its vote counts. */
+/** A statement as Polis lists it for participants, with its vote counts when known. */
 export type PracticeStatement = {
 	tid: number;
 	text: string;
 	is_seed: boolean;
-	votes: VoteCounts;
+	/** Undefined when the report has no counts for it yet, so nothing is claimed about them. */
+	votes: VoteCounts | undefined;
 };
 
-/** The fields we read from a row of Polis's `/api/v3/comments` with voting patterns. */
+/** The fields we read from a row of Polis's participant `/api/v3/comments`. */
 export type PolisCommentRow = {
 	tid: number;
 	txt: string;
 	is_seed?: boolean;
 	is_meta?: boolean;
 	mod?: number;
-	agree_count?: number;
-	disagree_count?: number;
-	pass_count?: number;
 };
 
 /**
  * Turns Polis's comment list into statements a participant may see. Polis already filters
  * by moderation for participants; the `mod` check here is a second guard for strict steps.
+ * Polis only sends vote counts on its moderator list, so the counts come from the report,
+ * which lags new statements until the next math run.
  */
 function isVisible(mod: number | undefined, strictModeration: boolean): boolean {
 	if (mod === undefined) return true;
@@ -55,19 +56,17 @@ function isVisible(mod: number | undefined, strictModeration: boolean): boolean 
 
 export function toPracticeStatements(
 	rows: PolisCommentRow[],
-	strictModeration: boolean
+	strictModeration: boolean,
+	report: PolisReportData | undefined
 ): PracticeStatement[] {
+	const counts = new Map(report?.comments.map((c) => [c.tid, c.overall_votes]));
 	return rows
 		.filter((row) => !row.is_meta && isVisible(row.mod, strictModeration))
 		.map((row) => ({
 			tid: row.tid,
 			text: row.txt,
 			is_seed: row.is_seed ?? false,
-			votes: {
-				agrees: row.agree_count ?? 0,
-				disagrees: row.disagree_count ?? 0,
-				passes: row.pass_count ?? 0
-			}
+			votes: counts.get(row.tid)
 		}));
 }
 
@@ -76,7 +75,8 @@ export type PracticePick = {
 	participant: PracticeStatement | undefined;
 };
 
-const votesOn = (s: PracticeStatement) => s.votes.agrees + s.votes.disagrees + s.votes.passes;
+const votesOn = (s: PracticeStatement) =>
+	s.votes ? s.votes.agrees + s.votes.disagrees + s.votes.passes : 0;
 
 /**
  * The organisers' statement and the participant statement the first two votes are on. Most
@@ -104,8 +104,15 @@ export function stageAfterSeedResult(pick: PracticePick): Stage {
 
 export type CrowdBar = { agreed: number; disagreed: number; passed: number; voters: number };
 
-/** Share of voters on a statement, counting the participant's own vote if Polis has not caught up. */
-export function crowdBar(statement: PracticeStatement, ownVote: Vote | undefined): CrowdBar {
+/**
+ * Share of voters on a statement, adding the participant's own vote since the counts were
+ * read before it. Undefined when the counts are not known.
+ */
+export function crowdBar(
+	statement: PracticeStatement,
+	ownVote: Vote | undefined
+): CrowdBar | undefined {
+	if (!statement.votes) return undefined;
 	const counts = { ...statement.votes };
 	if (ownVote === 'agree') counts.agrees++;
 	if (ownVote === 'disagree') counts.disagrees++;
