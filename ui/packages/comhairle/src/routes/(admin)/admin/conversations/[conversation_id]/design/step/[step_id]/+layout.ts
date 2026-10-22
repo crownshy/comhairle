@@ -1,11 +1,9 @@
 import type { LayoutLoad } from './$types';
 
 /**
- * Shared shell for a single workflow step. Derives the step's sub-tab list from its
- * tool type (polis exposes Insights; every other tool is Setup + Configure)
- * so the sub-tab strip can render from server data in `+layout.svelte`, instead of the
- * page injecting it post-hydration via an `$effect`. Setup (the tool work) leads; it's
- * the canonical landing and the most-visited tab.
+ * Shared shell for a single workflow step. The sub-tab strip renders from this data in
+ * `+layout.svelte`. Setup (the tool work) leads; it's the canonical landing and the
+ * most-visited tab. Insights live on the Engage Insights page.
  */
 export const load: LayoutLoad = async (event) => {
 	const step_id = event.params.step_id;
@@ -22,16 +20,6 @@ export const load: LayoutLoad = async (event) => {
 		{ label: 'Setup', value: 'setup' },
 		{ label: 'Configure', value: 'configure' }
 	];
-
-	// TODO: temporary until other tools include insights
-	if (
-		toolConfig?.type === 'polis' ||
-		toolConfig?.type === 'thinkingspace' ||
-		toolConfig?.type === 'prioritization' ||
-		toolConfig?.type === 'heyform'
-	) {
-		subtabItems.push({ label: 'Insights', value: 'insights' });
-	}
 
 	// `step` and `toolConfig` are shared by every sub-tab page, so they resolve once here and
 	// each page reads them from merged layout data.
