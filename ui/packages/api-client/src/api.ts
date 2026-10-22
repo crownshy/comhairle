@@ -3253,6 +3253,7 @@ export const EmailTemplateSlots = z.union([
 export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
 export const EmailTemplateConfigWithScopeDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     conversationTitle: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
@@ -3278,6 +3279,7 @@ export type CreateEmailTemplateConfig = z.infer<
 >;
 export const EmailTemplateConfigDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
     id: z.string().uuid(),
@@ -5149,7 +5151,9 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetParticipationCount",
     description: `Returns how many distinct people have at least one done step in this conversation.`,
     requestFormat: "json",
-    response: z.object({ participantCount: z.number().int().gte(0) }).passthrough(),
+    response: z
+      .object({ participantCount: z.number().int().gte(0) })
+      .passthrough(),
   },
   {
     method: "get",
