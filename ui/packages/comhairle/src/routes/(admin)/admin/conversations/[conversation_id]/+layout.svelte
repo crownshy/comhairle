@@ -60,15 +60,6 @@
 		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
 	});
 
-	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
-	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
-	// server-rendered, rather than injected by the design layout's client `$effect`.
-	let isDesignSection = $derived.by(() => {
-		const base = `/admin/conversations/${conversation.id}/design`;
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === base || path.startsWith(`${base}/`);
-	});
-
 	// A workflow step's sub-tabs (Configure/Setup/Insights) are real routes, so
 	// navigating between them changes the pathname. That's *not* a section switch: Row 3, Row 4
 	// and the content shell all stay mounted while only the inner page swaps. Collapsing the
@@ -166,8 +157,10 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12">
-			<div class="max-w-admin mx-auto h-full w-full">
+		<div
+			class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12 md:min-h-0 md:overflow-y-auto"
+		>
+			<div class="max-w-admin mx-auto min-h-full w-full">
 				<TabContentSkeleton />
 			</div>
 		</div>
@@ -187,8 +180,6 @@
 			<TabContent>
 				<TabContentSkeleton />
 			</TabContent>
-		{:else if isDesignSection}
-			{@render children()}
 		{:else}
 			<TabContent>
 				{@render children()}
