@@ -375,6 +375,8 @@
 						<DemographicsForm.UserUI
 							organizationId={conversation.organizationId}
 							formId={toolConfig.form_id}
+							onDone={stepComplete}
+							onSequenceChange={handleSequenceChange}
 						/>
 					{/if}
 				{/key}

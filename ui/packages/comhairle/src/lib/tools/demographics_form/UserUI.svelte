@@ -1,19 +1,34 @@
 <script lang="ts">
-	import { Input, SelectList, type Option } from '$lib/components/EasyForm';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import type { ConversationDto, QuestionDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { onMount } from 'svelte';
+	import type { OnSequenceChange, ToolSequence } from '../toolSequence';
+	import Question from './Question.svelte';
 
 	type Props = {
 		organizationId: ConversationDto['organizationId'];
 		formId: string;
+		onDone: () => void;
+		onSequenceChange: OnSequenceChange;
 	};
 
-	let { organizationId, formId }: Props = $props();
+	let { organizationId, formId, onDone, onSequenceChange }: Props = $props();
 
 	let questions = $state.raw<QuestionDto[]>([]);
+	let questionNumber = $state<number>(1);
+
+	let sequence = $derived<ToolSequence>({
+		next: questionNumber >= questions.length ? onDone : () => questionNumber++,
+		previous: questionNumber <= 1 ? undefined : () => questionNumber--,
+		progress: questionNumber / questions.length,
+		position: `Question ${questionNumber} of ${questions.length}`
+	});
+
+	$effect(() => {
+		onSequenceChange?.(sequence);
+	});
 
 	onMount(async () => {
 		const demographicForm = await tryCatchAsync(() =>
@@ -44,31 +59,8 @@
 
 		questions = questionsResponses.map((r) => r.ok).filter((q) => q !== null);
 	});
-
-	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
-		const options: Option[] = question.options.map((o) => ({
-			label: o.label,
-			value: o.id
-		}));
-
-		if (question.allow_other) options.push({ label: 'Other', value: 'other' });
-
-		if (question.prefer_not_to_say)
-			options.push({ label: 'Prefer not to say', value: 'prefer_not_to_say' });
-
-		return options;
-	}
 </script>
 
-{#each questions as question (question?.id)}
-	{@const q = question.latest_published}
-	{#if q}
-		{#if q.question_type === 'number'}
-			<Input label={q.text} type="number" />
-		{:else if question.latest_published?.question_type === 'any_string'}
-			<Input label={q.text} />
-		{:else if question.latest_published?.question_type === 'single_select'}
-			<SelectList title={q.text} name={q.id} options={getOptions(q)} onselect={() => {}} />
-		{/if}
-	{/if}
-{/each}
+{#if questions.length > 0}
+	<Question q={questions[questionNumber - 1].latest_published} />
+{/if}
