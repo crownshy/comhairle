@@ -5,7 +5,11 @@
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 	import HostingOrganizationSection from './HostingOrganizationSection.svelte';
 	import TransferOwnershipSection from './TransferOwnershipSection.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { teamConfigTour } from './tour';
 	import type { PageProps } from './$types';
+
+	useTour(() => teamConfigTour);
 
 	let { data }: PageProps = $props();
 	let roleAssignments = $state<ReturnType<typeof RoleAssignments>>();
@@ -14,6 +18,7 @@
 </script>
 
 <PageHeader
+	data-tour="page-header"
 	level="h2"
 	title="Team"
 	description="Manage the hosting organisation, ownership, collaborators and role assignments."

@@ -5,6 +5,7 @@
 	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { SCROLL_REGION_CLASS } from '../styles';
 
 	let { data, children, params } = $props();
 	const canAdmin = $derived(
@@ -34,6 +35,8 @@
 	{/if}
 </TabStripShell>
 
-<TabContent>
-	{@render children?.()}
-</TabContent>
+<div class={SCROLL_REGION_CLASS}>
+	<TabContent>
+		{@render children?.()}
+	</TabContent>
+</div>

@@ -111,7 +111,7 @@
 								class="h-2 w-2 rounded"
 								style="background: var(--vote-passed);"
 							></div>
-							<div class="text-xs leading-4 font-medium text-gray-600">%Passed</div>
+							<div class="text-xs leading-4 font-medium text-gray-600">%Neutral</div>
 						</div>
 						<div class="flex items-center gap-0.5">
 							<div

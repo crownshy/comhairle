@@ -143,3 +143,26 @@ a {
 @utility report-subheading {
 	@apply text-primary text-xl leading-6 font-semibold;
 }
+
+@theme {
+	--animate-progress-sweep: progress-sweep 1.1s ease-in-out infinite;
+	--animate-progress-reveal: progress-reveal 0s 100ms both;
+
+	@keyframes progress-reveal {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes progress-sweep {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(350%);
+		}
+	}
+}

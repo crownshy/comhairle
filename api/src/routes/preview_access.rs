@@ -22,7 +22,8 @@ use crate::middleware::permissions::{PermissionRequirement, authorize as permiss
 use crate::middleware::rate_limit::RateLimitLayers;
 use crate::models::conversation::{self, IdOrSlug};
 use crate::models::conversation_preview_password;
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::routes::auth::hash_pw;
 
 const GRANT_AUDIENCE: &str = "preview-access";
@@ -278,15 +279,17 @@ pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<Comhairl
 
 #[cfg(test)]
 mod tests {
-    use crate::routes::conversations::dto::ConversationDto;
-    use crate::test_helpers::{UserSession, test_state};
-    use crate::{App, setup_server};
+    use std::error::Error;
+    use std::sync::Arc;
+
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
     use uuid::Uuid;
+
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::test_helpers::{UserSession, test_state};
+    use crate::{App, setup_server};
 
     const PASSWORD: &str = "shared-preview-pw";
 

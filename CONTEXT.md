@@ -72,7 +72,7 @@ Entry does not grant additional permissions.
 
 **Finished** (a participant is finished):
 The point at which a participant has a `done` progress row for **every** Step in a Workflow. Reaching it is what lands them on the Thank You page. Distinct from a Conversation being **complete** (`is_complete`), which is an admin closing the whole Conversation, and from a single Step's `progressStatus: 'done'`. Matches what participants see: the last step's button is labelled "Finish".
-_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
+_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion for the whole Workflow (collides with `Conversation.is_complete`; a single Step's **Completion screen** is fine).
 _Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
 
 **Taken part**:
@@ -92,9 +92,10 @@ The per-Step `can_revisit` flag (default `false`), controlling whether a partici
 ### Participant step chrome
 
 The participant-facing frame around a Step, shared by both breakpoints. Replaces the old
-`StepHeader` chevrons plus `StepSelector` pair. See
-[ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md) and
-[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md).
+`StepHeader` chevrons plus `StepSelector` pair, and the site NavBar and Footer on the step
+route. See [ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md),
+[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md) and
+[ADR-0049](documentation/adr/0049-the-step-menu-is-a-sheet-on-a-phone.md).
 
 **Step shell**:
 The one-screen layout a Step renders in: a header on top, the tool scrolling in the middle,
@@ -105,17 +106,34 @@ _Avoid_: Card, page wrapper.
 
 **Progress bar**:
 The segmented bar at the top of the [[#step-shell]]: one stub per Step, the current Step a
-flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
-reader; the "Step N of M" line beneath it carries the position.
+flexible track that fills. Completed stubs read filled. Screen readers hear only the
+current Step's track: "Step N of M", plus the tool's position inside it ("Page 3 of 8") when
+the tool reports one.
 _Avoid_: Stepper (the old row of circles), step selector.
+
+**Step menu**:
+The pill at the right of the step header, listing the Workflow's Steps with
+their status and the light and dark toggle. An anchored dropdown on a pointer, a bottom sheet
+on a phone. Navigation permissions are unchanged: only completed, revisitable Steps are
+links.
+_Avoid_: Step dropdown (half of it is not a dropdown), stepper.
 
 **Pager**:
 The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and
 nothing between them. Its arrows traverse the innermost open sequence first (a tool-internal
 sequence such as Learn's pages, then the Step boundary). The forward slot states one thing at
-a time: Next, or Skip on an optional Step that cannot yet advance.
+a time: Next, or Skip on an optional Step that cannot yet advance. On the
+[[#completion-screen]] the pager gives way to one full-width Proceed button (Finish on the
+last Step).
 _Avoid_: Footer (that is the site-wide `Footer.svelte`, which the step route does not
 render), toolbar.
+
+**Completion screen**:
+The "Step completed" screen a Step ends on once its tool is done, before the participant
+presses Proceed. Proceed is what writes the Step's `done` progress row, so it belongs to one
+Step, not the Workflow: a participant is only **Finished** once every Step has one. A skip
+goes straight on without it. See ADR-0064.
+_Avoid_: Done screen (`done` is the progress status the screen comes before).
 
 ### Organizations and access
 
@@ -124,15 +142,18 @@ A set of users to which roles can be assigned collectively. A user may belong to
 _Avoid_: Organization (the entity that owns and manages its membership group), team (a possible future concept), opinion group (a Polis-derived cluster).
 
 **Organization membership group**:
-The single User group owned and managed by an Organization that determines its membership. Each Organization has exactly one Organization membership group for now.
+The User group owned by an Organization that holds all of its people (`Organization.user_group_id`). It is granted the Organization Member role, which allows viewing the Organization only. Each Organization has exactly one.
+
+**Organization administrator group**:
+The User group owned by an Organization that holds its administrators (`Organization.admin_group_id`). It is granted the Organization Administrator role. Each Organization has exactly one. Members of this group are always also members of the Organization membership group.
 
 **Organization Administrator**:
-A user with an Organization Administrator role on one Organization, including authority to update or delete it, manage membership, and promote other members to Administrator or demote them to Member. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
-An Organization Administrator may not change their own Organization membership or Administrator role, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
+A user in an Organization's administrator group, with authority to update or delete the Organization and to add Users to or remove Users from its two groups (ACL-like). Adding a User to the administrator group also adds them to the membership group; removing them from the administrator group demotes them and keeps them a member; removing them from the membership group removes them from the Organization entirely. Membership changes do not require resource-owner approval, but adding Users to a group holding the Super Administrator role requires Super Administrator authority.
+An Organization Administrator may not change their own group memberships, including removing their inherited Administrator authority through group-grant changes; an existing Organization must retain at least one Administrator.
 _Avoid_: Org owner, org contact, organization user.
 
 **Organization Member**:
-A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Revoking a direct Administrator assignment preserves membership and does not change inherited roles.
+A user who belongs to an Organization's Organization membership group; membership alone does not authorize permission changes, and a user may belong to multiple Organizations. Members can view the Organization through the Organization Member role granted to the membership group.
 _Avoid_: Organization admin (unless they also hold Organization Administrator assignment).
 
 **Primary host organization**:
@@ -295,7 +316,7 @@ The [[#reject-reason]]s a moderator can pick when rejecting a statement. A polic
 _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` flag is a different thing).
 
 **Reject reason**:
-One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Only moderators see reasons. Editing the policy never rewrites reasons already recorded.
+One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Participants can read a step's reasons from the statement composer as the published moderation policy (ADR-0059). Editing the policy never rewrites reasons already recorded.
 _Avoid_: rejection code, category letter.
 
 **Theme**:
@@ -335,6 +356,13 @@ A composition of report components. There are exactly four, each a different aud
 3. **Presentation mode** — public room screen, live, per-tool; a looping, simplified, low-interaction "highlights" display for a live audience. Either cycles all tools or shows one picked tool.
 4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
 _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
+
+**Executive summary**:
+The short rich text an admin writes at the top of the End of engagement report (`report.summary`). Participants see it on the report's opening screen, under the "Final report" label. Reports made before the summary and body were split keep their whole text in `summary` and have no executive summary.
+
+**Report body**:
+The full End of engagement report (`report.body`), with its embedded components. Its H2 headings make the **report sections** (one pill each) and its H3 headings and horizontal rules make the **report cards** the participant pages through. See [ADR-0058](documentation/adr/0058-the-public-report-pages-by-its-own-headings.md).
+_Avoid_: card for a [[#report-component]] (a report card is one page of the report body).
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
 
 ### Room display

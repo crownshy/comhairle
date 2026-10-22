@@ -3,6 +3,10 @@
 	import { ChevronRight } from 'lucide-svelte';
 	import PolisModeration from '$lib/tools/polis/PolisModeration.svelte';
 	import { rejectReasonsForStep } from '$lib/moderation/moderationPolicy';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { stepModerationTour } from './tour';
+
+	useTour(() => stepModerationTour);
 
 	let { data } = $props();
 

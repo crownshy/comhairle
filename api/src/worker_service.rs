@@ -2,9 +2,11 @@ pub mod config;
 
 pub mod error;
 pub mod process_documents;
+pub mod process_theme_extraction;
 pub mod process_video_call_transcriptions;
 pub mod process_wiki_poll_summary;
 pub mod scheduled_emails;
+pub mod wiki_poll_moderation_notify;
 
 use std::future::Future;
 use std::str::FromStr;
@@ -26,6 +28,9 @@ use crate::ComhairleState;
 use crate::config::WorkerConfig;
 use crate::error::ComhairleError;
 use crate::worker_service::process_documents::{DocumentJob, process_document_handler};
+use crate::worker_service::process_theme_extraction::{
+    ThemeExtractionJob, theme_extraction_handler,
+};
 use crate::worker_service::process_video_call_transcriptions::{
     TranscribeRecording, generate_sensemaking_report, transcribe_recording,
 };
@@ -33,6 +38,10 @@ use crate::worker_service::process_wiki_poll_summary::wiki_poll_summary_handler;
 use crate::worker_service::scheduled_emails::{
     ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
     send_scheduled_email,
+};
+use crate::worker_service::wiki_poll_moderation_notify::{
+    SendWikiPollModerationNotifyJob, WikiPollModerationNotifyRequest,
+    retrieve_and_enqueue_wiki_poll_moderation_notify_jobs, send_wiki_poll_moderation_notify_emails,
 };
 
 #[async_trait]
@@ -51,6 +60,16 @@ pub trait WorkerService: Send + Sync {
         &self,
         job: WikiPollSummaryJob,
     ) -> Result<(), ComhairleError>;
+
+    async fn push_theme_extraction_job(
+        &self,
+        job: ThemeExtractionJob,
+    ) -> Result<(), ComhairleError>;
+
+    async fn push_send_wiki_poll_moderation_notify_job(
+        &self,
+        job: SendWikiPollModerationNotifyJob,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Clone, Debug)]
@@ -60,6 +79,9 @@ pub struct ComhairleWorkerService {
     pub scheduled_emails: Arc<Mutex<RedisStorage<ScheduledEmailsRequest>>>,
     pub send_scheduled_email: Arc<Mutex<RedisStorage<SendScheduledEmailJob>>>,
     pub wiki_poll_summary: Arc<Mutex<RedisStorage<WikiPollSummaryJob>>>,
+    pub theme_extraction: Arc<Mutex<RedisStorage<ThemeExtractionJob>>>,
+    pub wiki_poll_moderation_notify: Arc<Mutex<RedisStorage<WikiPollModerationNotifyRequest>>>,
+    pub send_wiki_poll_moderation_notify: Arc<Mutex<RedisStorage<SendWikiPollModerationNotifyJob>>>,
 }
 
 #[async_trait]
@@ -109,6 +131,32 @@ impl WorkerService for ComhairleWorkerService {
 
         Ok(())
     }
+
+    #[instrument(err(Debug))]
+    async fn push_theme_extraction_job(
+        &self,
+        job: ThemeExtractionJob,
+    ) -> Result<(), ComhairleError> {
+        let mut lock = self.theme_extraction.lock().await;
+        lock.push(job)
+            .await
+            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+
+        Ok(())
+    }
+
+    #[instrument(err(Debug))]
+    async fn push_send_wiki_poll_moderation_notify_job(
+        &self,
+        job: SendWikiPollModerationNotifyJob,
+    ) -> Result<(), ComhairleError> {
+        let mut lock = self.send_wiki_poll_moderation_notify.lock().await;
+        lock.push(job)
+            .await
+            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+
+        Ok(())
+    }
 }
 
 pub struct WorkerStorage {
@@ -117,6 +165,9 @@ pub struct WorkerStorage {
     pub scheduled_emails: RedisStorage<ScheduledEmailsRequest>,
     pub send_scheduled_email: RedisStorage<SendScheduledEmailJob>,
     pub wiki_poll_summary: RedisStorage<WikiPollSummaryJob>,
+    pub theme_extraction: RedisStorage<ThemeExtractionJob>,
+    pub wiki_poll_moderation_notify: RedisStorage<WikiPollModerationNotifyRequest>,
+    pub send_wiki_poll_moderation_notify: RedisStorage<SendWikiPollModerationNotifyJob>,
 }
 
 pub async fn init_worker_service(
@@ -141,6 +192,12 @@ pub async fn init_worker_service(
         apalis_redis::Config::default().set_namespace("worker_service_send_scheduled_email");
     let wiki_poll_summary_config =
         apalis_redis::Config::default().set_namespace("worker_service_wiki_poll_summary");
+    let theme_extraction_config =
+        apalis_redis::Config::default().set_namespace("worker_service_theme_extraction");
+    let wiki_poll_moderation_notify_config =
+        apalis_redis::Config::default().set_namespace("worker_service_wiki_poll_moderation_notify");
+    let send_wiki_poll_moderation_notify_config = apalis_redis::Config::default()
+        .set_namespace("worker_service_send_wiki_poll_moderation_notify");
 
     let documents_storage =
         RedisStorage::new_with_config(redis_connection.clone(), documents_config);
@@ -152,6 +209,14 @@ pub async fn init_worker_service(
         RedisStorage::new_with_config(redis_connection.clone(), send_scheduled_email_config);
     let wiki_poll_summary_storage =
         RedisStorage::new_with_config(redis_connection.clone(), wiki_poll_summary_config);
+    let theme_extraction_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), theme_extraction_config);
+    let wiki_poll_moderation_notify_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), wiki_poll_moderation_notify_config);
+    let send_wiki_poll_moderation_notify_storage = RedisStorage::new_with_config(
+        redis_connection.clone(),
+        send_wiki_poll_moderation_notify_config,
+    );
 
     let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(documents_storage.clone())),
@@ -159,6 +224,13 @@ pub async fn init_worker_service(
         scheduled_emails: Arc::new(Mutex::new(scheduled_emails_storage.clone())),
         send_scheduled_email: Arc::new(Mutex::new(send_scheduled_email_storage.clone())),
         wiki_poll_summary: Arc::new(Mutex::new(wiki_poll_summary_storage.clone())),
+        theme_extraction: Arc::new(Mutex::new(theme_extraction_storage.clone())),
+        wiki_poll_moderation_notify: Arc::new(Mutex::new(
+            wiki_poll_moderation_notify_storage.clone(),
+        )),
+        send_wiki_poll_moderation_notify: Arc::new(Mutex::new(
+            send_wiki_poll_moderation_notify_storage.clone(),
+        )),
     });
 
     Ok((
@@ -169,6 +241,9 @@ pub async fn init_worker_service(
             scheduled_emails: scheduled_emails_storage,
             send_scheduled_email: send_scheduled_email_storage,
             wiki_poll_summary: wiki_poll_summary_storage,
+            theme_extraction: theme_extraction_storage,
+            wiki_poll_moderation_notify: wiki_poll_moderation_notify_storage,
+            send_wiki_poll_moderation_notify: send_wiki_poll_moderation_notify_storage,
         },
     ))
 }
@@ -229,12 +304,49 @@ pub fn init_monitor(
             .backend(storage.wiki_poll_summary.clone())
             .build_fn(wiki_poll_summary_handler);
 
+        let theme_extraction_worker = WorkerBuilder::new("theme_extraction_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(storage.theme_extraction.clone())
+            .build_fn(theme_extraction_handler);
+
+        #[allow(
+            clippy::expect_used,
+            reason = "hardcoded cron expression, validated on every startup"
+        )]
+        let wp_mod_notify_schedule = Schedule::from_str("0 0 12 * * *")
+            .expect("Unable to create cron schedule for background worker");
+        let wp_mod_notify_cron_stream =
+            CronStream::new_with_timezone(wp_mod_notify_schedule, chrono_tz::Europe::London);
+        let wp_mod_notify_backend =
+            wp_mod_notify_cron_stream.pipe_to_storage(storage.wiki_poll_moderation_notify.clone());
+
+        let wiki_poll_moderation_notify_worker =
+            WorkerBuilder::new("wiki_poll_moderation_notify_worker")
+                .data(state.clone())
+                .data(())
+                .enable_tracing()
+                .backend(wp_mod_notify_backend)
+                .build_fn(retrieve_and_enqueue_wiki_poll_moderation_notify_jobs);
+
+        let send_wiki_poll_moderation_notify_worker =
+            WorkerBuilder::new("send_wiki_poll_moderation_notify_worker")
+                .data(state.clone())
+                .data(())
+                .enable_tracing()
+                .backend(storage.send_wiki_poll_moderation_notify.clone())
+                .build_fn(send_wiki_poll_moderation_notify_emails);
+
         monitor = monitor
             .register(process_documents_worker)
             .register(process_transcriptions_worker)
             .register(scheduled_emails_worker)
             .register(send_scheduled_email_worker)
-            .register(wiki_poll_summary_worker);
+            .register(wiki_poll_summary_worker)
+            .register(theme_extraction_worker)
+            .register(wiki_poll_moderation_notify_worker)
+            .register(send_wiki_poll_moderation_notify_worker);
 
         Some(monitor.run())
     } else {
@@ -261,6 +373,14 @@ impl MockWorkerService {
 
         worker_service
             .expect_push_wiki_poll_summary_job()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        worker_service
+            .expect_push_theme_extraction_job()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        worker_service
+            .expect_push_send_wiki_poll_moderation_notify_job()
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service

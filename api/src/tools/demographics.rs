@@ -5,11 +5,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
-
-use crate::models::demographics::steps;
-
 use super::{ToolConfigSanitize, ToolImpl};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::demographics::steps;
 
 /// Which version of a demographic question or form a step asks.
 #[derive(Clone, Copy, Deserialize, Serialize, Debug, JsonSchema, PartialEq, Eq)]

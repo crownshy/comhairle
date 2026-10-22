@@ -66,13 +66,61 @@ export const PasswordResetUpdateRequest = z
     token: z.string(),
 })
     .passthrough();
+export const ConversationAction = z.enum([
+    "conversation_read",
+    "conversation_update",
+    "conversation_admin",
+    "conversation_launch",
+    "conversation_delete",
+    "conversation_moderate",
+    "conversation_translate",
+    "conversation_export",
+    "list_permission",
+    "grant_permission",
+    "revoke_permission",
+]);
+export const OrganizationAction = z.enum([
+    "organization_read",
+    "organization_update",
+    "organization_delete",
+    "list_permission",
+    "grant_permission",
+    "revoke_permission",
+    "organization_add_member",
+    "organization_remove_member",
+]);
+export const SystemAction = z.enum([
+    "list_permission",
+    "grant_permission",
+    "revoke_permission",
+    "conversation_create",
+    "organization_create",
+    "translate",
+]);
+export const UserAction = z.union([
+    ConversationAction,
+    OrganizationAction,
+    SystemAction,
+]);
+export const PermissionResourceType = z.enum([
+    "system",
+    "conversation",
+    "organization",
+]);
+export const UserActions = z
+    .object({
+    actions: z.array(UserAction),
+    resourceId: z.string().uuid(),
+    resourceType: PermissionResourceType,
+})
+    .passthrough();
 export const ResourceType = z.union([
     z.literal("Site"),
     z.object({ Conversation: z.string().uuid() }),
+    z.object({ Organization: z.string().uuid() }),
 ]);
-export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
 export const UserRoles = z
-    .object({ resource: ResourceType, roles: z.array(ResourceRole) })
+    .object({ resource: ResourceType, roles: z.array(z.string()) })
     .passthrough();
 export const LocalizedConversationDto = z
     .object({
@@ -128,6 +176,7 @@ export const LocalizedOrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
 })
     .passthrough();
 export const UserOrganizationAccess = z
@@ -394,6 +443,7 @@ export const PolisStatementAux = z
     original_statement_id: z.union([z.string(), z.null()]).optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
@@ -412,6 +462,7 @@ export const CreatePolisStatementAux = z
     moderation_status: ModerationStatus.optional(),
     polis_conversation_id: z.string(),
     polis_statement_id: z.number().int(),
+    source_locale: z.union([z.string(), z.null()]).optional().default(null),
     statement_text: z.string(),
     themes: z.array(z.string()),
     visible_statement_when_submitted: z
@@ -441,6 +492,33 @@ export const SyncStatementAuxResponse = z
     synced: z.number().int().gte(0),
 })
     .passthrough();
+export const LocalizedStatement = z
+    .object({
+    ai_generated: z.boolean(),
+    display_locale: z.string(),
+    is_translation: z.boolean(),
+    original_text: z.string(),
+    polis_statement_id: z.number().int(),
+    requires_validation: z.boolean(),
+    source_locale: z.union([z.string(), z.null()]).optional(),
+    text: z.string(),
+})
+    .passthrough();
+export const PolisStatementTranslation = z
+    .object({
+    ai_generated: z.boolean(),
+    content: z.string(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    locale: z.string(),
+    polis_statement_aux_id: z.string().uuid(),
+    requires_validation: z.boolean(),
+    updated_at: z.string().datetime({ offset: true }),
+})
+    .passthrough();
+export const UpdateStatementTranslationRequest = z
+    .object({ content: z.string() })
+    .passthrough();
 export const ThemeStatistic = z
     .object({ count: z.number().int(), theme: z.string() })
     .passthrough();
@@ -466,6 +544,33 @@ export const ModerateStatementAuxBatchResponse = z
     .object({
     failed: z.array(ModerateBatchFailure),
     succeeded: z.array(PolisStatementAux),
+})
+    .passthrough();
+export const RequestSummaryRequest = z
+    .object({
+    additional_instructions: z.union([z.string(), z.null()]).optional(),
+    context: z.union([z.string(), z.null()]).optional(),
+    reading_age_target: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+})
+    .passthrough();
+export const RequestSummaryResponse = z
+    .object({ job_id: z.string().uuid() })
+    .passthrough();
+export const WikiPollConversationSummary = z
+    .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    job_id: z.union([z.string(), z.null()]).optional(),
+    poll_data: z.unknown(),
+    result: z.unknown(),
+    workflow_step_id: z.string().uuid(),
+})
+    .passthrough();
+export const PaginatedResults_for_WikiPollConversationSummary = z
+    .object({
+    records: z.array(WikiPollConversationSummary),
+    total: z.number().int(),
 })
     .passthrough();
 export const SplitStatementRequest = z
@@ -1140,10 +1245,6 @@ export const ToolConfig = z.union([
         admin_user: z.string(),
         description: z.union([z.string(), z.null()]).optional().default(null),
         is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-        label_seeds_as_conversation_starter: z
-            .boolean()
-            .optional()
-            .default(false),
         moderation_policy_id: z
             .union([z.string(), z.null()])
             .optional()
@@ -1212,6 +1313,7 @@ export const WorkflowStep = z
     activation_rule: ActivationRule,
     can_revisit: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
+    data_protocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     is_offline: z.boolean(),
@@ -1329,10 +1431,6 @@ export const ToolConfigWithTranslations = z.union([
         admin_user: z.string(),
         description: z.union([z.string(), z.null()]).optional().default(null),
         is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-        label_seeds_as_conversation_starter: z
-            .boolean()
-            .optional()
-            .default(false),
         moderation_policy_id: z
             .union([z.string(), z.null()])
             .optional()
@@ -1400,12 +1498,17 @@ export const Translation4 = z
 })
     .passthrough();
 export const WorkflowStepTranslations = z
-    .object({ description: Translation4, name: Translation4 })
+    .object({
+    dataProtocol: z.union([Translation4, z.null()]).optional(),
+    description: Translation4,
+    name: Translation4,
+})
     .passthrough();
 export const WorkflowStepWithTranslationsDto = z
     .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1458,10 +1561,6 @@ export const LocalizedToolConfig = z.union([
         admin_user: z.string(),
         description: z.union([z.string(), z.null()]).optional().default(null),
         is_active: z.union([z.boolean(), z.null()]).optional().default(null),
-        label_seeds_as_conversation_starter: z
-            .boolean()
-            .optional()
-            .default(false),
         moderation_policy_id: z
             .union([z.string(), z.null()])
             .optional()
@@ -1527,6 +1626,7 @@ export const LocalizedWorkflowStepWithProgressDto = z
     .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1544,6 +1644,7 @@ export const LocalizedWorkflowStepDto = z
     .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1647,6 +1748,7 @@ export const WorkflowStepDto = z
     .object({
     activationRule: ActivationRule,
     canRevisit: z.boolean(),
+    dataProtocol: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -1663,6 +1765,7 @@ export const PartialWorkflowStep = z
     .object({
     activation_rule: z.union([ActivationRule, z.null()]),
     can_revisit: z.union([z.boolean(), z.null()]),
+    data_protocol: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
@@ -1819,10 +1922,14 @@ export const Translation5 = z
 })
     .passthrough();
 export const ReportTranslations = z
-    .object({ summary: Translation5 })
+    .object({
+    body: z.union([Translation5, z.null()]).optional(),
+    summary: Translation5,
+})
     .passthrough();
 export const ReportWithTranslations = z
     .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -1835,6 +1942,7 @@ export const ReportWithTranslations = z
     .passthrough();
 export const LocalizedReportDto = z
     .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -1849,6 +1957,7 @@ export const FullReportDto = z.union([
 ]);
 export const PartialReport = z
     .object({
+    body: z.union([z.string(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     section_configs: z.union([ReportSectionConfigs, z.null()]),
@@ -1857,6 +1966,7 @@ export const PartialReport = z
     .passthrough();
 export const ReportDto = z
     .object({
+    body: z.union([z.string(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -2093,6 +2203,7 @@ export const EventLocation = z
     venue_name: z.string(),
 })
     .passthrough();
+export const SignupMode = z.enum(["invite", "open"]);
 export const LocalizedEventDto = z
     .object({
     agenda: z.array(EventAgendaItem),
@@ -2108,7 +2219,7 @@ export const LocalizedEventDto = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
@@ -2126,7 +2237,7 @@ export const CreateEvent = z
     end_time: z.string().datetime({ offset: true }),
     location: z.union([EventLocation, z.null()]).optional(),
     name: z.string(),
-    signup_mode: z.string(),
+    signup_mode: SignupMode,
     start_time: z.string().datetime({ offset: true }),
 })
     .passthrough();
@@ -2144,7 +2255,7 @@ export const EventDto = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string().uuid(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
@@ -2186,7 +2297,7 @@ export const EventWithTranslations = z
     location: z.union([EventLocation, z.null()]).optional(),
     metadata: z.unknown().optional(),
     name: z.string(),
-    signupMode: z.string(),
+    signupMode: SignupMode,
     startTime: z.string().datetime({ offset: true }),
     translations: EventTranslations,
     updatedAt: z.string().datetime({ offset: true }),
@@ -2209,7 +2320,7 @@ export const PartialEvent = z
     location: z.union([EventLocation, z.null()]),
     metadata: z.unknown(),
     name: z.union([z.string(), z.null()]),
-    signup_mode: z.union([z.string(), z.null()]),
+    signup_mode: z.union([SignupMode, z.null()]),
     start_time: z.union([z.string(), z.null()]),
 })
     .partial()
@@ -2372,6 +2483,7 @@ export const OrganizationDto = z
     name: z.string(),
     orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
+    userGroupId: z.string().uuid(),
 })
     .passthrough();
 export const UpdateOrganizationBody = z
@@ -2668,13 +2780,35 @@ export const PreviewEmailTemplateConfigRequest = z
 export const PreviewEmailTemplateConfigResponse = z
     .object({ html: z.string() })
     .passthrough();
+export const InheritedRoles = z
+    .object({
+    group_id: z.string().uuid(),
+    group_name: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    roles: z.array(z.string()),
+})
+    .passthrough();
+export const Snapshot = z
+    .object({
+    inherited: z.array(InheritedRoles),
+    roles: z.array(z.string()),
+    version: z.number().int(),
+})
+    .passthrough();
+export const SaveAssignments = z
+    .object({
+    expected_version: z.number().int(),
+    grant_reason: z.string(),
+    roles: z.array(z.string()),
+})
+    .passthrough();
 export const ResourcePermission = z
     .object({
     grant_reason: z.string(),
     granted_at: z.string().datetime({ offset: true }),
     granted_by: z.union([z.string(), z.null()]).optional(),
+    group_id: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    organization_id: z.union([z.string(), z.null()]).optional(),
     resource_id: z.string().uuid(),
     resource_type: z.string(),
     role_name: z.string(),
@@ -2795,8 +2929,13 @@ export const schemas = {
     ResendVerificationEmailRequest,
     CreatePasswordResetRequest,
     PasswordResetUpdateRequest,
+    ConversationAction,
+    OrganizationAction,
+    SystemAction,
+    UserAction,
+    PermissionResourceType,
+    UserActions,
     ResourceType,
-    ResourceRole,
     UserRoles,
     LocalizedConversationDto,
     created_after,
@@ -2848,6 +2987,9 @@ export const schemas = {
     UpdatePolisStatementAux,
     SyncStatementAuxRequest,
     SyncStatementAuxResponse,
+    LocalizedStatement,
+    PolisStatementTranslation,
+    UpdateStatementTranslationRequest,
     ThemeStatistic,
     ThemeRequest,
     ModerationDecisionRequest,
@@ -2855,6 +2997,10 @@ export const schemas = {
     ModerateStatementAuxBatchRequest,
     ModerateBatchFailure,
     ModerateStatementAuxBatchResponse,
+    RequestSummaryRequest,
+    RequestSummaryResponse,
+    WikiPollConversationSummary,
+    PaginatedResults_for_WikiPollConversationSummary,
     SplitStatementRequest,
     SplitStatementResponse,
     FormField,
@@ -3042,6 +3188,7 @@ export const schemas = {
     EventAgendaItem,
     EventFormat,
     EventLocation,
+    SignupMode,
     LocalizedEventDto,
     PaginatedResults_for_LocalizedEventDto,
     CreateEvent,
@@ -3123,6 +3270,9 @@ export const schemas = {
     EmailTypeSchema,
     PreviewEmailTemplateConfigRequest,
     PreviewEmailTemplateConfigResponse,
+    InheritedRoles,
+    Snapshot,
+    SaveAssignments,
     ResourcePermission,
     PaginatedResults_for_ResourcePermission,
     GrantPermissionBody,
@@ -3330,20 +3480,6 @@ const endpoints = makeApi([
                 schema: OtpSignupRequest,
             },
         ],
-        response: UserDto,
-    },
-    {
-        method: "get",
-        path: "/auth/test_api_key_extraction",
-        alias: "getAuthtest_api_key_extraction",
-        requestFormat: "json",
-        response: UserDto,
-    },
-    {
-        method: "get",
-        path: "/auth/test_requires_roles/:conversation_id",
-        alias: "TestRequiresRoles",
-        requestFormat: "json",
         response: UserDto,
     },
     {
@@ -3593,7 +3729,7 @@ Use a raw HTTP request and process the response body incrementally.`,
         method: "get",
         path: "/conversation/:conversation_id/demographics/export",
         alias: "ExportConversationDemographics",
-        description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
+        description: `Exports consented participant demographics. Requires conversation data access.`,
         requestFormat: "json",
         response: z.void(),
     },
@@ -5459,7 +5595,7 @@ curl -X POST \
         method: "get",
         path: "/permissions/:resource_type/:resource_id",
         alias: "ListResourcePermissions",
-        description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must hold the Owner role on the resource.`,
+        description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must own the resource or have permission to list its role assignments.`,
         requestFormat: "json",
         parameters: [
             {
@@ -5504,7 +5640,7 @@ curl -X POST \
         method: "post",
         path: "/permissions/:resource_type/:resource_id",
         alias: "GrantPermission",
-        description: `Grants a role to a user or organisation on a resource. The caller must hold the Owner role on the resource.`,
+        description: `Grants a role to a user or organisation on a resource. The caller must own the resource or have permission to grant roles on it.`,
         requestFormat: "json",
         parameters: [
             {
@@ -5530,7 +5666,7 @@ curl -X POST \
         method: "delete",
         path: "/permissions/:resource_type/:resource_id",
         alias: "RevokePermission",
-        description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must hold the Owner role on the resource.`,
+        description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must own the resource or have permission to revoke roles on it.`,
         requestFormat: "json",
         parameters: [
             {
@@ -5560,6 +5696,69 @@ curl -X POST \
             },
         ],
         response: z.void(),
+    },
+    {
+        method: "get",
+        path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+        alias: "GetPermissionAssignments",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "recipient_id",
+                type: "Path",
+                schema: z.string().uuid(),
+            },
+            {
+                name: "recipient_type",
+                type: "Path",
+                schema: z.string(),
+            },
+            {
+                name: "resource_id",
+                type: "Path",
+                schema: z.string().uuid(),
+            },
+            {
+                name: "resource_type",
+                type: "Path",
+                schema: z.enum(["system", "conversation", "organization"]),
+            },
+        ],
+        response: Snapshot,
+    },
+    {
+        method: "put",
+        path: "/permissions/:resource_type/:resource_id/assignments/:recipient_type/:recipient_id",
+        alias: "SavePermissionAssignments",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: SaveAssignments,
+            },
+            {
+                name: "recipient_id",
+                type: "Path",
+                schema: z.string().uuid(),
+            },
+            {
+                name: "recipient_type",
+                type: "Path",
+                schema: z.string(),
+            },
+            {
+                name: "resource_id",
+                type: "Path",
+                schema: z.string().uuid(),
+            },
+            {
+                name: "resource_type",
+                type: "Path",
+                schema: z.enum(["system", "conversation", "organization"]),
+            },
+        ],
+        response: Snapshot,
     },
     {
         method: "get",
@@ -5608,6 +5807,13 @@ curl -X POST \
     },
     {
         method: "get",
+        path: "/permissions/:resource_type/roles",
+        alias: "GetPermissionRoles",
+        requestFormat: "json",
+        response: z.array(z.string()),
+    },
+    {
+        method: "get",
         path: "/permissions/by-action/:action",
         alias: "ListPermissionsByAction",
         description: `Returns resources of the specified type that the caller can perform the specified action on. Optionally filter by user_id. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
@@ -5648,11 +5854,6 @@ curl -X POST \
                 schema: z.boolean().optional().default(false),
             },
             {
-                name: "limit",
-                type: "Query",
-                schema: limit,
-            },
-            {
                 name: "min_area_ratio",
                 type: "Query",
                 schema: limit,
@@ -5661,11 +5862,6 @@ curl -X POST \
                 name: "name",
                 type: "Query",
                 schema: created_after,
-            },
-            {
-                name: "offset",
-                type: "Query",
-                schema: limit,
             },
             {
                 name: "tag",
@@ -5689,6 +5885,16 @@ curl -X POST \
             },
             {
                 name: "viewport_min_lng",
+                type: "Query",
+                schema: limit,
+            },
+            {
+                name: "limit",
+                type: "Query",
+                schema: limit,
+            },
+            {
+                name: "offset",
                 type: "Query",
                 schema: limit,
             },
@@ -5749,7 +5955,7 @@ curl -X POST \
                 schema: ImportRegionAreasRequest,
             },
         ],
-        response: PaginatedResults_for_RegionAreaDto,
+        response: z.array(RegionAreaDto),
     },
     {
         method: "get",
@@ -6105,6 +6311,39 @@ Use a raw HTTP request and process the response body incrementally.
         response: PolisStatementAux,
     },
     {
+        method: "get",
+        path: "/tools/polis/statement_aux/:id/translations",
+        alias: "PolisListStatementTranslations",
+        description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
+        requestFormat: "json",
+        response: z.array(PolisStatementTranslation),
+    },
+    {
+        method: "get",
+        path: "/tools/polis/statement_aux/localized",
+        alias: "PolisGetLocalizedStatement",
+        description: `Returns the statement text to display for a live Polis statement in the requested locale: the stored translation when one exists, otherwise the original. Carries is_translation, original_text and source_locale so the UI can indicate a translation and reveal the source.`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "locale",
+                type: "Query",
+                schema: z.string(),
+            },
+            {
+                name: "polis_conversation_id",
+                type: "Query",
+                schema: z.string(),
+            },
+            {
+                name: "polis_statement_id",
+                type: "Query",
+                schema: z.number().int(),
+            },
+        ],
+        response: LocalizedStatement,
+    },
+    {
         method: "post",
         path: "/tools/polis/statement_aux/moderate_batch",
         alias: "PolisModerateStatementAuxBatch",
@@ -6123,7 +6362,7 @@ Use a raw HTTP request and process the response body incrementally.
         method: "post",
         path: "/tools/polis/statement_aux/sync",
         alias: "PolisSyncStatementAux",
-        description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved.`,
+        description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved. Requires conversation update or moderation permission.`,
         requestFormat: "json",
         parameters: [
             {
@@ -6153,6 +6392,84 @@ Use a raw HTTP request and process the response body incrementally.
             },
         ],
         response: z.array(ThemeStatistic),
+    },
+    {
+        method: "put",
+        path: "/tools/polis/statement_translation/:id",
+        alias: "PolisUpdateStatementTranslation",
+        description: `Overwrites a translation&#x27;s content with an admin-provided correction. Clears ai_generated and requires_validation, since the text is no longer raw machine output and a human has just reviewed it.`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: z.object({ content: z.string() }).passthrough(),
+            },
+        ],
+        response: PolisStatementTranslation,
+    },
+    {
+        method: "put",
+        path: "/tools/polis/statement_translation/:id/verify",
+        alias: "PolisVerifyStatementTranslation",
+        description: `Clears requires_validation without changing the translation&#x27;s content, for when an admin reviews a machine translation and finds it&#x27;s already correct.`,
+        requestFormat: "json",
+        response: PolisStatementTranslation,
+    },
+    {
+        method: "post",
+        path: "/tools/polis/summary",
+        alias: "PolisRequestSummary",
+        description: `Fetches the current Polis report data for a workflow step and queues a background job that generates a group/consensus/ disagreement summary with the sensemaking worker. Returns the id of the job used to track progress (GET /jobs/{job_id}).`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: RequestSummaryRequest,
+            },
+        ],
+        response: z.object({ job_id: z.string().uuid() }).passthrough(),
+    },
+    {
+        method: "get",
+        path: "/tools/polis/summary/history",
+        alias: "PolisListSummaries",
+        description: `Returns past wiki_poll_conversation_summary rows for the given workflow step, newest first, paginated.`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "limit",
+                type: "Query",
+                schema: limit,
+            },
+            {
+                name: "offset",
+                type: "Query",
+                schema: limit,
+            },
+            {
+                name: "workflow_step_id",
+                type: "Query",
+                schema: z.string().uuid(),
+            },
+        ],
+        response: PaginatedResults_for_WikiPollConversationSummary,
+    },
+    {
+        method: "get",
+        path: "/tools/polis/summary/latest",
+        alias: "PolisGetLatestSummary",
+        description: `Returns the most recently generated wiki_poll_conversation_summary row for the given workflow step, or 404 if none exists yet.`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "workflow_step_id",
+                type: "Query",
+                schema: z.string().uuid(),
+            },
+        ],
+        response: WikiPollConversationSummary,
     },
     {
         method: "get",
@@ -6668,6 +6985,26 @@ This struct contains optional fields that can be updated on a TextTranslation re
         description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
         requestFormat: "json",
         response: TextContentWithTranslations,
+    },
+    {
+        method: "get",
+        path: "/user/actions/:resource_type/:resource_id",
+        alias: "GetUserActions",
+        description: `Gets the current user&#x27;s effective actions on a resource`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "resource_id",
+                type: "Path",
+                schema: z.string().uuid(),
+            },
+            {
+                name: "resource_type",
+                type: "Path",
+                schema: z.enum(["system", "conversation", "organization"]),
+            },
+        ],
+        response: UserActions,
     },
     {
         method: "get",

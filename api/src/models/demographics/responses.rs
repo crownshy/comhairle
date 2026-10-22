@@ -6,12 +6,11 @@ use serde_json::Value;
 use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
 use super::VersionStatus;
 use super::questions::load_version;
 use super::types::*;
 use super::validation::{invalid, validate_answer};
+use crate::error::ComhairleError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

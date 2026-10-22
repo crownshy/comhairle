@@ -6,17 +6,30 @@
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
-	import type { PageProps } from './$types';
+	import type { ComponentProps } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
-	import StepHeader from '$lib/components/StepHeader.svelte';
-	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
+	import { m } from '$lib/paraglide/messages';
+	import { cn } from '$lib/utils';
+	import StepShell from './StepShell.svelte';
+	import StepChrome from './StepChrome.svelte';
+	import StepPager from './StepPager.svelte';
+	import StepComplete from './StepComplete.svelte';
+	import StepProceedBar from './StepProceedBar.svelte';
+	import StepHeader from './StepHeader.svelte';
+	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
+	import type { StepItem } from './stepItems';
+	import type { ToolSequence } from '$lib/tools/toolSequence';
+	import { STEP_COLUMN_CLASS } from './styles';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { goto } from '$app/navigation';
-	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import { afterNavigate, goto } from '$app/navigation';
+	import {
+		thank_you_page,
+		next_workflow_step_url,
+		workflow_step_url,
+		conversation_url
+	} from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
@@ -25,12 +38,17 @@
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
 
-	let { data }: PageProps = $props();
-	let { user, preview: isPreview } = data;
-	let workflow_id = $derived(data.workflow_id);
-	let workflowStep = $derived(data.workflowStep);
-	let conversation = $derived(data.conversation);
-	let workflowSteps = $derived(data.workflowSteps);
+	let { data } = $props();
+	let {
+		user,
+		preview: isPreview,
+		workflow_id,
+		workflowStep,
+		workflowSteps,
+		conversation,
+		availableDocuments,
+		hasKnowledgeBaseDocs
+	} = $derived(data);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -38,20 +56,19 @@
 
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
-	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
+	let sortedSteps = $derived(workflowSteps.toSorted((a, b) => a.stepOrder - b.stepOrder));
+
+	// Preview never writes progress, even on a live conversation, so the admin is not
+	// enrolled as a participant by clicking through.
+	let recordsProgress = $derived(conversation.isLive && !isPreview);
 
 	let actualCurrentStep = $derived(
-		conversation.isLive
+		recordsProgress
 			? (sortedSteps.find((ws) => ws.progressStatus !== 'done') ?? null)
 			: workflowStep
 	);
 
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
-
-	// Documents (and the derived "does the knowledge base have parsed docs" gate) are hoisted to
-	// the workflow +layout.ts so the step page and the support sidebar share one source.
-	let availableDocuments = $derived(data.availableDocuments);
-	let hasKnowledgeBaseDocs = $derived(data.hasKnowledgeBaseDocs);
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -84,14 +101,12 @@
 		})
 	);
 
-	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
+	let viewedIndex = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id));
 
-	/**
-	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
-	 * Mid-navigation `data` still describes the step we're leaving, so the loading skeleton has to
-	 * be picked from the destination: otherwise a hop into a survey shows an article skeleton and
-	 * then flashes white while the form iframe boots.
-	 */
+	let introUrl = $derived(conversation_url(conversation.id, isPreview) + queryString);
+
+	// Mid-navigation `data` still describes the step we're leaving, so the skeleton is picked
+	// from the destination's tool.
 	let navigatingToToolType = $derived.by(() => {
 		const targetId = navigating.to?.params?.workflow_step_id;
 		if (!targetId) return undefined;
@@ -100,131 +115,175 @@
 		return conversation.isLive ? target.toolConfig?.type : target.previewToolConfig?.type;
 	});
 
-	/**
-	 * A step hop that resolves quickly never trips this, so the header and body skeletons stay
-	 * hidden and the page just swaps content. Only a genuinely slow load shows them, where the
-	 * feedback is worth having. See delayedFlag for the reasoning.
-	 */
 	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
 
 	let prevStepHref = $derived.by(() => {
-		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
-		if (viewedIdx <= 0) return undefined;
-		const prevItem = stepItems[viewedIdx - 1];
+		if (viewedIndex <= 0) return undefined;
+		const prevItem = stepItems[viewedIndex - 1];
 		if (!prevItem || prevItem.status !== 'completed') return undefined;
 		return prevItem.href;
 	});
 
-	let currentNextAction = $state<(() => void) | undefined>(undefined);
-	let currentPrevAction = $state<(() => void) | undefined>(undefined);
-	let canProceed = $state(false);
-	// Keyed to the step so navigating to a new step never starts mid-submit.
-	let submittingStepId = $state<string | null>(null);
-	let isSubmitting = $derived(submittingStepId === workflowStep.id);
+	// Tools report back through callbacks. Each report is tagged with its step so a report from
+	// the step we just left can never leak into the next one.
+	type StepScoped<T> = { stepId: string; value: T };
 
-	$effect(() => {
-		const type = toolConfig.type;
-		if (type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME) {
-			canProceed = true;
-		} else {
-			canProceed = false;
-		}
-		if (type !== Learn.TOOL_NAME) {
-			currentNextAction = undefined;
-			currentPrevAction = undefined;
-		}
+	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
+	let toolCanContinue = $state.raw<StepScoped<boolean>>();
+	let submittingStepId = $state<string>();
+	let completionScreenStepId = $state<string>();
+
+	// This page stays mounted between steps, so a finished submit has to be cleared here or
+	// coming Back to that step finds its pager still spinning and locked.
+	afterNavigate(() => {
+		submittingStepId = undefined;
+		completionScreenStepId = undefined;
 	});
 
-	function handleNextAction(fn: () => void) {
-		currentNextAction = fn;
+	function forThisStep<T>(scoped: StepScoped<T> | undefined): T | undefined {
+		return scoped?.stepId === workflowStep.id ? scoped.value : undefined;
 	}
 
-	function handlePrevAction(fn: (() => void) | undefined) {
-		currentPrevAction = fn;
+	let currentSequence = $derived(forThisStep(toolSequence));
+	let currentNextAction = $derived(currentSequence?.next);
+	let currentPrevAction = $derived(currentSequence?.previous);
+	let toolNeedsNoSignal = $derived.by(() => {
+		const type = toolConfig?.type;
+		return type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME;
+	});
+	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
+	let isSubmitting = $derived(submittingStepId === workflowStep.id);
+	let isOnCompletionScreen = $derived(completionScreenStepId === workflowStep.id);
+
+	// Empty until the tool reports progress, and full while the step completes so the bar moves
+	// the moment Next is pressed (ADR-0047).
+	let fill = $derived(
+		isRevisiting || isSubmitting || isOnCompletionScreen ? 1 : (currentSequence?.progress ?? 0)
+	);
+
+	function handleSequenceChange(sequence: ToolSequence) {
+		toolSequence = { stepId: workflowStep.id, value: sequence };
 	}
 
 	function handleCanContinueChange(value: boolean) {
-		canProceed = value;
+		toolCanContinue = { stepId: workflowStep.id, value };
 	}
+
+	// A tool's own pages come before the step boundary (ADR-0047).
+	let stepCanAdvance = $derived(currentNextAction !== undefined || canProceed || isRevisiting);
+	let canGoBack = $derived(currentPrevAction !== undefined || prevStepHref !== undefined);
+	let canGoForward = $derived(stepCanAdvance || !workflowStep.required);
+	let forwardMode = $derived<ComponentProps<typeof StepPager>['forwardMode']>(
+		stepCanAdvance || workflowStep.required ? 'next' : 'skip'
+	);
+
+	// Every destination keeps the current query string (such as ?embed=true), and the lint rule
+	// only accepts a bare resolve() call, so `resolve(...) + queryString` would still fail it.
+	function navigateTo(href: string, options?: Parameters<typeof goto>[1]) {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		return goto(href, options);
+	}
+
+	function goBack() {
+		if (currentPrevAction) {
+			currentPrevAction();
+			return;
+		}
+		if (prevStepHref) navigateTo(prevStepHref);
+	}
+
+	function goForward() {
+		if (currentNextAction) {
+			currentNextAction();
+			return;
+		}
+		// A skip skips the completion screen too (ADR-0064).
+		if (forwardMode === 'skip') {
+			proceed();
+			return;
+		}
+		showCompletionScreen();
+	}
+
+	// Progress is written on Proceed, not here (ADR-0064).
+	function showCompletionScreen() {
+		completionScreenStepId = workflowStep.id;
+	}
+
+	// Mirrors where proceed() lands, so the last step's button reads Finish.
+	let proceedFinishesWorkflow = $derived.by(() => {
+		const laterSteps = sortedSteps.slice(viewedIndex + 1);
+		if (isRevisiting) {
+			return actualCurrentStep === null && !laterSteps.some((ws) => ws.canRevisit);
+		}
+		if (recordsProgress) {
+			return sortedSteps.every(
+				(ws) => ws.id === workflowStep.id || ws.progressStatus === 'done'
+			);
+		}
+		return laterSteps.length === 0;
+	});
 
 	function goToThankYouPage() {
-		// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
-		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
+		return navigateTo(thank_you_page(conversation.id, workflow_id, isPreview) + queryString);
 	}
 
-	async function stepComplete() {
+	function goToNextRevisitableStep() {
+		const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+		const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
+		const target = nextRevisitable ?? actualCurrentStep;
+		if (!target) return goToThankYouPage();
+		return navigateTo(
+			workflow_step_url(conversation.id, workflow_id, target.id, isPreview) + queryString
+		);
+	}
+
+	async function completeLiveStep() {
+		await apiClient.SetUserProgress(
+			{ status: 'done' },
+			{
+				params: {
+					workflow_id: workflowStep.workflowId,
+					conversation_id: conversation.id,
+					workflow_step_id: workflowStep.id
+				},
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
+
+		// Not invalidate(): this page's load would redirect a finished step to /next,
+		// rejecting the invalidate and firing a spurious error toast.
+		await navigateTo(
+			next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
+			{ invalidateAll: true }
+		);
+	}
+
+	function goToNextPreviewStep() {
+		const next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
+		if (!next) return goToThankYouPage();
+		return navigateTo(
+			workflow_step_url(conversation.id, workflow_id, next.id, isPreview) + queryString
+		);
+	}
+
+	async function proceed() {
 		if (isSubmitting) return;
 		submittingStepId = workflowStep.id;
 
-		if (isRevisiting) {
-			const isPreview = !conversation.isLive;
-			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
-			const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
-			const target = nextRevisitable ?? actualCurrentStep;
-			if (target) {
-				goto(
-					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
-					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
-						queryString
-				);
-			} else {
-				goToThankYouPage();
-			}
-			submittingStepId = null;
-			return;
-		}
+		const completed = await tryCatchAsync<void, Error>(() => {
+			if (isRevisiting) return goToNextRevisitableStep();
+			if (recordsProgress) return completeLiveStep();
+			return goToNextPreviewStep();
+		});
 
-		try {
-			if (conversation.isLive) {
-				await apiClient.SetUserProgress(
-					{ status: 'done' },
-					{
-						params: {
-							workflow_id: workflowStep.workflowId,
-							conversation_id: conversation.id,
-							workflow_step_id: workflowStep.id
-						},
-						headers: { 'Content-Type': 'application/json' }
-					}
-				);
-
-				/** Deliberately no invalidate() in place. Marking the step done changes
-				 * what this page's own load does: a completed, non-revisitable step
-				 * redirects to /next. Invalidating here re-runs that load, the redirect
-				 * rejects the invalidate, and the catch below fires a spurious error
-				 * toast while the redirect navigates anyway. Navigating with
-				 * invalidateAll refreshes the step list and the participation seal at
-				 * the destination instead. */
-				await goto(
-					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
-					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString,
-					{ invalidateAll: true }
-				);
-			} else {
-				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
-				if (next) {
-					let next_step_url = workflow_step_url(
-						conversation.id,
-						workflow_id,
-						next.id,
-						!conversation.isLive
-					);
-					// eslint-disable-next-line svelte/no-navigation-without-resolve -- $lib/urls builds app-relative paths
-					goto(next_step_url + queryString);
-				} else {
-					goToThankYouPage();
-				}
-			}
-		} catch (e) {
-			if (e instanceof Error) {
-				console.warn(e.message);
-			}
+		if (completed.err !== null) {
 			notifications.send({
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
 		}
-		submittingStepId = null;
+		submittingStepId = undefined;
 	}
 </script>
 
@@ -232,51 +291,41 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center sm:py-2 md:py-10">
-	{#if conversation && workflowStep && user}
-		<div
-			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
-		>
-			<StepSelector steps={stepItems} />
-		</div>
+{#if conversation && workflowStep && user}
+	<StepShell class="min-h-0 grow">
+		{#snippet header()}
+			<div class="bg-background">
+				<StepChrome
+					steps={stepItems}
+					currentIndex={viewedIndex}
+					{fill}
+					position={isOnCompletionScreen ? undefined : currentSequence?.position}
+					{introUrl}
+					preview={isPreview}
+				/>
+			</div>
+		{/snippet}
 
-		<div class="mt-2 w-full md:mt-6 md:px-0">
-			{#if showNavigationSkeleton.current}
+		{#snippet content()}
+			<!-- The step name scrolls away with the tool so it never sits over the tool's
+			     content, and phones get the room back (ADR-0063). It stays put while Proceed
+			     navigates away from the completion screen. -->
+			{#if showNavigationSkeleton.current && !isOnCompletionScreen}
 				<StepHeaderSkeleton />
 			{:else}
 				<StepHeader
-					{currentStepNumber}
-					totalSteps={stepItems.length}
 					title={workflowStep.name}
 					description={workflowStep.description}
-					prevHref={prevStepHref}
-					onPrev={currentPrevAction}
-					onNext={currentNextAction ?? stepComplete}
-					nextDisabled={!canProceed}
-					nextLoading={isSubmitting}
 					{availableDocuments}
 					conversationId={conversation.id}
 				/>
 			{/if}
-		</div>
-
-		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
-			<div class="flex grow flex-col">
-				{#if !workflowStep.required}
-					<Button
-						onclick={stepComplete}
-						disabled={isSubmitting}
-						class="mx-auto"
-						variant="secondary"
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						Skip this step
-					</Button>
-				{/if}
-				<div class="mb-10 w-full grow">
-					{#if showNavigationSkeleton.current}
+			<div class={cn(STEP_COLUMN_CLASS, 'flex grow flex-col pt-2')}>
+				<!-- SvelteKit keeps this page mounted between steps, so the key drops the last tool's state. -->
+				{#key workflowStep.id}
+					{#if isOnCompletionScreen}
+						<StepComplete />
+					{:else if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
 						{:else}
@@ -288,93 +337,103 @@
 							{/if}
 						{/if}
 					{:else if toolConfig?.type === Learn.TOOL_NAME}
-						{#key workflowStep.id}
-							<Learn.UserUI
-								onDone={stepComplete}
-								pages={toolConfig.pages}
-								user_id={user.id}
-								onNextAction={handleNextAction}
-								onPrevAction={handlePrevAction}
-								{conversation}
-								{availableDocuments}
-								{hasKnowledgeBaseDocs}
-								{isSubmitting}
-							/>
-						{/key}
+						<Learn.UserUI
+							pages={toolConfig.pages}
+							onSequenceChange={handleSequenceChange}
+							{conversation}
+							{availableDocuments}
+							{hasKnowledgeBaseDocs}
+						/>
 					{:else if toolConfig?.type === Polis.TOOL_NAME}
-						{#key workflowStep.id}
-							<Polis.UserUI
-								user_id={user.id}
-								polis_id={toolConfig.poll_id}
-								polis_url={toolConfig.server_url}
-								requiredVotes={toolConfig.required_votes}
-								workflowStepId={workflowStep.id}
-								{isPreview}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-								showRemainingStatementCount={toolConfig.show_remaining_statements}
-							/>
-						{/key}
+						<Polis.UserUI
+							user_id={user.id}
+							polis_id={toolConfig.poll_id}
+							polis_url={toolConfig.server_url}
+							requiredVotes={toolConfig.required_votes}
+							workflowStepId={workflowStep.id}
+							{isPreview}
+							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
+							onDone={showCompletionScreen}
+							topic={toolConfig.topic}
+							strictModeration={toolConfig.strict_moderation}
+						/>
 					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
-						{#key workflowStep.id}
-							<HeyForm.UserUI
-								userId={user.id}
-								surveyId={toolConfig.survey_id}
-								surveyURL={toolConfig.survey_url}
-								serverURL={toolConfig.server_url}
-								onDone={stepComplete}
-							/>
-						{/key}
+						<HeyForm.UserUI
+							userId={user.id}
+							surveyId={toolConfig.survey_id}
+							surveyURL={toolConfig.survey_url}
+							serverURL={toolConfig.server_url}
+							onDone={showCompletionScreen}
+							onSequenceChange={handleSequenceChange}
+						/>
 					{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
-						<LivedExperience.UserUI onDone={stepComplete} />
+						<LivedExperience.UserUI onSequenceChange={handleSequenceChange} />
 					{:else if toolConfig?.type === ThinkingSpace.TOOL_NAME}
-						{#key workflowStep.id}
-							<ThinkingSpace.UserUI
-								workflowStepId={workflowStep.id}
-								workflowId={workflowStep.workflowId}
-								conversationId={conversation.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								rootQuestions={toolConfig.root_questions}
-								followUpRoundsCount={toolConfig.follow_up_rounds_count}
-								requestUserSharePermission={workflowStep.requestUserSharePermission}
-								initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
-								progressStatus={workflowStep.progressStatus}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
+						<ThinkingSpace.UserUI
+							workflowStepId={workflowStep.id}
+							workflowId={workflowStep.workflowId}
+							conversationId={conversation.id}
+							userId={user.id}
+							topic={toolConfig.topic}
+							rootQuestions={toolConfig.root_questions}
+							followUpRoundsCount={toolConfig.follow_up_rounds_count}
+							requestUserSharePermission={workflowStep.requestUserSharePermission}
+							initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
+							progressStatus={workflowStep.progressStatus}
+							onDone={showCompletionScreen}
+							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
+						/>
 					{:else if toolConfig?.type === ElicitationBot.TOOL_NAME}
-						{#key workflowStep.id}
-							<ElicitationBot.UserUI
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
-								workflowStepId={workflowStep.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
+						<ElicitationBot.UserUI
+							conversationId={conversation.id}
+							workflowId={workflowStep.workflowId}
+							workflowStepId={workflowStep.id}
+							userId={user.id}
+							topic={toolConfig.topic}
+							onDone={showCompletionScreen}
+							onCanContinueChange={handleCanContinueChange}
+						/>
 					{:else if toolConfig?.type === Prioritization.TOOL_NAME}
-						{#key workflowStep.id}
-							<Prioritization.UserUI
-								{workflowStep}
-								conversation={{
-									primaryLocale: conversation.primaryLocale,
-									isLive: conversation.isLive,
-									supportedLanguages: conversation.supportedLanguages
-								}}
-								participantId={user.id}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
+						<Prioritization.UserUI
+							{workflowStep}
+							conversation={{
+								primaryLocale: conversation.primaryLocale,
+								isLive: conversation.isLive,
+								supportedLanguages: conversation.supportedLanguages
+							}}
+							participantId={user.id}
+							onDone={showCompletionScreen}
+							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
+						/>
 					{/if}
-				</div>
+				{/key}
 			</div>
-		</div>
-	{:else}
-		<h1>Failed to find conversation</h1>
-	{/if}
-</div>
+		{/snippet}
+
+		{#snippet bar()}
+			{#if isOnCompletionScreen}
+				<StepProceedBar
+					finishes={proceedFinishesWorkflow}
+					loading={isSubmitting}
+					onProceed={proceed}
+				/>
+			{:else}
+				<StepPager
+					{forwardMode}
+					nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
+					{canGoBack}
+					{canGoForward}
+					loading={isSubmitting}
+					blockedReason={currentSequence?.blockedReason}
+					onBack={goBack}
+					onForward={goForward}
+				/>
+			{/if}
+		{/snippet}
+	</StepShell>
+{:else}
+	<h1>{m.step_not_found()}</h1>
+{/if}

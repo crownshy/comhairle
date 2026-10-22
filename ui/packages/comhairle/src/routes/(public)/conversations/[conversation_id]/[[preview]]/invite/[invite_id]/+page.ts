@@ -1,6 +1,8 @@
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import { conversation_url } from '$lib/urls';
+import { conversation_url, loginRedirectServer } from '$lib/urls';
+import { apiErrorStatus } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
 import type { InviteDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ params, parent, url }) => {
@@ -40,7 +42,16 @@ export const load: PageLoad = async ({ params, parent, url }) => {
 		if (isRedirect(e)) {
 			throw e;
 		}
+		if (apiErrorStatus(e) === HttpStatus.Unauthorized) {
+			loginRedirectServer(url.pathname + url.search, 'Log in to open this invite');
+		}
 		console.error(e);
-		return { error: e.response.data.err, conversation };
+		return { error: inviteErrorText(e), conversation };
 	}
 };
+
+/** The API's error text, or an empty string when the request never got a response. */
+function inviteErrorText(error: unknown): string {
+	const text = (error as { response?: { data?: { err?: unknown } } } | null)?.response?.data?.err;
+	return typeof text === 'string' ? text : '';
+}

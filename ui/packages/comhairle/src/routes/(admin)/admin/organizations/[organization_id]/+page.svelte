@@ -13,6 +13,10 @@
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 	import { cn } from '$lib/utils';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { organizationTour } from './tour';
+
+	useTour(() => organizationTour);
 
 	let { data }: { data: PageData } = $props();
 	let roleAssignments = $state<ReturnType<typeof RoleAssignments>>();
@@ -188,6 +192,7 @@
 
 		{#if data.canManageTeam}
 			<div
+				data-tour="organization-tabs"
 				role="tablist"
 				aria-label="Organization sections"
 				class="border-border mb-8 flex gap-1 border-b"
