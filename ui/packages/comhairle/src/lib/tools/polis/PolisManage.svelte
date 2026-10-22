@@ -35,7 +35,8 @@
 		show_remaining_statements: showRemaining = true,
 		topic = '',
 		description = '',
-		strict_moderation: strictModeration = false
+		strict_moderation: strictModeration = false,
+		notify_moderators: notifyModerators
 	} = $derived(toolConfig);
 
 	// Local copies for the text inputs. Writable `$derived`: the user's keystrokes
@@ -47,7 +48,13 @@
 
 	// Config keys that must be proxied to Polis (the rest are comhairle-only
 	// display flags that live in tool_config).
-	const POLIS_KEYS = new Set(['topic', 'description', 'is_active', 'strict_moderation']);
+	const POLIS_KEYS = new Set([
+		'topic',
+		'description',
+		'is_active',
+		'strict_moderation',
+		'notify_moderators'
+	]);
 
 	/**
 	 * Persist a single Setup field. Polis-owned fields (see POLIS_KEYS) are
@@ -201,6 +208,31 @@
 				disabled={!canEdit}
 				checked={strictModeration ?? false}
 				onCheckedChange={(checked) => saveField('strict_moderation', checked)}
+			/>
+		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="notifyModerators" class="text-sm font-medium">
+					Send notification email to moderators
+				</Label>
+				<span class="text-muted-foreground text-xs">
+					When on, a daily notication email will be sent to moderators of this
+					conversation if there are pending comments awaiting approval or rejection at
+					<a
+						href={resolve(
+							'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+							{ conversation_id: conversationId, step_id: workflowStepId }
+						)}
+						class="text-primary font-medium underline underline-offset-2">Moderation</a
+					>
+				</span>
+			</div>
+			<Switch
+				id="notifyModerators"
+				disabled={!canEdit}
+				checked={notifyModerators}
+				onCheckedChange={(checked) => saveField('notify_moderators', checked)}
 			/>
 		</div>
 	</div>

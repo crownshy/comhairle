@@ -41,6 +41,9 @@ pub enum WorkerServiceError {
     #[error("Background job failed to queue")]
     BackgroundJobFailedToQueue,
 
+    #[error("Wiki poll service error: {0}")]
+    WikiPollServiceError(String),
+
     #[error("Transcription service error: {0}")]
     TranscriptionServiceError(String),
 
@@ -76,6 +79,7 @@ impl From<&WorkerServiceError> for StatusCode {
             | WorkerServiceError::WrongUserType
             | WorkerServiceError::BackgroundJobFailedToQueue
             | WorkerServiceError::TranscriptionServiceError(_)
+            | WorkerServiceError::WikiPollServiceError(_)
             | WorkerServiceError::BulkStorageServiceError(_)
             | WorkerServiceError::CategorizationServiceError(_)
             | WorkerServiceError::InvalidState(_)

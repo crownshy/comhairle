@@ -1543,6 +1543,7 @@ export const ToolConfig = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1750,6 +1751,7 @@ export const ToolConfigWithTranslations = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1894,6 +1896,7 @@ export const LocalizedToolConfig = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
