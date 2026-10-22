@@ -4,6 +4,7 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { INPUT_STYLE } from '$lib/components/ui/input/styles';
 	import { cn } from '$lib/utils';
+	import { ChevronDown } from 'lucide-svelte';
 
 	type Value = string;
 	type Label = string;
@@ -20,6 +21,15 @@
 
 	// svelte-ignore state_referenced_locally
 	let selected = $state<Value | undefined>(defaultSelected);
+	let label = $derived.by(() => {
+		if (selected) {
+			return options.find((o) => o.value === selected)?.label;
+		}
+		return defaultSelected ?? placeholder ?? '';
+	});
+	let isPlaceholder = $derived<boolean>(
+		!selected && defaultSelected === undefined && placeholder !== undefined
+	);
 
 	const isMobile = new IsMobile();
 </script>
@@ -28,14 +38,10 @@
 	<Select.Root {name} type="single" bind:value={selected}>
 		<Select.Trigger {id} class={cn(INPUT_STYLE)} {placeholder}>
 			<span
-				class="w-full justify-start"
-				class:text-muted-foreground={selected === undefined &&
-					defaultSelected === undefined &&
-					placeholder !== undefined}
+				class="flex w-full flex-row items-center justify-between"
+				class:text-muted-foreground={isPlaceholder}
 			>
-				{selected !== undefined
-					? options.find((o) => o.value === selected)?.label
-					: (defaultSelected ?? placeholder ?? '')}
+				{label}
 			</span>
 		</Select.Trigger>
 		<Select.Content>
@@ -48,10 +54,10 @@
 	</Select.Root>
 {:else}
 	<Drawer.Root>
-		<Drawer.Trigger class={cn(INPUT_STYLE)}>
-			{selected !== undefined
-				? options.find((o) => o.value === selected)?.label
-				: (defaultSelected ?? placeholder ?? '')}
+		<Drawer.Trigger class={cn(INPUT_STYLE, 'flex flex-col items-start justify-start text-sm')}>
+			<span class:text-muted-foreground={isPlaceholder}>
+				{label}
+			</span>
 		</Drawer.Trigger>
 		<Drawer.Content>
 			{#each options as option (option.value)}
