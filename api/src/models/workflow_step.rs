@@ -97,7 +97,7 @@ impl WithToolConfig for LocalizedWorkflowStepWithProgress {
     }
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 16] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,

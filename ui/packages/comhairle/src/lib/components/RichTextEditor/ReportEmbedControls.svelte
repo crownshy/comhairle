@@ -37,7 +37,7 @@
 		!!selectedStep && (selectedStep.reportDataPublic || madePublic.has(selectedStep.id))
 	);
 
-	// Opting in is always an explicit admin action (ADR-0046): embedding never flips it.
+	// Opting in is always an explicit admin action (ADR-0061): embedding never flips it.
 	async function makeSelectedStepPublic() {
 		if (!selectedStep) return;
 		const step = selectedStep;
