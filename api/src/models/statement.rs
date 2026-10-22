@@ -308,11 +308,10 @@ pub async fn update(
 }
 
 #[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, workflow_step_id: Uuid, id: Uuid) -> Result<(), ComhairleError> {
+pub async fn delete(db: &PgPool, id: Uuid) -> Result<(), ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(StatementIden::Table)
         .and_where(Expr::col(StatementIden::Id).eq(id))
-        .and_where(Expr::col(StatementIden::WorkflowStepId).eq(workflow_step_id))
         .build_sqlx(PostgresQueryBuilder);
 
     let deleted = sqlx::query_with(&sql, values).execute(db).await?;
@@ -422,7 +421,7 @@ mod tests {
         .await?;
         assert_eq!(updated.content, "Updated content", "content not updated");
 
-        delete(&pool, workflow_step_id, created.id).await?;
+        delete(&pool, created.id).await?;
         let statements = list_for_workflow_step(&pool, workflow_step_id).await?;
         assert!(statements.is_empty(), "statement not deleted");
 

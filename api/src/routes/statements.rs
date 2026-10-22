@@ -72,10 +72,9 @@ async fn delete_statement(
     State(state): State<Arc<ComhairleState>>,
     Path(params): Path<HashMap<String, Uuid>>,
 ) -> Result<StatusCode, ComhairleError> {
-    let workflow_step_id = path_param(&params, "workflow_step_id")?;
     let statement_id = path_param(&params, "statement_id")?;
 
-    statement::delete(&state.db, workflow_step_id, statement_id).await?;
+    statement::delete(&state.db, statement_id).await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
