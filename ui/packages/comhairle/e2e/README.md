@@ -43,7 +43,7 @@ and click "Run workflow". Pull requests don't run it.
 - `utils/auth.ts`: `login(page)`. Every test gets a fresh browser, so every test logs in.
 - `utils/navigation/`: getting around. `Conversation.open` finds or creates the shared
   "Playwright testing" conversation. `Conversation.openLaunched` does the same for a second,
-  launched one (Recruit, Notify, Monitor and Report only open after launch, and launching locks
+  launched one (Recruit, Notify, Monitor, Insights and Report only open after launch, and launching locks
   set-up). `Conversation.openTab` clicks a sidebar section and waits for it to load.
 - `utils/components/`: helpers for inputs that need more than a click (switches, rich text,
   the step board). Make one object per field, for example

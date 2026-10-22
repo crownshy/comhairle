@@ -630,7 +630,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Open **Launch** in the sidebar.',
 					'Work through **Before you launch**, including a final **Preview**, to make sure everything is ready.',
 					'Click **Launch conversation**, then confirm by clicking **Launch**.',
-					'Once launched, the sidebar shows **Launched**, and **Engage** (**Recruit**, **Notify**, **Monitor**, and **Moderate** if you have a Participant-led poll), **Close** and **Report** become available.'
+					'Once launched, the sidebar shows **Launched**, and **Engage** (**Recruit**, **Notify**, **Insights**, **Monitor**, and **Moderate** if you have a Participant-led poll), **Close** and **Report** become available.'
 				],
 				tips: [
 					'Previewing does not launch your conversation or make it available to participants.',
@@ -695,16 +695,16 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				title: 'See insights for a step',
 				navLabel: 'See insights for a step',
 				summary:
-					'Each step has its own [Insights](/admin/info/glossary#term-insights) tab showing the responses and results collected in that step. For results across the whole conversation, use **Report**.',
+					'Each step has its own [Insights](/admin/info/glossary#term-insights) page showing the responses and results collected in that step. For results across the whole conversation, use **Report**.',
 				steps: [
-					'In **Process design**, open the step you want to look at.',
-					'Go to its **Insights** tab.',
+					'Under **Engage** in the sidebar, open **Insights**. It becomes available after you launch the conversation.',
+					'Click the step you want to look at.',
 					'In a Participant-led poll, see the totals for **Participants**, **Statements** and **Vote cast**, then the **Consensus continuum**, **Area of consensus**, **Area of disagreement** and **Opinion groups**.',
 					'Click **Generate summary** to add an AI summary of the poll. Click **Regenerate summary** to update it after more votes come in.',
 					'Click **Download CSV** to export the results.'
 				],
 				tips: [
-					'The **Insights** tab appears for Participant-led poll, Thinking space, Prioritization and Survey steps. Learn steps have no Insights tab.',
+					'**Insights** lists Participant-led poll, Thinking space, Prioritization and Survey steps. Learn steps have no Insights.',
 					'A Participant-led poll shows **No insights yet** until participants start voting.',
 					'To show a live Participant-led poll on a screen in the room, click **Open room display**. It opens in a new window.',
 					'Downloaded files may contain personal data. Store and share them in line with your organisation’s data protection policy.'
@@ -780,7 +780,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Turn on **Publish Report** to make the report public, then click **View Report** to see it as others will.'
 				],
 				tips: [
-					'To look at the responses to a single step, open the step in **Process design** and go to its [Insights](/admin/info/glossary#term-insights) tab.',
+					'To look at the responses to a single step, open [Insights](/admin/info/glossary#term-insights) under **Engage** and click the step.',
 					'When the engagement period is over, [close the conversation](/admin/info/how-to/manage-a-conversation/close-a-conversation). You can still write and publish the report after closing.'
 				]
 			},
@@ -803,7 +803,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				],
 				tips: [
 					'Closing is reversible. On the **Close** page, click **Re-open Conversation** to let people take part again.',
-					'Results in **Monitor**, **Report** and each step’s [Insights](/admin/info/glossary#term-insights) tab stay available after you close.',
+					'Results in **Monitor**, **Insights** and **Report** stay available after you close.',
 					'You need permission to launch the conversation before you can close or re-open it.'
 				]
 			}
