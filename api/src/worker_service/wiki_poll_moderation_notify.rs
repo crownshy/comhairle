@@ -13,8 +13,10 @@ use crate::models::conversation::{
 };
 use crate::models::job::{self, CreateJob};
 use crate::models::pagination::PageOptions;
+use crate::models::workflow_step::LocalizedWorkflowStep;
 use crate::models::{permissions, users, workflow, workflow_step};
 use crate::tools::ToolConfig;
+use crate::tools::polis::PolisToolConfig;
 use crate::wiki_poll_service::ModerationStatus;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -30,7 +32,6 @@ pub async fn retrieve_and_enqueue_wiki_poll_moderation_notify_jobs(
         .required_worker_service()
         .map_err(|_| WorkerServiceError::NoWorkerServiceConfigured)?;
 
-    // TODO: check the default pagination
     let live_conversations = conversation::list(
         &state.db,
         PageOptions::default(),
@@ -90,42 +91,22 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         "Checking for wiki poll moderation comments"
     );
 
-    let workflows = workflow::list_for_conversation(&state.db, req.conversation.id)
-        .await
-        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
-        .await?;
-
-    let mut wiki_poll_steps = Vec::new();
-    for workflow in workflows {
-        let workflow_steps = workflow_step::list_localized(
-            &state.db,
-            &workflow.id,
-            &req.conversation.primary_locale,
-        )
-        .await
-        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-        .ok_or_record_failure(&req.job_id, &state.db)
-        .await?;
-
-        wiki_poll_steps.extend(workflow_steps.into_iter().filter_map(|step| {
-            let Some(ToolConfig::Polis(config)) = &step.tool_config else {
-                return None;
-            };
-            let config = config.clone();
-            Some((step, config))
-        }));
-    }
+    let wiki_poll_steps = collect_wiki_poll_steps(
+        &state.db,
+        req.conversation.id,
+        &req.conversation.primary_locale,
+    )
+    .await
+    .ok_or_record_failure(&req.job_id, &state.db)
+    .await?;
 
     if wiki_poll_steps.is_empty() {
-        let message = "Conversation contains no wiki poll steps, exiting.";
-        info!(
-            job_id = %req.job_id,
-            message
-        );
-        job::complete(&state.db, req.job_id, message)
-            .await
-            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+        log_and_complete(
+            req.job_id,
+            &state.db,
+            "Conversation contains no wiki poll steps, exiting.",
+        )
+        .await?;
 
         return Ok(());
     }
@@ -134,7 +115,6 @@ pub async fn send_wiki_poll_moderation_notify_emails(
     // TODO: add toggle for workflow_step to enable email feature
     for (step, config) in wiki_poll_steps {
         let mut pending_count = 0;
-        // TODO: check what `moderation=true` does on polis request
         let comments = state
             .wiki_poll_service
             .get_comments(&config.poll_id)
@@ -167,16 +147,13 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
 
-    // TODO: create util function for early return?
     if emails.is_empty() {
-        let message = "No moderators for conversation, exiting.";
-        info!(
-            job_id = %req.job_id,
-            message
-        );
-        job::complete(&state.db, req.job_id, message)
-            .await
-            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+        log_and_complete(
+            req.job_id,
+            &state.db,
+            "No moderators for conversation, exiting.",
+        )
+        .await?;
 
         return Ok(());
     }
@@ -193,7 +170,51 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         }
     }
 
+    log_and_complete(
+        req.job_id,
+        &state.db,
+        "Completed job sending moderation notification emails, exiting.",
+    )
+    .await?;
+
     Ok(())
+}
+
+async fn log_and_complete(job_id: Uuid, db: &PgPool, message: &str) -> Result<()> {
+    info!(job_id = %job_id, message);
+
+    job::complete(db, job_id, message)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+    Ok(())
+}
+
+async fn collect_wiki_poll_steps(
+    db: &PgPool,
+    conversation_id: Uuid,
+    locale: &str,
+) -> Result<Vec<(LocalizedWorkflowStep, PolisToolConfig)>> {
+    let workflows = workflow::list_for_conversation(db, conversation_id)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+    let mut wiki_poll_steps = Vec::new();
+    for workflow in workflows {
+        let workflow_steps = workflow_step::list_localized(db, &workflow.id, locale)
+            .await
+            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+        wiki_poll_steps.extend(workflow_steps.into_iter().filter_map(|step| {
+            let Some(ToolConfig::Polis(config)) = &step.tool_config else {
+                return None;
+            };
+            let config = config.clone();
+            Some((step, config))
+        }));
+    }
+
+    Ok(wiki_poll_steps)
 }
 
 async fn collect_moderator_emails(
