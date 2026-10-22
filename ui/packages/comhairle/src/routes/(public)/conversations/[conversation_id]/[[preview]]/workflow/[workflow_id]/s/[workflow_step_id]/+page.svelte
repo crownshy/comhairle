@@ -6,7 +6,8 @@
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
-	import { type ComponentProps } from 'svelte';
+	import * as DemographicsForm from '$lib/tools/demographics_form';
+	import type { ComponentProps } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { m } from '$lib/paraglide/messages';
@@ -453,6 +454,8 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
+					{:else if toolConfig?.type === DemographicsForm.TOOL_NAME}
+						<DemographicsForm.UserUI />
 					{/if}
 				{/key}
 			</div>
