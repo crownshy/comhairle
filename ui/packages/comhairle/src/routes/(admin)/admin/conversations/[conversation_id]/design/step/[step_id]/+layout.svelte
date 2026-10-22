@@ -4,6 +4,8 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { stepTour } from './tour';
+	import { SCROLL_REGION_CLASS, STEP_PAGE_CLASS } from '../../../styles';
+	import { cn } from '$lib/utils';
 
 	useTour(() => stepTour);
 
@@ -43,9 +45,7 @@
 		{@render children()}
 	</div>
 {:else}
-	<div
-		class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12 md:min-h-0 md:overflow-y-auto"
-	>
+	<div class={cn(STEP_PAGE_CLASS, SCROLL_REGION_CLASS)}>
 		<div class="max-w-admin mx-auto min-h-full w-full">
 			{@render children()}
 		</div>

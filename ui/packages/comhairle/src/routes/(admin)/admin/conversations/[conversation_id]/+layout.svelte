@@ -3,6 +3,8 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { sectionHeader } from './sectionHeader';
+	import { SCROLL_REGION_CLASS, STEP_PAGE_CLASS } from './styles';
+	import { cn } from '$lib/utils';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
@@ -157,9 +159,7 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div
-			class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12 md:min-h-0 md:overflow-y-auto"
-		>
+		<div class={cn(STEP_PAGE_CLASS, SCROLL_REGION_CLASS)}>
 			<div class="max-w-admin mx-auto min-h-full w-full">
 				<TabContentSkeleton />
 			</div>
@@ -175,7 +175,7 @@
 {:else}
 	<!-- From md up only this region scrolls, so the header and strips above stay put. On a
 		 phone they would take too much of the screen, so `main` scrolls everything. -->
-	<div class="bg-admin-background grow md:min-h-0 md:overflow-y-auto">
+	<div class={cn('bg-admin-background', SCROLL_REGION_CLASS)}>
 		{#if showSwitchingSkeleton.current}
 			<TabContent>
 				<TabContentSkeleton />
