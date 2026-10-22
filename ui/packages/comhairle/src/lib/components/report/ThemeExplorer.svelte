@@ -20,6 +20,7 @@
 	import * as Accordion from '$lib/components/ui/accordion';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ThemeTag from './ThemeTag.svelte';
+	import { useJob } from '$lib/hooks/use-job.svelte';
 	import { Sparkles, MessagesSquare, Plus, Pin, PinOff, Trash2 } from '@lucide/svelte';
 
 	import * as Card from '$lib/components/ui/card';
@@ -65,8 +66,10 @@
 	let pendingThemeCollectionId = $state<string | null>(null);
 
 	let requesting = $state(false);
-	let jobId = $state<string | null>(null);
-	let jobStatus = $state<string | null>(null);
+	const job = useJob({
+		onComplete: loadCollection,
+		onError: (message) => notifications.send({ priority: 'ERROR', message })
+	});
 
 	let generateDialogOpen = $state(false);
 	let addThemeDialogOpen = $state(false);
@@ -74,7 +77,7 @@
 	let newDescription = $state('');
 	let addingTheme = $state(false);
 
-	const isWorking = $derived(requesting || (jobId !== null && jobStatus !== 'completed'));
+	const isWorking = $derived(requesting || job.isWorking);
 
 	const pathParams = $derived({
 		conversation_id: conversationId,
@@ -218,37 +221,9 @@
 			return;
 		}
 
-		jobId = res.ok.job_id;
-		jobStatus = 'pending';
 		pendingThemeCollectionId = res.ok.theme_collection_id;
 		generateDialogOpen = false;
-	}
-
-	async function poll() {
-		if (!jobId) return;
-
-		const res = await tryCatchAsync(() => apiClient.GetJob({ params: { job_id: jobId! } }));
-
-		if (res.err !== null) {
-			console.error('GetJob failed', res.err);
-			return;
-		}
-
-		jobStatus = res.ok.status ?? null;
-
-		if (jobStatus === 'completed') {
-			jobId = null;
-			await loadCollection();
-			return;
-		}
-
-		if (jobStatus === 'error') {
-			notifications.send({
-				priority: 'ERROR',
-				message: res.ok.error ?? 'Theme generation failed'
-			});
-			jobId = null;
-		}
+		job.start(res.ok.job_id);
 	}
 
 	async function loadCollection() {
@@ -269,12 +244,6 @@
 		collection = res.ok;
 		notifyThemesLoaded(collection);
 	}
-
-	$effect(() => {
-		if (!jobId || jobStatus === 'completed' || jobStatus === 'error') return;
-		const timeout = setTimeout(poll, 5000);
-		return () => clearTimeout(timeout);
-	});
 </script>
 
 <Card.Root class="gap-0 rounded-md p-0 shadow-none">
@@ -287,7 +256,7 @@
 					<LoadingButton size="sm" loading={isWorking}>
 						<Sparkles class="size-4" />
 						{isWorking
-							? `Generating themes${jobStatus ? ` (${jobStatus})` : ''}…`
+							? `Generating themes${job.status ? ` (${job.status})` : ''}…`
 							: collection
 								? 'Regenerate themes'
 								: 'Generate themes'}
