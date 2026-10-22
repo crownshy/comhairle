@@ -7,7 +7,7 @@ export type SupportTab = 'learningAssistant' | 'faqs' | 'privacyPolicy';
 class SupportDrawerState {
 	open = $state(false);
 	/** A fresh object per request, so asking for the same tab twice still switches to it. */
-	tabRequest = $state<{ tab: SupportTab }>();
+	tabRequest = $state.raw<{ tab: SupportTab }>();
 
 	openOn(tab: SupportTab) {
 		this.tabRequest = { tab };

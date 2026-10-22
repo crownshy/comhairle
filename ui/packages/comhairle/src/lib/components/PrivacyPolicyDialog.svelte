@@ -28,7 +28,8 @@
 	}
 </script>
 
-<!-- onOpenChange only fires for the participant closing it, not for handleAccept. -->
+<!-- Closing without accepting doesn't join; onDismiss lets the page re-enable its Join button.
+     onOpenChange only fires for the participant closing it, not for handleAccept. -->
 <Dialog.Root bind:open onOpenChange={(isOpen) => !isOpen && onDismiss?.()}>
 	<Dialog.Content
 		showCloseButton={false}

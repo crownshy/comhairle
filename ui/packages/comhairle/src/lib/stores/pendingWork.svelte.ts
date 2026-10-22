@@ -12,7 +12,7 @@ class PendingWork {
 	}
 
 	stop() {
-		this.count -= 1;
+		this.count = Math.max(0, this.count - 1);
 	}
 }
 

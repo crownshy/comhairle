@@ -287,19 +287,20 @@
 
 		{#snippet content()}
 			<div class={cn(STEP_COLUMN_CLASS, 'flex min-h-full flex-col pt-2')}>
-				{#if showNavigationSkeleton.current}
-					{#if navigatingToToolType === HeyForm.TOOL_NAME}
-						<HeyForm.UserUISkeleton />
-					{:else}
-						<LearnArticleSkeleton />
-						{#if conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs}
-							<div class="mx-auto mt-6 w-full max-w-[65ch]">
-								<LearningAssistantSkeleton />
-							</div>
+				<!-- SvelteKit keeps this page mounted between steps, so the key drops the last tool's state. -->
+				{#key workflowStep.id}
+					{#if showNavigationSkeleton.current}
+						{#if navigatingToToolType === HeyForm.TOOL_NAME}
+							<HeyForm.UserUISkeleton />
+						{:else}
+							<LearnArticleSkeleton />
+							{#if conversation?.chatBotId && conversation.enableQaChatBot && hasKnowledgeBaseDocs}
+								<div class="mx-auto mt-6 w-full max-w-[65ch]">
+									<LearningAssistantSkeleton />
+								</div>
+							{/if}
 						{/if}
-					{/if}
-				{:else if toolConfig?.type === Learn.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === Learn.TOOL_NAME}
 						<Learn.UserUI
 							pages={toolConfig.pages}
 							onSequenceChange={handleSequenceChange}
@@ -307,9 +308,7 @@
 							{availableDocuments}
 							{hasKnowledgeBaseDocs}
 						/>
-					{/key}
-				{:else if toolConfig?.type === Polis.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === Polis.TOOL_NAME}
 						<Polis.UserUI
 							user_id={user.id}
 							polis_id={toolConfig.poll_id}
@@ -321,9 +320,7 @@
 							onSequenceChange={handleSequenceChange}
 							onDone={stepComplete}
 						/>
-					{/key}
-				{:else if toolConfig?.type === HeyForm.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						<HeyForm.UserUI
 							userId={user.id}
 							surveyId={toolConfig.survey_id}
@@ -332,13 +329,9 @@
 							onDone={stepComplete}
 							onSequenceChange={handleSequenceChange}
 						/>
-					{/key}
-				{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onSequenceChange={handleSequenceChange} />
-					{/key}
-				{:else if toolConfig?.type === ThinkingSpace.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === ThinkingSpace.TOOL_NAME}
 						<ThinkingSpace.UserUI
 							workflowStepId={workflowStep.id}
 							workflowId={workflowStep.workflowId}
@@ -354,9 +347,7 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
-					{/key}
-				{:else if toolConfig?.type === ElicitationBot.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === ElicitationBot.TOOL_NAME}
 						<ElicitationBot.UserUI
 							conversationId={conversation.id}
 							workflowId={workflowStep.workflowId}
@@ -366,9 +357,7 @@
 							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
 						/>
-					{/key}
-				{:else if toolConfig?.type === Prioritization.TOOL_NAME}
-					{#key workflowStep.id}
+					{:else if toolConfig?.type === Prioritization.TOOL_NAME}
 						<Prioritization.UserUI
 							{workflowStep}
 							conversation={{
@@ -381,8 +370,8 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
-					{/key}
-				{/if}
+					{/if}
+				{/key}
 			</div>
 		{/snippet}
 
