@@ -4,17 +4,17 @@
 	import type { PageProps } from './$types';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
-	import UserDemographicsForm from './UserDemographicsForm/UserDemographicsForm.svelte';
+	import DemographicAnswers from './DemographicAnswers.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
-	let {
-		participation,
-		user,
-		demographicQuestions = [],
-		demographicResponses = []
-	} = $derived(data);
+	let { participation, user, demographicAnswers } = $derived(data);
+	const conversationTitles = $derived(
+		Object.fromEntries(
+			participation.map((conversation) => [conversation.id, conversation.title])
+		)
+	);
 
 	function handleUpgradeSuccess(upgradedUser: UserDto) {
 		user = upgradedUser;
@@ -65,14 +65,11 @@
 				</div>
 			{:else}
 				<UserDetailsForm {user} />
-				{#key demographicResponses}
-					<UserDemographicsForm
-						questions={demographicQuestions}
-						responses={demographicResponses}
-						userId={user.id}
-						onSaved={refreshDemographics}
-					/>
-				{/key}
+				<DemographicAnswers
+					answers={demographicAnswers}
+					{conversationTitles}
+					onAnonymised={refreshDemographics}
+				/>
 			{/if}
 		</section>
 
