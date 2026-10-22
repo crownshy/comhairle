@@ -115,8 +115,10 @@
 </script>
 
 <!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
-	 within it. shrink-0 keeps their height inside the viewport-capped `main`. -->
-<div class="flex shrink-0 flex-col">
+	 within it. shrink-0 keeps their height inside the viewport-capped `main`. From md up they
+	 stick to the top of `main` while the page scrolls; on phones they would take too much of
+	 the screen, so they scroll away. -->
+<div class="bg-admin-background flex shrink-0 flex-col md:sticky md:top-0 md:z-10">
 	{#if conversation.isComplete}
 		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
 			<p class="text-destructive text-sm">This conversation has closed</p>
