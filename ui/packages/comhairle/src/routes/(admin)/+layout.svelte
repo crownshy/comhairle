@@ -53,6 +53,32 @@
 			sidebarWidthPx = clampWidth(px);
 		}
 	});
+
+	/// Ragflow helper chat
+
+	// $effect only runs in the browser, unlike top-level script code which also runs
+	// during SSR, where `window` doesn't exist.
+	$effect(() => {
+		function onMessage(e: MessageEvent) {
+			if (e.origin !== 'https://rag.comhairle.scot') return;
+			if (e.data.type === 'CREATE_CHAT_WINDOW') {
+				if (document.getElementById('chat-win')) return;
+				const i = document.createElement('iframe');
+				i.id = 'chat-win';
+				i.src = e.data.src;
+				i.style.cssText =
+					'position:fixed;bottom:104px;right:24px;width:380px;height:500px;border:none;background:transparent;z-index:9998;display:none';
+				i.frameBorder = '0';
+				i.allow = 'microphone;camera';
+				document.body.appendChild(i);
+			} else if (e.data.type === 'TOGGLE_CHAT') {
+				const w = document.getElementById('chat-win');
+				if (w) w.style.display = e.data.isOpen ? 'block' : 'none';
+			} else if (e.data.type === 'SCROLL_PASSTHROUGH') window.scrollBy(0, e.data.deltaY);
+		}
+		window.addEventListener('message', onMessage);
+		return () => window.removeEventListener('message', onMessage);
+	});
 </script>
 
 {#if data.user}
@@ -79,6 +105,13 @@
 {/if}
 
 <AutosaveLeaveGuard />
+
+<iframe
+	src="https://rag.comhairle.scot/next-chats/widget?shared_id=b62170c0cba711f18cab2699c84c9b80&from=chat&auth=3YDeffNn2db8emYnsh2I2-5MV7rWKKXh&visible_avatar=1&locale=en&streaming=true&mode=master&streaming=true"
+	style="position:fixed;bottom:0;right:0;width:100px;height:100px;border:none;background:transparent;z-index:9999"
+	frameborder="0"
+	allow="microphone;camera"
+></iframe>
 
 <style>
 	:global([data-slot='sidebar-wrapper'] [data-slot='sidebar-gap']),

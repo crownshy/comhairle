@@ -1,31 +1,41 @@
 <script lang="ts">
-	import PolisModerate from '$lib/tools/polis/PolisModerate.svelte';
+	import { resolve } from '$app/paths';
+	import { ChevronRight } from 'lucide-svelte';
+	import PolisModeration from '$lib/tools/polis/PolisModeration.svelte';
+	import { rejectReasonsForStep } from '$lib/moderation/moderationPolicy';
 
 	let { data } = $props();
 
-	let conversation = $derived(data.conversation);
-	let step_id = $derived(data.step_id);
-	let workflowSteps = $derived(data.workflowSteps);
-	let step = $derived(workflowSteps.find((s) => s.id === step_id));
-
-	let toolConfig = $derived(
-		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
+	let rejectReasons = $derived(
+		rejectReasonsForStep(data.toolConfig, data.moderationPolicies, data.defaultRejectReasons)
 	);
-	let pageTitle = $derived(`Moderate Step: ${step?.name ?? 'Step'}`);
 </script>
 
 <svelte:head>
-	<title>{pageTitle} - Comhairle Admin</title>
+	<title>Moderate {data.step.name} - Comhairle Admin</title>
 </svelte:head>
 
-{#if toolConfig.type === 'polis'}
-	<PolisModerate
-		polis_id={toolConfig.poll_id}
-		polis_url={toolConfig.server_url}
-		workflow_step_id={step.id}
-		admin_user={toolConfig.admin_user}
-		admin_password={toolConfig.admin_password}
-	/>
-{:else}
-	<p class="text-muted-foreground text-base">No moderation available for this step.</p>
+<nav class="text-muted-foreground mb-4 flex items-center gap-2 text-base">
+	<a
+		href={resolve('/(admin)/admin/conversations/[conversation_id]/moderate', {
+			conversation_id: data.conversation.id
+		})}
+		class="hover:text-foreground"
+	>
+		Moderate
+	</a>
+	<ChevronRight class="size-4" />
+	<span class="text-foreground">{data.step.name}</span>
+</nav>
+
+{#if data.statementsFailed}
+	<p class="text-destructive mb-4">Statements could not be loaded. Try Sync from Polis.</p>
 {/if}
+
+<PolisModeration
+	conversationId={data.conversation.id}
+	workflowStepId={data.step.id}
+	statements={data.statements}
+	{rejectReasons}
+	defaultRejectReasons={data.defaultRejectReasons}
+/>

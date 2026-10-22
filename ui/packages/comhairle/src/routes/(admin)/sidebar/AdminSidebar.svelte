@@ -80,7 +80,7 @@
 			<Button
 				variant="ghost"
 				size="icon"
-				class="text-sidebar-foreground/70 hover:text-sidebar size-7 group-data-[collapsible=icon]:hidden"
+				class="text-sidebar-foreground/70 hover:text-sidebar-accent-foreground size-7 group-data-[collapsible=icon]:hidden"
 				title={TOGGLE_TITLE}
 				aria-label="Collapse sidebar"
 				onclick={() => sidebar.toggle()}
@@ -90,7 +90,7 @@
 			<Button
 				variant="ghost"
 				size="icon"
-				class="text-sidebar-foreground/70 hover:text-sidebar hidden size-7 group-data-[collapsible=icon]:flex"
+				class="text-sidebar-foreground/70 hover:bg-sidebar-accent hidden size-7 group-data-[collapsible=icon]:flex"
 				title={TOGGLE_TITLE}
 				aria-label="Expand sidebar"
 				onclick={expandSidebar}

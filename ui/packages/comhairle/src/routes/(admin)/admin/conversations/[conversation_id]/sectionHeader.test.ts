@@ -55,14 +55,14 @@ describe('sectionHeader', () => {
 	});
 
 	it('uses the section, not the tab, for pages under a section', () => {
-		expect(at('configure/access')?.content.title).toBe('Configure');
+		expect(at('configure/content')?.content.title).toBe('Configure');
 		expect(at('events/e1')?.content.eyebrow).toBe('Set up');
 		expect(at('moderate/step/s1')?.content.title).toBe('Moderate');
 	});
 
 	it('links a tab to its own topic when it has one', () => {
-		expect(guideHref('configure/access')).toBe(
-			'/admin/info/how-to/launch-a-conversation/configure-access'
+		expect(guideHref('configure/content')).toBe(
+			'/admin/info/how-to/create-a-conversation/create-a-conversation'
 		);
 		expect(guideHref('configure/details')).toBe(
 			'/admin/info/how-to/create-a-conversation/name-a-conversation'

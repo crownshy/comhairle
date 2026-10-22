@@ -28,7 +28,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<!-- The step's own tabs (Setup/Configure/Moderation/Insights), the only strip under the step
+<!-- The step's own tabs (Setup/Configure/Insights), the only strip under the step
 	 header. Rendered from `data` so a hard refresh of /design/step/* paints it straight away. -->
 <SubTabStrip tone="primary" items={subtabItems} {basePath} />
 

@@ -17,7 +17,10 @@ use crate::models::email_template_config::{
     EmailTypeSchema, UpdateEmailTemplateConfig,
 };
 use crate::routes::auth::RequiredAdminUser;
-use crate::routes::email_template_configs::dto::EmailTemplateConfigDto;
+use crate::routes::email_template_configs::dto::{
+    EmailTemplateConfigDto, EmailTemplateConfigWithScopeDto,
+};
+use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleError, ComhairleState};
 
 #[instrument(err(Debug), skip(state))]
@@ -36,8 +39,10 @@ async fn get(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Path(email_config_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<EmailTemplateConfigDto>), ComhairleError> {
-    let email_config = email_template_config::get_by_id(&state.db, email_config_id).await?;
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<EmailTemplateConfigWithScopeDto>), ComhairleError> {
+    let email_config =
+        email_template_config::get_by_id_with_scope(&state.db, email_config_id, &locale).await?;
 
     Ok((StatusCode::OK, Json(email_config.into())))
 }
@@ -47,12 +52,14 @@ async fn list(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Query(filter_options): Query<EmailTemplateConfigFilterOptions>,
-) -> Result<(StatusCode, Json<Vec<EmailTemplateConfigDto>>), ComhairleError> {
-    let email_configs = email_template_config::list(&state.db, &user.id, filter_options)
-        .await?
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<Vec<EmailTemplateConfigWithScopeDto>>), ComhairleError> {
+    let email_configs =
+        email_template_config::list_with_scope(&state.db, user.id, filter_options, &locale)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
     Ok((StatusCode::OK, Json(email_configs)))
 }
@@ -159,7 +166,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Get custom email template configuration")
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
+                    .response::<200, Json<EmailTemplateConfigWithScopeDto>>()
             }),
         )
         .api_route(
@@ -170,7 +177,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("List custom email template configurations")
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
-                    .response::<200, Json<Vec<EmailTemplateConfigDto>>>()
+                    .response::<200, Json<Vec<EmailTemplateConfigWithScopeDto>>>()
             }),
         )
         .api_route(
@@ -257,6 +264,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -292,6 +300,7 @@ mod tests {
         let params = CreateEmailTemplateConfig {
             slots: create_slots,
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -340,6 +349,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -378,6 +388,7 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         session
             .post(
@@ -390,6 +401,7 @@ mod tests {
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         session
             .post(
@@ -431,6 +443,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session
@@ -480,6 +493,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
+            conversation_id: None,
         };
 
         let (_, value, _) = session

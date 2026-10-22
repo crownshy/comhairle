@@ -4,12 +4,18 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
+	import { cn } from '$lib/utils';
 	import { canAccessAdminPortal } from '$lib/utils/permissions';
 
 	let { children, data }: LayoutProps = $props();
 	setSupportDrawer();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
-	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
+	// The preview password page is a sign-in page in all but path, so it gets the same
+	// full-screen split with no nav bar.
+	const isAuthPage = $derived(
+		page.url.pathname.startsWith('/auth/') ||
+			page.route.id === '/(public)/conversations/[conversation_id]/preview-unlock'
+	);
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 
@@ -21,13 +27,26 @@
 			'/(public)/conversations/[conversation_id]/room-display/[workflow_step_id]'
 	);
 
+	// The step page draws its own header row and pager in place of the NavBar and Footer.
+	// See CONTEXT.md, "Step shell".
+	const isStepPage = $derived(
+		page.route.id ===
+			'/(public)/conversations/[conversation_id]/[[preview]]/workflow/[workflow_id]/s/[workflow_step_id]'
+	);
+
+	const viewportHeightClass = $derived.by(() => {
+		if (isStepPage) return 'h-dvh';
+		if (isLivePage) return 'min-h-dvh';
+		return 'min-h-screen';
+	});
+
 	let isAdmin = $derived(canAccessAdminPortal(data.userRoles));
 </script>
 
 <!-- The live call fills h-dvh. On mobile 100vh is taller than that while the browser
 	toolbar shows, so min-h-screen would leave a strip of blank page to scroll into. -->
-<div class="bg-background flex w-full flex-col {isLivePage ? 'min-h-dvh' : 'min-h-screen'}">
-	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay}
+<div class={cn('bg-background flex w-full flex-col', viewportHeightClass)}>
+	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
 	{#if isRoomDisplay}
@@ -40,12 +59,16 @@
 		<div class="w-full grow">
 			{@render children()}
 		</div>
+	{:else if isStepPage}
+		<div class="flex min-h-0 w-full grow flex-col">
+			{@render children()}
+		</div>
 	{:else}
 		<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed && !isLivePage && !isRoomDisplay}
+	{#if !isEmbed && !isLivePage && !isRoomDisplay && !isStepPage}
 		<Footer />
 	{/if}
 </div>

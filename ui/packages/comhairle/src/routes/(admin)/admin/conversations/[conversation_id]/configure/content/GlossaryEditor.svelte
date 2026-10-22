@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
@@ -17,21 +17,21 @@
 	import { parseGlossaryCsv } from '$lib/glossary/glossaryCsv';
 	import type { LocalizedGlossary } from '$lib/glossary/types';
 	import type { Locale } from '$lib/paraglide/runtime';
-	import { Autosave } from './autosave.svelte';
-	import SaveStatusPill from './SaveStatusPill.svelte';
+	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
+	import { Autosave } from '../autosave.svelte';
+	import SaveStatusPill from '../SaveStatusPill.svelte';
 
-	let {
-		conversationId,
-		primaryLocale,
-		supportedLanguages,
-		initial = []
-	}: {
-		conversationId: string;
+	type Props = {
+		conversation: ConversationWithTranslations;
 		primaryLocale: Locale;
 		supportedLanguages: Locale[];
-		/** The translatable glossary already stored on the conversation, if any. */
-		initial?: LocalizedGlossary;
-	} = $props();
+		canEdit: boolean;
+	};
+
+	let { conversation, primaryLocale, supportedLanguages, canEdit }: Props = $props();
 
 	// A row holds the terms and the explanation per locale, each as a plain string while editing
 	// (terms are comma-separated, split into an array on save). `id` is a stable {#each} key.
@@ -48,21 +48,22 @@
 		tooltips
 	});
 
-	let rows = $derived<Row[]>(
-		initial.length > 0
-			? initial.map((entry) =>
-					toRow(
-						Object.fromEntries(
-							Object.entries(entry.text).map(([locale, terms]) => [
-								locale,
-								terms.join(', ')
-							])
-						),
-						{ ...entry.tooltip }
-					)
-				)
-			: [toRow({}, {})]
-	);
+	function rowsFromConversation(): Row[] {
+		const saved = localizedGlossaryFromMetadata(conversation.metadata, primaryLocale);
+		if (saved.length === 0) return [toRow({}, {})];
+		return saved.map((entry) =>
+			toRow(
+				Object.fromEntries(
+					Object.entries(entry.text).map(([locale, terms]) => [locale, terms.join(', ')])
+				),
+				{ ...entry.tooltip }
+			)
+		);
+	}
+
+	// Read once on mount. Other Content fields reload the conversation as they save, and
+	// rebuilding the rows then would wipe glossary edits that haven't saved yet.
+	let rows = $state<Row[]>(untrack(rowsFromConversation));
 
 	// The language currently being edited. Starts on the primary locale.
 	let activeLocale = $derived(primaryLocale);
@@ -102,19 +103,22 @@
 		);
 	});
 
-	// --- Autosave: persist a debounced snapshot on every edit, like the other config fields.
 	const autosave = new Autosave(() =>
 		apiClient.PatchConversationMetadata(
 			{ [GLOSSARY_METADATA_KEY]: toLocalizedGlossary() },
-			{ params: { conversation_id: conversationId } }
+			{ params: { conversation_id: conversation.id } }
 		)
 	);
-
-	// Warn before leaving (in-app nav or full refresh) while an edit hasn't been saved yet.
 	guardUnsavedChanges(() => autosave.dirty);
 
-	// Flush a pending save when leaving the tab so the last keystroke isn't lost.
-	onDestroy(() => autosave.flush());
+	// Details reads the glossary from the conversation when a language is added, so reload it
+	// once on the way out rather than after every save.
+	onDestroy(() => {
+		autosave.flush();
+		autosave.settled().then(() => {
+			if (autosave.hasSaved) invalidate(key('admin/conversation'));
+		});
+	});
 
 	/** Rows -> a clean translatable glossary, dropping empties and splitting the terms per locale. */
 	function toLocalizedGlossary(): LocalizedGlossary {
@@ -169,6 +173,7 @@
 	 * explanation column, so both fill the language currently being edited. Autosaves after.
 	 */
 	async function importCsv(event: Event) {
+		if (!canEdit) return;
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file || importing) return;
@@ -214,15 +219,14 @@
 		});
 	}
 
-	// --- AI translate: fill the active language's empty terms AND explanations from the primary
-	// one, the same "translate" affordance the Learn step editor offers. Never overwrites text
-	// that's already there, so manual fixes are safe.
+	// Fills the active language's empty terms and explanations from the primary one, like the
+	// Learn step editor's translate button. Never overwrites existing text, so manual fixes stay.
 	let translating = $state(false);
 	let translateDone = $state(0);
 	let translateTotal = $state(0);
 
 	async function translateActiveLanguage() {
-		if (translating || isPrimary) return;
+		if (!canEdit || translating || isPrimary) return;
 
 		const targets = rows.filter(needsTranslation);
 		if (targets.length === 0) {
@@ -268,7 +272,7 @@
 		const ok = targets.length - failed;
 		notifications.addFlash({
 			message: failed
-				? `Translated ${ok} of ${targets.length} — ${failed} failed`
+				? `Translated ${ok} of ${targets.length}, ${failed} failed`
 				: `Translated ${ok} term${ok === 1 ? '' : 's'} to ${activeName}`,
 			priority: failed ? 'WARNING' : 'SUCCESS'
 		});
@@ -284,7 +288,15 @@
 	);
 </script>
 
-<div class="flex flex-col gap-6">
+<section class="border-border flex flex-col gap-6 border-t py-6" aria-labelledby="glossary-heading">
+	<div class="flex flex-col gap-1">
+		<h3 id="glossary-heading" class="text-lg font-semibold">Glossary</h3>
+		<p class="text-muted-foreground text-base">
+			Define terms once and their explanation appears as a hover tooltip wherever the term
+			shows up in this conversation's Learn steps. Add synonyms of the same term, separated by
+			commas, and they'll all share one explanation.
+		</p>
+	</div>
 	{#if supportedLanguages.length > 1}
 		<!-- Language switch: terms and explanations are edited per language. The translate button
 			fills the active language's empty terms + explanations from the primary one. -->
@@ -317,7 +329,7 @@
 					variant="outline"
 					size="sm"
 					onclick={translateActiveLanguage}
-					disabled={translating}
+					disabled={!canEdit || translating}
 					title={`Fill empty ${activeName} terms and explanations by translating from ${primaryName}`}
 				>
 					{#if translating}
@@ -339,13 +351,13 @@
 			/>
 			<Input bind:value={query} placeholder="Search terms" class="pl-8" />
 		</div>
-		<Button variant="outline" onclick={addRow}>
+		<Button variant="outline" onclick={addRow} disabled={!canEdit}>
 			<Plus class="mr-1.5 size-4" /> Add term
 		</Button>
 		<Button
 			variant="secondary"
 			onclick={() => fileInput?.click()}
-			disabled={importing}
+			disabled={!canEdit || importing}
 			title="Import glossary terms from a CSV"
 		>
 			<Upload class="mr-1.5 size-4" />
@@ -363,7 +375,7 @@
 				{/snippet}
 			</Tooltip.Trigger>
 			<Tooltip.Content
-				class="bg-card text-card-foreground border-border max-w-xs border text-sm"
+				class="bg-card text-card-foreground border-border max-w-xs border text-base"
 				arrowClasses="bg-card border-border"
 			>
 				Use two columns: term and explanation. A header row is optional. Separate synonyms
@@ -376,6 +388,7 @@
 			accept=".csv"
 			class="hidden"
 			onchange={importCsv}
+			disabled={!canEdit}
 		/>
 
 		<SaveStatusPill status={autosave.status} />
@@ -419,12 +432,13 @@
 									class="text-muted-foreground truncate px-3 text-base font-medium"
 									title={termsOf(row, primaryLocale)}
 								>
-									{termsOf(row, primaryLocale) || '—'}
+									{termsOf(row, primaryLocale) || '-'}
 								</div>
 							{/if}
 
 							<input
 								id="glossary-terms-{row.id}"
+								disabled={!canEdit}
 								value={termsOf(row, activeLocale)}
 								oninput={(e) => setTerms(row, e.currentTarget.value)}
 								placeholder={isPrimary
@@ -436,6 +450,7 @@
 							/>
 							<input
 								value={tipOf(row, activeLocale)}
+								disabled={!canEdit}
 								oninput={(e) => setTooltip(row, e.currentTarget.value)}
 								placeholder={isPrimary
 									? 'When your case is passed to another team that can help.'
@@ -444,17 +459,19 @@
 								title={tipOf(row, activeLocale)}
 								class="text-foreground placeholder:text-muted-foreground/60 bg-background h-10 truncate px-3 text-base outline-none"
 							/>
-							<button
-								type="button"
-								onclick={() => removeRow(row.id)}
-								aria-label="Remove term"
-								class="bg-background text-muted-foreground hover:text-destructive flex h-10 w-10 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
-							>
-								<Trash2 class="size-4" />
-							</button>
+							{#if canEdit}
+								<button
+									type="button"
+									onclick={() => removeRow(row.id)}
+									aria-label="Remove term"
+									class="bg-background text-muted-foreground hover:text-destructive flex h-10 w-10 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+								>
+									<Trash2 class="size-4" />
+								</button>
+							{/if}
 						</div>
 					{:else}
-						<p class="text-muted-foreground px-3 py-8 text-center text-sm">
+						<p class="text-muted-foreground px-3 py-8 text-center text-base">
 							No terms match "{query}".
 						</p>
 					{/each}
@@ -487,4 +504,4 @@
 			{/if}
 		</span>
 	</div>
-</div>
+</section>

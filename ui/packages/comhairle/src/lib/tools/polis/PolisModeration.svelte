@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
@@ -9,7 +10,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Download, RefreshCw, Search } from '@lucide/svelte';
-	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
@@ -45,7 +45,7 @@
 	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
 	// `$derived` seeds from the prop and lets optimistic assignments below override it,
 	// then resyncs on its own when the load re-runs (sync/seed invalidate
-	// `polis:statement-aux` and a fresh `initialStatements` flows back down).
+	// the Polis statements key and a fresh `initialStatements` flows back down).
 	let statements = $derived(initialStatements);
 
 	// --- Sync from Polis ---
@@ -77,7 +77,7 @@
 			}`
 		});
 		// Keep the spinner up through the reload so the button doesn't flicker.
-		await invalidate('polis:statement-aux');
+		await invalidate(key('admin/polis/statements'));
 		syncing = false;
 	}
 
@@ -217,7 +217,7 @@
 			});
 		}
 		// Reconcile with server truth (also corrects any partial failures).
-		await invalidate('polis:statement-aux');
+		await invalidate(key('admin/polis/statements'));
 	}
 
 	// --- Accept / reject ---
@@ -274,10 +274,10 @@
 		// separate: it reads `replacementsByOriginal[s.id]`, which isn't complete
 		// until every statement has been seen (a replacement may sit before or
 		// after its original in the list).
-		const byId = new Map<string, PolisStatementAux>();
+		const byId: Record<string, PolisStatementAux> = {};
 		const replacementsByOriginal: Record<string, string[]> = {};
 		for (const s of statements) {
-			byId.set(s.id, s);
+			byId[s.id] = s;
 			if (s.original_statement_id) {
 				(replacementsByOriginal[s.original_statement_id] ??= []).push(s.statement_text);
 			}
@@ -285,7 +285,7 @@
 		const result: Record<string, { editedFrom?: string; replacedBy?: string[] }> = {};
 		for (const s of statements) {
 			const editedFrom = s.original_statement_id
-				? byId.get(s.original_statement_id)?.statement_text
+				? byId[s.original_statement_id]?.statement_text
 				: undefined;
 			const replacedBy = replacementsByOriginal[s.id];
 			if (editedFrom || replacedBy) result[s.id] = { editedFrom, replacedBy };
@@ -340,14 +340,6 @@
 					Sync from Polis
 				</LoadingButton>
 			{/if}
-			{#if canEdit}
-				<AddSeedStatementsDialog
-					{conversationId}
-					{workflowStepId}
-					existingStatements={statements.map((s) => s.statement_text)}
-					onSeeded={() => invalidate('polis:statement-aux')}
-				/>
-			{/if}
 		</div>
 	</div>
 
@@ -400,6 +392,6 @@
 		bind:open={splitOpen}
 		original={splitTarget}
 		viewedContext={splitContext}
-		onDone={() => invalidate('polis:statement-aux')}
+		onDone={() => invalidate(key('admin/polis/statements'))}
 	/>
 {/if}

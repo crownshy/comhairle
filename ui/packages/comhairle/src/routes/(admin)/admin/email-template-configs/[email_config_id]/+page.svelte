@@ -131,6 +131,24 @@
 			console.error(e);
 		}
 	}, 300);
+
+	const headerTitle = () => {
+		let title = snakeToStartCase(emailConfig.emailType);
+
+		if (
+			emailConfig.emailType === 'conversation_invite' &&
+			emailConfig.conversationId &&
+			emailConfig.conversationTitle
+		) {
+			title = title.concat(` (${emailConfig.conversationTitle})`);
+		}
+
+		if (emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId) {
+			title = title.concat(' (Fallback)');
+		}
+
+		return title;
+	};
 </script>
 
 <svelte:head>
@@ -140,7 +158,7 @@
 <SectionHeader
 	content={{
 		eyebrow: 'Library',
-		title: snakeToStartCase(emailConfig.emailType),
+		title: headerTitle(),
 		description: 'Edit the subject and content of this custom email.'
 	}}
 >

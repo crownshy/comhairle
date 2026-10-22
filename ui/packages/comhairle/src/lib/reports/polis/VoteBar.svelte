@@ -1,28 +1,7 @@
 <!--
-	@component A single horizontal vote bar: agreed / disagreed / passed /
-	not-voted drawn as rounded pills packed left-to-right across the full width, with
-	an optional row label. Consecutive pills overlap by one cap radius so the rounded
-	ends nest into each other like the design, instead of leaving a lens-shaped gap.
-
-	Every segment is filled and the bar is full-width: it stretches to fill
-	whatever the caller gives it. Passed is a solid grey; not-voted is the empty
-	(near-white) tail carrying a thin outline so it stays distinct from passed even
-	when the two greys are close (e.g. scot-gov).
-
-	The tooltip follows the cursor. bits-ui's Tooltip normally anchors to the
-	trigger element and floating-ui does NOT recompute on plain mouse movement, so
-	on its own the bubble sits centred over the trigger and cannot track the
-	pointer. The way around it (without leaving bits-ui) is `customAnchor`: it
-	accepts a virtual "measurable" (anything with getBoundingClientRect). We hand
-	Tooltip.Content a zero-size virtual anchor pinned to the cursor and reassign it
-	on every pointermove; bits-ui reacts to the new reference and re-solves the
-	position, so the bubble rides along and shows whichever slice is under the
-	cursor.
-
-	Dumb leaf: it takes four already-computed percentages (0-100, summing to ~100
-	over the group's members). All fill colour comes from the shared `--vote-*`
-	theme tokens. The caller decides what the four numbers mean (overall vs a single
-	opinion group) and how they were computed.
+	@component One horizontal vote bar: agreed, passed, not voted and disagreed as
+	rounded pills packed left to right, so the two coloured ends sit at the edges.
+	Takes four percentages (0-100) and colours them with the `--vote-*` tokens.
 -->
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
@@ -38,22 +17,14 @@
 
 	let { label, agreed, disagreed, passed, notVoted }: Props = $props();
 
-	// Consensus-first order. Passed is a solid grey; not-voted is the near-white
-	// tail. `outline` gives not-voted a thin inset border so it never blurs into
-	// passed (their greys can sit close, e.g. scot-gov) or into a white card.
+	// Not voted gets an inset outline so it stays distinct from passed when the two
+	// greys sit close (e.g. scot-gov).
 	const segments = $derived([
 		{
 			key: 'agreed',
 			label: 'Agreed',
 			pct: agreed,
 			color: 'var(--vote-agreed)',
-			outline: false
-		},
-		{
-			key: 'disagreed',
-			label: 'Disagreed',
-			pct: disagreed,
-			color: 'var(--vote-disagreed)',
 			outline: false
 		},
 		{
@@ -69,6 +40,13 @@
 			pct: notVoted,
 			color: 'var(--vote-not-voted)',
 			outline: true
+		},
+		{
+			key: 'disagreed',
+			label: 'Disagreed',
+			pct: disagreed,
+			color: 'var(--vote-disagreed)',
+			outline: false
 		}
 	]);
 
@@ -96,8 +74,8 @@
 	});
 
 	const summary = $derived(
-		`${Math.round(agreed)}% agreed, ${Math.round(disagreed)}% disagreed, ` +
-			`${Math.round(passed)}% passed, ${Math.round(notVoted)}% not voted`
+		`${Math.round(agreed)}% agreed, ${Math.round(passed)}% passed, ` +
+			`${Math.round(notVoted)}% not voted, ${Math.round(disagreed)}% disagreed`
 	);
 
 	// The slice under the cursor, tracked by key so it survives prop-driven
@@ -106,8 +84,8 @@
 	let activeKey = $state<string | null>(null);
 	const active = $derived(visible.find((s) => s.key === activeKey) ?? visible[0]);
 
-	// Virtual anchor pinned to the cursor. Reassigned on each move so bits-ui
-	// re-solves the tooltip position (see the component doc above).
+	// bits-ui anchors the tooltip to the trigger and does not follow the pointer, so
+	// we hand it a zero-size anchor at the cursor and replace it on every move.
 	let cursorAnchor = $state<{ getBoundingClientRect: () => DOMRect } | null>(null);
 
 	function trackCursor(event: PointerEvent) {
