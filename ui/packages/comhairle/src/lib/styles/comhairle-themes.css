@@ -132,8 +132,8 @@
 
 	--beeswarm-dot: #030712;
 
-	/* Shared by every theme so "done" reads as success, not as the primary colour of the
-	   Proceed button underneath it (ADR-0064). */
+	/* One value in every theme, like --beeswarm-dot, and not in the Figma Themes collection.
+	   Kept apart from primary, which the Proceed button under it uses (ADR-0064). */
 	--step-complete: #2a9d90;
 	--step-complete-foreground: #ffffff;
 }

@@ -3,14 +3,12 @@
 	import { m } from '$lib/paraglide/messages';
 </script>
 
-<!-- Polite live region: a participant who submitted from the keyboard never sees the swap. -->
-<section
-	class="flex w-full grow flex-col items-center justify-center gap-12 px-6 py-8 text-center"
-	role="status"
-	aria-live="polite"
->
+<section class="flex w-full grow flex-col items-center justify-center gap-12 px-6 py-8 text-center">
+	<!-- The control the participant last used has gone, so focus lands here and is announced. -->
 	<h2
-		class="animate-in fade-in slide-in-from-bottom-2 text-3xl font-bold duration-500 motion-reduce:animate-none"
+		tabindex="-1"
+		{@attach (heading) => heading.focus()}
+		class="animate-in fade-in slide-in-from-bottom-2 text-3xl font-bold duration-500 outline-none motion-reduce:animate-none"
 	>
 		{m.step_complete_title()}
 	</h2>

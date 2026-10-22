@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "Voltar a {conversation}",
 	"pager_back": "Voltar",
 	"pager_skip": "Pular",
+	"step_complete_title": "Etapa concluída",
+	"step_complete_proceed": "Continuar",
 	"prioritization_review_or_continue": "Revise suas respostas se quiser fazer alguma alteração, ou toque em Próximo para continuar.",
 	"prioritization_review_my_answers": "Revisar minhas respostas",
 	"prioritization_review_hint": "Toque em uma proposta para revisar ou ajustar suas respostas. As alterações são salvas quando você toca em Próximo.",

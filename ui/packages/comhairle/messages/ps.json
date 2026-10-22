@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "{conversation} ته بېرته ورشئ",
 	"pager_back": "شاته",
 	"pager_skip": "تېرول",
+	"step_complete_title": "پړاو بشپړ شو",
+	"step_complete_proceed": "مخکې لاړ شئ",
 	"prioritization_review_or_continue": "که غواړئ کوم بدلون راولئ خپل ځوابونه وګورئ، یا د دوام لپاره راتلونکی کېکاږئ.",
 	"prioritization_review_my_answers": "زما ځوابونه وګورئ",
 	"prioritization_review_hint": "په یوه وړاندیز ټک وکړئ ترڅو خپل ځوابونه وګورئ یا سم یې کړئ. بدلونونه هغه وخت خوندي کېږي چې راتلونکی کېکاږئ.",

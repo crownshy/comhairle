@@ -72,7 +72,7 @@ Entry does not grant additional permissions.
 
 **Finished** (a participant is finished):
 The point at which a participant has a `done` progress row for **every** Step in a Workflow. Reaching it is what lands them on the Thank You page. Distinct from a Conversation being **complete** (`is_complete`), which is an admin closing the whole Conversation, and from a single Step's `progressStatus: 'done'`. Matches what participants see: the last step's button is labelled "Finish".
-_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion (collides with `Conversation.is_complete`).
+_Avoid_: Submission (already means one HeyForm survey response - see `tools/heyform.rs`), completion for the whole Workflow (collides with `Conversation.is_complete`; a single Step's **Completion screen** is fine).
 _Note_: Skipping an optional Step still writes `done`, so a participant who skips everything has still finished.
 
 **Taken part**:
@@ -122,9 +122,18 @@ _Avoid_: Step dropdown (half of it is not a dropdown), stepper.
 The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and
 nothing between them. Its arrows traverse the innermost open sequence first (a tool-internal
 sequence such as Learn's pages, then the Step boundary). The forward slot states one thing at
-a time: Next, or Skip on an optional Step that cannot yet advance.
+a time: Next, or Skip on an optional Step that cannot yet advance. On the
+[[#completion-screen]] the pager gives way to one full-width Proceed button (Finish on the
+last Step).
 _Avoid_: Footer (that is the site-wide `Footer.svelte`, which the step route does not
 render), toolbar.
+
+**Completion screen**:
+The "Step completed" screen a Step ends on once its tool is done, before the participant
+presses Proceed. Proceed is what writes the Step's `done` progress row, so it belongs to one
+Step, not the Workflow: a participant is only **Finished** once every Step has one. A skip
+goes straight on without it. See ADR-0064.
+_Avoid_: Done screen (`done` is the progress status the screen comes before).
 
 ### Organizations and access
 

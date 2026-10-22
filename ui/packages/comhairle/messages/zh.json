@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "回到{conversation}",
 	"pager_back": "返回",
 	"pager_skip": "跳过",
+	"step_complete_title": "步骤已完成",
+	"step_complete_proceed": "继续",
 	"prioritization_review_or_continue": "如需修改，请查看你的回答；或点击“下一页”继续。",
 	"prioritization_review_my_answers": "查看我的回答",
 	"prioritization_review_hint": "点击一个提案即可查看或调整你的回答。点击“下一页”时会保存更改。",

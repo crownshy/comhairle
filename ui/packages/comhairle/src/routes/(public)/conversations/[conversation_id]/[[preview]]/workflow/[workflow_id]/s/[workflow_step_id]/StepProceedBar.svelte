@@ -6,11 +6,13 @@
 	import { STEP_COLUMN_CLASS } from './styles';
 
 	type Props = {
+		/** Proceed lands on the thank-you page, so the button says Finish. */
+		finishes?: boolean;
 		loading?: boolean;
 		onProceed: () => void;
 	};
 
-	let { loading = false, onProceed }: Props = $props();
+	let { finishes = false, loading = false, onProceed }: Props = $props();
 </script>
 
 <!-- The pager's slot on the completion screen. The single move sits in the middle (ADR-0048). -->
@@ -24,6 +26,6 @@
 		{#if loading}
 			<Spinner class="size-5" />
 		{/if}
-		{m.step_complete_proceed()}
+		{finishes ? m.finish() : m.step_complete_proceed()}
 	</Button>
 </div>
