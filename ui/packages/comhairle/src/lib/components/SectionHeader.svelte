@@ -18,6 +18,7 @@
 	import type { Snippet } from 'svelte';
 	import { ArrowLeft, ArrowUpRight, BookOpen } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { helpStore } from '$lib/help/helpStore.svelte';
 
 	type Props = {
 		content: SectionHeaderContent;
@@ -34,26 +35,18 @@
 	let { content, hasTabs = false, compact = false, actions, fullBleed = false }: Props = $props();
 
 	let column = $derived(fullBleed ? 'w-full' : 'max-w-admin mx-auto w-full');
+	// Shares this page's guide with the help button while the header is on screen.
+	$effect(() => {
+		const guide = content.guide;
+		if (!guide) return;
+		helpStore.setGuide(guide);
+		return () => helpStore.clearGuide(guide);
+	});
 </script>
 
 {#snippet trailing()}
 	<div class="flex shrink-0 items-center gap-2 self-start">
 		{@render actions?.()}
-		{#if content.guide}
-			<!-- eslint-disable svelte/no-navigation-without-resolve -- guide hrefs are built with resolve() -->
-			<a
-				href={content.guide.href}
-				target="_blank"
-				rel="noopener noreferrer"
-				title="Open the guide in a new tab"
-				class="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-			>
-				<BookOpen class="text-primary size-4 shrink-0" />
-				<span class="max-w-60 truncate">{content.guide.label}</span>
-				<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
-			</a>
-			<!-- eslint-enable svelte/no-navigation-without-resolve -->
-		{/if}
 	</div>
 {/snippet}
 
