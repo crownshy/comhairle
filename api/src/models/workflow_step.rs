@@ -17,7 +17,7 @@ use crate::error::ComhairleError;
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
 use crate::models::users::UserIden;
-use crate::models::{SqlxResultExt, moderation_policy};
+use crate::models::{SqlxResultExt, demographics, moderation_policy};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
@@ -602,6 +602,7 @@ pub async fn create(
     workflow_id: Uuid,
     primary_locale: &str,
     is_live: bool,
+    organization_id: Option<Uuid>,
 ) -> Result<WorkflowStep, ComhairleError> {
     // Generate Translations
     let name_translation = new_translation(
@@ -632,6 +633,11 @@ pub async fn create(
     let preview_tool_config =
         setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
 
+    let mut conn = state.db.acquire().await?;
+    demographics::steps::validate_tool_config(&mut conn, organization_id, &preview_tool_config)
+        .await?;
+    drop(conn);
+
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
 
@@ -639,8 +645,10 @@ pub async fn create(
     values.push(serde_json::to_value(&preview_tool_config)?.into());
 
     if is_live {
+        let live_tool_config =
+            demographics::steps::freeze_tool_config(&state.db, preview_tool_config.clone()).await?;
         columns.push(WorkflowStepIden::ToolConfig);
-        values.push(serde_json::to_value(&preview_tool_config)?.into());
+        values.push(serde_json::to_value(&live_tool_config)?.into());
     }
 
     let mut transaction = state.db.begin().await?;

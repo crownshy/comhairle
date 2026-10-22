@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{
+    OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin, is_user_super_admin,
+};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
@@ -34,10 +36,11 @@ use crate::models::permissions::conversation::{Action, Role};
 use crate::models::permissions::{
     self, ActorId, ConversationResource, GrantRoleRequest, OrganizationWithPermissionDto,
     PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action, grant_role,
+    organization as organization_permissions,
 };
 use crate::models::user_participation::{self};
-use crate::models::users::User;
-use crate::models::{organization, user_conversation_preferences, user_profile, user_progress};
+use crate::models::users::{self, User};
+use crate::models::{demographics, organization, user_conversation_preferences, user_progress};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::preview_access::{has_preview_grant, preview_denied_error};
 use crate::routes::translations::LocaleExtractor;
@@ -65,16 +68,141 @@ async fn create_conversation(
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
+/// Checks that `user` may host conversations under `organization_id` (they administer it) and
+/// that the conversation's demographic steps still resolve against that organization.
+async fn ensure_can_change_hosting_organization(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    conversation: &conversation::Conversation,
+    organization_id: Option<Uuid>,
+) -> Result<(), ComhairleError> {
+    if conversation.organization_id == organization_id {
+        return Ok(());
+    }
+
+    if let Some(organization_id) = organization_id {
+        organization::get_by_id(&state.db, &organization_id).await?;
+        let is_organization_admin = can_perform_action(
+            state,
+            &organization_id,
+            organization_permissions::Action::Update,
+            &user.id,
+            None,
+        )
+        .await?;
+        if !is_organization_admin {
+            return Err(ComhairleError::UserNotAuthorized);
+        }
+    }
+
+    demographics::steps::ensure_steps_usable_by(&state.db, conversation.id, organization_id).await
+}
+
 /// Update conversation handler
 #[instrument(err(Debug), skip(state))]
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    if let Some(organization_id) = conversation.organization_id {
+        let current = conversation::get_by_id(&state.db, &conversation_id).await?;
+        ensure_can_change_hosting_organization(&state, &user, &current, organization_id).await?;
+    }
     let conversation = conversation::update(&state.db, &conversation_id, &conversation).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct HostingOrganizationRequest {
+    /// The hosting organization, or null for a conversation with no organization.
+    pub organization_id: Option<Uuid>,
+}
+
+/// Set or clear the organization hosting a conversation. Setting requires administering that
+/// organization. Demographic questions and forms are picked from the hosting organization's
+/// banks, so the change is refused while a step uses an item the new organization cannot see.
+#[instrument(err(Debug), skip(state))]
+async fn set_conversation_hosting_organization(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<HostingOrganizationRequest>,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let current = conversation::get_by_id(&state.db, &conversation_id).await?;
+    ensure_can_change_hosting_organization(&state, &user, &current, request.organization_id)
+        .await?;
+    let conversation = conversation::set_hosting_organization(
+        &state.db,
+        &conversation_id,
+        request.organization_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(conversation.into())))
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct TransferOwnershipRequest {
+    /// Exactly one of `new_owner_id` or `new_owner_email` identifies the new owning user.
+    pub new_owner_id: Option<Uuid>,
+    pub new_owner_email: Option<String>,
+}
+
+/// Transfer a conversation to another user. Only the current owner or a super administrator may
+/// do this. The previous owner keeps the conversation Admin role so they are not locked out.
+#[instrument(err(Debug), skip(state))]
+async fn transfer_conversation_ownership(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<TransferOwnershipRequest>,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.owner_id != user.id && !is_user_super_admin(&state, &user).await {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    let new_owner = match (request.new_owner_id, request.new_owner_email) {
+        (Some(id), None) => users::get_user_by_id(&id, &state.db).await?,
+        (None, Some(email)) => users::get_user_by_email(email.trim(), &state.db).await?,
+        _ => {
+            return Err(ComhairleError::BadRequest(
+                "Exactly one of new_owner_id or new_owner_email must be provided".into(),
+            ));
+        }
+    };
+
+    if new_owner.id == conversation.owner_id {
+        return Err(ComhairleError::BadRequest(
+            "That user already owns this conversation".into(),
+        ));
+    }
+    if !is_user_admin(&state, &new_owner).await {
+        return Err(ComhairleError::BadRequest(
+            "Conversations can only be transferred to an admin user".into(),
+        ));
+    }
+
+    let updated = conversation::set_owner(&state.db, &conversation_id, new_owner.id).await?;
+
+    let previous_owner_access = grant_role(
+        &state,
+        GrantRoleRequest {
+            actor_id: ActorId::User(conversation.owner_id),
+            permission_triplet: Role::Admin.triplet(&conversation_id)?,
+            granted_by: &user.id,
+            grant_reason: "Previous owner after ownership transfer",
+        },
+    )
+    .await;
+    match previous_owner_access {
+        Ok(_) | Err(ComhairleError::RoleAlreadyGranted(_)) => {}
+        Err(error) => return Err(error),
+    }
+
+    Ok((StatusCode::OK, Json(updated.into())))
 }
 
 /// Shallow-merge the request body into the conversation's `metadata` jsonb
@@ -828,68 +956,60 @@ async fn export_conversation_contacts(
     ))
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn export_conversation_demographics(
-    State(state): State<Arc<ComhairleState>>,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<CsvExportResponse, ComhairleError> {
-    // Get demographic data for export
-    let demographics =
-        user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
-
-    // Generate CSV
+fn render_demographics_csv(
+    export: &demographics::types::ConversationDemographicsExport,
+) -> Result<String, ComhairleError> {
     let mut csv_output = Vec::new();
     {
         let mut writer = csv::Writer::from_writer(&mut csv_output);
 
-        // Write headers
-        writer.write_record([
-            "User ID",
-            "Ethnicity",
-            "Age",
-            "Gender",
-            "Zipcode",
-            "Political Party",
-            "Profile Created At",
-        ])?;
+        let headers = ["User ID".to_string(), "Profile Created At".to_string()]
+            .into_iter()
+            .chain(
+                export
+                    .questions
+                    .iter()
+                    .map(|question| question.text.clone()),
+            );
+        writer.write_record(headers)?;
 
-        // Write data rows
-        for profile in demographics {
-            writer.write_record(&[
-                profile.user_id.to_string(),
-                profile
-                    .demographics
-                    .get("ethnicity")
-                    .and_then(|d| d.value.clone())
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("age")
-                    .and_then(|d| d.value.clone())
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("gender")
-                    .and_then(|d| d.value.clone())
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("zipcode")
-                    .and_then(|d| d.value.clone())
-                    .unwrap_or_default(),
-                profile
-                    .demographics
-                    .get("political_party")
-                    .and_then(|d| d.value.clone())
-                    .unwrap_or_default(),
-                profile.created_at.to_rfc3339(),
-            ])?;
+        for participant in &export.participants {
+            let cells = [
+                participant.user_id.to_string(),
+                participant.profile_created_at.to_rfc3339(),
+            ]
+            .into_iter()
+            .chain(export.questions.iter().map(|question| {
+                participant
+                    .answers
+                    .get(&question.question_id)
+                    .map(render_answer_cell)
+                    .unwrap_or_default()
+            }));
+            writer.write_record(cells)?;
         }
 
         writer.flush()?;
     }
+    Ok(String::from_utf8(csv_output)?)
+}
 
-    let csv_string = String::from_utf8(csv_output)?;
+fn render_answer_cell(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn export_conversation_demographics(
+    State(state): State<Arc<ComhairleState>>,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(conversation_id): Path<Uuid>,
+) -> Result<CsvExportResponse, ComhairleError> {
+    let export =
+        demographics::report::export_for_conversation(&state.db, &conversation_id, &locale).await?;
+    let csv_string = render_demographics_csv(&export)?;
     let filename = format!(
         "conversation-demographics-{}.csv",
         chrono::Utc::now().format("%Y-%m-%d")
@@ -983,6 +1103,26 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .response::<200, Json<ConversationDto>>()
             })
                 .route_layer(from_fn_with_state(requirement(Action::Update), permission_middleware::<ConversationResource>)),
+        )
+        .api_route(
+            "/{conversation_id}/organization",
+            put_with(set_conversation_hosting_organization, |op| {
+                op.id("SetConversationHostingOrganization")
+                    .summary("Set or clear the organization hosting a conversation")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ConversationDto>>()
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+        )
+        .api_route(
+            "/{conversation_id}/transfer-ownership",
+            post_with(transfer_conversation_ownership, |op| {
+                op.id("TransferConversationOwnership")
+                    .summary("Transfer a conversation to another user")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ConversationDto>>()
+            })
+                .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
         )
         .api_route(
             "/{conversation_id}/launch",
@@ -1109,14 +1249,12 @@ mod tests {
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
+    use uuid::Uuid;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
-    use crate::models::demographics::{
-        CreateConversationDemographics, create_conversation_demographics,
-    };
     use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
         ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
@@ -1128,9 +1266,224 @@ mod tests {
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
     use crate::setup_server;
-    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_config, test_state};
+    use crate::test_helpers::{
+        MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_config, test_state,
+    };
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_set_and_clear_hosting_organization_only_as_organization_admin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut org_admin = UserSession::new_admin();
+        org_admin.signup(&app).await?;
+        let (status, response, _) = org_admin.create_random_organization(&app).await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
+        other_admin.signup(&app).await?;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(other_admin.id.unwrap()),
+                permission_triplet: system::Role::Admin.system_triplet()?,
+                granted_by: &org_admin.id.unwrap(),
+                grant_reason: "Hosting organization test setup",
+            },
+        )
+        .await?;
+
+        let (status, response, _) = other_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        let other_conversation: ConversationDto = serde_json::from_value(response)?;
+        let other_url = format!("/conversation/{}/organization", other_conversation.id);
+        let (status, _, _) = other_admin
+            .put(
+                &app,
+                &other_url,
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "an admin of another organization cannot host here"
+        );
+
+        let (status, response, _) = org_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+        let url = format!("/conversation/{}/organization", conversation.id);
+        let (status, response, _) = org_admin
+            .put(
+                &app,
+                &url,
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let updated: ConversationDto = serde_json::from_value(response)?;
+        assert_eq!(updated.organization_id, Some(organization.id));
+
+        let (status, response, _) = org_admin
+            .put(
+                &app,
+                &url,
+                json!({ "organization_id": null }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let updated: ConversationDto = serde_json::from_value(response)?;
+        assert_eq!(updated.organization_id, None);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_refuse_hosting_organization_change_through_update_for_non_admins(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(Arc::clone(&state)).await?;
+
+        let mut org_admin = UserSession::new_admin();
+        org_admin.signup(&app).await?;
+        let (status, response, _) = org_admin.create_random_organization(&app).await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        let organization: crate::routes::organizations::dto::OrganizationDto =
+            serde_json::from_value(response)?;
+
+        let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
+        other_admin.signup(&app).await?;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(other_admin.id.unwrap()),
+                permission_triplet: system::Role::Admin.system_triplet()?,
+                granted_by: &org_admin.id.unwrap(),
+                grant_reason: "Hosting organization test setup",
+            },
+        )
+        .await?;
+        let (status, response, _) = other_admin
+            .create_random_unlaunched_conversation(&app)
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+
+        let (status, _, _) = other_admin
+            .put(
+                &app,
+                &format!("/conversation/{}", conversation.id),
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_transfer_ownership_to_another_admin_and_keep_previous_owner_as_admin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let mut new_owner = UserSession::new("new_owner", TEST_PASSWORD, "test1@crown-shy.com");
+        new_owner.signup(&app).await?;
+        let mut participant =
+            UserSession::new("participant", TEST_PASSWORD, "participant@example.com");
+        participant.signup(&app).await?;
+
+        let (_, response, _) = owner.create_random_unlaunched_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+        let url = format!("/conversation/{}/transfer-ownership", conversation.id);
+        let draft_url = format!("/conversation/{}", conversation.id);
+
+        let (status, _, _) = new_owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "participant@example.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "only admin users can receive a conversation"
+        );
+
+        let (status, _, _) = owner.post(&app, &url, json!({}).to_string().into()).await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "test1@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _, _) = new_owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::OK, "new owner can read the draft");
+        let (status, _, _) = owner.get(&app, &draft_url).await?;
+        assert_eq!(status, StatusCode::OK, "previous owner keeps access");
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "admin@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "a previous owner holding the Admin role is not the owner"
+        );
+
+        let (status, _, _) = new_owner
+            .post(
+                &app,
+                &url,
+                json!({ "new_owner_email": "admin@crown-shy.com" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "the new owner can transfer it back");
+
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_add_and_list_conversation_cohost_organizations(
@@ -2173,8 +2526,39 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_export_conversation_demographics(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        use crate::models::demographics::defaults::{
+            AGE_VERSION_ID, ETHNICITY_VERSION_ID, GENDER_VERSION_ID,
+        };
+        use crate::models::demographics::responses::{record_response, set_consent};
         use crate::models::{user_participation, user_profile};
         use crate::routes::auth::SignupRequest;
+
+        const DEFAULT_QUESTION_IDS: [Uuid; 5] = [
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000001),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000002),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000003),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000004),
+            Uuid::from_u128(0xde000001_0000_4000_8000_000000000005),
+        ];
+
+        async fn answer(
+            pool: &PgPool,
+            user_id: Uuid,
+            conversation_id: Uuid,
+            version_id: Uuid,
+            value: serde_json::Value,
+        ) -> Result<(), Box<dyn Error>> {
+            let mut conn = pool.acquire().await?;
+            record_response(
+                &mut conn,
+                user_id,
+                version_id,
+                Some(conversation_id),
+                &value,
+            )
+            .await?;
+            Ok(())
+        }
 
         let state = Arc::new(test_state().db(pool.clone()).call()?);
         let app = setup_server(state.clone()).await?;
@@ -2209,20 +2593,30 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
 
-        // Add default demographics to conversation
-        let default_questions = vec!["age", "ethnicity", "gender", "zipcode", "political_party"];
-        for question_slug in default_questions {
-            let _ = create_conversation_demographics(
-                &pool,
-                CreateConversationDemographics {
-                    conversation_id: conversation.id,
-                    question_slug: question_slug.to_string(),
-                },
-            )
-            .await?;
+        for question_id in DEFAULT_QUESTION_IDS {
+            let (status, _, _) = admin_session
+                .create_workflow_step(
+                    &app,
+                    &conversation.id.to_string(),
+                    &workflow.id.to_string(),
+                    json!({
+                        "name": "Demographic question",
+                        "step_order": 1,
+                        "activation_rule": "manual",
+                        "description": "Demographic question",
+                        "is_offline": false,
+                        "required": false,
+                        "tool_setup": {
+                            "type": "demographicquestion",
+                            "question_id": question_id,
+                            "version": { "type": "latest" }
+                        },
+                    }),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED);
         }
 
-        // Create test users with profiles
         let user1 = crate::models::users::create_user(
             &SignupRequest {
                 username: "demo_user1".to_string(),
@@ -2239,12 +2633,30 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user1.id,
                 consented: true,
-                ethnicity: Some("Asian".to_string()),
-                age: Some(25),
-                gender: Some("Female".to_string()),
-                zipcode: Some("12345".to_string()),
-                political_party: Some("Independent".to_string()),
+                ethnicity: None,
+                age: None,
+                gender: None,
+                zipcode: None,
+                political_party: None,
             },
+        )
+        .await?;
+        answer(&pool, user1.id, conversation.id, AGE_VERSION_ID, json!(25)).await?;
+        answer(
+            &pool,
+            user1.id,
+            conversation.id,
+            GENDER_VERSION_ID,
+            json!("Female"),
+        )
+        .await?;
+        set_consent(&pool, user1.id, ETHNICITY_VERSION_ID, true, "en").await?;
+        answer(
+            &pool,
+            user1.id,
+            conversation.id,
+            ETHNICITY_VERSION_ID,
+            json!("Asian"),
         )
         .await?;
 
@@ -2264,12 +2676,21 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user2.id,
                 consented: false, // This user should not appear in export
-                ethnicity: Some("Hispanic".to_string()),
-                age: Some(30),
-                gender: Some("Male".to_string()),
-                zipcode: Some("67890".to_string()),
-                political_party: Some("Democrat".to_string()),
+                ethnicity: None,
+                age: None,
+                gender: None,
+                zipcode: None,
+                political_party: None,
             },
+        )
+        .await?;
+        answer(&pool, user2.id, conversation.id, AGE_VERSION_ID, json!(30)).await?;
+        answer(
+            &pool,
+            user2.id,
+            conversation.id,
+            GENDER_VERSION_ID,
+            json!("Male"),
         )
         .await?;
 
@@ -2305,13 +2726,16 @@ mod tests {
             "CSV should have User ID header"
         );
         assert!(
-            csv_string.contains("Ethnicity"),
-            "CSV should have Ethnicity header"
+            csv_string.contains("What is your ethnicity?"),
+            "CSV should have Ethnicity question header"
         );
-        assert!(csv_string.contains("Age"), "CSV should have Age header");
         assert!(
-            csv_string.contains("Gender"),
-            "CSV should have Gender header"
+            csv_string.contains("What is your age?"),
+            "CSV should have Age question header"
+        );
+        assert!(
+            csv_string.contains("What is your gender?"),
+            "CSV should have Gender question header"
         );
 
         // Verify only consented user appears
