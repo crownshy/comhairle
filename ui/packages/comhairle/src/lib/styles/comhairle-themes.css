@@ -647,22 +647,6 @@
 	--shadow-2xl: var(--shadow-2xl);
 }
 
-/* Light, floating admin sidebar: a white card on the admin background instead of a dark
-   panel. Scoped to the admin layout (`data-sidebar-tone="light"`) because the public site
-   uses the same sidebar tokens for its dark nav. */
-[data-sidebar-tone='light'] {
-	--sidebar: var(--card);
-	--sidebar-foreground: var(--foreground);
-	--sidebar-accent: var(--accent);
-	--sidebar-accent-foreground: var(--accent-foreground);
-	--sidebar-primary: var(--primary);
-	--sidebar-primary-foreground: var(--primary-foreground);
-	--sidebar-secondary: var(--primary);
-	--sidebar-active-bg: var(--secondary);
-	--sidebar-ring: var(--ring);
-	--sidebar-border: var(--border);
-}
-
 /* Focus indicator: a light inner band and a dark outer band, so one of them clears 3:1 against
    any surface in any theme. Declared for .dark too, so a dark-mode override can't miss it. */
 :root,
