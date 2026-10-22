@@ -3,7 +3,7 @@ use std::sync::Arc;
 use apalis::prelude::*;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use tracing::{info, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
@@ -22,6 +22,7 @@ use crate::wiki_poll_service::ModerationStatus;
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct WikiPollModerationNotifyRequest;
 
+#[instrument(err(Debug), skip_all)]
 pub async fn retrieve_and_enqueue_wiki_poll_moderation_notify_jobs(
     _req: WikiPollModerationNotifyRequest,
     state: Data<Arc<ComhairleState>>,
@@ -81,6 +82,11 @@ pub struct SendWikiPollModerationNotifyJob {
     conversation: LocalizedConversation,
 }
 
+#[instrument(
+    err(Debug),
+    skip_all,
+    fields(job_id = %req.job_id, conversation_id = %req.conversation.id)
+)]
 pub async fn send_wiki_poll_moderation_notify_emails(
     req: SendWikiPollModerationNotifyJob,
     state: Data<Arc<ComhairleState>>,
@@ -112,8 +118,11 @@ pub async fn send_wiki_poll_moderation_notify_emails(
     }
 
     let mut steps_with_pending = Vec::new();
-    // TODO: add toggle for workflow_step to enable email feature
     for (step, config) in wiki_poll_steps {
+        if !config.notify_moderators {
+            continue;
+        }
+
         let mut pending_count = 0;
         let comments = state
             .wiki_poll_service
@@ -140,6 +149,17 @@ pub async fn send_wiki_poll_moderation_notify_emails(
             );
             steps_with_pending.push((step, pending_count, moderation_url));
         }
+    }
+
+    if steps_with_pending.is_empty() {
+        log_and_complete(
+            req.job_id,
+            &state.db,
+            "No wiki poll steps with pending comments, exiting.",
+        )
+        .await?;
+
+        return Ok(());
     }
 
     let emails = collect_moderator_emails(&state.db, &req.conversation)

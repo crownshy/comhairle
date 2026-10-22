@@ -169,7 +169,7 @@ pub struct PolisToolConfig {
     pub admin_user: String,
     pub admin_password: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
@@ -187,9 +187,11 @@ pub struct PolisToolConfig {
     // defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
+    #[serde(default = "default_true")]
+    pub notify_moderators: bool,
 }
 
-fn default_show_remaining_statements() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -207,6 +209,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             moderation_policy_id: self.moderation_policy_id,
+            notify_moderators: self.notify_moderators,
         }
     }
 }
@@ -215,7 +218,7 @@ impl ToolConfigSanitize for PolisToolConfig {
 pub struct PolisToolSetup {
     pub topic: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
 }
 
@@ -1940,6 +1943,7 @@ pub async fn launch(
             // None is a preview created before the mirror existed, so its real
             // Polis value is unknown. Go live moderated rather than guess.
             strict_moderation: preview_config.strict_moderation.unwrap_or(true),
+            notify_moderators: preview_config.notify_moderators,
         },
         &preview_config.server_url,
         client,
@@ -1975,6 +1979,7 @@ struct PolisPollSettings {
     topic: Option<String>,
     description: Option<String>,
     strict_moderation: bool,
+    notify_moderators: bool,
 }
 
 impl Default for PolisPollSettings {
@@ -1983,6 +1988,7 @@ impl Default for PolisPollSettings {
             topic: None,
             description: None,
             strict_moderation: true,
+            notify_moderators: true,
         }
     }
 }
@@ -2028,6 +2034,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(settings.strict_moderation),
         moderation_policy_id: None,
+        notify_moderators: settings.notify_moderators,
     })
 }
 
@@ -2786,6 +2793,7 @@ mod tests {
             is_active: Some(true),
             strict_moderation: Some(false),
             moderation_policy_id: Some(Uuid::new_v4()),
+            notify_moderators: true,
         }
     }
 
