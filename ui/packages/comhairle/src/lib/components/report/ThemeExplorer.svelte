@@ -30,7 +30,8 @@
 		workflowStepId: string;
 		/** Which tool to harvest statements from. */
 		sourceTool: 'heyform' | 'polis' | 'thinking_space' | 'prioritization';
-		/** Narrows prioritization to one proposal/section; ignored by other tools. */
+		/** Narrows prioritization to one proposal/section ("proposal:{id}") or heyform
+		 * to one question ("question:{id}"); ignored by other tools. */
 		subScope?: string;
 		/** Seeds the context box; falls back to a generic "submitted through <tool>" line. */
 		defaultContext?: string;
@@ -40,11 +41,12 @@
 		initialThemeCollection?: ThemeCollectionDto | null;
 		/**
 		 * Called whenever a theme collection loads (including on mount, from
-		 * `initialThemeCollection`), with each statement's theme title keyed by its
-		 * `sourceSubId` (e.g. the Polis statement id), so the parent can overlay theme
-		 * tags onto its own statement display.
+		 * `initialThemeCollection`), with each statement's theme titles (a statement
+		 * can belong to more than one theme) keyed by its `sourceSubId` (e.g. the
+		 * Polis statement id), so the parent can overlay theme tags onto its own
+		 * statement display.
 		 */
-		onThemesLoaded?: (themeTitleBySourceSubId: Record<string, string>) => void;
+		onThemesLoaded?: (themeTitlesBySourceSubId: Record<string, string[]>) => void;
 	};
 
 	let {
@@ -81,14 +83,14 @@
 	});
 
 	function notifyThemesLoaded(current: ThemeCollectionDto) {
-		const themeTitleBySourceSubId: Record<string, string> = {};
+		const themeTitlesBySourceSubId: Record<string, string[]> = {};
 		for (const theme of current.themes) {
 			for (const statement of theme.statements) {
-				if (statement.sourceSubId)
-					themeTitleBySourceSubId[statement.sourceSubId] = theme.title;
+				if (!statement.sourceSubId) continue;
+				(themeTitlesBySourceSubId[statement.sourceSubId] ??= []).push(theme.title);
 			}
 		}
-		onThemesLoaded?.(themeTitleBySourceSubId);
+		onThemesLoaded?.(themeTitlesBySourceSubId);
 	}
 
 	/** Gets the step's theme collection, creating it (manual, empty) if none exists
