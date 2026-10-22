@@ -12,7 +12,6 @@
 		Moon,
 		Sun
 	} from 'lucide-svelte';
-	import { tick } from 'svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
@@ -90,11 +89,10 @@
 	let pendingLocale = $state<Locale | null>(null);
 	let shownLocale = $derived(pendingLocale ?? currentLocale);
 
-	// Switching reloads the whole page, so show the spinner first and let it paint.
+	// Switching reloads the whole page, so wait two frames for the spinner to paint first.
 	async function chooseLanguage(locale: Locale) {
 		if (locale === currentLocale || pendingLocale) return;
 		pendingLocale = locale;
-		await tick();
 		await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 		switchLocale(locale);
 	}

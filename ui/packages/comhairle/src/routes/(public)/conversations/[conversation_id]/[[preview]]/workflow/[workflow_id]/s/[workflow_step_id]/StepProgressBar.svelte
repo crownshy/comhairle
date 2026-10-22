@@ -52,5 +52,5 @@
 		{/if}
 	{/each}
 </div>
-<!-- Announces page turns inside a tool, since the pager swaps content without moving focus. -->
+<!-- Screen readers don't announce aria-valuetext changes, so page turns inside a tool are read out here. -->
 <p class="sr-only" aria-live="polite">{position ?? ''}</p>

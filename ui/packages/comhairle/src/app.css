@@ -146,6 +146,16 @@ a {
 
 @theme {
 	--animate-progress-sweep: progress-sweep 1.1s ease-in-out infinite;
+	--animate-progress-reveal: progress-reveal 0s 100ms both;
+
+	@keyframes progress-reveal {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 
 	@keyframes progress-sweep {
 		from {
