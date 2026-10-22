@@ -4,7 +4,6 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { INPUT_STYLE } from '$lib/components/ui/input/styles';
 	import { cn } from '$lib/utils';
-	import { ChevronDown } from 'lucide-svelte';
 
 	type Value = string;
 	type Label = string;
@@ -12,12 +11,13 @@
 	type Option = { label: Label; value: Value };
 
 	type Props = Pick<HTMLSelectElement, 'id' | 'name'> & {
+		question: string;
 		options: Option[];
 		defaultSelected?: Value;
 		placeholder?: Label;
 	};
 
-	let { id, name, options, defaultSelected, placeholder }: Props = $props();
+	let { id, name, question, options, defaultSelected, placeholder }: Props = $props();
 
 	// svelte-ignore state_referenced_locally
 	let selected = $state<Value | undefined>(defaultSelected);
@@ -59,12 +59,18 @@
 				{label}
 			</span>
 		</Drawer.Trigger>
-		<Drawer.Content>
-			{#each options as option (option.value)}
-				<span class="border-primary bg-primary/30 rounded-xl">
-					{option.label}
-				</span>
-			{/each}
+		<Drawer.Content class="mb-8">
+			<Drawer.Header class="font-semibold">
+				{question}
+			</Drawer.Header>
+			<section class="mx-5 flex flex-col gap-5 overflow-y-auto">
+				{#each options as option (option.value)}
+					<label class=" border-primary bg-primary/30 rounded-xl p-5">
+						<input type="radio" />
+						{option.label}
+					</label>
+				{/each}
+			</section>
 		</Drawer.Content>
 	</Drawer.Root>
 {/if}
