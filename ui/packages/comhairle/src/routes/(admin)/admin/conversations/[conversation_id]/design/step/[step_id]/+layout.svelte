@@ -6,6 +6,7 @@
 	import { stepTour } from './tour';
 	import { SCROLL_REGION_CLASS, STEP_PAGE_CLASS } from '../../../styles';
 	import { cn } from '$lib/utils';
+	import { isFullBleedStepPage } from '../../../fullBleedStep';
 
 	useTour(() => stepTour);
 
@@ -20,13 +21,8 @@
 	);
 	let pageTitle = $derived(`${canEdit ? 'Edit Step' : 'Step'}: ${data.step?.name ?? 'Step'}`);
 
-	// The heyform Setup tab embeds the full HeyForm builder (a desktop iframe app). It owns the
-	// whole content region full-bleed, with no reading-column padding or max-width, so the frame
-	// can fill the space and scale itself to fit. Every other step page keeps the padded column.
 	let isHeyformSetup = $derived(
-		canEdit &&
-			page.url.pathname.replace(/\/+$/, '').endsWith('/setup') &&
-			data.toolConfig?.type === 'heyform'
+		isFullBleedStepPage(page.url.pathname, data.toolConfig?.type, canEdit)
 	);
 </script>
 
@@ -37,7 +33,7 @@
 <!-- The step's own tabs (Setup/Configure/Insights), the only strip under the step
 	 header. Rendered from `data` so a hard refresh of /design/step/* paints it straight away. -->
 <div data-tour="step-subtabs" class="shrink-0">
-	<SubTabStrip tone="primary" items={subtabItems} {basePath} />
+	<SubTabStrip tone="primary" items={subtabItems} {basePath} fullBleed={isHeyformSetup} />
 </div>
 
 {#if isHeyformSetup}
