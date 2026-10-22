@@ -2146,7 +2146,6 @@ export const StatementDto = z
     id: z.string().uuid(),
     sourceSubId: z.union([z.string(), z.null()]).optional(),
     sourceTool: z.string(),
-    themeId: z.union([z.string(), z.null()]).optional(),
     updatedAt: z.string().datetime({ offset: true }),
     userId: z.union([z.string(), z.null()]).optional(),
     workflowStepId: z.string().uuid(),
@@ -5291,6 +5290,16 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: NotificationRecipientsResponse,
   },
   {
+    method: "get",
+    path: "/conversation/:conversation_id/participation-count",
+    alias: "GetParticipationCount",
+    description: `Returns how many distinct people have at least one done step in this conversation.`,
+    requestFormat: "json",
+    response: z
+      .object({ participantCount: z.number().int().gte(0) })
+      .passthrough(),
+  },
+  {
     method: "post",
     path: "/conversation/:conversation_id/preview_access",
     alias: "UnlockConversationPreview",
@@ -5333,16 +5342,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "ClearConversationPreviewPassword",
     requestFormat: "json",
     response: PreviewPasswordStatus,
-  },
-  {
-    method: "get",
-    path: "/conversation/:conversation_id/participation-count",
-    alias: "GetParticipationCount",
-    description: `Returns how many distinct people have at least one done step in this conversation.`,
-    requestFormat: "json",
-    response: z
-      .object({ participantCount: z.number().int().gte(0) })
-      .passthrough(),
   },
   {
     method: "get",
@@ -5784,6 +5783,11 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     parameters: [
       {
         name: "source_tool",
+        type: "Query",
+        schema: source_tool,
+      },
+      {
+        name: "sub_scope",
         type: "Query",
         schema: source_tool,
       },

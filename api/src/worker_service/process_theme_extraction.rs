@@ -178,11 +178,14 @@ pub async fn theme_extraction_handler(
             .ok_or_record_failure(&job.job_id, &state.db)
             .await?;
 
+        // A statement can match more than one theme, so the model may return several
+        // entries for the same statement id - every one of them is kept.
+        let mut parsed_assignments = Vec::with_capacity(assignments.statement_assignments.len());
         for assignment in assignments.statement_assignments {
             // Every theme id handed to the assigner is one of our own UUIDs, so a
             // parse failure here just means the model assigned its literal
-            // "unassigned" sentinel (or something unparsable) - leave that
-            // statement's theme_id untouched rather than treating it as an error.
+            // "unassigned" sentinel (or something unparsable) - just drop that entry
+            // rather than treating it as an error.
             let Ok(theme_id) = Uuid::parse_str(&assignment.theme_id) else {
                 continue;
             };
@@ -190,12 +193,20 @@ pub async fn theme_extraction_handler(
                 continue;
             };
 
-            models::statement::assign_theme(&state.db, statement_id, Some(theme_id))
-                .await
-                .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-                .ok_or_record_failure(&job.job_id, &state.db)
-                .await?;
+            parsed_assignments.push((statement_id, theme_id));
         }
+
+        // Replaces this batch's assignments wholesale, so a regeneration run's result
+        // fully supersedes whatever these statements were previously classified under.
+        models::statement_theme::replace_assignments(
+            &state.db,
+            &job.statement_ids,
+            &parsed_assignments,
+        )
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
     }
 
     job::complete(&state.db, job.job_id, "Themes generated")

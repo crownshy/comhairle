@@ -20,6 +20,7 @@
 	import * as Accordion from '$lib/components/ui/accordion';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ThemeTag from './ThemeTag.svelte';
+	import { useJob } from '$lib/hooks/use-job.svelte';
 	import { Sparkles, MessagesSquare, Plus, Pin, PinOff, Trash2 } from '@lucide/svelte';
 
 	import * as Card from '$lib/components/ui/card';
@@ -30,7 +31,8 @@
 		workflowStepId: string;
 		/** Which tool to harvest statements from. */
 		sourceTool: 'heyform' | 'polis' | 'thinking_space' | 'prioritization';
-		/** Narrows prioritization to one proposal/section; ignored by other tools. */
+		/** Narrows prioritization to one proposal/section ("proposal:{id}") or heyform
+		 * to one question ("question:{id}"); ignored by other tools. */
 		subScope?: string;
 		/** Seeds the context box; falls back to a generic "submitted through <tool>" line. */
 		defaultContext?: string;
@@ -40,11 +42,12 @@
 		initialThemeCollection?: ThemeCollectionDto | null;
 		/**
 		 * Called whenever a theme collection loads (including on mount, from
-		 * `initialThemeCollection`), with each statement's theme title keyed by its
-		 * `sourceSubId` (e.g. the Polis statement id), so the parent can overlay theme
-		 * tags onto its own statement display.
+		 * `initialThemeCollection`), with each statement's theme titles (a statement
+		 * can belong to more than one theme) keyed by its `sourceSubId` (e.g. the
+		 * Polis statement id), so the parent can overlay theme tags onto its own
+		 * statement display.
 		 */
-		onThemesLoaded?: (themeTitleBySourceSubId: Record<string, string>) => void;
+		onThemesLoaded?: (themeTitlesBySourceSubId: Record<string, string[]>) => void;
 	};
 
 	let {
@@ -63,8 +66,10 @@
 	let pendingThemeCollectionId = $state<string | null>(null);
 
 	let requesting = $state(false);
-	let jobId = $state<string | null>(null);
-	let jobStatus = $state<string | null>(null);
+	const job = useJob({
+		onComplete: loadCollection,
+		onError: (message) => notifications.send({ priority: 'ERROR', message })
+	});
 
 	let generateDialogOpen = $state(false);
 	let addThemeDialogOpen = $state(false);
@@ -72,7 +77,7 @@
 	let newDescription = $state('');
 	let addingTheme = $state(false);
 
-	const isWorking = $derived(requesting || (jobId !== null && jobStatus !== 'completed'));
+	const isWorking = $derived(requesting || job.isWorking);
 
 	const pathParams = $derived({
 		conversation_id: conversationId,
@@ -81,14 +86,14 @@
 	});
 
 	function notifyThemesLoaded(current: ThemeCollectionDto) {
-		const themeTitleBySourceSubId: Record<string, string> = {};
+		const themeTitlesBySourceSubId: Record<string, string[]> = {};
 		for (const theme of current.themes) {
 			for (const statement of theme.statements) {
-				if (statement.sourceSubId)
-					themeTitleBySourceSubId[statement.sourceSubId] = theme.title;
+				if (!statement.sourceSubId) continue;
+				(themeTitlesBySourceSubId[statement.sourceSubId] ??= []).push(theme.title);
 			}
 		}
-		onThemesLoaded?.(themeTitleBySourceSubId);
+		onThemesLoaded?.(themeTitlesBySourceSubId);
 	}
 
 	/** Gets the step's theme collection, creating it (manual, empty) if none exists
@@ -216,37 +221,9 @@
 			return;
 		}
 
-		jobId = res.ok.job_id;
-		jobStatus = 'pending';
 		pendingThemeCollectionId = res.ok.theme_collection_id;
 		generateDialogOpen = false;
-	}
-
-	async function poll() {
-		if (!jobId) return;
-
-		const res = await tryCatchAsync(() => apiClient.GetJob({ params: { job_id: jobId! } }));
-
-		if (res.err !== null) {
-			console.error('GetJob failed', res.err);
-			return;
-		}
-
-		jobStatus = res.ok.status ?? null;
-
-		if (jobStatus === 'completed') {
-			jobId = null;
-			await loadCollection();
-			return;
-		}
-
-		if (jobStatus === 'error') {
-			notifications.send({
-				priority: 'ERROR',
-				message: res.ok.error ?? 'Theme generation failed'
-			});
-			jobId = null;
-		}
+		job.start(res.ok.job_id);
 	}
 
 	async function loadCollection() {
@@ -267,12 +244,6 @@
 		collection = res.ok;
 		notifyThemesLoaded(collection);
 	}
-
-	$effect(() => {
-		if (!jobId || jobStatus === 'completed' || jobStatus === 'error') return;
-		const timeout = setTimeout(poll, 5000);
-		return () => clearTimeout(timeout);
-	});
 </script>
 
 <Card.Root class="gap-0 rounded-md p-0 shadow-none">
@@ -285,7 +256,7 @@
 					<LoadingButton size="sm" loading={isWorking}>
 						<Sparkles class="size-4" />
 						{isWorking
-							? `Generating themes${jobStatus ? ` (${jobStatus})` : ''}…`
+							? `Generating themes${job.status ? ` (${job.status})` : ''}…`
 							: collection
 								? 'Regenerate themes'
 								: 'Generate themes'}

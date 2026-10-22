@@ -26,12 +26,11 @@ pub struct Statement {
     pub context: String,
     pub source_tool: String,
     pub source_sub_id: Option<String>,
-    pub theme_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const STATEMENT_COLUMNS: [StatementIden; 11] = [
+const STATEMENT_COLUMNS: [StatementIden; 10] = [
     StatementIden::Id,
     StatementIden::WorkflowStepId,
     StatementIden::UserId,
@@ -40,7 +39,6 @@ const STATEMENT_COLUMNS: [StatementIden; 11] = [
     StatementIden::Context,
     StatementIden::SourceTool,
     StatementIden::SourceSubId,
-    StatementIden::ThemeId,
     StatementIden::CreatedAt,
     StatementIden::UpdatedAt,
 ];
@@ -191,31 +189,6 @@ pub async fn upsert_from_source(
         .resolve_db_err("Statement")
 }
 
-/// Sets which theme a statement was classified under. Used by the theme-extraction
-/// worker after it gets assignments back from the sensemaker model; not exposed
-/// through the public statements API (manual edits only touch content/context).
-#[instrument(err(Debug), skip(db))]
-pub async fn assign_theme(
-    db: &PgPool,
-    id: Uuid,
-    theme_id: Option<Uuid>,
-) -> Result<Statement, ComhairleError> {
-    let (sql, values) = Query::update()
-        .table(StatementIden::Table)
-        .values([
-            (StatementIden::ThemeId, theme_id.into()),
-            (StatementIden::UpdatedAt, Expr::current_timestamp().into()),
-        ])
-        .and_where(Expr::col(StatementIden::Id).eq(id))
-        .returning(Query::returning().columns(STATEMENT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    query_as_with(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("Statement")
-}
-
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<Statement, ComhairleError> {
     let (sql, values) = Query::select()
@@ -247,19 +220,34 @@ pub async fn list_for_workflow_step(
     Ok(statements)
 }
 
-/// Lists the statements classified under any theme in the given theme collection,
-/// for embedding into a `ThemeCollectionDto` response.
+/// Lists the distinct statements classified under any theme in the given theme
+/// collection, for embedding into a `ThemeCollectionDto` response. A statement
+/// classified under more than one theme in the collection appears once here; see
+/// `statement_theme::list_for_theme_collection` for the per-theme assignment pairs
+/// used to group these statements back under each of their themes.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_theme_collection(
     db: &PgPool,
     theme_collection_id: Uuid,
 ) -> Result<Vec<Statement>, ComhairleError> {
     let (sql, values) = Query::select()
+        .distinct()
         .columns(STATEMENT_COLUMNS.map(|c| (StatementIden::Table, c)))
         .from(StatementIden::Table)
         .inner_join(
+            crate::models::statement_theme::StatementThemeIden::Table,
+            Expr::col((StatementIden::Table, StatementIden::Id)).equals((
+                crate::models::statement_theme::StatementThemeIden::Table,
+                crate::models::statement_theme::StatementThemeIden::StatementId,
+            )),
+        )
+        .inner_join(
             crate::models::theme::ThemeIden::Table,
-            Expr::col((StatementIden::Table, StatementIden::ThemeId)).equals((
+            Expr::col((
+                crate::models::statement_theme::StatementThemeIden::Table,
+                crate::models::statement_theme::StatementThemeIden::ThemeId,
+            ))
+            .equals((
                 crate::models::theme::ThemeIden::Table,
                 crate::models::theme::ThemeIden::Id,
             )),

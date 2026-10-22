@@ -64,6 +64,7 @@
 	<SurveyInsights
 		data={data.survey}
 		conversationId={data.conversation.id}
+		workflowId={step.workflowId}
 		workflowStepId={step.id}
 	/>
 {/if}

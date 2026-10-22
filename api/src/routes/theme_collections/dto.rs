@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::statement::Statement;
+use crate::models::statement_theme::StatementTheme;
 use crate::models::theme::{Theme, ThemeCollection};
 use crate::routes::statements::dto::StatementDto;
 
@@ -68,24 +69,28 @@ pub struct ThemeCollectionDto {
 
 impl ThemeCollectionDto {
     pub fn from_parts(collection: ThemeCollection, themes: Vec<Theme>) -> Self {
-        Self::from_parts_with_statements(collection, themes, vec![])
+        Self::from_parts_with_statements(collection, themes, vec![], vec![])
     }
 
-    /// Groups `statements` by their `theme_id` and attaches each group to the matching
-    /// theme, so a single call returns the full theme collection, themes, and the
-    /// statements classified under each theme.
+    /// Groups `statements` under every theme they were assigned to per `assignments`
+    /// (a statement can be assigned to more than one theme), so a single call returns
+    /// the full theme collection, themes, and the statements classified under each.
     pub fn from_parts_with_statements(
         collection: ThemeCollection,
         themes: Vec<Theme>,
         statements: Vec<Statement>,
+        assignments: Vec<StatementTheme>,
     ) -> Self {
+        let statements_by_id: HashMap<Uuid, Statement> =
+            statements.into_iter().map(|s| (s.id, s)).collect();
+
         let mut statements_by_theme: HashMap<Uuid, Vec<Statement>> = HashMap::new();
-        for statement in statements {
-            if let Some(theme_id) = statement.theme_id {
+        for assignment in assignments {
+            if let Some(statement) = statements_by_id.get(&assignment.statement_id) {
                 statements_by_theme
-                    .entry(theme_id)
+                    .entry(assignment.theme_id)
                     .or_default()
-                    .push(statement);
+                    .push(statement.clone());
             }
         }
 
@@ -114,5 +119,86 @@ impl ThemeCollectionDto {
 impl From<ThemeCollection> for ThemeCollectionDto {
     fn from(collection: ThemeCollection) -> Self {
         Self::from_parts(collection, vec![])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use super::*;
+
+    fn test_collection() -> ThemeCollection {
+        ThemeCollection {
+            id: Uuid::new_v4(),
+            workflow_step_id: Uuid::new_v4(),
+            context: "Context".into(),
+            origin_tool: "manual".into(),
+            origin_sub_id: None,
+            requested_by_user_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn test_theme(theme_collection_id: Uuid, title: &str) -> Theme {
+        Theme {
+            id: Uuid::new_v4(),
+            theme_collection_id,
+            title: title.into(),
+            description: "Description".into(),
+            created_by_ai: true,
+            pinned: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    fn test_statement(workflow_step_id: Uuid, content: &str) -> Statement {
+        Statement {
+            id: Uuid::new_v4(),
+            workflow_step_id,
+            user_id: None,
+            content: content.into(),
+            ai_generated: false,
+            context: "Context".into(),
+            source_tool: "manual".into(),
+            source_sub_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn a_statement_assigned_to_multiple_themes_appears_under_each() {
+        let collection = test_collection();
+        let theme_a = test_theme(collection.id, "Buses");
+        let theme_b = test_theme(collection.id, "Trains");
+        let statement = test_statement(collection.workflow_step_id, "More public transport");
+
+        let dto = ThemeCollectionDto::from_parts_with_statements(
+            collection,
+            vec![theme_a.clone(), theme_b.clone()],
+            vec![statement.clone()],
+            vec![
+                StatementTheme {
+                    statement_id: statement.id,
+                    theme_id: theme_a.id,
+                },
+                StatementTheme {
+                    statement_id: statement.id,
+                    theme_id: theme_b.id,
+                },
+            ],
+        );
+
+        for theme in &dto.themes {
+            assert_eq!(
+                theme.statements.len(),
+                1,
+                "statement should appear under both themes"
+            );
+            assert_eq!(theme.statements[0].id, statement.id);
+        }
     }
 }

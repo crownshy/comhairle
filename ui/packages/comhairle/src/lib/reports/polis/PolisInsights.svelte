@@ -57,20 +57,22 @@
 			: 'Statements submitted through polis'
 	);
 
-	/** AI-generated theme titles, keyed by Polis statement id (as a string, matching
-	 * Statement.sourceSubId). Seeded from `initialThemeCollection` and refreshed whenever
-	 * ThemeExplorer loads a (re)generated collection. */
-	function themeTitlesByStatementSubId(collection: ThemeCollectionDto): Record<string, string> {
-		const titles: Record<string, string> = {};
+	/** AI-generated theme titles (a statement can belong to more than one theme),
+	 * keyed by Polis statement id (as a string, matching Statement.sourceSubId).
+	 * Seeded from `initialThemeCollection` and refreshed whenever ThemeExplorer loads
+	 * a (re)generated collection. */
+	function themeTitlesByStatementSubId(collection: ThemeCollectionDto): Record<string, string[]> {
+		const titles: Record<string, string[]> = {};
 		for (const theme of collection.themes) {
 			for (const statement of theme.statements) {
-				if (statement.sourceSubId) titles[statement.sourceSubId] = theme.title;
+				if (!statement.sourceSubId) continue;
+				(titles[statement.sourceSubId] ??= []).push(theme.title);
 			}
 		}
 		return titles;
 	}
 
-	let themeTitleByTid = $state<Record<string, string>>(
+	let themeTitlesByTid = $state<Record<string, string[]>>(
 		initialThemeCollection ? themeTitlesByStatementSubId(initialThemeCollection) : {}
 	);
 	const canExport = $derived(
@@ -135,11 +137,8 @@
 			...reportData,
 			comments: reportData.comments.map((c) => {
 				const aux = auxByTid[c.tid];
-				const generatedTheme = themeTitleByTid[String(c.tid)];
-				const topics = [
-					...(aux?.themes ?? []),
-					...(generatedTheme ? [generatedTheme] : [])
-				];
+				const generatedThemes = themeTitlesByTid[String(c.tid)] ?? [];
+				const topics = [...(aux?.themes ?? []), ...generatedThemes];
 				return topics.length > 0 ? { ...c, topics } : c;
 			})
 		};
@@ -327,7 +326,7 @@
 			sourceTool="polis"
 			defaultContext={themeContext}
 			{initialThemeCollection}
-			onThemesLoaded={(titles) => (themeTitleByTid = titles)}
+			onThemesLoaded={(titles) => (themeTitlesByTid = titles)}
 		/>
 	</div>
 {/if}
