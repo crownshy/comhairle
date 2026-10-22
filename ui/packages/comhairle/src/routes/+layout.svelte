@@ -10,7 +10,7 @@
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let { themeName, isCommunity } = data;
+	let { themeName } = data;
 
 	import { UmamiAnalytics, status } from '@lukulent/svelte-umami';
 	import { env } from '$env/dynamic/public';
