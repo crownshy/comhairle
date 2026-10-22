@@ -35,6 +35,7 @@ fn to_sensemakar_statement(statement: &Statement) -> SensemakarStatement {
         speaker_id: statement.user_id.map(|id| id.to_string()),
         statement_type: None,
         text: statement.content.clone(),
+        #[expect(clippy::expect_used, reason = "'en' is a valid language tag")]
         lang: LanguageTag::parse("en").expect("'en' is a valid language tag"),
     }
 }
