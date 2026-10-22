@@ -72,7 +72,6 @@
 		/>
 		<SideBar.Inset class="min-h-0 min-w-0 bg-transparent">
 			<MobileAdminBar title={mobileTitle} />
-			<TourReplayButton />
 			<!-- relative keeps absolute children (e.g. sr-only labels) inside the scroll box, so they cannot stretch the page and add a second scrollbar. -->
 			<main class="relative flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
 				{@render children()}
@@ -83,9 +82,13 @@
 
 <AutosaveLeaveGuard />
 
-<HelpChat
-	src="https://rag.comhairle.scot/next-chats/widget?shared_id=b62170c0cba711f18cab2699c84c9b80&from=chat&auth=3YDeffNn2db8emYnsh2I2-5MV7rWKKXh&visible_avatar=1&locale=en&streaming=true&mode=window"
-/>
+<!-- One corner for every floating button, so they line up instead of stacking on each other. -->
+<div class="fixed end-6 bottom-6 z-40 flex items-center gap-3">
+	<TourReplayButton />
+	<HelpChat
+		src="https://rag.comhairle.scot/next-chats/widget?shared_id=b62170c0cba711f18cab2699c84c9b80&from=chat&auth=3YDeffNn2db8emYnsh2I2-5MV7rWKKXh&visible_avatar=1&locale=en&streaming=true&mode=window"
+	/>
+</div>
 
 <style>
 	:global([data-slot='sidebar-wrapper'] [data-slot='sidebar-gap']),

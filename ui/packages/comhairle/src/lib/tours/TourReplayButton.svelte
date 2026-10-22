@@ -9,7 +9,7 @@
 	<Button
 		variant="outline"
 		size="icon"
-		class="fixed right-3 bottom-3 z-30 size-8 shadow-md"
+		class="size-8 shadow-md"
 		onclick={() => tourStore.replay()}
 	>
 		<CircleHelp class="size-4" />

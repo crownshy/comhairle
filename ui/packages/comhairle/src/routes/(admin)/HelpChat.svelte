@@ -31,7 +31,7 @@
 	onclick={toggle}
 	aria-label={open ? 'Close help chat' : 'Open help chat'}
 	aria-expanded={open}
-	class="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50 fixed end-6 bottom-6 z-40 inline-flex size-14 cursor-pointer items-center justify-center rounded-full shadow-lg transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
+	class="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50 inline-flex size-14 cursor-pointer items-center justify-center rounded-full shadow-lg transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
 >
 	{#if open}
 		<X class="size-6" aria-hidden="true" />
