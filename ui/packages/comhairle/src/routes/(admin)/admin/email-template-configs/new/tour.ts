@@ -7,7 +7,7 @@ export const newEmailTemplateConfigTour: Tour = {
 			element: '[data-tour="section-header"]',
 			title: 'Create a custom email',
 			description:
-				'Pick which built-in email this overrides, then fill in its slots. Use Preview to check it before saving.',
+				'Pick the email and who it applies to, then change the wording. The preview updates as you type.',
 			side: 'bottom'
 		}
 	]

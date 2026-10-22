@@ -12,8 +12,9 @@ export const emailTemplateConfigsTour: Tour = {
 		},
 		{
 			element: '[data-tour="email-configs-list"]',
-			title: 'Your custom emails',
-			description: 'Add a custom email to override one of the default templates.',
+			title: 'Every email Comhairle sends',
+			description:
+				'Each email type shows the version participants receive. Customise one to use your own wording, for all conversations or just one.',
 			side: 'top'
 		}
 	]

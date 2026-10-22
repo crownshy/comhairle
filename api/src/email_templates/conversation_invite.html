@@ -1,37 +1,55 @@
 <!--
 
 Slots:
-- heading
+- heading (the greeting line)
 - intro
 - body
 - footer
 
 Variables:
 - conversation_title
+- conversation_image_url
 - invite_link
-- domain
+- organization_name
+
+The data-preview attributes let the admin preview swap in the chosen
+conversation's title and banner. They have no effect in a sent email.
 
 -->
 
 {% extends "email_layout.html" %}
+
+{% block hero %}
+{% if conversation_image_url %}
+<img class="hero" data-preview="conversation-image" src="{{ conversation_image_url }}" alt="" />
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div style="text-align: left">
-	<h1>{{heading}}</h1>
+	<p class="invite-eyebrow">You&rsquo;re invited to take part</p>
+	<h1 class="invite-title" data-preview="conversation-title">{{ conversation_title }}</h1>
+
+	<p class="invite-greeting">{{heading}}</p>
 
 	{{intro|safe}}
 
 	{{body|safe}}
 
-	<p>If you have any difficulties with completing the engagement or with the website please email us at <a
-			href='mailto:team@crown-shy.com'>team@crown-shy.com</a></p>
-	<p>On the website <strong>please make sure you sign up using the email address this invitation was sent to</strong>. We
-		can only confirm your participation if you register with this address.</p>
+	<p class="invite-cta">
+		<a class="invite-button" href="{{invite_link}}">Take part</a>
+	</p>
 
-	<p>Here is your link to access the engagement: <a href="{{invite_link}}">{{invite_link}}</a>.
-
-	<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
-		our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
+	<p>Alternatively, here is your link to access the engagement:<br />
+		<a class="invite-link" href="{{invite_link}}">{{invite_link}}</a>
+	</p>
 
 	{{footer|safe}}
 </div>
+{% endblock %}
+
+{% block footer_reason %}
+{% if organization_name %}
+<p>You&rsquo;re receiving this because <strong>{{ organization_name }}</strong> invited you to take part.</p>
+{% endif %}
 {% endblock %}

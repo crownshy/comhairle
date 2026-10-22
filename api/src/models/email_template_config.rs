@@ -195,10 +195,21 @@ impl EmailTemplateSlots {
     /// illustrative only and are never used in real email sends.
     pub fn preview_variables_map(&self) -> HashMap<String, String> {
         match self {
-            EmailTemplateSlots::ConversationInvite(_) => HashMap::from([(
-                "conversation_title".to_string(),
-                "Renewable energy in rural areas".to_string(),
-            )]),
+            EmailTemplateSlots::ConversationInvite(_) => HashMap::from([
+                (
+                    "conversation_title".to_string(),
+                    "Renewable energy in rural areas".to_string(),
+                ),
+                (
+                    "conversation_image_url".to_string(),
+                    "https://comhairle-media.s3.amazonaws.com/images/comhairle-conversation-placeholder.png"
+                        .to_string(),
+                ),
+                (
+                    "invite_link".to_string(),
+                    "https://comhairle.scot/conversations/example/invite/example".to_string(),
+                ),
+            ]),
             EmailTemplateSlots::EventRegistrationConfirmation(_) => HashMap::from([
                 (
                     "event_name".to_string(),

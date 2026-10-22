@@ -1,210 +1,140 @@
 <script lang="ts">
-	import * as Select from '$lib/components/ui/select';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { snakeToStartCase } from '$lib/utils/casingUtils';
-	import Label from '$lib/components/ui/label/label.svelte';
-	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
-	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crownshy/api-client/client';
-	import { jsonToHtml } from '$lib/utils/rich-text.js';
-	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import { useDebounce } from 'runed';
-	import { key } from '$lib/utils/invalidationKey';
+	import { page } from '$app/state';
+	import { apiClient } from '@crownshy/api-client/client';
+	import * as Select from '$lib/components/ui/select';
+	import { Label } from '$lib/components/ui/label';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
-	import { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { notifications } from '$lib/notifications.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { key } from '$lib/utils/invalidationKey';
+	import { canScopeToConversation } from '$lib/utils/emailTemplateGroups';
+	import {
+		initialSlotValues,
+		type EmailTemplateSubmission,
+		type KnownVariables,
+		type SaveStatus
+	} from '$lib/utils/emailTemplateForm';
+	import EmailTemplateForm from '../EmailTemplateForm.svelte';
+	import SaveActions from '../SaveActions.svelte';
+	import { EMAIL_TYPE_COPY } from '../emailTypeCopy';
 	import { newEmailTemplateConfigTour } from './tour';
 
 	useTour(() => newEmailTemplateConfigTour);
 
-	type FormState = {
-		subject?: string;
-		slots: { [key: string]: string };
-	};
-
 	let { data } = $props();
-	const { schemas, conversations, emailConfigs } = data;
 
-	let selectedSchema = $state(schemas[0]);
-	let filteredConversations = $derived(
-		conversations.filter(
+	const FORM_ID = 'email-template-form';
+	const ALL_CONVERSATIONS = 'all';
+	const NO_SCOPE_CHOSEN = '';
+
+	// The list page links here with ?type= so Customise opens on the right email.
+	let selectedType = $derived<string>(
+		page.url.searchParams.get('type') ?? data.schemas[0].email_type
+	);
+	let schema = $derived(
+		data.schemas.find((candidate) => candidate.email_type === selectedType) ?? data.schemas[0]
+	);
+	let copy = $derived(EMAIL_TYPE_COPY[schema.email_type]);
+	let scopable = $derived(canScopeToConversation(schema.email_type));
+	let configsOfType = $derived(
+		data.emailConfigs.filter((config) => config.emailType === schema.email_type)
+	);
+	let existingAllVersion = $derived(configsOfType.find((config) => !config.conversationId));
+	let availableConversations = $derived(
+		data.conversations.filter(
 			(conversation) =>
-				!emailConfigs.find((config) => config.conversationId === conversation.id)
+				!configsOfType.some((config) => config.conversationId === conversation.id)
 		)
 	);
-	let selectedConversation = $state<LocalizedConversationDto | null>(null);
-	let formState = $derived.by(() => {
-		const output: FormState = {
-			slots: {},
-			subject: selectedSchema.default_subject
-		};
-		selectedSchema.slots.map((slot) => (output.slots[slot.key] = slot.default_content));
-		return output;
-	});
-	let previewHtml = $state('');
-	let openPreviewModal = $state(false);
-	let previewIframeSrc = $state('');
+	// When the all-conversations version exists already, make the admin pick a conversation.
+	let scope = $derived(scopable && existingAllVersion ? NO_SCOPE_CHOSEN : ALL_CONVERSATIONS);
+	let scopeLabel = $derived(
+		scope === ALL_CONVERSATIONS
+			? copy.allScopeLabel
+			: (availableConversations.find((conversation) => conversation.id === scope)?.title ??
+					'Choose a conversation')
+	);
+	let blockedByExisting = $derived(scope === ALL_CONVERSATIONS && !!existingAllVersion);
+	let saveStatus = $state<SaveStatus>('idle');
+	let chosenConversation = $derived(
+		scopable ? availableConversations.find((conversation) => conversation.id === scope) : undefined
+	);
+	let knownVariables = $derived<KnownVariables>(
+		chosenConversation ? { conversation_title: chosenConversation.title } : {}
+	);
 
-	$effect(() => {
-		if (!previewHtml) return;
-
-		const blob = new Blob([previewHtml], { type: 'text/html' });
-		const url = URL.createObjectURL(blob);
-		previewIframeSrc = url;
-
-		return () => URL.revokeObjectURL(url);
-	});
-
-	function handleSelectSchema(value: string) {
-		selectedSchema = schemas.find((s) => s.email_type === value);
-	}
-
-	function handleSelectConversation(value: string) {
-		selectedConversation = conversations.find((c) => c.id === value) ?? null;
-	}
-
-	async function handleSubmit(e: Event) {
-		e.preventDefault();
-
-		const parsed: { [key: string]: string } = {};
-		Object.entries(formState.slots).map(([key, value]) => {
-			const matched = selectedSchema.slots.find((slot) => slot.key === key);
-			if (!matched) return;
-
-			if (matched.content_type === 'rich_text') {
-				parsed[key] = jsonToHtml(value);
-			} else {
-				parsed[key] = value;
-			}
-		});
-
-		try {
-			const emailConfig = await apiClient.CreateEmailTemplateConfig({
-				slots: {
-					type: selectedSchema.email_type,
-					...parsed
-				},
-				...(formState.subject && { subject: formState.subject }),
-				...(selectedConversation &&
-					selectedSchema.email_type === 'conversation_invite' && {
-						conversation_id: selectedConversation.id
-					})
-			});
-
-			notifications.send({
-				priority: 'INFO',
-				message: 'Successfully create new custom email'
-			});
-
-			goto(
-				resolve('/(admin)/admin/email-template-configs/[email_config_id]', {
-					email_config_id: emailConfig.id
-				}),
-				{
-					invalidate: [key('admin/email-template-config')]
-				}
-			);
-		} catch (e) {
-			console.error(e);
+	async function createVersion(submission: EmailTemplateSubmission): Promise<boolean> {
+		const conversationId = scopable && scope !== ALL_CONVERSATIONS ? scope : undefined;
+		const result = await tryCatchAsync(() =>
+			apiClient.CreateEmailTemplateConfig({
+				slots: { type: schema.email_type, ...submission.slots },
+				...(submission.subject && { subject: submission.subject }),
+				...(conversationId && { conversation_id: conversationId })
+			})
+		);
+		if (result.err !== null) {
 			notifications.send({
 				priority: 'ERROR',
-				message:
-					"Something went wrong creating your custom email. Please ensure you haven't already created a custom email for this type."
+				message: 'Something went wrong saving this email. Please try again.'
 			});
+			return false;
 		}
+
+		await goto(
+			resolve('/(admin)/admin/email-template-configs/[email_config_id]', {
+				email_config_id: result.ok.id
+			}),
+			{ invalidate: [key('admin/email-template-config')] }
+		);
+		return true;
 	}
-
-	const debouncedPreviewEmail = useDebounce(async () => {
-		try {
-			const parsed: { [key: string]: string } = {};
-			Object.entries(formState.slots).map(([key, value]) => {
-				const matched = selectedSchema.slots.find((slot) => slot.key === key);
-				if (!matched) return;
-
-				if (matched.content_type === 'rich_text') {
-					parsed[key] = jsonToHtml(value);
-				} else {
-					parsed[key] = value;
-				}
-			});
-
-			const response = await apiClient.PreviewEmailTemplateConfig({
-				slots: { type: selectedSchema.email_type, ...parsed }
-			});
-
-			previewHtml = response.html;
-		} catch (e) {
-			console.error(e);
-		}
-	}, 300);
 </script>
 
 <svelte:head>
-	<title>New Custom Email - Comhairle Admin</title>
+	<title>Customise {copy.name} - Comhairle Admin</title>
 </svelte:head>
 
-<SectionHeader
-	content={{
-		eyebrow: 'Library',
-		title: 'New custom email',
-		description: 'Choose an email type, then write the subject and content.'
-	}}
->
-	{#snippet actions()}
-		<Button
-			variant="outline"
-			type="button"
-			onclick={() => {
-				debouncedPreviewEmail();
-				openPreviewModal = true;
-			}}
-		>
-			Preview
-		</Button>
-	{/snippet}
-</SectionHeader>
-
-<TabContent>
-	<div class="mb-4 flex justify-between">
-		<div class="flex flex-col gap-2">
-			<h2 class="text-xl font-semibold">Email type</h2>
+{#snippet settings()}
+	<div class="flex flex-wrap gap-4">
+		<div class="flex flex-col gap-1.5">
+			<Label for="email-type" class="text-sm font-medium">Email</Label>
 			<Select.Root
 				type="single"
-				value={selectedSchema.email_type}
-				onValueChange={handleSelectSchema}
+				value={selectedType}
+				onValueChange={(value) => (selectedType = value)}
 			>
-				<Select.Trigger class="w-fit"
-					>{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger
-				>
+				<Select.Trigger id="email-type" class="min-w-64 text-base">
+					{copy.name}
+				</Select.Trigger>
 				<Select.Content>
-					{#each schemas as schema (schema.email_type)}
-						<Select.Item value={schema.email_type}>
-							{snakeToStartCase(schema.email_type)}
+					{#each data.schemas as option (option.email_type)}
+						<Select.Item value={option.email_type}>
+							{EMAIL_TYPE_COPY[option.email_type].name}
 						</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
 		</div>
-		{#if selectedSchema.email_type === 'conversation_invite' && filteredConversations.length > 0}
-			<div class="flex flex-col gap-2">
-				<h2 class="text-xl font-semibold">Scoped Conversation</h2>
+		{#if scopable}
+			<div class="flex flex-col gap-1.5">
+				<Label for="email-scope" class="text-sm font-medium">Applies to</Label>
 				<Select.Root
 					type="single"
-					value={selectedConversation?.id}
-					onValueChange={handleSelectConversation}
+					value={scope}
+					onValueChange={(value) => (scope = value)}
 				>
-					<Select.Trigger class="w-fit"
-						>{selectedConversation?.title ??
-							'All conversations (fallback)'}</Select.Trigger
-					>
+					<Select.Trigger id="email-scope" class="min-w-64 text-base">
+						{scopeLabel}
+					</Select.Trigger>
 					<Select.Content>
-						<Select.Item value="">All conversations (fallback)</Select.Item>
-						{#each filteredConversations as conversation (conversation.id)}
+						<Select.Item value={ALL_CONVERSATIONS} disabled={!!existingAllVersion}>
+							{copy.allScopeLabel}{existingAllVersion ? ' (already customised)' : ''}
+						</Select.Item>
+						{#each availableConversations as conversation (conversation.id)}
 							<Select.Item value={conversation.id}>
 								{conversation.title}
 							</Select.Item>
@@ -212,73 +142,62 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
+		{:else}
+			<div class="flex flex-col gap-1.5">
+				<span class="text-sm font-medium">Applies to</span>
+				<span class="text-foreground flex h-9 items-center text-base">
+					{copy.allScopeLabel}
+				</span>
+			</div>
 		{/if}
 	</div>
-	{#if selectedSchema.variables.length > 0}
-		<EmailTemplateVariables templateVariables={selectedSchema.variables} />
+	{#if blockedByExisting && existingAllVersion}
+		<p role="status" class="bg-muted text-foreground rounded-lg px-4 py-3 text-base">
+			This email is already customised for {copy.allScopeLabel.toLowerCase()}.
+			<a
+				href={resolve('/(admin)/admin/email-template-configs/[email_config_id]', {
+					email_config_id: existingAllVersion.id
+				})}
+				class="text-primary font-medium underline underline-offset-4"
+			>
+				Edit that version
+			</a>
+			instead.
+		</p>
 	{/if}
+{/snippet}
 
-	<form onsubmit={handleSubmit}>
-		<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
-			<Label
-				class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-				for="subject">Email subject</Label
-			>
-			<Input
-				placeholder="Subject"
-				name="subject"
-				defaultValue={formState.subject}
-				onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
-			/>
-		</div>
-		{#each selectedSchema.slots as slot (slot.key)}
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Label
-					class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					for={slot.key}
-				>
-					<span>{slot.label}</span>
-					<span class="text-sm font-normal">{slot.hint}</span>
-				</Label>
-				{#if slot.content_type === 'plain_text'}
-					<Input
-						placeholder="Enter email content..."
-						defaultValue={formState.slots[slot.key]}
-						onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
-					/>
-				{:else}
-					<RichTextEditor
-						width="100%"
-						value={formState.slots[slot.key]}
-						placeholder="Enter email content..."
-						onChange={(json) => (formState.slots[slot.key] = json)}
-					/>
-				{/if}
-			</div>
-		{/each}
-
-		<div class="flex">
-			<Button type="submit">Create email</Button>
-		</div>
-	</form>
-
-	<Dialog.Root bind:open={openPreviewModal}>
-		<Dialog.Content class="h-[70vh] w-full max-w-6xl sm:w-full sm:max-w-6xl">
-			<Dialog.Header>
-				<Dialog.Title class="flex items-center gap-2">Email preview</Dialog.Title>
-				<Dialog.Description>
-					{#if previewIframeSrc}
-						<iframe
-							src={previewIframeSrc}
-							class="h-[63vh] w-full"
-							title="Email preview"
-							sandbox="allow-same-origin"
-						></iframe>
-					{/if}
-				</Dialog.Description>
-			</Dialog.Header>
-		</Dialog.Content>
-	</Dialog.Root>
+<SectionHeader
+	content={{
+		back: { href: resolve('/(admin)/admin/email-template-configs'), label: 'Email templates' },
+		title: `Customise ${copy.name.toLowerCase()}`,
+		description: copy.sentWhen
+	}}
+>
+	{#snippet actions()}
+		<SaveActions
+			formId={FORM_ID}
+			status={saveStatus}
+			submitLabel="Save custom email"
+			cancelHref={resolve('/(admin)/admin/email-template-configs')}
+			disabled={blockedByExisting || scope === NO_SCOPE_CHOSEN}
+		/>
+	{/snippet}
+</SectionHeader>
+<TabContent>
+	{#key schema.email_type}
+		<EmailTemplateForm
+			formId={FORM_ID}
+			{schema}
+			initialSubject={schema.default_subject}
+			initialSlots={initialSlotValues(schema)}
+			bind:saveStatus
+			{knownVariables}
+			previewConversation={chosenConversation
+				? { title: chosenConversation.title, imageUrl: chosenConversation.imageUrl }
+				: null}
+			onSubmit={createVersion}
+			{settings}
+		/>
+	{/key}
 </TabContent>

@@ -21,12 +21,13 @@
 	    }
 
 	    .main {
-		background-color: #F0F9FF;
+		background-color: #EEF3F7;
 		font-size: 16px;
 		font-family: Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		box-sizing: border-box;
-		padding-bottom: 24px;
+		padding: 16px 16px 32px;
 		text-align: center;
+		color: #111827;
 	    }
 
 	    .logo {
@@ -34,6 +35,20 @@
 		width: auto;
 		height: 60px;
 		margin: 24px auto;
+	    }
+
+	    .header-logo {
+		display: block;
+		width: auto;
+		height: 60px;
+		margin: 40px auto 32px;
+	    }
+
+	    .footer-logo {
+		display: block;
+		width: auto;
+		height: 40px;
+		margin: 12px auto 16px;
 	    }
 
 	    .button {
@@ -51,8 +66,20 @@
 		margin: 0 auto;
 		background: white;
 		text-align: center;
-		padding: 12px 24px;
+		border-radius: 16px;
+		overflow: hidden;
+	    }
+
+	    .page-body {
+		padding: 12px 24px 24px;
 		font-weight: 500;
+	    }
+
+	    .hero {
+		display: block;
+		width: 100%;
+		height: auto;
+		border: 0;
 	    }
 
 	    .card {
@@ -66,6 +93,48 @@
 		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
 	    }
 
+	    .invite-eyebrow {
+		margin: 16px 0 0;
+		color: #0066BD;
+		font-size: 14px;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+	    }
+
+	    .invite-title {
+		margin: 16px 0 28px;
+		font-size: 32px;
+		line-height: 1.25;
+		font-weight: 700;
+	    }
+
+	    .invite-greeting {
+		margin: 0 0 16px;
+	    }
+
+	    .invite-cta {
+		margin: 28px 0 24px;
+	    }
+
+	    .invite-button {
+		display: block;
+		padding: 14px 16px;
+		border-radius: 1000px;
+		background-color: #0066BD;
+		color: #FFFFFF;
+		font-size: 16px;
+		font-weight: 600;
+		text-align: center;
+		text-decoration: none;
+	    }
+
+	    .invite-link {
+		color: #0066BD;
+		text-decoration: underline;
+		word-break: break-all;
+	    }
+
 	    .link {
 		text-decoration: underline;
 		color: #0066BD;
@@ -73,8 +142,8 @@
 	    }
 
 	    .footer {
-		margin: 50px auto;
-		color: #6B7280;
+		margin: 32px auto 0;
+		color: #111827;
 	    }
 	</style>
 </head>
@@ -84,18 +153,23 @@
     </header>
 
     <div class="main">
-	<img class="logo" src="{{ header_logo_url }}" />
+	<img class="header-logo" src="{{ header_logo_url }}" alt="" />
 	<div class="page">
-	    {% block content %}{% endblock %}
+	    {% block hero %}{% endblock %}
+	    <div class="page-body">
+		{% block content %}{% endblock %}
+	    </div>
 	</div>
 
 	<div class="footer">
-	    <p>This email is sent by</p>
-	    <img class="logo" src="{{ footer_logo_url }}" style="margin: 20px 0;" />
-	    {% if organization_name %}
-		<p>on behalf of {{ organization_name }}</p>
-	    {% endif %}
-	    <p>Copyright {{year}} &copy; Crown Shy</p>
+	    <p>sent using</p>
+	    <img class="footer-logo" src="{{ footer_logo_url }}" alt="Comhairle" />
+	    {% block footer_reason %}
+		{% if organization_name %}
+		    <p>on behalf of {{ organization_name }}</p>
+		{% endif %}
+	    {% endblock %}
+	    <p>Copyright {{year}} &copy; CrownShy</p>
 	</div>
     </div>
 </body>
