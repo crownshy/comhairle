@@ -1,10 +1,7 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
-	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
+	import { m } from '$lib/paraglide/messages';
 	import type {
 		LearnPageEntry,
 		LocalizedConversationDto,
@@ -17,26 +14,23 @@
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import { resolveGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
-	let {
-		pages,
-		onDone,
-		onNextAction,
-		onPrevAction,
-		conversation,
-		availableDocuments = [],
-		hasKnowledgeBaseDocs = false,
-		isSubmitting = false
-	}: {
+	type Props = {
 		pages: LearnPageEntry[];
-		onDone: () => void;
-		onNextAction?: (fn: () => void) => void;
-		onPrevAction?: (fn: (() => void) | undefined) => void;
+		onSequenceChange?: OnSequenceChange;
 		conversation?: LocalizedConversationDto;
 		availableDocuments?: ComhairleDocument[];
 		hasKnowledgeBaseDocs?: boolean;
-		isSubmitting?: boolean;
-	} = $props();
+	};
+
+	let {
+		pages,
+		onSequenceChange,
+		conversation,
+		availableDocuments = [],
+		hasKnowledgeBaseDocs = false
+	}: Props = $props();
 
 	// The assistant only answers from parsed knowledge base documents, so it is hidden entirely
 	// when the knowledge base is empty. hasKnowledgeBaseDocs is the single source of truth,
@@ -64,7 +58,8 @@
 			conversation?.primaryLocale ?? 'en'
 		)
 	);
-	let isLastPage = $derived(currentPageNo === pages.length - 1);
+	// `>=` so a step with no pages counts as being on its last page and Next completes it.
+	let isLastPage = $derived(currentPageNo >= pages.length - 1);
 	let pageHeading = $derived(
 		(currentPageTranslation[0] as { title?: string } | undefined)?.title ?? ''
 	);
@@ -83,46 +78,31 @@
 		});
 	}
 
-	/** True while SvelteKit is routing to another step. Gates the controls, which shouldn't be
-	 * clickable mid-navigation. */
+	/** True while SvelteKit is routing to another step. */
 	let isNavigating = $derived(!!navigating.to);
 
-	/**
-	 * Skeleton only, so a step hop that resolves quickly never renders one and can't flash.
-	 * See delayedFlag for the reasoning.
-	 *
-	 * Deliberately not gated on the document fetch, unlike before: the article server-renders
-	 * now, and withholding it for a client-only fetch would blank content that is already on
-	 * screen. A source-document badge instead renders its placeholder label and upgrades in
-	 * place when the fetch lands, which is a far smaller change than hiding the whole article.
-	 */
+	// Not gated on the document fetch: the article server-renders, and a source-document badge
+	// upgrades in place when the fetch lands.
 	let showSkeleton = delayedFlag(() => isNavigating, 150);
 
-	$effect(() => {
-		if (onNextAction) {
-			onNextAction(isLastPage ? onDone : nextPage);
-		}
-	});
+	// The segment fills as pages are left behind, so a single page stays empty until the step
+	// completes, like every other tool.
+	let progress = $derived(pages.length > 0 ? currentPageNo / pages.length : undefined);
+	let pageCount = $derived(
+		pages.length > 1 ? m.page_x_of_y({ x: currentPageNo + 1, y: pages.length }) : undefined
+	);
 
 	$effect(() => {
-		onPrevAction?.(currentPageNo > 0 ? prevPage : undefined);
+		onSequenceChange?.({
+			next: isLastPage ? undefined : nextPage,
+			previous: currentPageNo > 0 ? prevPage : undefined,
+			progress,
+			position: pageCount
+		});
 	});
 </script>
 
 <div class="mx-auto flex grow flex-col">
-	{#if pages.length > 1}
-		<div class="mx-auto mb-6 w-full max-w-[65ch]">
-			<p class="text-muted-foreground mb-1.5 text-sm font-medium">
-				<span class="capitalize">{m.page()}</span>
-				{currentPageNo + 1}
-				{m.of()}
-				{pages.length}
-			</p>
-			<Progress value={currentPageNo + 1} max={pages.length} aria-label="Learning progress" />
-		</div>
-	{/if}
-
-	<!-- Article content: own loading state (route navigation / content not ready) -->
 	{#if showSkeleton.current}
 		<LearnArticleSkeleton />
 	{:else if content}
@@ -135,7 +115,7 @@
 			/>
 		</article>
 	{:else}
-		<h1>Sorry this page is currently not avaliable in this language</h1>
+		<h1>Sorry this page is currently not available in this language</h1>
 	{/if}
 
 	{#if tutorAvailable && conversation}
@@ -146,18 +126,5 @@
 				loading={showSkeleton.current}
 			/>
 		</div>
-	{/if}
-
-	{#if currentPageNo == pages.length - 1}
-		<!-- Disabling tracks isNavigating, not the delayed flag: a control that stays live for
-			150ms into a navigation could fire twice. -->
-		<Button class="mx-auto mt-10" onclick={onDone} disabled={isNavigating || isSubmitting}>
-			{#if isSubmitting}
-				<Spinner class="mr-2 size-4" />
-			{/if}
-			{m.continue_()}
-		</Button>
-	{:else}
-		<Button class="mx-auto mt-10" onclick={nextPage} disabled={isNavigating}>{m.next()}</Button>
 	{/if}
 </div>

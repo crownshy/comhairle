@@ -4,9 +4,12 @@
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		href?: string;
+		/** Names the link when the mark alone doesn't say where it goes. */
+		ariaLabel?: string;
 		showText?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
@@ -15,6 +18,7 @@
 
 	let {
 		href = '/',
+		ariaLabel,
 		showText = true,
 		logoSize = 'md',
 		color = 'text-primary-foreground',
@@ -63,11 +67,12 @@
 {/snippet}
 
 {#if href}
-	<a {href} class="flex items-center {color} {className}">
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a {href} aria-label={ariaLabel} class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</a>
 {:else}
-	<div class="flex items-center {color} {className}">
+	<div class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</div>
 {/if}

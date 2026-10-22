@@ -22,6 +22,13 @@ export async function tryCatchAsync<T, E extends ErrorType>(
 	}
 }
 
+/** The HTTP status on an error thrown by `apiClient`, or undefined when it carries none. */
+export function apiErrorStatus(error: unknown): number | undefined {
+	if (typeof error !== 'object' || error === null || !('response' in error)) return undefined;
+	const { response } = error as { response?: { status?: unknown } };
+	return typeof response?.status === 'number' ? response.status : undefined;
+}
+
 const NO_INTERNET = 'Network error. Please check your internet connection.';
 const ERROR_500 = 'Internal server error. Please try again, and contact us if the issue persists.';
 

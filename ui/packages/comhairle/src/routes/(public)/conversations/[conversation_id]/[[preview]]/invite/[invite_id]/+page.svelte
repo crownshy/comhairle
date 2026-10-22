@@ -55,19 +55,22 @@
 		privacyPolicyOpen = true;
 	}
 
+	// The lint rule only accepts a bare resolve() call, so a path with the query string appended
+	// can't satisfy it.
+	function goToFirstWorkflow(invalidate: string[]) {
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		return goto(firstWorkflowPath + url.search, { invalidate });
+	}
+
 	async function handlePrivacyPolicyAccept() {
 		try {
 			if (loginType === 'automatic') {
 				await apiClient.SignupGuestUser(undefined, {});
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, {
-					invalidate: [key('user'), key('public/participation')]
-				});
+				await goToFirstWorkflow([key('user'), key('public/participation')]);
 			} else {
 				await acceptInvite();
-				await goto(firstWorkflowPath + url.search, {
-					invalidate: [key('public/participation')]
-				});
+				await goToFirstWorkflow([key('public/participation')]);
 			}
 		} catch (e) {
 			console.error(e);
@@ -78,13 +81,6 @@
 		await apiClient.AcceptInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
-	}
-
-	async function rejectInvite() {
-		await apiClient.RejectInvite(undefined, {
-			params: { conversation_id: conversation!.id, invite_id: invite!.id }
-		});
-		goto('/');
 	}
 
 	onMount(() => {
@@ -162,7 +158,7 @@
 	{/if}
 {/if}
 
-{#if error}
+{#if error !== undefined}
 	<div class="flex h-full flex-col items-center align-middle">
 		<div class="my-auto text-center">
 			{#if error == 'Invite does not match logged in user'}
@@ -170,11 +166,13 @@
 				<p>
 					If you think you should be, check if you are logged in with the correct account
 				</p>
-				<Button class="mt-10" href="/conversations">Find Other Conversations</Button>
-			{/if}
-			{#if error == 'This invite has expired'}
+			{:else if error == 'This invite has expired'}
 				<h1>This invite has expired</h1>
+			{:else}
+				<h1>{m.invite_unusable_title()}</h1>
+				<p>{m.invite_unusable_description()}</p>
 			{/if}
+			<Button class="mt-10" href="/conversations">{m.conversation_closed_link()}</Button>
 		</div>
 	</div>
 {/if}

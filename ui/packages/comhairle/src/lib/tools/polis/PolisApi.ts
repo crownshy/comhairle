@@ -1,3 +1,5 @@
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+
 export type PolisStatement = {
 	txt: string;
 	tid: number;
@@ -122,9 +124,9 @@ export default class PolisApi {
 			});
 	}
 
+	/** Returns null on failure. The caller shows the error, so it stays off the shared voting error. */
 	async submitStatement(statement: string): Promise<{ tid: number; pid: number } | null> {
 		this._loading = true;
-		this._error = undefined;
 		this.notify();
 
 		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
@@ -152,7 +154,6 @@ export default class PolisApi {
 			return { tid: data.tid, pid: this._pid ?? 0 };
 		} catch (err) {
 			console.error('[PolisApi] Error submitting statement:', err);
-			this._error = err instanceof Error ? err.message : String(err);
 			return null;
 		} finally {
 			this._loading = false;
@@ -160,10 +161,12 @@ export default class PolisApi {
 		}
 	}
 
-	submitVote(vote: 'agree' | 'disagree' | 'pass') {
+	/** Resolves true once Polis has saved the vote, false if it failed. On failure the
+	 * current statement stays put so the participant can vote again. */
+	async submitVote(vote: 'agree' | 'disagree' | 'pass'): Promise<boolean> {
 		if (!this._currentStatement) {
 			console.error('[PolisApi] No current statement to vote on');
-			return;
+			return false;
 		}
 
 		const votedTid = this._currentStatement.tid;
@@ -174,36 +177,36 @@ export default class PolisApi {
 		const voteValue = { agree: -1, disagree: 1, pass: 0 }[vote];
 		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
 
-		fetch(`${this.baseUrl}/api/v3/votes`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			credentials: 'include',
-			body: JSON.stringify({
-				agid: 1,
-				conversation_id: this.polisId,
-				tid: votedTid,
-				vote: voteValue,
-				high_priority: false,
-				lang: this.lang,
-				...authType
-			})
-		})
-			.then((r) => {
-				if (!r.ok) throw new Error(`submitVote failed: ${r.status}`);
-				return r.json();
-			})
-			.then((data) => {
-				if (typeof data.currentPid === 'number') {
-					this._pid = data.currentPid;
-				}
-				this.fetchNextStatement();
-			})
-			.catch((e) => {
-				console.error('[PolisApi] Error with vote:', e);
-				this._error = e.message;
-				this._loading = false;
-				this.notify();
+		const result = await tryCatchAsync(async () => {
+			const response = await fetch(`${this.baseUrl}/api/v3/votes`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({
+					agid: 1,
+					conversation_id: this.polisId,
+					tid: votedTid,
+					vote: voteValue,
+					high_priority: false,
+					lang: this.lang,
+					...authType
+				})
 			});
+			if (!response.ok) throw new Error(`submitVote failed: ${response.status}`);
+			return (await response.json()) as { currentPid?: number };
+		});
+
+		if (result.err !== null) {
+			console.error('[PolisApi] Error with vote:', result.err);
+			this._loading = false;
+			this.notify();
+			return false;
+		}
+		if (typeof result.ok.currentPid === 'number') {
+			this._pid = result.ok.currentPid;
+		}
+		this.fetchNextStatement();
+		return true;
 	}
 
 	get state(): PolisApiState {

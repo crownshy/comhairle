@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { offsetInStepScroll, scrollStepTo, stepScrollTop } from '$lib/utils/stepScroll';
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { m } from '$lib/paraglide/messages';
 	import { fade } from 'svelte/transition';
 	import HeyFormEmbedSkeleton from './HeyFormEmbedSkeleton.svelte';
 	import { browser } from '$app/environment';
@@ -8,16 +10,19 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { toHeyFormLocale } from './utils';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		onDone: () => void;
+		onSequenceChange?: OnSequenceChange;
 		surveyId: string;
 		surveyURL: string;
 		serverURL: string;
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	};
-	let { onDone, surveyId, userId, serverURL, extraSurveyParams }: Props = $props();
+	let { onDone, onSequenceChange, surveyId, userId, serverURL, extraSurveyParams }: Props =
+		$props();
 
 	// The renderer shows its own spinner for a moment after `load`, so uncovering the frame at
 	// `load` would flicker. Same grace as HeyFormManage.
@@ -123,6 +128,41 @@
 	let alignPending = false;
 	let alignTimer: ReturnType<typeof setTimeout> | undefined;
 
+	// A cross-origin `load` fires even for a browser error page, so the form's own first message is
+	// the sign it loaded. A host that hangs never sends one.
+	const FORM_LOAD_TIMEOUT_MS = 15000;
+	let loadFailed = $state(false);
+	let frameAttempt = $state(0);
+	let heardFromForm = false;
+	let loadTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function startLoadTimer() {
+		clearTimeout(loadTimer);
+		heardFromForm = false;
+		loadTimer = setTimeout(() => {
+			if (!heardFromForm) loadFailed = true;
+		}, FORM_LOAD_TIMEOUT_MS);
+	}
+
+	function retryLoad() {
+		loadFailed = false;
+		ready = false;
+		firstLoad = true;
+		measuredHeight = null;
+		frameAttempt += 1;
+		startLoadTimer();
+	}
+
+	onMount(() => {
+		onSequenceChange?.({ progress: 0, blockedReason: m.heyform_submit_to_continue() });
+		startLoadTimer();
+		return () => clearTimeout(loadTimer);
+	});
+
+	// The form shows its thank-you screen for a moment before the step completes.
+	const DONE_DELAY_MS = 2000;
+	let doneTimer: ReturnType<typeof setTimeout> | undefined;
+
 	function alignFrameTop() {
 		alignPending = false;
 		clearTimeout(alignTimer);
@@ -140,6 +180,17 @@
 		alignTimer = setTimeout(alignFrameTop, ALIGN_AFTER_STEP_CHANGE_MS);
 	}
 
+	// Fills the chrome's segment by question position (ADR-0047). `total` counts the thank-you
+	// screen, so reaching it is full. The form's own `percentage` is ignored because it moves on
+	// typing, not paging. An older fork sends no numbers.
+	function reportProgress(index: unknown, total: unknown) {
+		if (typeof index !== 'number' || typeof total !== 'number' || total <= 1) return;
+		onSequenceChange?.({
+			progress: Math.min(1, Math.max(0, index / (total - 1))),
+			blockedReason: m.heyform_submit_to_continue()
+		});
+	}
+
 	function onFrameMessage(e: MessageEvent) {
 		const data = e.data;
 		// HeyForm tags every message it posts; ignore anything else on the page.
@@ -147,11 +198,14 @@
 
 		// Any message from the frame means its renderer has mounted and can hear a theme.
 		frameListening = true;
+		heardFromForm = true;
+		clearTimeout(loadTimer);
 		syncFrameTheme(paletteKey());
 
 		switch (data.eventName) {
 			case 'HIDE_EMBED_MODAL':
-				setTimeout(() => onDone(), 2000);
+				onSequenceChange?.({ progress: 1 });
+				doneTimer = setTimeout(() => onDone(), DONE_DELAY_MS);
 				break;
 			case 'FORM_RESIZE':
 				if (typeof data.height === 'number' && Number.isFinite(data.height)) {
@@ -162,6 +216,7 @@
 				break;
 			case 'FORM_STEP_CHANGE':
 				requestFrameTopAlign();
+				reportProgress(data.index, data.total);
 				break;
 		}
 	}
@@ -173,6 +228,8 @@
 			window.removeEventListener('message', onFrameMessage);
 			stopResizePing();
 			clearTimeout(alignTimer);
+			// Leaving within the delay must not complete whichever step is open by then.
+			clearTimeout(doneTimer);
 		};
 	});
 
@@ -195,18 +252,19 @@
 		serverURL.startsWith('https://') ? serverURL : `https://${serverURL}`
 	);
 
-	let url = $derived(
-		`${base_url}/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&comhairle_user_id=${userId}&hideAfterSubmit=true&autoClose=1&hostScroll=true`
-	);
-
 	let fullUrl = $derived.by(() => {
 		// Caller params last: a step that wants a specific colour outranks the ambient palette.
 		const params = new URLSearchParams({
+			polis_id: userId,
+			comhairle_user_id: userId,
+			hideAfterSubmit: 'true',
+			autoClose: '1',
+			hostScroll: 'true',
 			locale: toHeyFormLocale(getLocale()),
 			...bootPalette,
 			...extraSurveyParams
-		}).toString();
-		return params ? url + '&' + params : url;
+		});
+		return `${base_url}/form/${surveyId}?${params}`;
 	});
 </script>
 
@@ -217,26 +275,36 @@
 <!-- A single-cell grid rather than absolute positioning: both children claim the same cell, so the
 	skeleton inherits the iframe's exact box without restating its height clamp. -->
 <div class="grid w-full grid-cols-1 grid-rows-1">
-	{#if !ready}
+	{#if loadFailed}
+		<div
+			class="border-destructive/20 bg-destructive/5 mx-auto flex w-full max-w-2xl flex-col items-center gap-4 rounded-xl border p-6 text-center"
+			role="alert"
+		>
+			<p class="text-foreground text-base">{m.heyform_load_failed()}</p>
+			<Button variant="outline" onclick={retryLoad}>{m.try_again()}</Button>
+		</div>
+	{:else if !ready}
 		<div class="z-10 [grid-area:1/1]" out:fade={{ duration: 200 }}>
 			<HeyFormEmbedSkeleton />
 		</div>
 	{/if}
-	{#if browser}
+	{#if browser && !loadFailed}
 		<div class="mx-auto mt-1 w-full max-w-2xl overflow-hidden rounded-xl [grid-area:1/1]">
-			<iframe
-				bind:this={iframeEl}
-				src={fullUrl}
-				title="survey"
-				onload={handleLoad}
-				allow="microphone; camera"
-				style={measuredHeight ? `height:${measuredHeight}px` : undefined}
-				class="{measuredHeight
-					? ''
-					: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
-					? 'opacity-100'
-					: 'opacity-0'}"
-			></iframe>
+			{#key frameAttempt}
+				<iframe
+					bind:this={iframeEl}
+					src={fullUrl}
+					title="survey"
+					onload={handleLoad}
+					allow="microphone; camera"
+					style={measuredHeight ? `height:${measuredHeight}px` : undefined}
+					class="{measuredHeight
+						? ''
+						: 'min-h-110'} w-full border-none transition-[height,opacity] duration-300 {ready
+						? 'opacity-100'
+						: 'opacity-0'}"
+				></iframe>
+			{/key}
 		</div>
 	{/if}
 </div>
