@@ -3,6 +3,8 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { sectionHeader } from './sectionHeader';
+	import { SCROLL_REGION_CLASS, STEP_PAGE_CLASS } from './styles';
+	import { cn } from '$lib/utils';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
@@ -58,15 +60,6 @@
 	let isEventDetailPage = $derived.by(() => {
 		const path = page.url.pathname.replace(/\/+$/, '');
 		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
-	});
-
-	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
-	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
-	// server-rendered, rather than injected by the design layout's client `$effect`.
-	let isDesignSection = $derived.by(() => {
-		const base = `/admin/conversations/${conversation.id}/design`;
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === base || path.startsWith(`${base}/`);
 	});
 
 	// A workflow step's sub-tabs (Configure/Setup/Insights) are real routes, so
@@ -166,24 +159,27 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12">
-			<div class="max-w-admin mx-auto h-full w-full">
+		<div class={cn(STEP_PAGE_CLASS, SCROLL_REGION_CLASS)}>
+			<div class="max-w-admin mx-auto min-h-full w-full">
 				<TabContentSkeleton />
 			</div>
 		</div>
 	{:else}
 		{@render children()}
 	{/if}
+{:else if isConfigureSection && !showSwitchingSkeleton.current}
+	<!-- Configure renders its own tab strip, so it scrolls the region under that strip itself. -->
+	<div class="bg-admin-background flex grow flex-col md:min-h-0">
+		{@render children()}
+	</div>
 {:else}
-	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
-		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background grow">
+	<!-- From md up only this region scrolls, so the header and strips above stay put. On a
+		 phone they would take too much of the screen, so `main` scrolls everything. -->
+	<div class={cn('bg-admin-background', SCROLL_REGION_CLASS)}>
 		{#if showSwitchingSkeleton.current}
 			<TabContent>
 				<TabContentSkeleton />
 			</TabContent>
-		{:else if isConfigureSection || isDesignSection}
-			{@render children()}
 		{:else}
 			<TabContent>
 				{@render children()}
