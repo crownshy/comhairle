@@ -5,6 +5,7 @@ use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with
 use axum::extract::{Json, Path, Query, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
+use axum_extra::extract::cookie::CookieJar;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -38,6 +39,7 @@ use crate::models::user_participation::{self};
 use crate::models::users::User;
 use crate::models::{organization, user_conversation_preferences, user_profile, user_progress};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+use crate::routes::preview_access::{has_preview_grant, preview_denied_error};
 use crate::routes::translations::LocaleExtractor;
 
 pub mod dto;
@@ -162,40 +164,15 @@ pub enum ConversationResponse {
     Localized(LocalizedConversationDto),
 }
 
-/// A conversation that isn't live yet is only visible to people who can read it.
-async fn ensure_can_read(
-    state: &Arc<ComhairleState>,
-    conversation: &Conversation,
-    user: Option<&User>,
-) -> Result<(), ComhairleError> {
-    if conversation.is_live {
-        return Ok(());
-    }
-    let Some(user) = user else {
-        return Err(ComhairleError::NoLoggedInUser);
-    };
-    if !can_perform_action(
-        state,
-        &conversation.id,
-        Action::Read,
-        &user.id,
-        Some(&conversation.owner_id),
-    )
-    .await?
-    {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-    Ok(())
-}
-
 /// Get a specific conversation
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
     Query(query): Query<GetConversationQuery>,
     OptionalUser(user): OptionalUser,
     LocaleExtractor(locale): LocaleExtractor,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
@@ -203,7 +180,7 @@ async fn get_conversation(
     let original_conversation =
         conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
 
-    ensure_can_read(&state, &original_conversation, user.as_ref()).await?;
+    ensure_can_read(&state, &original_conversation, user.as_ref(), &jar).await?;
 
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = if query.with_translations
@@ -250,6 +227,44 @@ async fn get_conversation(
             Json(ConversationResponse::Localized(conversation)),
         ))
     }
+}
+
+/// A draft conversation is readable by its team, or by anyone who unlocked its preview with
+/// the preview password. Being logged in is not enough on its own: preview visitors get an
+/// anonymous account, so every one of them is logged in.
+async fn ensure_can_read(
+    state: &Arc<ComhairleState>,
+    conversation: &Conversation,
+    user: Option<&User>,
+    jar: &CookieJar,
+) -> Result<(), ComhairleError> {
+    if conversation.is_live {
+        return Ok(());
+    }
+
+    if let Some(user) = user
+        && can_perform_action(
+            state,
+            &conversation.id,
+            Action::Read,
+            &user.id,
+            Some(&conversation.owner_id),
+        )
+        .await?
+    {
+        return Ok(());
+    }
+
+    if has_preview_grant(state, jar, conversation.id).await? {
+        return Ok(());
+    }
+
+    let fallback = if user.is_some() {
+        ComhairleError::UserNotAuthorized
+    } else {
+        ComhairleError::NoLoggedInUser
+    };
+    Err(preview_denied_error(state, conversation.id, fallback).await?)
 }
 
 /// List organizations that are co-hosts of a conversation, inferred from permissions.
@@ -406,14 +421,15 @@ pub struct ParticipationCountResponse {
 
 /// Open to participants so the thank-you page can show it, with the same draft gate as
 /// `get_conversation`.
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn get_participation_count(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     OptionalUser(user): OptionalUser,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<ParticipationCountResponse>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    ensure_can_read(&state, &conversation, user.as_ref()).await?;
+    ensure_can_read(&state, &conversation, user.as_ref(), &jar).await?;
     let participant_count =
         user_progress::count_people_who_have_taken_part(&state.db, &conversation_id).await?;
 
@@ -2445,7 +2461,7 @@ mod tests {
 
         let conversation_id = make_conversation(&mut admin, &app, "opt_in_authed").await?;
 
-        // user1 — opted in
+        // user1: opted in
         let user1 = create_user(
             &SignupRequest {
                 username: "opt_in_user".into(),
@@ -2469,7 +2485,7 @@ mod tests {
         )
         .await?;
 
-        // user2 — explicitly opted out (preferences row exists, flag false)
+        // user2: explicitly opted out (preferences row exists, flag false)
         let user2 = create_user(
             &SignupRequest {
                 username: "opt_out_user".into(),
@@ -2493,7 +2509,7 @@ mod tests {
         )
         .await?;
 
-        // user3 — no preferences row at all (default = not opted in)
+        // user3: no preferences row at all (default = not opted in)
         let _user3 = create_user(
             &SignupRequest {
                 username: "no_prefs_user".into(),

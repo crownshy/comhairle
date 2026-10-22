@@ -6,6 +6,7 @@ import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import setCookieParser from 'set-cookie-parser';
 import { createApiClient } from '@crownshy/api-client/client';
+import { previewGrantCookies } from '$lib/utils/previewAccess';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -44,7 +45,7 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 	if (isEmbeddable(pathname)) {
 		// Allow any site to embed these paths
 		response.headers.set('Content-Security-Policy', 'frame-ancestors *');
-		response.headers.delete('X-Frame-Options'); // XFO has no wildcard — must remove it
+		response.headers.delete('X-Frame-Options'); // XFO has no wildcard, so it must go
 		// Allow jitsi iframes to access camera / microphone on embeddable paths
 		response.headers.set(
 			'Permissions-Policy',
@@ -52,17 +53,17 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 		);
 	} else {
 		// Deny framing everywhere else except ummami if active
-		let umami_url = env.PUBLIC_UMAMI_SRC;
+		const umami_url = env.PUBLIC_UMAMI_SRC;
 		let umami_domain = '';
 		if (umami_url) {
 			try {
 				umami_domain = `'${new URL(umami_url).host}'`;
-			} catch (e) {
+			} catch {
 				console.warn('Badly formatted umami domain');
 			}
 		}
 
-		let frameAncestors = "frame-ancestors 'self' " + umami_domain;
+		const frameAncestors = "frame-ancestors 'self' " + umami_domain;
 		response.headers.set('Content-Security-Policy', frameAncestors);
 		response.headers.set('X-Frame-Options', 'DENY');
 		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
@@ -89,7 +90,8 @@ const handleApi: Handle = async ({ event, resolve }) => {
 				event.url.origin + '/api',
 				event.cookies.get('auth-token'),
 				'server',
-				event.cookies.get('COMHAIRLE_LOCALE')
+				event.cookies.get('COMHAIRLE_LOCALE'),
+				previewGrantCookies(event.cookies)
 			))
 	});
 	return resolve(event);

@@ -18,6 +18,7 @@ pub mod moderation_policies;
 pub mod notifications;
 pub mod organizations;
 pub mod permissions;
+pub mod preview_access;
 pub mod recruitment_targets;
 pub mod region_areas;
 pub mod regions;

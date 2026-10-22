@@ -6,6 +6,7 @@ use axum::body::Body;
 use axum::extract::{Json, Multipart, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Response;
+use axum_extra::extract::cookie::CookieJar;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
@@ -17,6 +18,7 @@ use crate::error::ComhairleError;
 use crate::models::job::{self, CreateJob};
 use crate::models::{conversation, translations, user_participation, workflow, workflow_step};
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::routes::preview_access::has_preview_grant;
 use crate::tools::ToolConfig;
 use crate::tools::learn::{LearnPageEntry, PageContent};
 use crate::worker_service::process_documents::DocumentJob;
@@ -34,15 +36,20 @@ pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "comhairle_learning_step_material.
 /// - The user owns the conversation
 /// - The user is a participant in any workflow of the conversation
 /// - No user is logged in but the conversation is public and live
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn require_conversation_document_access(
     state: &Arc<ComhairleState>,
     user: &OptionalUser,
+    jar: &CookieJar,
     conversation_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
 
     if conversation.is_public && conversation.is_live {
+        return Ok(());
+    }
+
+    if has_preview_grant(state, jar, *conversation_id).await? {
         return Ok(());
     }
 
@@ -69,14 +76,15 @@ async fn require_conversation_document_access(
     Err(ComhairleError::UserNotAuthorized)
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     Query(params): Query<GetQueryParams>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -156,13 +164,14 @@ async fn stop_parsing_document(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn download_document(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<Response<Body>, ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -432,13 +441,14 @@ pub struct LearnContentResponse {
 ///
 /// Reads the draft (`preview_tool_config`), matching what sync ingests, so the viewer
 /// shows the same content the assistant answers from.
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn learn_content(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<LearnContentResponse>), ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let locale = &conversation.primary_locale;

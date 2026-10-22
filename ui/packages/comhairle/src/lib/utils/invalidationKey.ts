@@ -6,6 +6,7 @@ type InputKey =
 	| 'admin/conversation/invites'
 	| 'admin/conversation/meta'
 	| 'admin/conversation/permissions'
+	| 'admin/conversation/preview-password'
 	| 'admin/conversation/report'
 	| 'admin/conversation/workflow'
 	| 'admin/conversation/design/workflow'

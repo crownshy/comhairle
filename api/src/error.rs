@@ -189,6 +189,14 @@ pub enum ComhairleError {
     #[error("No user logged in")]
     NoLoggedInUser,
 
+    /// A draft conversation that has a preview password, asked for by someone who has not
+    /// unlocked it. Distinct from `NoLoggedInUser` so the frontend can show the password form.
+    #[error("Preview password required")]
+    PreviewPasswordRequired,
+
+    #[error("Wrong preview password")]
+    WrongPreviewPassword,
+
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
 
@@ -405,6 +413,8 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
+            | ComhairleError::PreviewPasswordRequired
+            | ComhairleError::WrongPreviewPassword
             | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast

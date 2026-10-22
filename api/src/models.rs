@@ -9,6 +9,7 @@ pub mod breakout_plan;
 pub mod chat_instructions;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
+pub mod conversation_preview_password;
 pub mod demographics;
 pub mod email_template_config;
 pub mod event;

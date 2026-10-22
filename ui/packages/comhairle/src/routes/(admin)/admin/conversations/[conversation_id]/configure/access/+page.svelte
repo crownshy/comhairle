@@ -6,6 +6,7 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { accessSchema } from './schema';
 	import FieldLabel from '../FieldLabel.svelte';
+	import PreviewPasswordSetting from './PreviewPasswordSetting.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
@@ -205,5 +206,16 @@
 				(v) => saveConversationToggle('showThankyouPageFeedbackButton', v)
 			)}
 		</div>
+	</section>
+
+	<section class="flex flex-col gap-4 py-6">
+		<h2 class="text-base font-semibold">Preview link</h2>
+		<PreviewPasswordSetting
+			conversationId={conversation.id}
+			conversationSlug={conversation.slug ?? conversation.id}
+			isLive={conversation.isLive}
+			status={data.previewPasswordStatus}
+			canEdit={canAdmin}
+		/>
 	</section>
 </div>
