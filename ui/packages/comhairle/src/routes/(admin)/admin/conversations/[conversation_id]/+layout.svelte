@@ -13,6 +13,8 @@
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { permissions } from '$lib/permissions.svelte';
+	import { isFullBleedStepPage, stepIdFromPath } from './fullBleedStep';
 
 	let { data, children } = $props();
 
@@ -105,6 +107,13 @@
 		}))
 	);
 	let header = $derived(sectionHeader(effectivePathname, conversation, headerSteps));
+
+	let headerFullBleed = $derived.by(() => {
+		const stepId = stepIdFromPath(effectivePathname);
+		const toolType = headerSteps.find((step) => step.id === stepId)?.toolType;
+		const canEdit = permissions.can('conversation', 'conversation_update', conversation.id);
+		return isFullBleedStepPage(effectivePathname, toolType, canEdit);
+	});
 </script>
 
 <!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
@@ -117,7 +126,7 @@
 	{/if}
 
 	{#if header}
-		<SectionHeader {...header} />
+		<SectionHeader {...header} fullBleed={headerFullBleed} />
 	{/if}
 
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists

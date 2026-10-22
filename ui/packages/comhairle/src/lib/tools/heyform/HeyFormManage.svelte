@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import { Maximize2, Minimize2 } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 	import HeyFormBuilderSkeleton from './HeyFormBuilderSkeleton.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { Form, FormField } from '@crownshy/api-client/api';
@@ -172,7 +173,10 @@
 				onclick={toggleFullscreen}
 				aria-label={isFullscreen ? 'Exit full screen' : 'Edit survey in full screen'}
 				title={isFullscreen ? 'Exit full screen (Esc)' : 'Edit survey in full screen'}
-				class="bg-background border-border text-foreground hover:bg-accent absolute right-4 bottom-4 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition-colors"
+				class={cn(
+					'bg-background border-border text-foreground hover:bg-accent absolute right-4 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition-colors',
+					isFullscreen ? 'bottom-4' : 'bottom-24'
+				)}
 			>
 				{#if isFullscreen}
 					<Minimize2 class="size-4" />

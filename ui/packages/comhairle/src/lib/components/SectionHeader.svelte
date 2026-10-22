@@ -27,9 +27,13 @@
 		compact?: boolean;
 		/** Page buttons shown at the right of the title row. */
 		actions?: Snippet;
+		/** The page below is full-bleed, so the header sits at the left gutter instead of centring. */
+		fullBleed?: boolean;
 	};
 
-	let { content, hasTabs = false, compact = false, actions }: Props = $props();
+	let { content, hasTabs = false, compact = false, actions, fullBleed = false }: Props = $props();
+
+	let column = $derived(fullBleed ? 'w-full' : 'max-w-admin mx-auto w-full');
 </script>
 
 {#snippet trailing()}
@@ -64,7 +68,7 @@
 	)}
 >
 	{#if compact}
-		<div class="max-w-admin mx-auto flex w-full items-center justify-between gap-3">
+		<div class={cn(column, 'flex items-center justify-between gap-3')}>
 			<div class="flex min-w-0 items-center gap-1.5 text-base">
 				{#if content.back}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- back hrefs are built with resolve() -->
@@ -88,7 +92,7 @@
 		</div>
 	{:else}
 		<div
-			class="max-w-admin mx-auto flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+			class={cn(column, 'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between')}
 		>
 			<div class="flex min-w-0 flex-col gap-1">
 				{#if content.back}
