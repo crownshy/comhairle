@@ -7,7 +7,7 @@
 		WorkflowStepsListResponse
 	} from '@crownshy/api-client/api';
 	import MobileAdminBar from './sidebar/MobileAdminBar.svelte';
-	import TourReplayButton from '$lib/tours/TourReplayButton.svelte';
+	// import TourReplayButton from '$lib/tours/TourReplayButton.svelte';
 	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
@@ -16,7 +16,8 @@
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
-	import HelpChat from './HelpChat.svelte';
+	// import HelpChat from './HelpChat.svelte';
+	import HelpCorner from './HelpCorner.svelte';
 
 	let { children, data }: LayoutProps = $props();
 	// Set by the conversation layout. Inside a conversation the sidebar shows it instead of
@@ -82,12 +83,9 @@
 <AutosaveLeaveGuard />
 
 <!-- One corner for every floating button, so they line up instead of stacking on each other. -->
-<div class="fixed end-6 bottom-6 z-40 flex items-center gap-3">
-	<TourReplayButton />
-	<HelpChat
-		src="https://rag.comhairle.scot/next-chats/widget?shared_id=b62170c0cba711f18cab2699c84c9b80&from=chat&auth=3YDeffNn2db8emYnsh2I2-5MV7rWKKXh&visible_avatar=1&locale=en&streaming=true&mode=window"
-	/>
-</div>
+<HelpCorner
+	chatSrc="https://rag.comhairle.scot/next-chats/widget?shared_id=b62170c0cba711f18cab2699c84c9b80&from=chat&auth=3YDeffNn2db8emYnsh2I2-5MV7rWKKXh&visible_avatar=1&locale=en&streaming=true&mode=window"
+/>
 
 <style>
 	:global([data-slot='sidebar-wrapper'] [data-slot='sidebar-gap']),
