@@ -219,12 +219,13 @@
 				<span class="text-muted-foreground text-xs">
 					When on, a daily notication email will be sent to moderators of this
 					conversation if there are pending comments awaiting approval or rejection at
-					<!-- eslint-disable svelte/no-navigation-without-resolve -->
 					<a
-						href={moderationHref}
+						href={resolve(
+							'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+							{ conversation_id: conversationId, step_id: workflowStepId }
+						)}
 						class="text-primary font-medium underline underline-offset-2">Moderation</a
 					>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				</span>
 			</div>
 			<Switch

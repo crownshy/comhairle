@@ -311,6 +311,10 @@ pub fn init_monitor(
             .backend(storage.theme_extraction.clone())
             .build_fn(theme_extraction_handler);
 
+        #[allow(
+            clippy::expect_used,
+            reason = "hardcoded cron expression, validated on every startup"
+        )]
         let wp_mod_notify_schedule = Schedule::from_str("0 0 12 * * *")
             .expect("Unable to create cron schedule for background worker");
         let wp_mod_notify_cron_stream =
@@ -376,7 +380,7 @@ impl MockWorkerService {
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service
-            .expect_push_wiki_poll_moderation_notify_job()
+            .expect_push_send_wiki_poll_moderation_notify_job()
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service
