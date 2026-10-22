@@ -54,8 +54,8 @@
 	</Select.Root>
 {:else}
 	<Drawer.Root>
-		<Drawer.Trigger class={cn(INPUT_STYLE, 'flex flex-col items-start justify-start text-sm')}>
-			<span class:text-muted-foreground={isPlaceholder}>
+		<Drawer.Trigger class={cn(INPUT_STYLE)}>
+			<span class="my-auto text-sm" class:text-muted-foreground={isPlaceholder}>
 				{label}
 			</span>
 		</Drawer.Trigger>
