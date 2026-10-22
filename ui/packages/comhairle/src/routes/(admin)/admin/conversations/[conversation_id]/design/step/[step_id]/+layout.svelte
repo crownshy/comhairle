@@ -43,7 +43,9 @@
 		{@render children()}
 	</div>
 {:else}
-	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12">
+	<div
+		class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pb-12 md:min-h-0 md:overflow-y-auto"
+	>
 		<div class="max-w-admin mx-auto h-full w-full">
 			{@render children()}
 		</div>

@@ -115,10 +115,8 @@
 </script>
 
 <!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
-	 within it. shrink-0 keeps their height inside the viewport-capped `main`. From md up they
-	 stick to the top of `main` while the page scrolls; on phones they would take too much of
-	 the screen, so they scroll away. -->
-<div class="bg-admin-background flex shrink-0 flex-col md:sticky md:top-0 md:z-10">
+	 within it. shrink-0 keeps their height inside the viewport-capped `main`. -->
+<div class="flex shrink-0 flex-col">
 	{#if conversation.isComplete}
 		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
 			<p class="text-destructive text-sm">This conversation has closed</p>
@@ -176,15 +174,20 @@
 	{:else}
 		{@render children()}
 	{/if}
+{:else if isConfigureSection && !showSwitchingSkeleton.current}
+	<!-- Configure renders its own tab strip, so it scrolls the region under that strip itself. -->
+	<div class="bg-admin-background flex grow flex-col md:min-h-0">
+		{@render children()}
+	</div>
 {:else}
-	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
-		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background grow">
+	<!-- From md up only this region scrolls, so the header and strips above stay put. On a
+		 phone they would take too much of the screen, so `main` scrolls everything. -->
+	<div class="bg-admin-background grow md:min-h-0 md:overflow-y-auto">
 		{#if showSwitchingSkeleton.current}
 			<TabContent>
 				<TabContentSkeleton />
 			</TabContent>
-		{:else if isConfigureSection || isDesignSection}
+		{:else if isDesignSection}
 			{@render children()}
 		{:else}
 			<TabContent>

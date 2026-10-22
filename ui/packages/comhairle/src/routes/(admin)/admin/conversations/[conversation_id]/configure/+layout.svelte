@@ -34,6 +34,8 @@
 	{/if}
 </TabStripShell>
 
-<TabContent>
-	{@render children?.()}
-</TabContent>
+<div class="grow md:min-h-0 md:overflow-y-auto">
+	<TabContent>
+		{@render children?.()}
+	</TabContent>
+</div>
