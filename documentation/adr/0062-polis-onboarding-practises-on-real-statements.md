@@ -30,12 +30,14 @@ one place and moved once the card settled, so the instruction lives in the lit a
 2. **Organisers' statement.** "This was written by the organisers. What do you think?" Vote.
 3. **How everyone voted.** That statement, its vote bar with Agree, Neutral and Disagree written
    under it, their own vote, and a line saying the bar changes as more people vote.
-4. **Participant statement.** "This one came from someone like you who is taking part." Vote.
+4. **Participant statement.** "This one came from someone like you who is taking part", and
+   that the label above each statement says who wrote it. Vote.
 5. **How everyone voted** on that one too.
 6. **A few more.** Three live votes, with a line saying how many are left before the groups.
 7. **Groups.** Always shown. With at least two groups and the person placed in one: every
    group's size as a bar, theirs marked, and what their group mostly agreed and disagreed with.
-   Otherwise: as more people vote, people who vote alike will form groups.
+   Otherwise: as more people vote, people who vote alike will form groups, with the people and
+   votes so far and the two statements most agreed with.
 8. **Do you want to add something?** Add your own, or Keep voting, with a line saying they can
    always come back and add something. Either ends onboarding.
 
@@ -57,8 +59,10 @@ report by `tid`. A statement the report has not reached shows no bar and says it
 being counted. It never claims they are the first to vote unless the counts say so. Practice
 votes are real votes and count towards the step's required votes.
 
-**4. Only seeds means the participant stage is deferred, not dropped.** The first participant
-statement Polis serves them later gets the "someone like you" line.
+**4. Only seeds means the participant stage is deferred, not dropped.** The intro tells them
+they are one of the first people here, and the "add something" screen says theirs would be the
+first from someone taking part. The first participant statement Polis serves them later gets its
+own line: someone else has joined and added this since they started.
 
 **5. Groups are described by size and statements, never a letter.** Letters are not stable
 between `math/pca2` runs. After onboarding, the groups screen comes back every 15 votes, but only

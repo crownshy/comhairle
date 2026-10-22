@@ -355,10 +355,14 @@
 	/** The one line above the statement while onboarding, saying what to do with it. */
 	const votingGuide = $derived.by(() => {
 		if (stage === 'seed') return m.polis_onboarding_try_seed();
-		if (stage === 'participant' || showSomeoneElse) return m.polis_onboarding_try_participant();
-		if (stage === 'free')
-			return m.polis_onboarding_keep_going({ count: FREE_VOTES - freeVotes });
-		return undefined;
+		if (stage === 'participant') return m.polis_onboarding_try_participant();
+		const keepGoing =
+			stage === 'free'
+				? m.polis_onboarding_keep_going({ count: FREE_VOTES - freeVotes })
+				: '';
+		if (showSomeoneElse)
+			return `${m.polis_onboarding_someone_else_arrived()} ${keepGoing}`.trim();
+		return keepGoing || undefined;
 	});
 
 	/** An onboarding screen that replaces the voting UI, if one is due. */
@@ -388,7 +392,15 @@
 	const snapshot = $derived(earlySnapshot(report));
 
 	const missingText = $derived(
-		`${strictModeration ? m.polis_onboarding_missing_body_moderated() : m.polis_onboarding_missing_body()} ${m.polis_onboarding_missing_anytime()}`
+		[
+			strictModeration
+				? m.polis_onboarding_missing_body_moderated()
+				: m.polis_onboarding_missing_body(),
+			firstHere && !someoneElseSeen ? m.polis_onboarding_missing_first_here() : undefined,
+			m.polis_onboarding_missing_anytime()
+		]
+			.filter(Boolean)
+			.join(' ')
 	);
 
 	let voteCooldown = $state(false);
@@ -833,7 +845,14 @@
 					next={m.polis_onboarding_next()}
 					onNext={() => goTo(firstVotingStage(practicePick))}
 				>
-					<p class="text-card-foreground text-lg">{m.polis_onboarding_intro_body()}</p>
+					<p class="text-card-foreground text-lg">
+						{m.polis_onboarding_intro_body()}
+					</p>
+					{#if firstHere}
+						<p class="text-card-foreground text-lg">
+							{m.polis_onboarding_first_here()}
+						</p>
+					{/if}
 				</GuideScreen>
 			{:else if guideStage === 'seed-result' && practicePick.seed && seedVote}
 				<GuideScreen

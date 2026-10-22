@@ -205,11 +205,27 @@ describe('earlySnapshot', () => {
 				participants: [{ pid: 1 }, { pid: 2 }]
 			})
 		);
-		expect(snapshot).toEqual({ people: 2, votes: 8 });
+		expect(snapshot.people).toBe(2);
+		expect(snapshot.votes).toBe(8);
+	});
+
+	it('lists the two most agreed statements, leaving out split or disagreed ones', () => {
+		const snapshot = earlySnapshot(
+			report({
+				comments: [
+					comment(1, true, [2, 2, 0]),
+					comment(2, true, [3, 0, 1]),
+					comment(3, false, [5, 1, 0]),
+					comment(4, false, [1, 0, 0]),
+					comment(5, false, [0, 4, 0])
+				]
+			})
+		);
+		expect(snapshot.mostAgreed.map((c) => c.tid)).toEqual([3, 2]);
 	});
 
 	it('is empty without a report', () => {
-		expect(earlySnapshot(undefined)).toEqual({ people: 0, votes: 0 });
+		expect(earlySnapshot(undefined)).toEqual({ people: 0, votes: 0, mostAgreed: [] });
 	});
 });
 

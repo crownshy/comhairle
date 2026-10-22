@@ -57,5 +57,6 @@
 				{m.polis_onboarding_so_far({ people: snapshot.people, votes: snapshot.votes })}
 			</p>
 		{/if}
+		{@render leaning(m.polis_onboarding_most_agreed(), snapshot.mostAgreed)}
 	</div>
 {/if}

@@ -162,14 +162,22 @@ export function groupPortrait(
 	};
 }
 
-export type EarlySnapshot = { people: number; votes: number };
+export type EarlySnapshot = { people: number; votes: number; mostAgreed: ReportComment[] };
 
-/** What we can say before there are groups: how many people and votes are in. */
+/**
+ * What we can say before there are groups: how many people and votes are in, and the
+ * statements more people agree with than disagree with, most agrees first.
+ */
 export function earlySnapshot(report: PolisReportData | undefined): EarlySnapshot {
-	if (!report) return { people: 0, votes: 0 };
+	if (!report) return { people: 0, votes: 0, mostAgreed: [] };
+	const mostAgreed = report.comments
+		.filter((c) => c.overall_votes.agrees > c.overall_votes.disagrees)
+		.sort((a, b) => b.overall_votes.agrees - a.overall_votes.agrees || a.tid - b.tid)
+		.slice(0, 2);
 	return {
 		people: report.participants.length,
-		votes: report.comments.reduce((sum, c) => sum + totalVotes(c), 0)
+		votes: report.comments.reduce((sum, c) => sum + totalVotes(c), 0),
+		mostAgreed
 	};
 }
 
