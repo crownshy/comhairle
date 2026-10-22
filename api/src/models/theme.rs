@@ -211,17 +211,19 @@ async fn get_collection(
 }
 
 /// Fetches the most recently active theme collection for a workflow step, optionally
-/// narrowed to a single origin tool, so the UI can restore the last generated themes
-/// after a page refresh without needing to re-run generation. Ordered by `updated_at`,
-/// not `created_at`: `create_collection` reuses (and bumps `updated_at` on) an
-/// existing collection rather than creating a new row each generation run, so
-/// `created_at` alone would keep surfacing whichever collection happened to be
-/// created last, not the one most recently generated into.
+/// narrowed to a single origin tool and/or origin sub id (e.g. a heyform question or
+/// prioritization proposal), so the UI can restore the last generated themes after a
+/// page refresh without needing to re-run generation. Ordered by `updated_at`, not
+/// `created_at`: `create_collection` reuses (and bumps `updated_at` on) an existing
+/// collection rather than creating a new row each generation run, so `created_at`
+/// alone would keep surfacing whichever collection happened to be created last, not
+/// the one most recently generated into.
 #[instrument(err(Debug), skip(db))]
 pub async fn get_latest_for_workflow_step(
     db: &PgPool,
     workflow_step_id: Uuid,
     origin_tool: Option<&str>,
+    origin_sub_id: Option<&str>,
 ) -> Result<Option<ThemeCollection>, ComhairleError> {
     let mut query = Query::select();
     query
@@ -233,6 +235,10 @@ pub async fn get_latest_for_workflow_step(
 
     if let Some(origin_tool) = origin_tool {
         query.and_where(Expr::col(ThemeCollectionIden::OriginTool).eq(origin_tool));
+    }
+
+    if let Some(origin_sub_id) = origin_sub_id {
+        query.and_where(Expr::col(ThemeCollectionIden::OriginSubId).eq(origin_sub_id));
     }
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
@@ -274,6 +280,12 @@ pub async fn add_theme(
     let title = clean_text("Title", &payload.title)?;
     let description = clean_text("Description", &payload.description)?;
 
+    // Manually added themes are pinned by default, since "pinned" is the sole
+    // signal for carrying a theme into the next generation run (see
+    // `list_carry_forward_themes`) - an organizer can still unpin one later to let
+    // it be treated as stale and dropped on the next run, the same as an AI theme.
+    let pinned = !payload.created_by_ai;
+
     let (sql, values) = Query::insert()
         .into_table(ThemeIden::Table)
         .columns([
@@ -281,12 +293,14 @@ pub async fn add_theme(
             ThemeIden::Title,
             ThemeIden::Description,
             ThemeIden::CreatedByAi,
+            ThemeIden::Pinned,
         ])
         .values([
             theme_collection_id.into(),
             title.into(),
             description.into(),
             payload.created_by_ai.into(),
+            pinned.into(),
         ])?
         .returning(Query::returning().columns(THEME_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -298,8 +312,9 @@ pub async fn add_theme(
 }
 
 /// Themes carried forward as "existing themes" for the collection's next generation
-/// run: pinned ones, plus every manually created theme (organizer intent is always
-/// carried forward, pin or not).
+/// run. Pinned is the single signal for this - manual themes are pinned by default
+/// (see `add_theme`), so unpinning one (manual or AI) excludes it here and lets it
+/// be treated as stale on the next run.
 #[instrument(err(Debug), skip(db))]
 pub async fn list_carry_forward_themes(
     db: &PgPool,
@@ -309,11 +324,7 @@ pub async fn list_carry_forward_themes(
         .columns(THEME_COLUMNS)
         .from(ThemeIden::Table)
         .and_where(Expr::col(ThemeIden::ThemeCollectionId).eq(theme_collection_id))
-        .and_where(
-            Expr::col(ThemeIden::Pinned)
-                .eq(true)
-                .or(Expr::col(ThemeIden::CreatedByAi).eq(false)),
-        )
+        .and_where(Expr::col(ThemeIden::Pinned).eq(true))
         .order_by(ThemeIden::CreatedAt, Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
@@ -324,8 +335,8 @@ pub async fn list_carry_forward_themes(
 
 /// Clears out last run's unpinned, AI-generated themes before a new generation run,
 /// so regenerating replaces the previous AI themes instead of piling on top of them.
-/// Pinned themes and manually created ones are never touched here - they're what
-/// `list_carry_forward_themes` feeds back into the next run.
+/// Manually created themes are never deleted here regardless of pin state - unpinning
+/// one only excludes it from `list_carry_forward_themes`, it doesn't remove the row.
 #[instrument(err(Debug), skip(db))]
 pub async fn delete_stale_generated_themes(
     db: &PgPool,
@@ -607,7 +618,7 @@ mod tests {
         let workflow_step_id = get_random_workflow_step_id(&app, &mut session).await?;
 
         assert!(
-            get_latest_for_workflow_step(&pool, workflow_step_id, None)
+            get_latest_for_workflow_step(&pool, workflow_step_id, None, None)
                 .await?
                 .is_none(),
             "no collection should exist yet"
@@ -636,7 +647,7 @@ mod tests {
         )
         .await?;
 
-        let latest = get_latest_for_workflow_step(&pool, workflow_step_id, Some("heyform"))
+        let latest = get_latest_for_workflow_step(&pool, workflow_step_id, Some("heyform"), None)
             .await?
             .expect("a collection should exist");
         assert_eq!(
@@ -645,10 +656,69 @@ mod tests {
         );
 
         assert!(
-            get_latest_for_workflow_step(&pool, workflow_step_id, Some("prioritization"))
+            get_latest_for_workflow_step(&pool, workflow_step_id, Some("prioritization"), None)
                 .await?
                 .is_none(),
             "should not match a different origin tool"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_latest_collection_for_origin_sub_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = get_random_workflow_step_id(&app, &mut session).await?;
+
+        let question_a = create_collection(
+            &pool,
+            workflow_step_id,
+            &CreateThemeCollection {
+                context: "Question A statements".into(),
+                origin_tool: "heyform".into(),
+                origin_sub_id: Some("question:a".into()),
+                requested_by_user_id: None,
+            },
+        )
+        .await?;
+        let question_b = create_collection(
+            &pool,
+            workflow_step_id,
+            &CreateThemeCollection {
+                context: "Question B statements".into(),
+                origin_tool: "heyform".into(),
+                origin_sub_id: Some("question:b".into()),
+                requested_by_user_id: None,
+            },
+        )
+        .await?;
+
+        let latest_a = get_latest_for_workflow_step(
+            &pool,
+            workflow_step_id,
+            Some("heyform"),
+            Some("question:a"),
+        )
+        .await?
+        .expect("question a's collection should exist");
+        assert_eq!(
+            latest_a.id, question_a.id,
+            "should return question a's collection, not question b's"
+        );
+
+        let latest_b = get_latest_for_workflow_step(
+            &pool,
+            workflow_step_id,
+            Some("heyform"),
+            Some("question:b"),
+        )
+        .await?
+        .expect("question b's collection should exist");
+        assert_eq!(
+            latest_b.id, question_b.id,
+            "should return question b's collection"
         );
 
         Ok(())
@@ -740,7 +810,7 @@ mod tests {
             },
         )
         .await?;
-        assert!(!manual.pinned, "themes should default unpinned");
+        assert!(manual.pinned, "manual themes should default pinned");
 
         let pinned = set_pinned(&pool, collection.id, pinned_ai.id, true).await?;
         assert!(pinned.pinned, "pinned flag not saved");
@@ -749,7 +819,7 @@ mod tests {
         let carry_forward_ids: Vec<Uuid> = carry_forward.iter().map(|t| t.id).collect();
         assert!(
             carry_forward_ids.contains(&manual.id),
-            "manual themes should always carry forward"
+            "pinned manual themes should carry forward"
         );
         assert!(
             carry_forward_ids.contains(&pinned_ai.id),
@@ -762,6 +832,14 @@ mod tests {
 
         let unpinned = set_pinned(&pool, collection.id, pinned_ai.id, false).await?;
         assert!(!unpinned.pinned, "unpinning not saved");
+
+        set_pinned(&pool, collection.id, manual.id, false).await?;
+        let carry_forward = list_carry_forward_themes(&pool, collection.id).await?;
+        let carry_forward_ids: Vec<Uuid> = carry_forward.iter().map(|t| t.id).collect();
+        assert!(
+            !carry_forward_ids.contains(&manual.id),
+            "unpinning a manual theme should exclude it from carry forward too"
+        );
 
         Ok(())
     }

@@ -23,8 +23,8 @@ use crate::tools::heyform;
 
 /// Harvests the free-text source data for `workflow_step_id` from `tool` into
 /// `statement` rows. `sub_scope` narrows prioritization to a single proposal or
-/// section (`"proposal:{id}"` or `"proposal:{id}/section:{id}"`); ignored by the
-/// other tools.
+/// section (`"proposal:{id}"` or `"proposal:{id}/section:{id}"`), and heyform to a
+/// single question (`"question:{id}"`); ignored by the other tools.
 pub async fn harvest(
     state: &Arc<ComhairleState>,
     workflow_step_id: Uuid,
@@ -32,7 +32,7 @@ pub async fn harvest(
     sub_scope: Option<&str>,
 ) -> Result<Vec<Statement>, ComhairleError> {
     match tool {
-        "heyform" => harvest_heyform(state, workflow_step_id).await,
+        "heyform" => harvest_heyform(state, workflow_step_id, sub_scope).await,
         "polis" => harvest_polis(state, workflow_step_id).await,
         "thinking_space" => harvest_thinking_space(state, workflow_step_id).await,
         "prioritization" => harvest_prioritization(state, workflow_step_id, sub_scope).await,
@@ -45,6 +45,7 @@ pub async fn harvest(
 async fn harvest_heyform(
     state: &Arc<ComhairleState>,
     workflow_step_id: Uuid,
+    sub_scope: Option<&str>,
 ) -> Result<Vec<Statement>, ComhairleError> {
     let config = heyform::get_heyform_config_for_workflow_step(state, workflow_step_id).await?;
     let client = HeyFormClient::new(heyform::heyform_base_url(&config.server_url))?;
@@ -64,6 +65,12 @@ async fn harvest_heyform(
 
     let mut statements = Vec::new();
     for question in insights.questions {
+        if let Some(scope) = sub_scope
+            && scope != format!("question:{}", question.id)
+        {
+            continue;
+        }
+
         let Some(submissions) = question.submissions else {
             continue;
         };

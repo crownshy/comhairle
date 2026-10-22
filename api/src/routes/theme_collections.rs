@@ -15,8 +15,8 @@ use crate::middleware::permissions::{PermissionRequirement, authorize};
 use crate::models::job::CreateJob;
 use crate::models::permissions::ConversationResource;
 use crate::models::permissions::conversation::Action;
-use crate::models::statement;
 use crate::models::theme::{self, CreateThemeCollection, NewTheme, UpdateTheme, UpdateThemePinned};
+use crate::models::{statement, statement_theme};
 use crate::routes::auth::RequiredUser;
 use crate::routes::theme_collections::dto::{ThemeCollectionDto, ThemeDto};
 use crate::sensemaking::harvest;
@@ -49,11 +49,16 @@ async fn create_collection(
 struct LatestThemeCollectionQuery {
     #[serde(default)]
     source_tool: Option<String>,
+    /// Narrows to a single proposal/section ("proposal:{id}") or heyform question
+    /// ("question:{id}"); ignored by tools that don't use sub scopes.
+    #[serde(default)]
+    sub_scope: Option<String>,
 }
 
 /// The most recently generated theme collection for a workflow step (optionally
-/// narrowed to one source tool), so the UI can restore previously generated themes
-/// after a page refresh instead of only ever seeing what was generated this session.
+/// narrowed to one source tool and/or sub scope), so the UI can restore previously
+/// generated themes after a page refresh instead of only ever seeing what was
+/// generated this session.
 #[instrument(err(Debug), skip(state))]
 async fn get_latest_theme_collection(
     State(state): State<Arc<ComhairleState>>,
@@ -66,6 +71,7 @@ async fn get_latest_theme_collection(
         &state.db,
         workflow_step_id,
         query.source_tool.as_deref(),
+        query.sub_scope.as_deref(),
     )
     .await?
     .ok_or_else(|| ComhairleError::ResourceNotFound("Theme Collection".into()))?;
@@ -73,11 +79,15 @@ async fn get_latest_theme_collection(
     let (collection, themes) =
         theme::list_themes(&state.db, workflow_step_id, collection.id).await?;
     let statements = statement::list_for_theme_collection(&state.db, collection.id).await?;
+    let assignments = statement_theme::list_for_theme_collection(&state.db, collection.id).await?;
 
     Ok((
         StatusCode::OK,
         Json(ThemeCollectionDto::from_parts_with_statements(
-            collection, themes, statements,
+            collection,
+            themes,
+            statements,
+            assignments,
         )),
     ))
 }
@@ -93,11 +103,16 @@ async fn list_themes(
     let (collection, themes) =
         theme::list_themes(&state.db, workflow_step_id, theme_collection_id).await?;
     let statements = statement::list_for_theme_collection(&state.db, theme_collection_id).await?;
+    let assignments =
+        statement_theme::list_for_theme_collection(&state.db, theme_collection_id).await?;
 
     Ok((
         StatusCode::OK,
         Json(ThemeCollectionDto::from_parts_with_statements(
-            collection, themes, statements,
+            collection,
+            themes,
+            statements,
+            assignments,
         )),
     ))
 }
@@ -177,8 +192,9 @@ pub struct GenerateThemeCollectionRequest {
     /// Which tool to harvest statements from: "heyform", "polis", "thinking_space",
     /// or "prioritization".
     pub source_tool: String,
-    /// Narrows prioritization to a single proposal or section, e.g.
-    /// "proposal:{id}" or "proposal:{id}/section:{id}". Ignored by other tools.
+    /// Narrows prioritization to a single proposal or section ("proposal:{id}" or
+    /// "proposal:{id}/section:{id}"), or heyform to a single question
+    /// ("question:{id}"). Ignored by other tools.
     #[serde(default)]
     pub sub_scope: Option<String>,
     pub context: String,

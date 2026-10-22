@@ -40,6 +40,7 @@ pub mod report_impact;
 pub mod resource;
 pub mod scheduled_email;
 pub mod statement;
+pub mod statement_theme;
 pub mod theme;
 pub mod thinking_space_answer;
 pub mod thinking_space_follow_up_question;
