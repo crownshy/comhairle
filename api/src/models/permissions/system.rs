@@ -70,6 +70,9 @@ pub enum Action {
     ConversationCreate,
     OrganizationCreate,
     Translate,
+    DemographicRead,
+    DemographicManage,
+    DemographicDefaultManage,
 }
 
 impl PermissionAction for Action {
@@ -113,6 +116,8 @@ impl PermissionRole for Role {
                 Action::OrganizationCreate,
                 Action::ConversationCreate,
                 Action::Translate,
+                Action::DemographicRead,
+                Action::DemographicManage,
             ],
             Self::Translator => &[Action::Translate],
         }

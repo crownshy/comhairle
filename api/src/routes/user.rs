@@ -23,7 +23,7 @@ use crate::models::permissions::{
     organization as organization_permissions, system,
 };
 use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
-use crate::models::{self};
+use crate::models::{self, user_group};
 use crate::routes::conversations::dto::{LocalizedConversationDto, PermittedConversationDto};
 use crate::routes::organizations::dto::LocalizedOrganizationDto;
 use crate::routes::user::dto::UserDto;
@@ -348,8 +348,7 @@ pub async fn get_user_organizations(
         let is_associated = user
             .organization_id
             .is_some_and(|organization_id| organization_id == organization.id)
-            || models::user_group::is_organization_member(&state.db, organization.id, user.id)
-                .await?;
+            || user_group::is_organization_member(&state.db, organization.id, user.id).await?;
 
         let can_update = can_perform_action(
             &state,

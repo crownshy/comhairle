@@ -1,1289 +1,748 @@
-// Context: We migrated user profile demographics to an EAV key-value schema using three tables:
-// 1. `demographics_question`                     - Represents a demographics question
-// (
-//    slug TEXT PK,                               - Unique identifier for the demographics question
-//    display_name TEXT NOT NULL,                 - Human-readable name for the demographics question
-//    response_type 'number' | 'string' NOT NULL, - The type of response expected for the demographics question
-//    bucket_config JSONB                         - For 'number': bucket ranges (e.g. age ranges). For 'string': the configurable set of selectable options.
-// )
-// 2. `demographics_response`                     - Represents a user's response to a demographics question
-// (
-//    question_slug FK,                           - Foreign key referencing the demographics question
-//    user_id FK,                                 - Foreign key referencing the user
-//    value NOT NULL                              - The response value provided by the user
-// )
-// 3. `conversation_demographics`                 - Represents which demographics questions are associated with a conversation
-// (
-//    conversation_id FK,                         - Foreign key referencing the conversation
-//    question_slug FK                            - Foreign key referencing the demographics question
-// )
+//! Demographic questions and forms.
+//!
+//! Questions and forms are versioned by UUID. Published versions are immutable and
+//! responses point at a question version, so an answer always records exactly what was
+//! asked. See CONTEXT.md (Demographics) and ADRs 0051-0054.
 
-use partially::Partial;
+pub mod defaults;
+pub mod forms;
+pub mod questions;
+pub mod report;
+pub mod responses;
+pub mod steps;
+pub mod types;
+pub mod validation;
+
 use schemars::JsonSchema;
-use sea_query::{Alias, Expr, PostgresQueryBuilder, SimpleExpr, enum_def};
-use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
-use sqlx::{Decode, PgPool, Postgres, Type};
-use tracing::instrument;
-use uuid::Uuid;
 
-use crate::error::ComhairleError;
-use crate::models::SqlxResultExt;
-use crate::models::pagination::{PageOptions, PaginatedResults};
-
-// ============================================================================
-// Conversation Demographics Models
-// ============================================================================
-
-/// Represents an association between a conversation and a demographics question.
-#[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
-#[enum_def(table_name = "conversation_demographics")]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct ConversationDemographics {
-    pub conversation_id: Uuid,
-    pub question_slug: String,
-}
-
-const CONVERSATION_DEMOGRAPHICS_COLUMNS: [ConversationDemographicsIden; 2] = [
-    ConversationDemographicsIden::ConversationId,
-    ConversationDemographicsIden::QuestionSlug,
-];
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateConversationDemographics {
-    pub conversation_id: Uuid,
-    pub question_slug: String,
-}
-
-impl CreateConversationDemographics {
-    fn columns() -> [ConversationDemographicsIden; 2] {
-        CONVERSATION_DEMOGRAPHICS_COLUMNS
-    }
-
-    fn values(self) -> [SimpleExpr; 2] {
-        [
-            self.conversation_id.into(),
-            self.question_slug.clone().into(),
-        ]
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema)]
-pub struct ConversationDemographicsFilterOptions {
-    pub conversation_id: Option<Uuid>,
-    pub question_slug: Option<String>,
-}
-
-impl ConversationDemographicsFilterOptions {
-    pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(conversation_id) = self.conversation_id {
-            query = query
-                .and_where(
-                    Expr::col(ConversationDemographicsIden::ConversationId).eq(conversation_id),
-                )
-                .to_owned();
-        }
-
-        if let Some(question_slug) = self.question_slug.clone() {
-            query = query
-                .and_where(Expr::col(ConversationDemographicsIden::QuestionSlug).eq(question_slug))
-                .to_owned();
-        }
-
-        query
-    }
-}
-
-/// Represents demographics question response type (either 'number' or 'string').
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(PartialEq))]
-pub enum DemographicsQuestionResponseType {
+/// The type of a demographic question, indicating the kind of response it expects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum QuestionType {
     Number,
-    String,
+    SingleSelect,
+    MultiSelect,
+    Date,
+    AnyString,
+    Location,
+    Custom,
 }
 
-impl From<DemographicsQuestionResponseType> for SimpleExpr {
-    fn from(value: DemographicsQuestionResponseType) -> Self {
-        Expr::val(value.as_ref()).cast_as(Alias::new("demographics_response_type"))
+impl QuestionType {
+    pub fn is_select(self) -> bool {
+        matches!(self, Self::SingleSelect | Self::MultiSelect)
     }
 }
 
-impl AsRef<str> for DemographicsQuestionResponseType {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Number => "number",
-            Self::String => "string",
-        }
-    }
+/// The precision of a date question, indicating the level of detail required in the response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum DatePrecision {
+    Day,
+    Month,
+    Year,
 }
 
-impl Decode<'_, Postgres> for DemographicsQuestionResponseType {
-    fn decode(
-        row: <Postgres as sqlx::Database>::ValueRef<'_>,
-    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        let s = row.as_str()?;
-        match s {
-            "number" => Ok(DemographicsQuestionResponseType::Number),
-            "string" => Ok(DemographicsQuestionResponseType::String),
-            _ => Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Invalid demographics question response type: {s}"),
-            ))),
-        }
-    }
+/// The format of a location question, indicating how the location should be specified in the response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum LocationFormat {
+    Postcode,
+    LatLong,
+    Country,
 }
 
-impl Type<Postgres> for DemographicsQuestionResponseType {
-    fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
-        <Postgres as sqlx::Database>::TypeInfo::with_name("demographics_response_type")
-    }
+/// The status of a demographics form version, indicating whether it is a draft or published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum VersionStatus {
+    Draft,
+    Published,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct NumericBucket {
-    pub min: Option<i64>,
-    pub max: Option<i64>,
-    pub label: String,
-}
-
-/// A single selectable answer for a 'string' demographics question.
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct StringOption {
-    pub value: String,
-    pub label: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
-#[cfg_attr(test, derive(PartialEq))]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum ValueBuckets {
-    Numeric { buckets: Vec<NumericBucket> },
-    String { options: Vec<StringOption> },
-}
-
-impl ValueBuckets {
-    pub fn accepts_value(&self, value: &str) -> bool {
-        match self {
-            ValueBuckets::Numeric { .. } => value.parse::<i64>().is_ok(),
-            ValueBuckets::String { options } => {
-                options.is_empty() || options.iter().any(|option| option.value == value)
+macro_rules! impl_sea_query_text_value {
+    ($($ty:ty { $($variant:ident => $text:literal),+ $(,)? }),+ $(,)?) => {$(
+        impl From<$ty> for sea_query::Value {
+            fn from(value: $ty) -> Self {
+                let text = match value {
+                    $(<$ty>::$variant => $text,)+
+                };
+                sea_query::Value::String(Some(Box::new(text.to_owned())))
             }
         }
-    }
-}
 
-/// Safely maps a raw value into a defined category bucket label based on the provided bucket configuration.
-pub fn resolve_category_bucket(value: &str, buckets: &ValueBuckets) -> String {
-    match buckets {
-        ValueBuckets::Numeric {
-            buckets: numeric_buckets,
-        } => {
-            if let Ok(num) = value.parse::<i64>() {
-                for bucket in numeric_buckets {
-                    let greater_than_or_equal_to_min = bucket.min.is_none_or(|m| num >= m);
-                    let less_than_or_equal_to_max = bucket.max.is_none_or(|m| num <= m);
-                    if greater_than_or_equal_to_min && less_than_or_equal_to_max {
-                        return bucket.label.clone();
-                    }
-                }
+        impl sea_query::Nullable for $ty {
+            fn null() -> sea_query::Value {
+                sea_query::Value::String(None)
             }
         }
-        ValueBuckets::String { options } => {
-            // No options configured yet: report the raw value rather than hiding it.
-            if options.is_empty() {
-                return value.to_string();
-            }
-            if let Some(option) = options.iter().find(|option| option.value == value) {
-                return option.label.clone();
-            }
-        }
-    }
-    "Uncategorized".to_string()
+    )+};
 }
 
-/// Represents a demographics question.
-#[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema)]
-#[enum_def(table_name = "demographics_question")]
-#[partially(derive(Serialize, Deserialize, Debug, JsonSchema))]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct DemographicsQuestion {
-    #[partially(omit)]
-    pub slug: String,
-    pub display_name: String,
-    pub response_type: DemographicsQuestionResponseType,
-    #[schemars(with = "Option<ValueBuckets>")]
-    pub bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
-}
-
-const DEMOGRAPHICS_QUESTION_COLUMNS: [DemographicsQuestionIden; 4] = [
-    DemographicsQuestionIden::Slug,
-    DemographicsQuestionIden::DisplayName,
-    DemographicsQuestionIden::ResponseType,
-    DemographicsQuestionIden::BucketConfig,
-];
-
-fn json_expr<T: Serialize>(value: &T) -> Result<SimpleExpr, ComhairleError> {
-    Ok(Expr::val(serde_json::to_value(value)?).into())
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateDemographicsQuestion {
-    pub slug: String,
-    pub display_name: String,
-    pub response_type: DemographicsQuestionResponseType,
-    #[schemars(with = "Option<ValueBuckets>")]
-    pub bucket_config: Option<sqlx::types::Json<ValueBuckets>>,
-}
-
-impl CreateDemographicsQuestion {
-    fn columns() -> [DemographicsQuestionIden; 4] {
-        DEMOGRAPHICS_QUESTION_COLUMNS
-    }
-
-    fn try_values(self) -> Result<[SimpleExpr; 4], ComhairleError> {
-        let bucket_config = match &self.bucket_config {
-            Some(json) => json_expr(&json.0)?,
-            None => sea_query::Keyword::Null.into(),
-        };
-
-        Ok([
-            self.slug.into(),
-            self.display_name.into(),
-            self.response_type.into(),
-            bucket_config,
-        ])
-    }
-}
-
-impl PartialDemographicsQuestion {
-    fn try_to_values(&self) -> Result<Vec<(DemographicsQuestionIden, SimpleExpr)>, ComhairleError> {
-        let mut values = Vec::new();
-        if let Some(display_name) = &self.display_name {
-            values.push((DemographicsQuestionIden::DisplayName, display_name.into()));
-        }
-
-        if let Some(response_type) = &self.response_type {
-            values.push((
-                DemographicsQuestionIden::ResponseType,
-                response_type.clone().into(),
-            ));
-        }
-
-        if let Some(bucket_config) = &self.bucket_config {
-            let json_expr: SimpleExpr = match bucket_config {
-                Some(json) => json_expr(&json.0.clone())?,
-                None => sea_query::Keyword::Null.into(),
-            };
-
-            values.push((DemographicsQuestionIden::BucketConfig, json_expr));
-        }
-
-        Ok(values)
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema)]
-pub struct DemographicsQuestionsFilterOptions {
-    pub conversation_id: Option<Uuid>,
-    pub question_slug: Option<String>,
-}
-
-impl DemographicsQuestionsFilterOptions {
-    pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(conversation_id) = self.conversation_id {
-            query = query
-                .inner_join(
-                    ConversationDemographicsIden::Table,
-                    sea_query::Expr::col(DemographicsQuestionIden::Slug)
-                        .equals(ConversationDemographicsIden::QuestionSlug),
-                )
-                .and_where(
-                    Expr::col(ConversationDemographicsIden::ConversationId).eq(conversation_id),
-                )
-                .to_owned();
-        }
-
-        if let Some(question_slug) = self.question_slug.clone() {
-            query = query
-                .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(question_slug))
-                .to_owned();
-        }
-
-        query
-    }
-}
-
-/// A demographics response value is always a JSON number or string on the wire, never
-/// stored/parsed as arbitrary JSON. Schema-only type: response bodies still serialize
-/// `value` as a plain `String` internally.
-#[derive(Serialize, Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub enum TypedValue {
-    Number(i64),
-    Text(String),
-}
-
-/// Represents a demographics response from a user to a specific demographics question.
-#[derive(Deserialize, Partial, Debug, FromRow, Clone, JsonSchema)]
-#[enum_def(table_name = "demographics_response")]
-#[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct DemographicsResponse {
-    #[partially(omit)]
-    pub id: Uuid,
-    #[partially(omit)]
-    pub question_slug: String,
-    #[partially(omit)]
-    pub user_id: Option<Uuid>,
-    #[schemars(with = "TypedValue")]
-    pub value: String,
-}
-
-impl Serialize for DemographicsResponse {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-
-        let mut state = serializer.serialize_struct("DemographicsResponse", 4)?;
-        state.serialize_field("id", &self.id)?;
-        state.serialize_field("questionSlug", &self.question_slug)?;
-        state.serialize_field("userId", &self.user_id)?;
-        match self.value.parse::<i64>() {
-            Ok(number) => state.serialize_field("value", &number)?,
-            Err(_) => state.serialize_field("value", &self.value)?,
-        }
-        state.end()
-    }
-}
-
-/// Accepts either a JSON number or JSON string for a response value and stores it as text.
-fn deserialize_typed_value<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    Ok(match TypedValue::deserialize(deserializer)? {
-        TypedValue::Number(number) => number.to_string(),
-        TypedValue::Text(text) => text,
-    })
-}
-
-const DEMOGRAPHICS_RESPONSE_COLUMNS: [DemographicsResponseIden; 4] = [
-    DemographicsResponseIden::Id,
-    DemographicsResponseIden::QuestionSlug,
-    DemographicsResponseIden::UserId,
-    DemographicsResponseIden::Value,
-];
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateDemographicsResponse {
-    pub question_slug: String,
-    pub user_id: Uuid,
-    #[serde(deserialize_with = "deserialize_typed_value")]
-    #[schemars(with = "TypedValue")]
-    pub value: String,
-}
-
-impl CreateDemographicsResponse {
-    fn values(self, id: Uuid) -> [SimpleExpr; 4] {
-        [
-            id.into(),
-            self.question_slug.into(),
-            self.user_id.into(),
-            self.value.into(),
-        ]
-    }
-}
-
-impl PartialDemographicsResponse {
-    fn to_values(&self) -> Vec<(DemographicsResponseIden, SimpleExpr)> {
-        let mut values = Vec::new();
-        if let Some(value) = &self.value {
-            values.push((DemographicsResponseIden::Value, value.clone().into()));
-        }
-        values
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, JsonSchema)]
-pub struct DemographicsResponsesFilterOptions {
-    pub conversation_id: Option<Uuid>,
-    pub question_slug: Option<String>,
-    pub user_id: Option<Uuid>,
-}
-
-impl DemographicsResponsesFilterOptions {
-    pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(conversation_id) = self.conversation_id {
-            query = query
-                .inner_join(
-                    ConversationDemographicsIden::Table,
-                    sea_query::Expr::col((
-                        DemographicsResponseIden::Table,
-                        DemographicsResponseIden::QuestionSlug,
-                    ))
-                    .equals((
-                        ConversationDemographicsIden::Table,
-                        ConversationDemographicsIden::QuestionSlug,
-                    )),
-                )
-                .and_where(
-                    Expr::col(ConversationDemographicsIden::ConversationId).eq(conversation_id),
-                )
-                .to_owned();
-        }
-
-        if let Some(question_slug) = self.question_slug.clone() {
-            query = query
-                .and_where(
-                    Expr::col((
-                        DemographicsResponseIden::Table,
-                        DemographicsResponseIden::QuestionSlug,
-                    ))
-                    .eq(question_slug),
-                )
-                .to_owned();
-        }
-
-        if let Some(user_id) = self.user_id {
-            query = query
-                .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
-                .to_owned();
-        }
-
-        query
-    }
-}
-
-// ============================================================================
-// Conversation-demographics associations - CR.D
-// ============================================================================
-
-/// Get all associations between conversations and demographics questions, with optional filters for conversation ID and question slug.
-#[instrument(err(Debug), skip(db))]
-pub async fn get_conversation_demographics(
-    db: &PgPool,
-    filters: ConversationDemographicsFilterOptions,
-    page_options: PageOptions,
-) -> Result<PaginatedResults<ConversationDemographics>, ComhairleError> {
-    let mut query = sea_query::Query::select()
-        .columns(CONVERSATION_DEMOGRAPHICS_COLUMNS)
-        .from(ConversationDemographicsIden::Table)
-        .to_owned();
-
-    query = filters.apply(query);
-
-    let fetched: PaginatedResults<ConversationDemographics> =
-        page_options.fetch_paginated_results(db, query).await?;
-
-    Ok(fetched)
-}
-
-/// Create a new association between a conversation and a demographics question.
-#[instrument(err(Debug), skip(db))]
-pub async fn create_conversation_demographics(
-    db: &PgPool,
-    new_conversation_demographics: CreateConversationDemographics,
-) -> Result<ConversationDemographics, ComhairleError> {
-    let (sql, values) = sea_query::Query::insert()
-        .into_table(ConversationDemographicsIden::Table)
-        .columns(CreateConversationDemographics::columns())
-        .values(new_conversation_demographics.values())?
-        .returning(sea_query::Query::returning().columns(CONVERSATION_DEMOGRAPHICS_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let created = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
-        .fetch_one(db)
-        .await?;
-
-    Ok(created)
-}
-
-/// Remove an association between a conversation and a demographics question.
-#[instrument(err(Debug), skip(db))]
-pub async fn delete_conversation_demographics(
-    db: &PgPool,
-    conversation_id: Uuid,
-    question_slug: String,
-) -> Result<Option<ConversationDemographics>, ComhairleError> {
-    let (sql, values) = sea_query::Query::delete()
-        .from_table(ConversationDemographicsIden::Table)
-        .and_where(Expr::col(ConversationDemographicsIden::ConversationId).eq(conversation_id))
-        .and_where(Expr::col(ConversationDemographicsIden::QuestionSlug).eq(question_slug))
-        .returning(sea_query::Query::returning().columns(CONVERSATION_DEMOGRAPHICS_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let deleted = sqlx::query_as_with::<_, ConversationDemographics, _>(&sql, values)
-        .fetch_optional(db)
-        .await
-        .resolve_db_err("conversation_demographics")?;
-
-    Ok(deleted)
-}
-
-// ============================================================================
-// Demographics questions - CRUD
-// ============================================================================
-
-/// Get a single demographics question by its slug.
-#[instrument(err(Debug), skip(db))]
-pub async fn get_demographics_question_by_slug(
-    db: &PgPool,
-    slug: &str,
-) -> Result<DemographicsQuestion, ComhairleError> {
-    let (sql, values) = sea_query::Query::select()
-        .columns(DEMOGRAPHICS_QUESTION_COLUMNS)
-        .from(DemographicsQuestionIden::Table)
-        .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("demographics_question")?;
-
-    Ok(question)
-}
-
-/// Get a demographics questions with optional filters.
-#[instrument(err(Debug), skip(db))]
-pub async fn get_demographics_questions(
-    db: &PgPool,
-    filters: DemographicsQuestionsFilterOptions,
-    page_options: PageOptions,
-) -> Result<PaginatedResults<DemographicsQuestion>, ComhairleError> {
-    let mut query = sea_query::Query::select()
-        .columns(DEMOGRAPHICS_QUESTION_COLUMNS)
-        .from(DemographicsQuestionIden::Table)
-        .to_owned();
-
-    query = filters.apply(query);
-
-    let questions: PaginatedResults<DemographicsQuestion> =
-        page_options.fetch_paginated_results(db, query).await?;
-
-    Ok(questions)
-}
-
-/// Create a new demographics question.
-#[instrument(err(Debug), skip(db))]
-pub async fn create_demographics_question(
-    db: &PgPool,
-    new_demographics_question: CreateDemographicsQuestion,
-) -> Result<DemographicsQuestion, ComhairleError> {
-    let (sql, values) = sea_query::Query::insert()
-        .into_table(DemographicsQuestionIden::Table)
-        .columns(CreateDemographicsQuestion::columns())
-        .values(new_demographics_question.try_values()?)?
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("demographics_question")?;
-
-    Ok(question)
-}
-
-/// Update a demographics question.
-#[instrument(err(Debug), skip(db))]
-pub async fn update_demographics_question(
-    db: &PgPool,
-    slug: String,
-    updated_demographics_question: PartialDemographicsQuestion,
-) -> Result<DemographicsQuestion, ComhairleError> {
-    let update_values = updated_demographics_question.try_to_values()?;
-
-    if update_values.is_empty() {
-        return get_demographics_question_by_slug(db, &slug).await;
-    }
-
-    let (sql, values) = sea_query::Query::update()
-        .table(DemographicsQuestionIden::Table)
-        .values(update_values)
-        .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("demographics_question")?;
-
-    Ok(question)
-}
-
-/// Delete a demographics question.
-#[instrument(err(Debug), skip(db))]
-pub async fn delete_demographics_question(
-    db: &PgPool,
-    slug: String,
-) -> Result<Option<DemographicsQuestion>, ComhairleError> {
-    let (sql, values) = sea_query::Query::delete()
-        .from_table(DemographicsQuestionIden::Table)
-        .and_where(Expr::col(DemographicsQuestionIden::Slug).eq(slug))
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_QUESTION_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let deleted_question = sqlx::query_as_with::<_, DemographicsQuestion, _>(&sql, values)
-        .fetch_optional(db)
-        .await
-        .resolve_db_err("demographics_question")?;
-
-    Ok(deleted_question)
-}
-
-// ============================================================================
-// Demographics responses - CRUD
-// ============================================================================
-
-/// Get responses with optional filters.
-#[instrument(err(Debug), skip(db))]
-pub async fn get_demographics_responses(
-    db: &PgPool,
-    filters: DemographicsResponsesFilterOptions,
-    page_options: PageOptions,
-) -> Result<PaginatedResults<DemographicsResponse>, ComhairleError> {
-    let mut query = sea_query::Query::select();
-
-    query = query
-        .columns(
-            DEMOGRAPHICS_RESPONSE_COLUMNS
-                .into_iter()
-                .map(|col| (DemographicsResponseIden::Table, col)),
-        )
-        .from(DemographicsResponseIden::Table)
-        .to_owned();
-
-    query = filters.apply(query);
-
-    let responses: PaginatedResults<DemographicsResponse> =
-        page_options.fetch_paginated_results(db, query).await?;
-
-    Ok(responses)
-}
-
-async fn validate_response_value(
-    db: &PgPool,
-    question_slug: &str,
-    value: &str,
-) -> Result<(), ComhairleError> {
-    let question = get_demographics_question_by_slug(db, question_slug).await?;
-
-    if let Some(bucket_config) = &question.bucket_config
-        && !bucket_config.0.accepts_value(value)
-    {
-        return Err(ComhairleError::BadRequest(format!(
-            "'{value}' is not a valid answer for question '{question_slug}'"
-        )));
-    }
-
-    Ok(())
-}
-
-/// Add a new response for a specific demographics question and user.
-#[instrument(err(Debug), skip(db))]
-pub async fn create_demographics_response(
-    db: &PgPool,
-    new_demographics_response: CreateDemographicsResponse,
-) -> Result<DemographicsResponse, ComhairleError> {
-    validate_response_value(
-        db,
-        &new_demographics_response.question_slug,
-        &new_demographics_response.value,
-    )
-    .await?;
-
-    let (sql, values) = sea_query::Query::insert()
-        .into_table(DemographicsResponseIden::Table)
-        .columns(DEMOGRAPHICS_RESPONSE_COLUMNS)
-        .values(new_demographics_response.values(Uuid::new_v4()))?
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_RESPONSE_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("demographics_response")?;
-
-    Ok(response)
-}
-
-/// Update a response for a specific demographics question and user.
-#[instrument(err(Debug), skip(db))]
-pub async fn update_demographics_response(
-    db: &PgPool,
-    question_slug: String,
-    user_id: Uuid,
-    updated_demographics_response: PartialDemographicsResponse,
-) -> Result<DemographicsResponse, ComhairleError> {
-    if let Some(value) = &updated_demographics_response.value {
-        validate_response_value(db, &question_slug, value).await?;
-    }
-
-    let update_values = updated_demographics_response.to_values();
-
-    if update_values.is_empty() {
-        let (sql, query_values) = sea_query::Query::select()
-            .columns(DEMOGRAPHICS_RESPONSE_COLUMNS)
-            .from(DemographicsResponseIden::Table)
-            .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
-            .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
-            .build_sqlx(PostgresQueryBuilder);
-
-        let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, query_values)
-            .fetch_one(db)
-            .await
-            .resolve_db_err("demographics_response")?;
-
-        return Ok(response);
-    }
-
-    let (sql, values) = sea_query::Query::update()
-        .table(DemographicsResponseIden::Table)
-        .values(update_values)
-        .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
-        .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_RESPONSE_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let response = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("demographics_response")?;
-
-    Ok(response)
-}
-
-/// Delete a response for a specific demographics question and user.
-#[instrument(err(Debug), skip(db))]
-pub async fn delete_demographics_response(
-    db: &PgPool,
-    question_slug: String,
-    user_id: Uuid,
-) -> Result<Option<DemographicsResponse>, ComhairleError> {
-    let (sql, values) = sea_query::Query::delete()
-        .from_table(DemographicsResponseIden::Table)
-        .and_where(Expr::col(DemographicsResponseIden::QuestionSlug).eq(question_slug))
-        .and_where(Expr::col(DemographicsResponseIden::UserId).eq(user_id))
-        .returning(sea_query::Query::returning().columns(DEMOGRAPHICS_RESPONSE_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let deleted = sqlx::query_as_with::<_, DemographicsResponse, _>(&sql, values)
-        .fetch_optional(db)
-        .await
-        .resolve_db_err("demographics_response")?;
-
-    Ok(deleted)
+impl_sea_query_text_value! {
+    QuestionType {
+        Number => "number",
+        SingleSelect => "single_select",
+        MultiSelect => "multi_select",
+        Date => "date",
+        AnyString => "any_string",
+        Location => "location",
+        Custom => "custom",
+    },
+    DatePrecision {
+        Day => "day",
+        Month => "month",
+        Year => "year",
+    },
+    LocationFormat {
+        Postcode => "postcode",
+        LatLong => "lat_long",
+        Country => "country",
+    },
+    VersionStatus {
+        Draft => "draft",
+        Published => "published",
+    },
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::test_helpers::UserSession;
+    use std::error::Error;
+    use std::sync::Arc;
 
-    // Test can create, get, update and delete a demographics question.
+    use serde_json::{Value, json};
+    use sqlx::PgPool;
+    use uuid::Uuid;
+
+    use super::defaults::{ETHNICITY_VERSION_ID, GENDER_VERSION_ID};
+    use super::responses::{self, ConsentState};
+    use super::types::{
+        DemographicFormDraftInput, QuestionDraftInput, QuestionVersionDto, ResponseInput,
+    };
+    use super::validation::validate_answer;
+    use super::{VersionStatus, forms, questions, report, steps};
+    use crate::error::ComhairleError;
+    use crate::models::organization::{self, CreateOrganization, OrganizationType};
+    use crate::models::translations::{TextFormat, new_translation};
+    use crate::routes::auth::SignupRequest;
+    use crate::test_helpers::test_state;
+    use crate::tools::demographics::{
+        DemographicFormTool, DemographicFormToolConfig, DemographicQuestionTool,
+        DemographicQuestionToolConfig, VersionPolicy,
+    };
+    use crate::tools::{ToolConfig, ToolImpl};
+
+    const LOCALE: &str = "en";
+    const AGE_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000001);
+    const ETHNICITY_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000002);
+    const GENDER_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000003);
+
+    type TestResult = Result<(), Box<dyn Error>>;
+
+    fn question_input(value: Value) -> QuestionDraftInput {
+        serde_json::from_value(value).expect("question input should deserialize")
+    }
+
+    fn form_input(value: Value) -> DemographicFormDraftInput {
+        serde_json::from_value(value).expect("form input should deserialize")
+    }
+
+    async fn create_user(pool: &PgPool, name: &str) -> Result<Uuid, Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: name.to_string(),
+                password: "test_pw".to_string(),
+                email: format!("{name}@example.com"),
+                avatar_url: None,
+            },
+            pool,
+        )
+        .await?;
+        Ok(user.id)
+    }
+
+    async fn create_org(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
+        let admin_id = create_user(pool, "org_admin").await?;
+        let org = organization::create_with_administrator(
+            pool,
+            &CreateOrganization {
+                name: "Demographics Test Org".to_string(),
+                description: "Description".to_string(),
+                mission: "Mission".to_string(),
+                org_type: OrganizationType::NonProfit,
+                contact_email: None,
+                external_url: None,
+                regions: None,
+            },
+            LOCALE,
+            admin_id,
+        )
+        .await?;
+        Ok(org.id)
+    }
+
+    async fn first_tag_id(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
+        let tags = questions::list_tags(pool, None).await?;
+        Ok(tags.first().ok_or("seeded tag missing")?.id)
+    }
+
+    /// Creates a question with a draft v1 and publishes it, returning the published version.
+    async fn publish_new_question(
+        pool: &PgPool,
+        org_id: Uuid,
+        mut draft: Value,
+    ) -> Result<QuestionVersionDto, Box<dyn Error>> {
+        draft["tag_ids"] = json!([first_tag_id(pool).await?]);
+        let created =
+            questions::create_question(pool, Some(org_id), &question_input(draft), LOCALE).await?;
+        let published =
+            questions::publish_question(pool, Some(org_id), created.question.id, LOCALE).await?;
+        Ok(published
+            .latest_published
+            .ok_or("publish left no version")?)
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_get_update_delete_demographics_question(
-        db: PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let slug = "example_slug".to_string();
-        let response_type = DemographicsQuestionResponseType::Number;
-
-        // Ensure the question does not exist before creation
-        let filters = DemographicsQuestionsFilterOptions {
-            question_slug: Some(slug.clone()),
-            ..Default::default()
-        };
-        let response = get_demographics_questions(&db, filters, PageOptions::default()).await?;
+    async fn should_advance_version_numbers_and_never_repeat_published_ones(
+        pool: PgPool,
+    ) -> TestResult {
+        let org_id = create_org(&pool).await?;
+        let tag_id = first_tag_id(&pool).await?;
+        let created = questions::create_question(
+            &pool,
+            Some(org_id),
+            &question_input(json!({
+                "text": "Favourite colour",
+                "question_type": "any_string",
+                "tag_ids": [tag_id],
+            })),
+            LOCALE,
+        )
+        .await?;
         assert_eq!(
-            response.total, 0,
-            "Question should not exist before creation"
+            created.draft.as_ref().map(|d| d.version.version_number),
+            Some(1)
         );
+        let question_id = created.question.id;
 
-        // Create the demographics question and ensure it can be retrieved successfully
-        let new_demographics_question = CreateDemographicsQuestion {
-            slug: slug.clone(),
-            display_name: "Example Display Name".to_string(),
-            response_type: response_type.clone(),
-            bucket_config: None,
-        };
-        let question = create_demographics_question(&db, new_demographics_question).await?;
-        let filters = DemographicsQuestionsFilterOptions {
-            question_slug: Some(slug.clone()),
-            ..Default::default()
-        };
-        let response = get_demographics_questions(&db, filters, PageOptions::default()).await?;
-        assert_eq!(response.total, 1, "Question should exist after creation");
-        assert_eq!(vec![question], response.records);
+        questions::publish_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await?;
+        questions::update_draft(
+            &pool,
+            Some(org_id),
+            question_id,
+            &question_input(json!({
+                "text": "Favourite colour (edited)",
+                "question_type": "any_string",
+                "tag_ids": [tag_id],
+            })),
+            LOCALE,
+        )
+        .await?;
+        let second = questions::publish_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        let latest = second.latest_published.ok_or("v2 should be published")?;
+        assert_eq!(latest.version.version_number, 2);
+        assert_eq!(latest.text, "Favourite colour (edited)");
 
-        // Update the demographics question with bucket_config and ensure the changes are reflected
-        let string_options = ValueBuckets::String {
-            options: vec![StringOption {
-                value: "opt1".to_string(),
-                label: "Option 1".to_string(),
-            }],
-        };
-        let update = PartialDemographicsQuestion {
-            display_name: Some("Updated Display Name".to_string()),
-            response_type: Some(DemographicsQuestionResponseType::String),
-            bucket_config: Some(Some(sqlx::types::Json(string_options))),
-        };
-        let updated_question = update_demographics_question(&db, slug.clone(), update).await?;
-        assert_eq!(
-            updated_question.response_type,
-            DemographicsQuestionResponseType::String,
-            "Question response type should be updated correctly"
-        );
-        assert_eq!(
-            updated_question.display_name,
-            "Updated Display Name".to_string(),
-            "Question display name should be updated correctly"
-        );
-        assert!(
-            updated_question.bucket_config.is_some(),
-            "Bucket config should be set"
-        );
-
-        // Update with bucket_config: Some(None) to clear all options (set bucket_config to NULL)
-        let clear_update = PartialDemographicsQuestion {
-            display_name: None,
-            response_type: None,
-            bucket_config: Some(None),
-        };
-        let cleared_question =
-            update_demographics_question(&db, slug.clone(), clear_update).await?;
-        assert!(
-            cleared_question.bucket_config.is_none(),
-            "Bucket config should be cleared to NULL"
-        );
-
-        // Delete the demographics question and ensure it is removed successfully
-        let response = delete_demographics_question(&db, slug.clone()).await?;
-        assert_eq!(
-            Some(cleared_question),
-            response,
-            "Question should be deleted successfully"
-        );
-
-        // Ensure the question is actually deleted
-        let filters = DemographicsQuestionsFilterOptions {
-            question_slug: Some(slug.clone()),
-            ..Default::default()
-        };
-        let response = get_demographics_questions(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            response.total, 0,
-            "Question should not exist after deletion"
-        );
-
+        questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await?;
+        let third = questions::publish_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        let published_numbers: Vec<i32> = third
+            .versions
+            .iter()
+            .filter(|v| v.status == VersionStatus::Published)
+            .map(|v| v.version_number)
+            .collect();
+        assert_eq!(published_numbers, vec![1, 2, 3]);
         Ok(())
     }
 
-    // Test can create a demographics question, associate it with a conversation, and then delete it.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_associate_delete_demographics_question(
-        db: PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let slug = "example_slug".to_string();
-        let response_type = DemographicsQuestionResponseType::Number;
+    async fn should_keep_published_versions_when_draft_is_discarded(pool: PgPool) -> TestResult {
+        let org_id = create_org(&pool).await?;
+        let version = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Original", "question_type": "any_string"}),
+        )
+        .await?;
+        let question_id = version.version.question_id;
 
-        // Create the demographics question
-        let payload = CreateDemographicsQuestion {
-            slug: slug.clone(),
-            display_name: "Example Display Name".to_string(),
-            response_type,
-            bucket_config: None,
-        };
-        let question = create_demographics_question(&db, payload).await?;
+        questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await?;
+        questions::discard_draft(&pool, Some(org_id), question_id).await?;
 
-        // Create a conversation
-        let (app, mut session) = setup_default_app_and_session(&db).await?;
-        let (status, response, _) = session.create_random_conversation(&app).await?;
-        let conversation_id: Uuid = serde_json::from_value(
-            response
-                .get("id")
-                .cloned()
-                .ok_or("Failed to get conversation id")?,
-        )?;
-
-        assert!(status.is_success(), "Failed to create random conversation");
-
-        // Ensure the question is initially absent
-        let filters = DemographicsQuestionsFilterOptions {
-            conversation_id: Some(conversation_id),
-            ..Default::default()
-        };
-        let questions = get_demographics_questions(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            questions.total, 0,
-            "Question should not be initially associated with the conversation"
-        );
-
-        // Associate the demographics question with the conversation
-        let payload = CreateConversationDemographics {
-            conversation_id,
-            question_slug: question.slug.clone(),
-        };
-        let response = create_conversation_demographics(&db, payload).await?;
-
-        assert_eq!(
-            conversation_id, response.conversation_id,
-            "Conversation ID should match after associating demographics question"
-        );
-        assert_eq!(
-            question.slug, response.question_slug,
-            "Question slug should match after associating demographics question"
-        );
-
-        // Ensure the question is now associated with the conversation
-        let filters = DemographicsQuestionsFilterOptions {
-            conversation_id: Some(conversation_id),
-            ..Default::default()
-        };
-        let questions = get_demographics_questions(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            questions.total, 1,
-            "Question should be associated with the conversation after creation"
-        );
-        assert_eq!(
-            questions.records[0].slug, question.slug,
-            "The associated question slug should match the created question slug"
-        );
-
-        // Delete the demographics question and ensure it is removed successfully
-        let response = delete_demographics_question(&db, question.slug.clone()).await?;
-        assert_eq!(
-            Some(question.slug.clone()),
-            response.map(|r| r.slug),
-            "Deleted question slug should match the original question slug"
-        );
-
-        // Ensure the question is actually deleted
-        let filters = DemographicsQuestionsFilterOptions {
-            conversation_id: Some(conversation_id),
-            ..Default::default()
-        };
-        let questions = get_demographics_questions(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            questions.total, 0,
-            "Question should not be associated with the conversation after deletion"
-        );
-
+        let question = questions::get_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        assert!(question.draft.is_none());
+        let latest = question
+            .latest_published
+            .ok_or("published version should remain")?;
+        assert_eq!(latest.version.id, version.version.id);
+        assert_eq!(latest.text, "Original");
+        assert_eq!(question.versions.len(), 1);
         Ok(())
     }
 
-    // Test can create, get, update and delete a demographics response.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_create_get_update_delete_demographics_response(
-        db: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let (app, mut session) = setup_default_app_and_session(&db).await?;
+    async fn should_not_let_organizations_write_system_default_questions(
+        pool: PgPool,
+    ) -> TestResult {
+        let org_id = create_org(&pool).await?;
 
-        // Get the session user
-        let (status, response, _) = session.current_user(&app).await?;
-        assert!(status.is_success(), "Failed to get current user");
-        let user_id = response.id;
+        let start = questions::start_draft(&pool, Some(org_id), AGE_QUESTION_ID, LOCALE).await;
+        assert!(matches!(start, Err(ComhairleError::ResourceNotFound(_))));
+        let archive =
+            questions::archive_question(&pool, Some(org_id), AGE_QUESTION_ID, LOCALE).await;
+        assert!(matches!(archive, Err(ComhairleError::ResourceNotFound(_))));
 
-        // Create a demographics question
-        let slug = "test_question_slug".to_string();
-        let response_type = DemographicsQuestionResponseType::String;
-        let payload = CreateDemographicsQuestion {
-            slug: slug.clone(),
-            display_name: "Example Display Name".to_string(),
-            response_type: response_type.clone(),
-            bucket_config: None,
+        let visible = questions::list_questions(&pool, Some(org_id), LOCALE).await?;
+        assert!(visible.iter().any(|q| q.question.id == AGE_QUESTION_ID));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_pin_latest_published_question_versions_in_published_form(
+        pool: PgPool,
+    ) -> TestResult {
+        let org_id = create_org(&pool).await?;
+        let v1 = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Original", "question_type": "any_string"}),
+        )
+        .await?;
+        let question_id = v1.version.question_id;
+
+        let unpublished = questions::create_question(
+            &pool,
+            Some(org_id),
+            &question_input(json!({"text": "Never published", "question_type": "any_string"})),
+            LOCALE,
+        )
+        .await?;
+        let rejected = forms::create_form(
+            &pool,
+            org_id,
+            &form_input(json!({
+                "name": "Bad form",
+                "entries": [{"question_id": unpublished.question.id, "position": 1, "required": true}],
+            })),
+            LOCALE,
+        )
+        .await;
+        assert!(matches!(rejected, Err(ComhairleError::BadRequest(_))));
+
+        let form = forms::create_form(
+            &pool,
+            org_id,
+            &form_input(json!({
+                "name": "Survey",
+                "entries": [{"question_id": question_id, "position": 1, "required": true}],
+            })),
+            LOCALE,
+        )
+        .await?;
+        questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await?;
+        questions::update_draft(
+            &pool,
+            Some(org_id),
+            question_id,
+            &question_input(json!({
+                "text": "Draft wording",
+                "question_type": "any_string",
+                "tag_ids": [first_tag_id(&pool).await?],
+            })),
+            LOCALE,
+        )
+        .await?;
+
+        let published = forms::publish_form(&pool, org_id, form.form.id, LOCALE).await?;
+        let pinned = published
+            .latest_published
+            .ok_or("form should be published")?;
+        assert_eq!(
+            pinned.entries[0].entry.question_version_id,
+            Some(v1.version.id)
+        );
+        assert_eq!(pinned.entries[0].question_text, "Original");
+
+        questions::publish_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        let after = forms::get_form(&pool, org_id, form.form.id, LOCALE).await?;
+        let still_pinned = after
+            .latest_published
+            .ok_or("published form should stay published")?;
+        assert_eq!(
+            still_pinned.entries[0].entry.question_version_id,
+            Some(v1.version.id)
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_validate_select_date_and_location_answers(pool: PgPool) -> TestResult {
+        let org_id = create_org(&pool).await?;
+
+        let select = publish_new_question(
+            &pool,
+            org_id,
+            json!({
+                "text": "Employment",
+                "question_type": "single_select",
+                "options": ["Employed", "Unemployed"],
+            }),
+        )
+        .await?;
+        let option_ids: Vec<Uuid> = select.options.iter().map(|o| o.id).collect();
+        let single =
+            json!({"option_ids": [option_ids[0]], "other_text": null, "prefer_not_to_say": false});
+        assert!(validate_answer(&select, &single).is_ok());
+
+        let two_options =
+            json!({"option_ids": option_ids, "other_text": null, "prefer_not_to_say": false});
+        assert!(matches!(
+            validate_answer(&select, &two_options),
+            Err(ComhairleError::BadRequest(_))
+        ));
+        let unlisted_other = json!({"option_ids": [option_ids[0]], "other_text": "Retired", "prefer_not_to_say": false});
+        assert!(matches!(
+            validate_answer(&select, &unlisted_other),
+            Err(ComhairleError::BadRequest(_))
+        ));
+
+        let date = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Date of birth", "question_type": "date", "date_precision": "day"}),
+        )
+        .await?;
+        assert!(validate_answer(&date, &json!("2024/02/29")).is_ok());
+        assert!(validate_answer(&date, &json!("2023/02/29")).is_err());
+        assert!(validate_answer(&date, &json!("2024/02")).is_err());
+
+        let postcode = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Postcode", "question_type": "location", "location_format": "postcode"}),
+        )
+        .await?;
+        assert!(validate_answer(&postcode, &json!({"postcode": "SW1A 1AA"})).is_ok());
+        assert!(validate_answer(&postcode, &json!({"latitude": 1.0, "longitude": 2.0})).is_err());
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_gate_special_category_answers_on_consent(pool: PgPool) -> TestResult {
+        let user_id = create_user(&pool, "participant").await?;
+        let version_id = ETHNICITY_VERSION_ID;
+        let answer = ResponseInput {
+            value: json!("Irish"),
+            conversation_id: None,
         };
-        let question = create_demographics_question(&db, payload).await?;
 
-        // Create a demographics response
-        let response_value = "test_response".to_string();
-        let payload = CreateDemographicsResponse {
-            question_slug: question.slug.clone(),
+        let refused = responses::put_response(&pool, user_id, version_id, &answer, LOCALE).await;
+        assert!(matches!(refused, Err(ComhairleError::Unprocessable(_))));
+
+        responses::set_consent(&pool, user_id, version_id, false, LOCALE).await?;
+        let refused = responses::put_response(&pool, user_id, version_id, &answer, LOCALE).await;
+        assert!(matches!(refused, Err(ComhairleError::Unprocessable(_))));
+
+        let ethnicity = questions::load_latest_published(&pool, ETHNICITY_QUESTION_ID, LOCALE)
+            .await?
+            .ok_or("ethnicity default should be published")?;
+        let mut conn = pool.acquire().await?;
+        assert_eq!(
+            responses::consent_state(&mut conn, user_id, version_id).await?,
+            ConsentState::Declined
+        );
+        assert!(
+            responses::reusable_response(&mut conn, user_id, &ethnicity)
+                .await?
+                .is_none()
+        );
+        drop(conn);
+
+        responses::set_consent(&pool, user_id, version_id, true, LOCALE).await?;
+        responses::put_response(&pool, user_id, version_id, &answer, LOCALE).await?;
+        let mut conn = pool.acquire().await?;
+        let reused = responses::reusable_response(&mut conn, user_id, &ethnicity)
+            .await?
+            .ok_or("granted consent should allow reuse")?;
+        assert_eq!(reused.value, json!("Irish"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reuse_answer_only_for_the_exact_question_version(pool: PgPool) -> TestResult {
+        let user_id = create_user(&pool, "returning_participant").await?;
+        let gender_v1 = questions::load_latest_published(&pool, GENDER_QUESTION_ID, LOCALE)
+            .await?
+            .ok_or("gender default should be published")?;
+        assert_eq!(gender_v1.version.id, GENDER_VERSION_ID);
+
+        responses::put_response(
+            &pool,
             user_id,
-            value: response_value.clone(),
-        };
-        let demographics_response = create_demographics_response(&db, payload).await?;
-        assert_eq!(
-            demographics_response.value, response_value,
-            "Demographics response value should match the provided response"
-        );
+            gender_v1.version.id,
+            &ResponseInput {
+                value: json!("Prefer to describe"),
+                conversation_id: None,
+            },
+            LOCALE,
+        )
+        .await?;
 
-        // Get the demographics response by question slug and user ID
-        let filters = DemographicsResponsesFilterOptions {
-            question_slug: Some(question.slug.clone()),
-            user_id: Some(user_id),
-            conversation_id: None,
-        };
-        let fetched_responses =
-            get_demographics_responses(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            fetched_responses.total, 1,
-            "Fetched demographics responses should not be empty"
-        );
-        assert_eq!(
-            demographics_response, fetched_responses.records[0],
-            "Fetched demographics response should match the created response"
-        );
+        let mut conn = pool.acquire().await?;
+        let reused = responses::reusable_response(&mut conn, user_id, &gender_v1)
+            .await?
+            .ok_or("answer to the same version should be reusable")?;
+        assert_eq!(reused.value, json!("Prefer to describe"));
+        drop(conn);
 
-        // Update the demographics response
-        let new_response_value = "updated_test_response".to_string();
-        let payload = PartialDemographicsResponse {
-            value: Some(new_response_value.clone()),
-        };
-        let updated_demographics_response =
-            update_demographics_response(&db, question.slug.clone(), user_id, payload).await?;
-        assert_eq!(
-            new_response_value, updated_demographics_response.value,
-            "Updated demographics response value should match the new response"
-        );
+        questions::start_draft(&pool, None, GENDER_QUESTION_ID, LOCALE).await?;
+        let republished =
+            questions::publish_question(&pool, None, GENDER_QUESTION_ID, LOCALE).await?;
+        let gender_v2 = republished
+            .latest_published
+            .ok_or("gender v2 should be published")?;
+        assert_ne!(gender_v2.version.id, gender_v1.version.id);
 
-        // Delete the demographics response
-        let deleted_response =
-            delete_demographics_response(&db, question.slug.clone(), user_id).await?;
-        assert_eq!(
-            Some(updated_demographics_response),
-            deleted_response,
-            "Demographics response should be successfully deleted"
+        let mut conn = pool.acquire().await?;
+        assert!(
+            responses::reusable_response(&mut conn, user_id, &gender_v2)
+                .await?
+                .is_none()
         );
-
-        // Verify the demographics response has been deleted
-        let filters = DemographicsResponsesFilterOptions {
-            question_slug: Some(question.slug.clone()),
-            user_id: Some(user_id),
-            conversation_id: None,
-        };
-        let fetched_responses_after_deletion =
-            get_demographics_responses(&db, filters, PageOptions::default()).await?;
-        assert_eq!(
-            fetched_responses_after_deletion.total, 0,
-            "Demographics response should be deleted"
-        );
-
         Ok(())
     }
 
-    // Test can create a demographics response for a specific demographics question, associated with a conversation, and list the response by question, conversation and user.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn test_list_response_by_conversation_question_and_user(
-        db: sqlx::PgPool,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let (app, mut session) = setup_default_app_and_session(&db).await?;
-
-        // Get the session user
-        let (status, user_dto, _) = session.current_user(&app).await?;
-        assert!(status.is_success(), "Failed to get current user");
-        let user_id = user_dto.id;
-
-        // Create a conversation
-        let (status, response, _) = session.create_random_conversation(&app).await?;
-        assert!(status.is_success(), "Failed to create random conversation");
-        let conversation_id: Uuid = serde_json::from_value(
-            response
-                .get("id")
-                .cloned()
-                .ok_or("Failed to get conversation id")?,
-        )?;
-
-        // Create another conversation
-        let (status, response, _) = session.create_random_conversation(&app).await?;
-        assert!(status.is_success(), "Failed to create random conversation");
-        let other_conversation_id: Uuid = serde_json::from_value(
-            response
-                .get("id")
-                .cloned()
-                .ok_or("Failed to get other conversation id")?,
-        )?;
-
-        // Create a second user for testing
-        let mut other_session = UserSession::new_guest();
-        let (status, other_user_dto, _) = other_session.signup_guest(&app).await?;
-        assert!(status.is_success(), "Failed to create random user");
-        let other_user_id: Uuid = serde_json::from_value(
-            other_user_dto
-                .get("id")
-                .cloned()
-                .flatten()
-                .ok_or("Failed to get other user id")?,
-        )?;
-
-        // Create a demographics question
-        let question_slug = "test_question".to_string();
-        let response_type = DemographicsQuestionResponseType::String;
-        let payload = CreateDemographicsQuestion {
-            slug: question_slug.clone(),
-            display_name: "Test Question".to_string(),
-            response_type: response_type.clone(),
-            bucket_config: None,
+    async fn should_keep_submitted_answers_and_only_allow_anonymising(pool: PgPool) -> TestResult {
+        let user_id = create_user(&pool, "unchanging_participant").await?;
+        let answer = |value: Value| ResponseInput {
+            value,
+            conversation_id: None,
         };
-        let question = create_demographics_question(&db, payload).await?;
 
-        // Create another demographics question
-        let other_question_slug = "other_test_question".to_string();
-        let other_response_type = DemographicsQuestionResponseType::Number;
-        let other_payload = CreateDemographicsQuestion {
-            slug: other_question_slug.clone(),
-            display_name: "Other Test Question".to_string(),
-            response_type: other_response_type.clone(),
-            bucket_config: None,
-        };
-        let other_question = create_demographics_question(&db, other_payload).await?;
+        let saved = responses::put_response(
+            &pool,
+            user_id,
+            GENDER_VERSION_ID,
+            &answer(json!("Woman")),
+            LOCALE,
+        )
+        .await?;
+        let repeated = responses::put_response(
+            &pool,
+            user_id,
+            GENDER_VERSION_ID,
+            &answer(json!("Woman")),
+            LOCALE,
+        )
+        .await?;
+        assert_eq!(repeated.id, saved.id);
 
-        // Associate the demographics questions with the conversations
-        let _ = create_conversation_demographics(
-            &db,
-            CreateConversationDemographics {
-                conversation_id,
-                question_slug: question.slug.clone(),
-            },
+        let changed = responses::put_response(
+            &pool,
+            user_id,
+            GENDER_VERSION_ID,
+            &answer(json!("Man")),
+            LOCALE,
         )
-        .await?;
-        let _ = create_conversation_demographics(
-            &db,
-            CreateConversationDemographics {
-                conversation_id,
-                question_slug: other_question.slug.clone(),
-            },
-        )
-        .await?;
-        let _ = create_conversation_demographics(
-            &db,
-            CreateConversationDemographics {
-                conversation_id: other_conversation_id,
-                question_slug: other_question.slug.clone(),
-            },
-        )
-        .await?;
+        .await;
+        assert!(matches!(changed, Err(ComhairleError::Conflict(_))));
 
-        // Create several demographics responses associated with the question and user
-        let response_value = "test_response".to_string();
-        let other_response_value = "15".to_string();
-        let _ = create_demographics_response(
-            &db,
-            CreateDemographicsResponse {
-                question_slug: question.slug.clone(),
-                user_id,
-                value: response_value.clone(),
-            },
-        )
-        .await?;
-        let _ = create_demographics_response(
-            &db,
-            CreateDemographicsResponse {
-                question_slug: other_question.slug.clone(),
-                user_id,
-                value: other_response_value.clone(),
-            },
-        )
-        .await?;
-        let _ = create_demographics_response(
-            &db,
-            CreateDemographicsResponse {
-                question_slug: question.slug.clone(),
-                user_id: other_user_id,
-                value: response_value.clone(),
-            },
-        )
-        .await?;
+        let rewrite = sqlx::query("UPDATE demographics_response SET value = $1 WHERE id = $2")
+            .bind(json!("Man"))
+            .bind(saved.id)
+            .execute(&pool)
+            .await;
+        assert!(rewrite.is_err(), "the database should refuse edits");
 
-        // List demographics responses by conversation
-        let conversation_responses_filters = DemographicsResponsesFilterOptions {
-            conversation_id: Some(conversation_id),
-            ..Default::default()
-        };
-        let conversation_responses =
-            get_demographics_responses(&db, conversation_responses_filters, PageOptions::default())
+        let stranger = create_user(&pool, "other_participant").await?;
+        let refused = responses::anonymise_response(&pool, stranger, saved.id).await;
+        assert!(matches!(refused, Err(ComhairleError::ResourceNotFound(_))));
+
+        responses::anonymise_response(&pool, user_id, saved.id).await?;
+        assert!(
+            responses::my_answers(&pool, user_id, LOCALE)
+                .await?
+                .is_empty()
+        );
+        let kept: Value =
+            sqlx::query_scalar("SELECT value FROM demographics_response WHERE id = $1")
+                .bind(saved.id)
+                .fetch_one(&pool)
                 .await?;
-        assert_eq!(
-            conversation_responses.total, 3,
-            "Expected 3 demographics responses for the conversation"
-        );
+        assert_eq!(kept, json!("Woman"));
+        Ok(())
+    }
 
-        let other_conversation_responses_filters = DemographicsResponsesFilterOptions {
-            conversation_id: Some(other_conversation_id),
-            ..Default::default()
-        };
-        let other_conversation_responses = get_demographics_responses(
-            &db,
-            other_conversation_responses_filters,
-            PageOptions::default(),
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_pin_latest_versions_when_a_step_goes_live(pool: PgPool) -> TestResult {
+        let org_id = create_org(&pool).await?;
+        let v1 = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Occupation", "question_type": "any_string"}),
         )
         .await?;
-        assert_eq!(
-            other_conversation_responses.total, 1,
-            "Expected 1 demographics response for the other conversation"
-        );
-
-        // List demographics responses by question
-        let question_responses_filters = DemographicsResponsesFilterOptions {
-            question_slug: Some(question.slug.clone()),
-            ..Default::default()
-        };
-        let question_responses =
-            get_demographics_responses(&db, question_responses_filters, PageOptions::default())
-                .await?;
-        assert_eq!(
-            question_responses.total, 2,
-            "Expected 2 demographics responses for the question"
-        );
-
-        let other_question_responses_filters = DemographicsResponsesFilterOptions {
-            question_slug: Some(other_question.slug.clone()),
-            ..Default::default()
-        };
-        let other_question_responses = get_demographics_responses(
-            &db,
-            other_question_responses_filters,
-            PageOptions::default(),
+        let question_id = v1.version.question_id;
+        let form = forms::create_form(
+            &pool,
+            org_id,
+            &form_input(json!({
+                "name": "Survey",
+                "entries": [{"question_id": question_id, "position": 1, "required": true}],
+            })),
+            LOCALE,
         )
         .await?;
-        assert_eq!(
-            other_question_responses.total, 1,
-            "Expected 1 demographics response for the other question"
-        );
+        let form_v1 = forms::publish_form(&pool, org_id, form.form.id, LOCALE)
+            .await?
+            .latest_published
+            .ok_or("form should be published")?;
 
-        // List demographics responses by user
-        let user_responses_filters = DemographicsResponsesFilterOptions {
-            user_id: Some(user_id),
-            ..Default::default()
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let question_config = DemographicQuestionToolConfig {
+            question_id,
+            version: VersionPolicy::Latest,
         };
-        let user_responses =
-            get_demographics_responses(&db, user_responses_filters, PageOptions::default()).await?;
-        assert_eq!(
-            user_responses.total, 2,
-            "Expected 2 demographics responses for the user"
-        );
-
-        let other_user_responses_filters = DemographicsResponsesFilterOptions {
-            user_id: Some(other_user_id),
-            ..Default::default()
+        let form_config = DemographicFormToolConfig {
+            form_id: form.form.id,
+            version: VersionPolicy::Latest,
+            questions: vec![],
         };
-        let other_user_responses =
-            get_demographics_responses(&db, other_user_responses_filters, PageOptions::default())
-                .await?;
+        let live_question = DemographicQuestionTool::clone_tool(&question_config, &state).await?;
+        let live_form = DemographicFormTool::clone_tool(&form_config, &state).await?;
         assert_eq!(
-            other_user_responses.total, 1,
-            "Expected 1 demographics response for the other user"
+            live_question.version,
+            VersionPolicy::Pinned {
+                version_id: v1.version.id
+            }
+        );
+        assert_eq!(
+            live_form.version,
+            VersionPolicy::Pinned {
+                version_id: form_v1.version.id
+            }
         );
 
+        questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await?;
+        questions::publish_question(&pool, Some(org_id), question_id, LOCALE).await?;
+        forms::start_form_draft(&pool, org_id, form.form.id, LOCALE).await?;
+        forms::publish_form(&pool, org_id, form.form.id, LOCALE).await?;
+
+        let preview = ToolConfig::DemographicQuestion(question_config);
         assert_ne!(
-            user_responses.total, other_user_responses.total,
-            "Expected the user responses and other user responses to be different"
+            steps::freeze_tool_config(&pool, preview).await?,
+            ToolConfig::DemographicQuestion(live_question),
+            "a later freeze picks up the newer version, but the live step keeps its own"
         );
+        Ok(())
+    }
 
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_report_form_questions_minus_disabled_overrides(pool: PgPool) -> TestResult {
+        let org_id = create_org(&pool).await?;
+        let asked = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Asked", "question_type": "any_string"}),
+        )
+        .await?;
+        let disabled = publish_new_question(
+            &pool,
+            org_id,
+            json!({"text": "Disabled", "question_type": "any_string"}),
+        )
+        .await?;
+        let form = forms::create_form(
+            &pool,
+            org_id,
+            &form_input(json!({
+                "name": "Survey",
+                "entries": [
+                    {"question_id": asked.version.question_id, "position": 1, "required": true},
+                    {"question_id": disabled.version.question_id, "position": 2, "required": true},
+                ],
+            })),
+            LOCALE,
+        )
+        .await?;
+        forms::publish_form(&pool, org_id, form.form.id, LOCALE).await?;
+
+        let workflow_id: Uuid =
+            sqlx::query_scalar("INSERT INTO workflow (name) VALUES ('Report') RETURNING id")
+                .fetch_one(&pool)
+                .await?;
+        let name = new_translation(&pool, LOCALE, "Form", TextFormat::Plain).await?;
+        let description = new_translation(&pool, LOCALE, "Form", TextFormat::Rich).await?;
+        sqlx::query(
+            "INSERT INTO workflow_step (workflow_id, name, description, step_order, tool_config)
+            VALUES ($1, $2, $3, 1, $4)",
+        )
+        .bind(workflow_id)
+        .bind(name.id)
+        .bind(description.id)
+        .bind(json!({
+            "type": "demographicform",
+            "form_id": form.form.id,
+            "version": {"type": "latest"},
+            "questions": [{
+                "question_id": disabled.version.question_id,
+                "enabled": false,
+                "required": false,
+            }],
+        }))
+        .execute(&pool)
+        .await?;
+
+        let user_id = create_user(&pool, "reporting_participant").await?;
+        let conversation_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO conversation (title, short_description, description, owner_id)
+             VALUES ($1, $1, $1, $2) RETURNING id",
+        )
+        .bind(description.id)
+        .bind(user_id)
+        .fetch_one(&pool)
+        .await?;
+        sqlx::query("UPDATE workflow SET conversation_id = $1 WHERE id = $2")
+            .bind(conversation_id)
+            .bind(workflow_id)
+            .execute(&pool)
+            .await?;
+        sqlx::query("INSERT INTO user_profile (user_id, consented) VALUES ($1, true)")
+            .bind(user_id)
+            .execute(&pool)
+            .await?;
+        sqlx::query("INSERT INTO user_participation (user_id, workflow_id) VALUES ($1, $2)")
+            .bind(user_id)
+            .bind(workflow_id)
+            .execute(&pool)
+            .await?;
+        for version in [&asked, &disabled] {
+            responses::put_response(
+                &pool,
+                user_id,
+                version.version.id,
+                &ResponseInput {
+                    value: json!("answer"),
+                    conversation_id: Some(conversation_id),
+                },
+                LOCALE,
+            )
+            .await?;
+        }
+
+        let report = report::for_workflow(&pool, &workflow_id, LOCALE).await?;
+        assert_eq!(report.total_participants, 1);
+        assert_eq!(
+            report.questions.keys().collect::<Vec<_>>(),
+            vec![&asked.version.question_id]
+        );
         Ok(())
     }
 }
