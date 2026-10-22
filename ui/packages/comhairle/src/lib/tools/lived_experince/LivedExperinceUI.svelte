@@ -1,13 +1,35 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
 	import VideoRecorder from '$lib/components/VideoRecorder.svelte';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
-		onDone: () => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
-	let { onDone }: Props = $props();
-	let phase = $state('PRE');
+	let { onSequenceChange }: Props = $props();
+
+	const PHASES = ['PRE', 'FirstVideo', 'SecondVideo', 'ThirdVideo', 'Recording', 'Done'] as const;
+	let phaseIndex = $state(0);
+	let phase = $derived(PHASES[phaseIndex]);
+
+	const VIDEO_PHASES: readonly string[] = ['FirstVideo', 'SecondVideo', 'ThirdVideo'];
+	let videoIndex = $derived(VIDEO_PHASES.indexOf(phase));
+
+	// Recording only moves on through the recorder, so forward there skips the step.
+	let canPageForward = $derived(phase !== 'Recording' && phase !== 'Done');
+
+	$effect(() => {
+		onSequenceChange?.({
+			next: canPageForward ? () => phaseIndex++ : undefined,
+			previous: phaseIndex > 0 ? () => phaseIndex-- : undefined,
+			progress: phaseIndex / PHASES.length,
+			position:
+				videoIndex >= 0
+					? m.video_x_of_y({ current: videoIndex + 1, total: VIDEO_PHASES.length })
+					: undefined
+		});
+	});
 </script>
 
 {#if phase == 'PRE'}
@@ -20,8 +42,6 @@
 			After you are done you will get a chance to record your own video to be shared with
 			others
 		</p>
-
-		<Button variant="secondary" onclick={() => (phase = 'FirstVideo')}>Begin</Button>
 	</div>
 {/if}
 
@@ -33,7 +53,6 @@
 				type="video/mp4"
 			/>
 		</video>
-		<Button onclick={() => (phase = 'SecondVideo')} variant="secondary">Next</Button>
 	</div>
 {/if}
 
@@ -45,7 +64,6 @@
 				type="video/mp4"
 			/>
 		</video>
-		<Button onclick={() => (phase = 'ThirdVideo')} variant="secondary">Next</Button>
 	</div>
 {/if}
 
@@ -57,7 +75,6 @@
 				type="video/mp4"
 			/>
 		</video>
-		<Button onclick={() => (phase = 'Recording')} variant="secondary">Next</Button>
 	</div>
 {/if}
 
@@ -72,11 +89,10 @@
 		this video and use it elsewhere. If your comfortable with that go ahead if not feel free to
 		skip this step.
 	</p>
-	<VideoRecorder onDone={() => (phase = 'Done')} />
+	<VideoRecorder onDone={() => (phaseIndex = PHASES.indexOf('Done'))} />
 {/if}
 {#if phase == 'Done'}
 	<div class="flex flex-col items-center justify-center gap-4">
 		<p>Thanks for sharing your views!</p>
-		<Button onclick={onDone} variant="secondary">Continue</Button>
 	</div>
 {/if}

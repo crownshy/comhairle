@@ -2,6 +2,9 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url, thank_you_page } from '$lib/urls';
+import { apiErrorStatus } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
+import { redirectToLoginToTakePart } from '../../loginToTakePart';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview, workflowSteps, sealed } = await event.parent();
@@ -92,22 +95,9 @@ export const load: PageLoad = async (event) => {
 			preview,
 			permissionToShareWithOrganizers
 		};
-	} catch (e: any) {
-		// TODO: figure out how to type this from the generated api
-		/// Throw if error is a redirect
-		if (isRedirect(e)) {
-			console.log(e);
-			throw e;
-		}
-		// TODO: we probably want some error codes to match on here
-		// rather than the plain text
-		if (e.response.data.err === 'User Required for this route') {
-			notifications.addFlash({
-				message: 'Login or signup to take part in the conversation',
-				priority: 'INFO'
-			});
-			redirect(307, '/auth/login' + queryString);
-		}
+	} catch (e: unknown) {
+		if (isRedirect(e)) throw e;
+		if (apiErrorStatus(e) === HttpStatus.Unauthorized) redirectToLoginToTakePart(event.url);
 		redirect(307, '/' + queryString);
 	}
 };

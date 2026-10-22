@@ -4,7 +4,7 @@ import { testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
-import { Textbox } from './utils/components';
+import { Switch, Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -70,4 +70,44 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// await page.getByLabel('Open media library').click();
 	// await expect(page.getByRole('dialog', { name: 'Media library Go to media' })).toBeVisible();
 	// await page.getByRole('button', { name: 'Close', exact: true }).click();
+});
+
+test('Configure/Details access settings', async ({ page, cleanup }) => {
+	const ShowConversationPublicy = await Switch('Show conversation publicly', { page, cleanup });
+	const OnlyAllowParticipationBy = await Switch('Only allow participation by', { page, cleanup });
+	const AutomaticallyLogInWithAn = await Switch('Automatically log in with an', {
+		page,
+		cleanup
+	});
+	const EnableSignupPrompts = await Switch('Enable signup prompts', { page, cleanup });
+	const ShowThankYouPageAnonymous = await Switch('Show thank you page anonymous', {
+		page,
+		cleanup
+	});
+	const ShowThankYouPageFeedback = await Switch('Show thank you page feedback', {
+		page,
+		cleanup
+	});
+	const AllowRevisitAfterFinishing = await Switch('Allow revisit after finishing', {
+		page,
+		cleanup
+	});
+
+	await ShowConversationPublicy.toggle();
+	await OnlyAllowParticipationBy.toggle();
+	await AutomaticallyLogInWithAn.toggle();
+	await EnableSignupPrompts.toggle();
+	await ShowThankYouPageAnonymous.toggle();
+	await ShowThankYouPageFeedback.toggle();
+	await AllowRevisitAfterFinishing.toggle();
+
+	await testWithRefresh(page, async () => {
+		await ShowConversationPublicy.expect();
+		await OnlyAllowParticipationBy.expect();
+		await AutomaticallyLogInWithAn.expect();
+		await EnableSignupPrompts.expect();
+		await ShowThankYouPageAnonymous.expect();
+		await ShowThankYouPageFeedback.expect();
+		await AllowRevisitAfterFinishing.expect();
+	});
 });

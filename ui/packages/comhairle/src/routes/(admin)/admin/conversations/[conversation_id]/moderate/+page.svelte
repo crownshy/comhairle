@@ -1,55 +1,39 @@
 <script lang="ts">
-	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import { resolve } from '$app/paths';
+	import { ChevronRight, MessagesSquare } from 'lucide-svelte';
 
 	let { data } = $props();
-	let { workflowSteps, conversation } = data;
-
-	function activeToolConfig(step: WorkflowStepWithTranslations): ToolConfig {
-		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
-	}
+	let conversation = $derived(data.conversation);
+	let polisSteps = $derived(data.polisSteps);
 </script>
 
 <svelte:head>
-	<title>Moderate Conversation - Comhairle Admin</title>
+	<title>Moderate - Comhairle Admin</title>
 </svelte:head>
 
-<div class="mb-5 flex flex-col gap-y-5">
-	{#each workflowSteps as step (step.id)}
-		<Card.Root class="transition-all">
-			<Card.Header>
-				<div class="flex flex-row items-center justify-between">
-					<div class="flex flex-row items-center gap-x-5">
-						{#if activeToolConfig(step).type === 'polis'}
-							<MessagesSquare />
-						{/if}
-						{#if activeToolConfig(step).type === 'stories'}
-							<Video />
-						{/if}
-						{#if activeToolConfig(step).type === 'heyform'}
-							<ListChecks />
-						{/if}
-						{#if activeToolConfig(step).type === 'learn'}
-							<BookOpen />
-						{/if}
-						<h2 class="text-xl">{step.name}</h2>
-					</div>
-				</div>
-			</Card.Header>
-			<Card.Footer>
-				<div class="flex w-full flex-row items-end justify-between capitalize">
-					{#if activeToolConfig(step).type === 'polis'}
-						<Button
-							href={`/admin/conversations/${conversation.id}/moderate/step/${step.id}`}
-							class="secondary">Moderate step</Button
-						>
-					{:else}
-						<Button disabled class="secondary">No moderation for this step</Button>
-					{/if}
-				</div>
-			</Card.Footer>
-		</Card.Root>
-	{/each}
-</div>
+{#if polisSteps.length === 0}
+	<p class="text-muted-foreground">
+		There is nothing to moderate yet. Add a Polis step in Process design.
+	</p>
+{:else}
+	<ul class="bg-background divide-border border-border max-w-3xl divide-y rounded-xl border">
+		{#each polisSteps as step (step.id)}
+			<li>
+				<a
+					href={resolve(
+						'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+						{
+							conversation_id: conversation.id,
+							step_id: step.id
+						}
+					)}
+					class="hover:bg-muted/60 flex items-center gap-4 px-5 py-4"
+				>
+					<MessagesSquare class="text-muted-foreground size-5 shrink-0" />
+					<span class="flex-1 font-medium">{step.name}</span>
+					<ChevronRight class="text-muted-foreground size-4 shrink-0" />
+				</a>
+			</li>
+		{/each}
+	</ul>
+{/if}

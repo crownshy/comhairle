@@ -92,9 +92,10 @@ The per-Step `can_revisit` flag (default `false`), controlling whether a partici
 ### Participant step chrome
 
 The participant-facing frame around a Step, shared by both breakpoints. Replaces the old
-`StepHeader` chevrons plus `StepSelector` pair. See
-[ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md) and
-[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md).
+`StepHeader` chevrons plus `StepSelector` pair, and the site NavBar and Footer on the step
+route. See [ADR-0047](documentation/adr/0047-one-pager-innermost-first-navigation.md),
+[ADR-0048](documentation/adr/0048-the-middle-is-the-move-the-corners-are-navigation.md) and
+[ADR-0049](documentation/adr/0049-the-step-menu-is-a-sheet-on-a-phone.md).
 
 **Step shell**:
 The one-screen layout a Step renders in: a header on top, the tool scrolling in the middle,
@@ -105,9 +106,17 @@ _Avoid_: Card, page wrapper.
 
 **Progress bar**:
 The segmented bar at the top of the [[#step-shell]]: one stub per Step, the current Step a
-flexible track that fills. Completed stubs read filled. The bar is decoration for a screen
-reader; the "Step N of M" line beneath it carries the position.
+flexible track that fills. Completed stubs read filled. Screen readers hear only the
+current Step's track: "Step N of M", plus the tool's position inside it ("Page 3 of 8") when
+the tool reports one.
 _Avoid_: Stepper (the old row of circles), step selector.
+
+**Step menu**:
+The pill at the right of the step header, listing the Workflow's Steps with
+their status and the light and dark toggle. An anchored dropdown on a pointer, a bottom sheet
+on a phone. Navigation permissions are unchanged: only completed, revisitable Steps are
+links.
+_Avoid_: Step dropdown (half of it is not a dropdown), stepper.
 
 **Pager**:
 The bar at the bottom of the [[#step-shell]]: back on the left, forward on the right, and
@@ -188,11 +197,11 @@ _Avoid_: Magic-link sign-in email, plaintext password email.
 
 ### Polis admin (Discuss step)
 
-The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Moderation · Insights`** (civic_os's "Participants" tab is dropped — see Insights/Report and the Participants note).
+The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Insights`**. Moderation is its own page under Engage (ADR-0055). civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
 
 **Moderation**:
-The Polis statement-review subtab — sync statements from Polis, add/seed statements, CSV import, and accept/reject each with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Supersedes the design's "Statements" label and the two dead entries in today's step editor (the `Statements` "coming soon" placeholder and the never-rendered `Moderate` subtab).
-_Avoid_: Statements (design label), Moderate (old dead tab).
+Polis statement review, on the **Moderate** page under Engage (`/admin/conversations/<id>/moderate`, one page per Polis step). Sync statements from Polis, split composite statements, and accept or reject each one with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Seeds are written in **Setup**, not here. **Moderate** is the sidebar and page label; **Moderation** is the activity.
+_Avoid_: Statements (design label), Moderation subtab (removed from the step editor, ADR-0055).
 
 **Insights**:
 A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
@@ -207,7 +216,7 @@ _Out of scope / deferred._ civic_os has a Participants tab (demographics + recru
 _Avoid_: reusing civic_os's demographics Participants inside a Polis subtab.
 
 **Setup**:
-The Polis-step subtab replacing the old admin **iframe**: native controls for the Polis conversation config plus comhairle display flags. Two write paths — (1) **Polis-proxied** config (`is_active` = "conversation is open", `topic`, `description`, `strict_moderation` = "no comments without approval") goes through the `PolisUpdateConfig` route (widened `UpdatePollRequest` + server-side admin `login()` + `update_poll()`); (2) **comhairle `tool_config`** display flags (`required_votes`, `show_remaining_statements`) via `UpdateConversationWorkflowStep`. No client-side Polis auth. The Polis-proxied fields are **also mirrored into `tool_config`** (they are fields on `PolisToolConfig`) so the form can pre-fill — Polis has no read path (see ADR-0003 amendment). Saving a config field writes Polis first, then the mirror. Seed authoring lives in the **Moderation** subtab, not Setup.
+The Polis-step subtab replacing the old admin **iframe**: native controls for the Polis conversation config plus comhairle display flags. Two write paths: (1) **Polis-proxied** config (`is_active` = "conversation is open", `topic`, `description`, `strict_moderation` = "no comments without approval") goes through the `PolisUpdateConfig` route (widened `UpdatePollRequest` + server-side admin `login()` + `update_poll()`); (2) **comhairle `tool_config`** display flags (`required_votes`, `show_remaining_statements`) via `UpdateConversationWorkflowStep`. No client-side Polis auth. The Polis-proxied fields are **also mirrored into `tool_config`** (they are fields on `PolisToolConfig`) so the form can pre-fill, since Polis has no read path (see ADR-0003 amendment). Saving a config field writes Polis first, then the mirror. Seed statements are written here too: add, CSV import, and Remove/Restore (Polis can't delete, so Remove rejects the seed and Restore accepts it, ADR-0055).
 _Note_: `is_active` (Polis "open/closed") is **plumbed but not surfaced** in the Setup UI — participant access in comhairle is governed by conversation launch + the Workflow, not a per-Polis toggle, so exposing it would be redundant. The field stays on `PolisToolConfig`/`PolisUpdateConfig` (defaulted active) for future use.
 _Status_: The design's "Participants can see the **visualization**" checkbox is **deferred** — the custom participant embed (`PolisEmbed.svelte`) renders no opinion-map, so the flag would control nothing. Building a participant PCA/opinion-map component (data via `get_math_pca`/`report_data`) is a separate follow-up, bundled with retiring the `PolisReport.svelte` iframe.
 

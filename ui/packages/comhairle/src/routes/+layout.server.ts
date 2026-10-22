@@ -3,14 +3,15 @@ import type { LayoutServerLoad } from './$types.js';
 import { env } from '$env/dynamic/public';
 import { resolveThemeName } from '$lib/types/theme';
 import { key } from '$lib/utils/invalidationKey';
-import type { UserDto } from '@crownshy/api-client/api';
+import { previewGrantCookies } from '$lib/utils/previewAccess';
 
 export const load: LayoutServerLoad = async (event) => {
 	event.depends(key('user'));
 
 	const common = {
 		themeName: resolveThemeName(env.PUBLIC_THEME),
-		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
+		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true',
+		previewCookies: previewGrantCookies(event.cookies)
 	};
 
 	// Keep extraction of `auth-token` cookie after `/api/auth/current_user`
@@ -35,7 +36,7 @@ export const load: LayoutServerLoad = async (event) => {
 		body = await resp.json();
 	} catch {
 		// Network-level failure, including a connection reset mid-body-read
-		// (resp.ok can be true before the stream errors out) — degrade to
+		// (resp.ok can be true before the stream errors out), degrade to
 		// anonymous instead of letting this throw crash every route that
 		// shares this root layout. Still pass the cookie through: the
 		// session itself is fine, only this one fetch failed, so child loads

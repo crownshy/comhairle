@@ -336,10 +336,11 @@ impl ComhairleMailer for Mailer {
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_CONVERSATION_INVITE.email_type,
+            Some(conversation.id),
         )
         .await?;
 
@@ -489,10 +490,11 @@ impl ComhairleMailer for Mailer {
             invite_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_INVITE.email_type,
+            None,
         )
         .await?;
 
@@ -552,10 +554,11 @@ impl ComhairleMailer for Mailer {
             event_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_CONFIRMATION.email_type,
+            None,
         )
         .await?;
 
@@ -649,10 +652,11 @@ impl ComhairleMailer for Mailer {
             event_link => otp_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             sender_id,
             &SCHEMA_EVENT_REMINDER.email_type,
+            None,
         )
         .await?;
 

@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
+use sea_query::{
+    Alias, Cond, Expr, Func, JoinType, Order, PostgresQueryBuilder, Query, SelectStatement,
+    SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::encode::IsNull;
@@ -15,6 +18,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::conversation::ConversationIden;
+use crate::models::translations::{TextContentIden, TextTranslationIden};
 use crate::models::{SqlxResultExt, users};
 
 /// A client-configured email template, persisted to the `email_template_config` table.
@@ -32,6 +37,7 @@ pub struct EmailTemplateConfig {
     pub email_type: EmailType,
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
+    pub conversation_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -87,13 +93,14 @@ impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
     }
 }
 
-const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
+const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 9] = [
     EmailTemplateConfigIden::Id,
     EmailTemplateConfigIden::OwnerId,
     EmailTemplateConfigIden::OrganizationId,
     EmailTemplateConfigIden::EmailType,
     EmailTemplateConfigIden::Slots,
     EmailTemplateConfigIden::Subject,
+    EmailTemplateConfigIden::ConversationId,
     EmailTemplateConfigIden::CreatedAt,
     EmailTemplateConfigIden::UpdatedAt,
 ];
@@ -473,6 +480,7 @@ impl MailerContextMap for DefaultEmailSlots {
 pub struct CreateEmailTemplateConfig {
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
+    pub conversation_id: Option<Uuid>,
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -491,6 +499,11 @@ pub async fn create(
 
     columns.push(EmailTemplateConfigIden::EmailType);
     values.push(params.slots.to_string().into());
+
+    if let Some(conversation_id) = params.conversation_id {
+        columns.push(EmailTemplateConfigIden::ConversationId);
+        values.push(conversation_id.into());
+    }
 
     if let Some(subject) = &params.subject {
         columns.push(EmailTemplateConfigIden::Subject);
@@ -511,7 +524,10 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_one(db).await?;
+    let email_config = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Email Template Config")?;
 
     Ok(email_config)
 }
@@ -578,20 +594,147 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
     Ok(email_config)
 }
 
+/// An [`EmailTemplateConfig`] together with display details of the scope it
+/// applies to, so templates of the same email type can be told apart.
+///
+/// `conversation_title` is `None` when the template is not scoped to a
+/// conversation.
+#[derive(Debug, FromRow)]
+pub struct EmailTemplateConfigWithScope {
+    #[sqlx(flatten)]
+    pub config: EmailTemplateConfig,
+    pub conversation_title: Option<String>,
+}
+
+/// Selects email template configs joined with the title of the conversation
+/// they are scoped to, in `locale` with a fallback to the conversation's
+/// primary locale.
+fn select_with_scope(locale: &str) -> SelectStatement {
+    let tc = Alias::new("tc_title");
+    let tt = Alias::new("tt_title");
+    let tt_primary = Alias::new("tt_primary_title");
+
+    Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EmailTemplateConfigIden::Table, col)))
+        .expr_as(
+            Func::coalesce([
+                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
+                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
+            ]),
+            Alias::new("conversation_title"),
+        )
+        .from(EmailTemplateConfigIden::Table)
+        .left_join(
+            ConversationIden::Table,
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::ConversationId,
+            ))
+            .equals((ConversationIden::Table, ConversationIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextContentIden::Table,
+            tc.clone(),
+            Expr::col((ConversationIden::Table, ConversationIden::Title))
+                .equals((tc.clone(), TextContentIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt.clone(), TextTranslationIden::ContentId))
+                .and(Expr::col((tt.clone(), TextTranslationIden::Locale)).eq(locale)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt_primary.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt_primary.clone(), TextTranslationIden::ContentId))
+                .and(
+                    Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
+                        .equals((tc.clone(), TextContentIden::PrimaryLocale)),
+                ),
+        )
+        .to_owned()
+}
+
+/// Gets a single [`EmailTemplateConfig`] by `id`, paired with the title of the
+/// conversation it is scoped to.
+///
+/// The title is returned in `locale` when a translation exists, falling back
+/// to the conversation's primary locale, and is `None` for unscoped templates.
+///
+/// Returns [`ComhairleError::ResourceNotFound`] when no config has this `id`.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_by_type_user(
+pub async fn get_by_id_with_scope(
     db: &PgPool,
-    user_id: Uuid,
+    id: Uuid,
+    locale: &str,
+) -> Result<EmailTemplateConfigWithScope, ComhairleError> {
+    let (sql, values) = select_with_scope(locale)
+        .and_where(Expr::col((EmailTemplateConfigIden::Table, EmailTemplateConfigIden::Id)).eq(id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let email_config = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Email Template Config")?;
+
+    Ok(email_config)
+}
+
+/// Finds the [`EmailTemplateConfig`] that should be used when sending an email
+/// of `email_type`.
+///
+/// Resolution falls back from the most specific scope to the least:
+///
+/// 1. A template scoped to `conversation_id`, regardless of who created it, so
+///    every admin sending for that conversation gets the same template.
+/// 2. The sender's unscoped default template for `email_type`.
+///
+/// Returns `None` when neither exists, in which case callers should fall back
+/// to the built-in defaults on the email type's [`EmailTypeSchema`].
+///
+/// Passing `None` for `conversation_id` only considers the sender's default.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_effective(
+    db: &PgPool,
+    sender_id: Uuid,
     email_type: &EmailType,
+    conversation_id: Option<Uuid>,
 ) -> Result<Option<EmailTemplateConfig>, ComhairleError> {
+    // If not scoped to specific conversation, scope to user
+    let owner_default = Cond::all()
+        .add(Expr::col(EmailTemplateConfigIden::ConversationId).is_null())
+        .add(Expr::col(EmailTemplateConfigIden::OwnerId).eq(sender_id));
+
+    let mut scope = Cond::any().add(owner_default);
+    if let Some(conversation_id) = conversation_id {
+        scope = scope.add(Expr::col(EmailTemplateConfigIden::ConversationId).eq(conversation_id));
+    }
+
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(EmailTemplateConfigIden::Table)
-        .and_where(Expr::col(EmailTemplateConfigIden::OwnerId).eq(user_id))
-        .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
+        .cond_where(
+            Cond::all()
+                .add(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
+                .add(scope),
+        )
+        .order_by_expr(
+            Expr::col(EmailTemplateConfigIden::ConversationId).is_null(),
+            Order::Asc,
+        )
+        .limit(1)
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values).fetch_optional(db).await?;
+    let email_config = query_as_with(&sql, values)
+        .fetch_optional(db)
+        .await
+        .resolve_db_err("Email Template Config")?;
 
     Ok(email_config)
 }
@@ -605,7 +748,13 @@ impl EmailTemplateConfigFilterOptions {
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
         if let Some(email_type) = &self.email_type {
             query = query
-                .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
+                .and_where(
+                    Expr::col((
+                        EmailTemplateConfigIden::Table,
+                        EmailTemplateConfigIden::EmailType,
+                    ))
+                    .eq(email_type.to_owned()),
+                )
                 .to_owned();
         }
 
@@ -634,6 +783,48 @@ pub async fn list(
     Ok(email_configs)
 }
 
+/// Lists the email templates owned by `user_id`, each paired with the title of
+/// the conversation it is scoped to.
+///
+/// Unlike [`list`], this joins the conversation and its title translations so
+/// the admin list can tell apart several templates of the same email type, such
+/// as `conversation_invite` templates scoped to different conversations.
+/// Unscoped templates are still returned, with `conversation_title` set to `None`.
+///
+/// The title is returned in `locale` when a translation exists, falling back to
+/// the conversation's primary locale.
+///
+/// # Arguments
+///
+/// * `user_id` - Only templates owned by this user are returned.
+/// * `filter_options` - Optional filters, such as `email_type`.
+/// * `locale` - The preferred locale for `conversation_title`.
+#[instrument(err(Debug), skip(db))]
+pub async fn list_with_scope(
+    db: &PgPool,
+    user_id: Uuid,
+    filter_options: EmailTemplateConfigFilterOptions,
+    locale: &str,
+) -> Result<Vec<EmailTemplateConfigWithScope>, ComhairleError> {
+    let query = select_with_scope(locale)
+        .and_where(
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::OwnerId,
+            ))
+            .eq(user_id),
+        )
+        .to_owned();
+
+    let query = filter_options.apply(query);
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let email_configs = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(email_configs)
+}
+
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -651,8 +842,21 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Comhai
 mod tests {
     use std::error::Error;
 
+    use fake::{Fake, Faker};
+
     use super::*;
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::conversation;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+
+    fn conversation_invite_params(conversation_id: Option<Uuid>) -> CreateEmailTemplateConfig {
+        CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()),
+            subject: None,
+            conversation_id,
+        }
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_email_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -668,6 +872,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
+            conversation_id: None,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;
@@ -676,6 +881,326 @@ mod tests {
             email_config.owner_id, current_user.id,
             "owner_id doesn't match"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_conversation_invite_configs_for_different_conversations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_a = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_b = get_random_conversation_id(&app, &mut session).await?;
+
+        let config_a = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_a)),
+        )
+        .await?;
+        let config_b = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_b)),
+        )
+        .await?;
+
+        assert_eq!(
+            config_a.conversation_id,
+            Some(conversation_a),
+            "incorrect conversation_id"
+        );
+        assert_eq!(
+            config_b.conversation_id,
+            Some(conversation_b),
+            "incorrect conversation_id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_owner_default_alongside_conversation_scoped_config(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let default_config = create(&pool, user.id, &conversation_invite_params(None)).await?;
+
+        assert_eq!(
+            default_config.conversation_id, None,
+            "default should be unscoped"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_duplicate_config_for_same_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let err = create(
+            &pool,
+            other_user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::Conflict(_)),
+            "expected Conflict, got {err:?}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_duplicate_owner_default_config(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+
+        create(&pool, user.id, &conversation_invite_params(None)).await?;
+        let err = create(&pool, user.id, &conversation_invite_params(None))
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::Conflict(_)),
+            "expected Conflict, got {err:?}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_conversation_config_over_owner_default(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(&pool, user.id, &conversation_invite_params(None)).await?;
+        let scoped = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            Some(conversation_id),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(
+            effective.id, scoped.id,
+            "expected conversation scoped config"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_owner_default_for_unscoped_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let scoped_conversation = get_random_conversation_id(&app, &mut session).await?;
+        let unscoped_conversation = get_random_conversation_id(&app, &mut session).await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(scoped_conversation)),
+        )
+        .await?;
+        let default_config = create(&pool, user.id, &conversation_invite_params(None)).await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            Some(unscoped_conversation),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(
+            effective.id, default_config.id,
+            "expected owner default config"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_conversation_config_for_any_sender(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let scoped = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        create(&pool, other_user.id, &conversation_invite_params(None)).await?;
+
+        let effective = get_effective(
+            &pool,
+            other_user.id,
+            &EmailType::ConversationInvite,
+            Some(conversation_id),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(
+            effective.id, scoped.id,
+            "expected conversation scoped config"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_get_effective_another_users_default(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(&pool, other_user.id, &conversation_invite_params(None)).await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            Some(conversation_id),
+        )
+        .await?;
+
+        assert!(effective.is_none(), "should not use another user's default");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_owner_default_without_conversation_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let default_config = create(&pool, user.id, &conversation_invite_params(None)).await?;
+
+        let effective = get_effective(&pool, user.id, &EmailType::ConversationInvite, None)
+            .await?
+            .ok_or("expected a config")?;
+
+        assert_eq!(
+            effective.id, default_config.id,
+            "expected owner default config"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_get_effective_config_of_another_email_type(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        create(
+            &pool,
+            user.id,
+            &CreateEmailTemplateConfig {
+                slots: EmailTemplateSlots::EventReminder(DefaultEmailSlots::default()),
+                subject: None,
+                conversation_id: Some(conversation_id),
+            },
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            Some(conversation_id),
+        )
+        .await?;
+
+        assert!(
+            effective.is_none(),
+            "should not match a different email_type"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_none_when_no_configs_exist(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            Some(conversation_id),
+        )
+        .await?;
+
+        assert!(effective.is_none(), "expected no config");
 
         Ok(())
     }
@@ -695,6 +1220,7 @@ mod tests {
         let params = CreateEmailTemplateConfig {
             slots: create_slots.clone(),
             subject: None,
+            conversation_id: None,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -744,6 +1270,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
+            conversation_id: None,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -756,42 +1283,26 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_optionally_get_email_config_user_and_email_type(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
+    async fn should_get_email_config_with_scope(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let (_, current_user, _) = session.current_user(&app).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
 
-        let params = CreateEmailTemplateConfig {
-            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
-                heading: "<h1>You're invite to a conversation</h1>".to_string(),
-                intro: "<p>You have been selected to take part in a public engagement</p>"
-                    .to_string(),
-                body: "<p>Test body content</p>".to_string(),
-                footer: "<p>Thank you for your time</p>".to_string(),
-            }),
-            subject: None,
-        };
-
-        create(&pool, current_user.id, &params).await?;
-
-        let email_config = get_by_type_user(
+        let new_scoped = create(
             &pool,
-            current_user.id,
-            &SCHEMA_CONVERSATION_INVITE.email_type,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
         )
         .await?;
 
-        assert!(email_config.is_some(), "existing config not found");
+        let found_scoped = get_by_id_with_scope(&pool, new_scoped.id, "en").await?;
 
-        let email_config = get_by_type_user(
-            &pool,
-            Uuid::new_v4(),
-            &SCHEMA_CONVERSATION_INVITE.email_type,
-        )
-        .await?;
-
-        assert!(email_config.is_none(), "random user config found");
+        assert_eq!(
+            found_scoped.conversation_title,
+            Some(conversation.title),
+            "conversation_title does not match"
+        );
 
         Ok(())
     }
@@ -811,11 +1322,13 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         create(&pool, user.id, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
+            conversation_id: None,
         };
         create(&pool, user.id, &params_b).await?;
 
@@ -836,6 +1349,82 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_with_scope_conversation_title_and_unscoped_configs(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+
+        let scoped = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let unscoped = create(&pool, user.id, &conversation_invite_params(None)).await?;
+
+        let configs = list_with_scope(&pool, user.id, Default::default(), "en").await?;
+
+        assert_eq!(configs.len(), 2, "incorrect total");
+
+        let scoped_result = configs
+            .iter()
+            .find(|c| c.config.id == scoped.id)
+            .ok_or("missing scoped config")?;
+        assert_eq!(
+            scoped_result.conversation_title.as_deref(),
+            Some(conversation.title.as_str()),
+            "incorrect conversation_title"
+        );
+
+        let unscoped_result = configs
+            .iter()
+            .find(|c| c.config.id == unscoped.id)
+            .ok_or("missing scoped config")?;
+        assert_eq!(
+            unscoped_result.conversation_title.as_deref(),
+            None,
+            "unscoped config should have no conversation_title"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_with_scope_primary_locale_title_when_locale_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+
+        create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+
+        let configs = list_with_scope(&pool, user.id, Default::default(), "xx").await?;
+
+        assert_eq!(
+            configs.len(),
+            1,
+            "translation joins should not duplicate rows"
+        );
+        assert_eq!(
+            configs[0].conversation_title.as_deref(),
+            Some(conversation.title.as_str()),
+            "expected primary locale title"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_email_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let (_, current_user, _) = session.current_user(&app).await?;
@@ -849,6 +1438,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
+            conversation_id: None,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;

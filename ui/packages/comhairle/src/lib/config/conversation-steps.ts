@@ -50,13 +50,12 @@ export const conversationSections: ConversationSection[] = [
 		path: 'configure',
 		icon: SlidersHorizontal,
 		stage: 'set-up',
-		description: "Set up the conversation's details, content and who can take part.",
+		description: "Set up the conversation's details, who can take part, and its content.",
 		hasTabs: true,
 		guide: {
 			section: { guide: 'create-a-conversation', topic: 'name-a-conversation' },
 			tabs: {
 				content: { guide: 'create-a-conversation', topic: 'create-a-conversation' },
-				access: { guide: 'launch-a-conversation', topic: 'configure-access' },
 				'moderation-policy': { guide: 'advanced', topic: 'moderation-in-depth' },
 				team: { guide: 'getting-started', topic: 'roles-and-permissions' }
 			}
