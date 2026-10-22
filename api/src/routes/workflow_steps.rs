@@ -24,7 +24,7 @@ use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
 use crate::models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig};
-use crate::models::{self, conversation, user_participation};
+use crate::models::{self, conversation, demographics, user_participation};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
     LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
@@ -114,10 +114,28 @@ async fn create_workflow_step(
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
+        conversation.organization_id,
     )
     .await?
     .into();
     Ok((StatusCode::CREATED, Json(workflow)))
+}
+
+/// Checks demographic references in whichever tool configs an update replaces.
+async fn validate_update_references(
+    state: &Arc<ComhairleState>,
+    organization_id: Option<Uuid>,
+    update: &PartialWorkflowStep,
+) -> Result<(), ComhairleError> {
+    let configs = [
+        update.tool_config.as_ref(),
+        update.preview_tool_config.as_ref(),
+    ];
+    let mut conn = state.db.acquire().await?;
+    for config in configs.into_iter().flatten() {
+        demographics::steps::validate_tool_config(&mut conn, organization_id, config).await?;
+    }
+    Ok(())
 }
 
 /// Update workflow handler
@@ -125,15 +143,21 @@ async fn create_workflow_step(
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
-        conversation_id: _,
+        conversation_id,
         event_id: _,
     }: SourcePathCtx,
     WorkflowStepPathCtx {
         workflow_id,
         workflow_step_id,
     }: WorkflowStepPathCtx,
-    Json(workflow): Json<PartialWorkflowStep>,
+    Json(mut workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    validate_update_references(&state, conversation.organization_id, &workflow).await?;
+    if let Some(live_tool_config) = workflow.tool_config.take() {
+        workflow.tool_config =
+            Some(demographics::steps::freeze_tool_config(&state.db, live_tool_config).await?);
+    }
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();

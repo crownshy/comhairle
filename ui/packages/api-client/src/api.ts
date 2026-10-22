@@ -124,6 +124,9 @@ export const SystemAction = z.enum([
   "conversation_create",
   "organization_create",
   "translate",
+  "demographic_read",
+  "demographic_manage",
+  "demographic_default_manage",
 ]);
 export type SystemAction = z.infer<typeof SystemAction>;
 export const UserAction = z.union([
@@ -1378,6 +1381,21 @@ export const PartialConversation = z
   .partial()
   .passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
+export const HostingOrganizationRequest = z
+  .object({ organization_id: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type HostingOrganizationRequest = z.infer<
+  typeof HostingOrganizationRequest
+>;
+export const TransferOwnershipRequest = z
+  .object({
+    new_owner_email: z.union([z.string(), z.null()]),
+    new_owner_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type TransferOwnershipRequest = z.infer<typeof TransferOwnershipRequest>;
 export const OrganizationWithPermissionDto = z
   .object({ id: z.string().uuid(), name: z.string(), roleName: z.string() })
   .passthrough();
@@ -1532,6 +1550,21 @@ export const ThinkingSpaceQuestion = z
   })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
+export const VersionPolicy = z.union([
+  z.object({ type: z.literal("latest") }).passthrough(),
+  z
+    .object({ type: z.literal("pinned"), version_id: z.string().uuid() })
+    .passthrough(),
+]);
+export type VersionPolicy = z.infer<typeof VersionPolicy>;
+export const QuestionOverride = z
+  .object({
+    enabled: z.boolean(),
+    question_id: z.string().uuid(),
+    required: z.boolean(),
+  })
+  .passthrough();
+export type QuestionOverride = z.infer<typeof QuestionOverride>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -1602,6 +1635,21 @@ export const ToolConfig = z.union([
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
+  z
+    .object({
+      question_id: z.string().uuid(),
+      type: z.literal("demographicquestion"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
+  z
+    .object({
+      form_id: z.string().uuid(),
+      questions: z.array(QuestionOverride).optional().default([]),
+      type: z.literal("demographicform"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z
@@ -1647,21 +1695,25 @@ export const WorkflowStats = z
   })
   .passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const DemographicCount = z
+export const AnswerCount = z
+  .object({ count: z.number().int(), value: z.unknown() })
+  .passthrough();
+export type AnswerCount = z.infer<typeof AnswerCount>;
+export const QuestionCounts = z
   .object({
-    count: z.number().int(),
-    displayName: z.string(),
-    value: z.string(),
+    answers: z.array(AnswerCount),
+    question_id: z.string().uuid(),
+    text: z.string(),
   })
   .passthrough();
-export type DemographicCount = z.infer<typeof DemographicCount>;
-export const DemographicReport = z
+export type QuestionCounts = z.infer<typeof QuestionCounts>;
+export const WorkflowDemographics = z
   .object({
-    categories: z.record(z.array(DemographicCount)),
-    totalParticipants: z.number().int(),
+    questions: z.record(QuestionCounts),
+    total_participants: z.number().int(),
   })
   .passthrough();
-export type DemographicReport = z.infer<typeof DemographicReport>;
+export type WorkflowDemographics = z.infer<typeof WorkflowDemographics>;
 export const UserParticipation = z
   .object({
     created_at: z.string().datetime({ offset: true }),
@@ -1805,6 +1857,21 @@ export const ToolConfigWithTranslations = z.union([
       root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
       topic: JsonFieldWithTranslations,
       type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+  z
+    .object({
+      question_id: z.string().uuid(),
+      type: z.literal("demographicquestion"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
+  z
+    .object({
+      form_id: z.string().uuid(),
+      questions: z.array(QuestionOverride).optional().default([]),
+      type: z.literal("demographicform"),
+      version: VersionPolicy,
     })
     .passthrough(),
 ]);
@@ -1952,6 +2019,21 @@ export const LocalizedToolConfig = z.union([
       type: z.literal("thinkingspace"),
     })
     .passthrough(),
+  z
+    .object({
+      question_id: z.string().uuid(),
+      type: z.literal("demographicquestion"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
+  z
+    .object({
+      form_id: z.string().uuid(),
+      questions: z.array(QuestionOverride).optional().default([]),
+      type: z.literal("demographicform"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
 ]);
 export type LocalizedToolConfig = z.infer<typeof LocalizedToolConfig>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
@@ -2077,6 +2159,21 @@ export const ToolSetup = z.union([
       root_questions: z.array(ThinkingSpaceSetupQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
+  z
+    .object({
+      question_id: z.string().uuid(),
+      type: z.literal("demographicquestion"),
+      version: VersionPolicy,
+    })
+    .passthrough(),
+  z
+    .object({
+      form_id: z.string().uuid(),
+      questions: z.array(QuestionOverride).optional().default([]),
+      type: z.literal("demographicform"),
+      version: VersionPolicy,
     })
     .passthrough(),
 ]);
@@ -2386,6 +2483,8 @@ export const PrioritizationReport = z.null();
 export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
 export const ThinkingSpaceReport = z.null();
 export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
+export const DemographicReport = z.null();
+export type DemographicReport = z.infer<typeof DemographicReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
@@ -2394,6 +2493,8 @@ export const ReportConfig = z.union([
   z.object({ ElicitationBot: ElicitationBotReport }),
   z.object({ Prioritization: PrioritizationReport }),
   z.object({ ThinkingSpace: ThinkingSpaceReport }),
+  z.object({ DemographicQuestion: DemographicReport }),
+  z.object({ DemographicForm: DemographicReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -3521,120 +3622,205 @@ export const UserWithPermissionDto = z
   })
   .passthrough();
 export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
-export const ConversationDemographics = z
-  .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
-  .passthrough();
-export type ConversationDemographics = z.infer<typeof ConversationDemographics>;
-export const PaginatedResults_for_ConversationDemographics = z
-  .object({
-    records: z.array(ConversationDemographics),
-    total: z.number().int(),
-  })
-  .passthrough();
-export type PaginatedResults_for_ConversationDemographics = z.infer<
-  typeof PaginatedResults_for_ConversationDemographics
->;
-export const CreateConversationDemographics = z
-  .object({ conversationId: z.string().uuid(), questionSlug: z.string() })
-  .passthrough();
-export type CreateConversationDemographics = z.infer<
-  typeof CreateConversationDemographics
->;
-export const NumericBucket = z
-  .object({
-    label: z.string(),
-    max: z.union([z.number(), z.null()]).optional(),
-    min: z.union([z.number(), z.null()]).optional(),
-  })
-  .passthrough();
-export type NumericBucket = z.infer<typeof NumericBucket>;
-export const StringOption = z
-  .object({ label: z.string(), value: z.string() })
-  .passthrough();
-export type StringOption = z.infer<typeof StringOption>;
-export const ValueBuckets = z.union([
-  z
-    .object({ buckets: z.array(NumericBucket), type: z.literal("numeric") })
-    .passthrough(),
-  z
-    .object({ options: z.array(StringOption), type: z.literal("string") })
-    .passthrough(),
-]);
-export type ValueBuckets = z.infer<typeof ValueBuckets>;
-export const DemographicsQuestionResponseType = z.enum(["number", "string"]);
-export type DemographicsQuestionResponseType = z.infer<
-  typeof DemographicsQuestionResponseType
->;
-export const DemographicsQuestion = z
-  .object({
-    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
-    displayName: z.string(),
-    responseType: DemographicsQuestionResponseType,
-    slug: z.string(),
-  })
-  .passthrough();
-export type DemographicsQuestion = z.infer<typeof DemographicsQuestion>;
-export const PaginatedResults_for_DemographicsQuestion = z
-  .object({ records: z.array(DemographicsQuestion), total: z.number().int() })
-  .passthrough();
-export type PaginatedResults_for_DemographicsQuestion = z.infer<
-  typeof PaginatedResults_for_DemographicsQuestion
->;
-export const CreateDemographicsQuestion = z
-  .object({
-    bucketConfig: z.union([ValueBuckets, z.null()]).optional(),
-    displayName: z.string(),
-    responseType: DemographicsQuestionResponseType,
-    slug: z.string(),
-  })
-  .passthrough();
-export type CreateDemographicsQuestion = z.infer<
-  typeof CreateDemographicsQuestion
->;
-export const PartialDemographicsQuestion = z
-  .object({
-    bucketConfig: z.union([ValueBuckets, z.null()]),
-    displayName: z.union([z.string(), z.null()]),
-    responseType: z.union([DemographicsQuestionResponseType, z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type PartialDemographicsQuestion = z.infer<
-  typeof PartialDemographicsQuestion
->;
-export const TypedValue = z.union([z.number(), z.string()]);
-export type TypedValue = z.infer<typeof TypedValue>;
-export const DemographicsResponse = z
+export const DemographicTag = z
   .object({
     id: z.string().uuid(),
-    questionSlug: z.string(),
-    userId: z.union([z.string(), z.null()]).optional(),
-    value: TypedValue,
+    name: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type DemographicsResponse = z.infer<typeof DemographicsResponse>;
-export const PaginatedResults_for_DemographicsResponse = z
-  .object({ records: z.array(DemographicsResponse), total: z.number().int() })
-  .passthrough();
-export type PaginatedResults_for_DemographicsResponse = z.infer<
-  typeof PaginatedResults_for_DemographicsResponse
->;
-export const CreateDemographicsResponse = z
+export type DemographicTag = z.infer<typeof DemographicTag>;
+export const CreateTagInput = z.object({ name: z.string() }).passthrough();
+export type CreateTagInput = z.infer<typeof CreateTagInput>;
+export const DatePrecision = z.enum(["day", "month", "year"]);
+export type DatePrecision = z.infer<typeof DatePrecision>;
+export const LocationFormat = z.enum(["postcode", "lat_long", "country"]);
+export type LocationFormat = z.infer<typeof LocationFormat>;
+export const OptionDto = z
   .object({
-    questionSlug: z.string(),
-    userId: z.string().uuid(),
-    value: TypedValue,
+    id: z.string().uuid(),
+    label: z.string(),
+    position: z.number().int(),
   })
   .passthrough();
-export type CreateDemographicsResponse = z.infer<
-  typeof CreateDemographicsResponse
->;
-export const PartialDemographicsResponse = z
-  .object({ value: TypedValue })
+export type OptionDto = z.infer<typeof OptionDto>;
+export const QuestionType2 = z.enum([
+  "number",
+  "single_select",
+  "multi_select",
+  "date",
+  "any_string",
+  "location",
+  "custom",
+]);
+export type QuestionType2 = z.infer<typeof QuestionType2>;
+export const VersionStatus = z.enum(["draft", "published"]);
+export type VersionStatus = z.infer<typeof VersionStatus>;
+export const QuestionVersionDto = z
+  .object({
+    allow_other: z.boolean(),
+    consent_text: z.union([z.string(), z.null()]).optional(),
+    date_precision: z.union([DatePrecision, z.null()]).optional(),
+    id: z.string().uuid(),
+    json_schema: z.unknown().optional(),
+    location_country: z.union([z.string(), z.null()]).optional(),
+    location_format: z.union([LocationFormat, z.null()]).optional(),
+    max_selections: z.union([z.number(), z.null()]).optional(),
+    options: z.array(OptionDto),
+    prefer_not_to_say: z.boolean(),
+    published_at: z.union([z.string(), z.null()]).optional(),
+    question_id: z.string().uuid(),
+    question_type: QuestionType2,
+    special_category: z.boolean(),
+    status: VersionStatus,
+    text: z.string(),
+    updated_at: z.string().datetime({ offset: true }),
+    version_number: z.number().int(),
+  })
   .passthrough();
-export type PartialDemographicsResponse = z.infer<
-  typeof PartialDemographicsResponse
+export type QuestionVersionDto = z.infer<typeof QuestionVersionDto>;
+export const VersionSummary = z
+  .object({
+    id: z.string().uuid(),
+    published_at: z.union([z.string(), z.null()]).optional(),
+    status: VersionStatus,
+    version_number: z.number().int(),
+  })
+  .passthrough();
+export type VersionSummary = z.infer<typeof VersionSummary>;
+export const QuestionDto = z
+  .object({
+    archived_at: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    draft: z.union([QuestionVersionDto, z.null()]).optional(),
+    forked_from_id: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    latest_published: z.union([QuestionVersionDto, z.null()]).optional(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    tags: z.array(DemographicTag),
+    versions: z.array(VersionSummary),
+  })
+  .passthrough();
+export type QuestionDto = z.infer<typeof QuestionDto>;
+export const QuestionDraftInput = z
+  .object({
+    allow_other: z.boolean().optional().default(false),
+    consent_text: z.union([z.string(), z.null()]).optional().default(null),
+    date_precision: z.union([DatePrecision, z.null()]).optional().default(null),
+    json_schema: z.unknown().optional().default(null),
+    location_country: z.union([z.string(), z.null()]).optional().default(null),
+    location_format: z
+      .union([LocationFormat, z.null()])
+      .optional()
+      .default(null),
+    max_selections: z.union([z.number(), z.null()]).optional().default(null),
+    options: z.array(z.string()).optional().default([]),
+    prefer_not_to_say: z.boolean().optional().default(false),
+    question_type: QuestionType2,
+    special_category: z.boolean().optional().default(false),
+    tag_ids: z.array(z.string().uuid()).optional().default([]),
+    text: z.string(),
+  })
+  .passthrough();
+export type QuestionDraftInput = z.infer<typeof QuestionDraftInput>;
+export const DemographicFormEntryDto = z
+  .object({
+    form_id: z.string().uuid(),
+    form_version_id: z.string().uuid(),
+    position: z.number().int(),
+    question_id: z.string().uuid(),
+    question_text: z.string(),
+    question_version_id: z.union([z.string(), z.null()]).optional(),
+    required: z.boolean(),
+  })
+  .passthrough();
+export type DemographicFormEntryDto = z.infer<typeof DemographicFormEntryDto>;
+export const DemographicFormVersionDto = z
+  .object({
+    entries: z.array(DemographicFormEntryDto),
+    form_id: z.string().uuid(),
+    id: z.string().uuid(),
+    name: z.string(),
+    published_at: z.union([z.string(), z.null()]).optional(),
+    status: VersionStatus,
+    updated_at: z.string().datetime({ offset: true }),
+    version_number: z.number().int(),
+  })
+  .passthrough();
+export type DemographicFormVersionDto = z.infer<
+  typeof DemographicFormVersionDto
 >;
+export const DemographicFormDto = z
+  .object({
+    archived_at: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    draft: z.union([DemographicFormVersionDto, z.null()]).optional(),
+    id: z.string().uuid(),
+    latest_published: z.union([DemographicFormVersionDto, z.null()]).optional(),
+    organization_id: z.string().uuid(),
+    versions: z.array(VersionSummary),
+  })
+  .passthrough();
+export type DemographicFormDto = z.infer<typeof DemographicFormDto>;
+export const DemographicFormEntryInput = z
+  .object({
+    position: z.number().int(),
+    question_id: z.string().uuid(),
+    required: z.boolean().optional().default(true),
+  })
+  .passthrough();
+export type DemographicFormEntryInput = z.infer<
+  typeof DemographicFormEntryInput
+>;
+export const DemographicFormDraftInput = z
+  .object({
+    entries: z.array(DemographicFormEntryInput).optional(),
+    name: z.string(),
+  })
+  .passthrough();
+export type DemographicFormDraftInput = z.infer<
+  typeof DemographicFormDraftInput
+>;
+export const ResponseDto = z
+  .object({
+    conversation_id: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    question_id: z.string().uuid(),
+    question_version_id: z.string().uuid(),
+    value: z.unknown(),
+  })
+  .passthrough();
+export type ResponseDto = z.infer<typeof ResponseDto>;
+export const ConsentState = z.enum(["none", "granted", "declined"]);
+export type ConsentState = z.infer<typeof ConsentState>;
+export const PendingQuestion = z
+  .object({
+    answer: z.union([ResponseDto, z.null()]).optional(),
+    consent: ConsentState,
+    required: z.boolean(),
+    skipped: z.boolean(),
+    version: QuestionVersionDto,
+  })
+  .passthrough();
+export type PendingQuestion = z.infer<typeof PendingQuestion>;
+export const ConsentInput = z.object({ granted: z.boolean() }).passthrough();
+export type ConsentInput = z.infer<typeof ConsentInput>;
+export const ResponseInput = z
+  .object({
+    conversation_id: z.union([z.string(), z.null()]).optional(),
+    value: z.unknown(),
+  })
+  .passthrough();
+export type ResponseInput = z.infer<typeof ResponseInput>;
+export const MyDemographicAnswer = z
+  .object({
+    answer: ResponseDto,
+    consent: ConsentState,
+    version: QuestionVersionDto,
+  })
+  .passthrough();
+export type MyDemographicAnswer = z.infer<typeof MyDemographicAnswer>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   GuestLoginRequest,
@@ -3789,6 +3975,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ConversationWithTranslations,
   ConversationResponse,
   PartialConversation,
+  HostingOrganizationRequest,
+  TransferOwnershipRequest,
   OrganizationWithPermissionDto,
   CohostInfo,
   SendNotificationRequest,
@@ -3808,13 +3996,16 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionType,
   Question,
   ThinkingSpaceQuestion,
+  VersionPolicy,
+  QuestionOverride,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
   WorkflowStepStats,
   WorkflowStats,
-  DemographicCount,
-  DemographicReport,
+  AnswerCount,
+  QuestionCounts,
+  WorkflowDemographics,
   UserParticipation,
   UserParticipationDto,
   TranslationDto,
@@ -3877,6 +4068,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ElicitationBotReport,
   PrioritizationReport,
   ThinkingSpaceReport,
+  DemographicReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
@@ -4016,22 +4208,28 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
   UserWithPermissionDto,
-  ConversationDemographics,
-  PaginatedResults_for_ConversationDemographics,
-  CreateConversationDemographics,
-  NumericBucket,
-  StringOption,
-  ValueBuckets,
-  DemographicsQuestionResponseType,
-  DemographicsQuestion,
-  PaginatedResults_for_DemographicsQuestion,
-  CreateDemographicsQuestion,
-  PartialDemographicsQuestion,
-  TypedValue,
-  DemographicsResponse,
-  PaginatedResults_for_DemographicsResponse,
-  CreateDemographicsResponse,
-  PartialDemographicsResponse,
+  DemographicTag,
+  CreateTagInput,
+  DatePrecision,
+  LocationFormat,
+  OptionDto,
+  QuestionType2,
+  VersionStatus,
+  QuestionVersionDto,
+  VersionSummary,
+  QuestionDto,
+  QuestionDraftInput,
+  DemographicFormEntryDto,
+  DemographicFormVersionDto,
+  DemographicFormDto,
+  DemographicFormEntryInput,
+  DemographicFormDraftInput,
+  ResponseDto,
+  ConsentState,
+  PendingQuestion,
+  ConsentInput,
+  ResponseInput,
+  MyDemographicAnswer,
 };
 
 const endpoints = makeApi([
@@ -5283,6 +5481,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: NotificationRecipientsResponse,
   },
   {
+    method: "put",
+    path: "/conversation/:conversation_id/organization",
+    alias: "SetConversationHostingOrganization",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: HostingOrganizationRequest,
+      },
+    ],
+    response: ConversationDto,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/participation-count",
     alias: "GetParticipationCount",
@@ -5407,6 +5619,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: ReportImpactDto,
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/transfer-ownership",
+    alias: "TransferConversationOwnership",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: TransferOwnershipRequest,
+      },
+    ],
+    response: ConversationDto,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/workflow",
     alias: "ListConversationWorkflows",
@@ -5481,7 +5707,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation_report",
     alias: "GetConversationWorkflowParticipationReport",
     requestFormat: "json",
-    response: DemographicReport,
+    response: WorkflowDemographics,
   },
   {
     method: "get",
@@ -5789,199 +6015,391 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
-    path: "/demographics/conversations_questions",
-    alias: "GetConversationDemographics",
-    description: `Retrieve demographics responses for a specific conversation and question`,
+    path: "/demographics/defaults",
+    alias: "ListDemographicDefaults",
     requestFormat: "json",
-    parameters: [
-      {
-        name: "conversation_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "question_slug",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "limit",
-        type: "Query",
-        schema: limit,
-      },
-      {
-        name: "offset",
-        type: "Query",
-        schema: limit,
-      },
-    ],
-    response: PaginatedResults_for_ConversationDemographics,
+    response: z.array(QuestionDto),
   },
   {
     method: "post",
-    path: "/demographics/conversations_questions",
-    alias: "CreateConversationDemographics",
-    description: `Create a new demographics response for a specific conversation and question`,
+    path: "/demographics/defaults",
+    alias: "CreateDemographicDefault",
     requestFormat: "json",
     parameters: [
       {
         name: "body",
+        description: `The input for creating a question or replacing the content of its draft version.
+
+See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full representations.`,
         type: "Body",
-        schema: CreateConversationDemographics,
+        schema: QuestionDraftInput,
       },
     ],
-    response: ConversationDemographics,
+    response: QuestionDto,
+  },
+  {
+    method: "put",
+    path: "/demographics/defaults/:question_id/draft",
+    alias: "UpdateDemographicDefaultDraft",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `The input for creating a question or replacing the content of its draft version.
+
+See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full representations.`,
+        type: "Body",
+        schema: QuestionDraftInput,
+      },
+    ],
+    response: QuestionDto,
+  },
+  {
+    method: "post",
+    path: "/demographics/defaults/:question_id/publish",
+    alias: "PublishDemographicDefault",
+    requestFormat: "json",
+    response: QuestionDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/forms",
+    alias: "ListDemographicForms",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(DemographicFormDto),
+  },
+  {
+    method: "post",
+    path: "/demographics/forms",
+    alias: "CreateDemographicForm",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `The input for creating a form or replacing the content of its draft version.
+
+See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
+        type: "Body",
+        schema: DemographicFormDraftInput,
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/forms/:form_id",
+    alias: "GetDemographicForm",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
+  },
+  {
+    method: "post",
+    path: "/demographics/forms/:form_id/archive",
+    alias: "ArchiveDemographicForm",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
+  },
+  {
+    method: "put",
+    path: "/demographics/forms/:form_id/draft",
+    alias: "UpdateDemographicFormDraft",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `The input for creating a form or replacing the content of its draft version.
+
+See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
+        type: "Body",
+        schema: DemographicFormDraftInput,
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
+  },
+  {
+    method: "post",
+    path: "/demographics/forms/:form_id/draft",
+    alias: "StartDemographicFormDraft",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
   },
   {
     method: "delete",
-    path: "/demographics/conversations_questions/:conversation_id/:question_slug",
-    alias: "DeleteConversationDemographicsByQuestion",
-    description: `Delete demographics responses for a specific conversation and question`,
+    path: "/demographics/forms/:form_id/draft",
+    alias: "DiscardDemographicFormDraft",
     requestFormat: "json",
-    response: z.union([ConversationDemographics, z.null()]),
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/demographics/forms/:form_id/publish",
+    alias: "PublishDemographicForm",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/me/answers",
+    alias: "ListMyDemographicAnswers",
+    requestFormat: "json",
+    response: z.array(MyDemographicAnswer),
+  },
+  {
+    method: "post",
+    path: "/demographics/me/answers/:response_id/anonymise",
+    alias: "AnonymiseMyDemographicAnswer",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "put",
+    path: "/demographics/question-versions/:version_id/consent",
+    alias: "SetDemographicConsent",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `The input for granting or declining consent to share a special category answer.`,
+        type: "Body",
+        schema: z.object({ granted: z.boolean() }).passthrough(),
+      },
+    ],
+    response: z.enum(["none", "granted", "declined"]),
+  },
+  {
+    method: "put",
+    path: "/demographics/question-versions/:version_id/response",
+    alias: "PutDemographicResponse",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `The input for answering a question.`,
+        type: "Body",
+        schema: ResponseInput,
+      },
+    ],
+    response: ResponseDto,
   },
   {
     method: "get",
     path: "/demographics/questions",
-    alias: "GetDemographicsQuestions",
-    description: `Paginated list of demographics questions with optional filtering and ordering`,
+    alias: "ListDemographicQuestions",
     requestFormat: "json",
     parameters: [
       {
-        name: "conversation_id",
+        name: "organization",
         type: "Query",
         schema: created_after,
-      },
-      {
-        name: "question_slug",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "limit",
-        type: "Query",
-        schema: limit,
-      },
-      {
-        name: "offset",
-        type: "Query",
-        schema: limit,
       },
     ],
-    response: PaginatedResults_for_DemographicsQuestion,
+    response: z.array(QuestionDto),
   },
   {
     method: "post",
     path: "/demographics/questions",
-    alias: "CreateDemographicsQuestion",
-    description: `Create a new demographics question`,
+    alias: "CreateDemographicQuestion",
     requestFormat: "json",
     parameters: [
       {
         name: "body",
+        description: `The input for creating a question or replacing the content of its draft version.
+
+See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full representations.`,
         type: "Body",
-        schema: CreateDemographicsQuestion,
+        schema: QuestionDraftInput,
       },
-    ],
-    response: DemographicsQuestion,
-  },
-  {
-    method: "put",
-    path: "/demographics/questions/:question_slug",
-    alias: "UpdateDemographicsQuestion",
-    description: `Update a specific demographics question`,
-    requestFormat: "json",
-    parameters: [
       {
-        name: "body",
-        description: `Represents a demographics question.`,
-        type: "Body",
-        schema: PartialDemographicsQuestion,
+        name: "organization",
+        type: "Query",
+        schema: created_after,
       },
     ],
-    response: DemographicsQuestion,
-  },
-  {
-    method: "delete",
-    path: "/demographics/questions/:question_slug",
-    alias: "DeleteDemographicsQuestion",
-    description: `Delete a specific demographics question`,
-    requestFormat: "json",
-    response: z.union([DemographicsQuestion, z.null()]),
+    response: QuestionDto,
   },
   {
     method: "get",
-    path: "/demographics/responses",
-    alias: "GetDemographicsResponses",
-    description: `Paginated list of demographics responses with optional filtering and ordering`,
+    path: "/demographics/questions/:question_id",
+    alias: "GetDemographicQuestion",
     requestFormat: "json",
     parameters: [
       {
-        name: "conversation_id",
+        name: "organization",
         type: "Query",
         schema: created_after,
-      },
-      {
-        name: "question_slug",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "limit",
-        type: "Query",
-        schema: limit,
-      },
-      {
-        name: "offset",
-        type: "Query",
-        schema: limit,
       },
     ],
-    response: PaginatedResults_for_DemographicsResponse,
+    response: QuestionDto,
   },
   {
     method: "post",
-    path: "/demographics/responses",
-    alias: "CreateDemographicsResponse",
-    description: `Create a new response for a specific demographics question and user`,
+    path: "/demographics/questions/:question_id/archive",
+    alias: "ArchiveDemographicQuestion",
     requestFormat: "json",
     parameters: [
       {
-        name: "body",
-        type: "Body",
-        schema: CreateDemographicsResponse,
+        name: "organization",
+        type: "Query",
+        schema: created_after,
       },
     ],
-    response: DemographicsResponse,
+    response: QuestionDto,
   },
   {
     method: "put",
-    path: "/demographics/responses/:question_slug/:user_id",
-    alias: "UpdateDemographicsResponse",
-    description: `Update a response for a specific demographics question and user`,
+    path: "/demographics/questions/:question_id/draft",
+    alias: "UpdateDemographicQuestionDraft",
     requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `Represents a demographics response from a user to a specific demographics question.`,
+        description: `The input for creating a question or replacing the content of its draft version.
+
+See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full representations.`,
         type: "Body",
-        schema: PartialDemographicsResponse,
+        schema: QuestionDraftInput,
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
       },
     ],
-    response: DemographicsResponse,
+    response: QuestionDto,
+  },
+  {
+    method: "post",
+    path: "/demographics/questions/:question_id/draft",
+    alias: "StartDemographicQuestionDraft",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: QuestionDto,
   },
   {
     method: "delete",
-    path: "/demographics/responses/:question_slug/:user_id",
-    alias: "DeleteDemographicsResponse",
-    description: `Delete a response for a specific demographics question and user`,
+    path: "/demographics/questions/:question_id/draft",
+    alias: "DiscardDemographicQuestionDraft",
     requestFormat: "json",
-    response: z.union([DemographicsResponse, z.null()]),
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/demographics/questions/:question_id/publish",
+    alias: "PublishDemographicQuestion",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: QuestionDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/steps/:step_id/pending",
+    alias: "GetPendingDemographicQuestions",
+    requestFormat: "json",
+    response: z.array(PendingQuestion),
+  },
+  {
+    method: "get",
+    path: "/demographics/tags",
+    alias: "ListDemographicTags",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(DemographicTag),
+  },
+  {
+    method: "post",
+    path: "/demographics/tags",
+    alias: "CreateDemographicTag",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ name: z.string() }).passthrough(),
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicTag,
   },
   {
     method: "get",
