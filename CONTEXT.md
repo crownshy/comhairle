@@ -286,6 +286,13 @@ A composition of report components. There are exactly four, each a different aud
 3. **Presentation mode** — public room screen, live, per-tool; a looping, simplified, low-interaction "highlights" display for a live audience. Either cycles all tools or shows one picked tool.
 4. **End of engagement report** — participant + public, final (frozen snapshot), conversation-level cross-tool; **human-authored**: auto-generated insights that an editor curates in a rich-text (TipTap) document, pulling component blocks in.
 _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate concern, not one of the four).
+
+**Executive summary**:
+The short rich text an admin writes at the top of the End of engagement report (`report.summary`). Participants see it on the report's opening screen, under the "Final report" label. Reports made before the summary and body were split keep their whole text in `summary` and have no executive summary.
+
+**Report body**:
+The full End of engagement report (`report.body`), with its embedded components. Its H2 headings make the **report sections** (one pill each) and its H3 headings and horizontal rules make the **report cards** the participant pages through. See [ADR-0058](documentation/adr/0058-the-public-report-pages-by-its-own-headings.md).
+_Avoid_: card for a [[#report-component]] (a report card is one page of the report body).
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
 
 ### Room display

@@ -494,5 +494,19 @@
 	"polis_vote_more_to_continue": "Vote em mais {count} opiniões para continuar.",
 	"polis_finish_voting": "Terminei de votar",
 	"polis_finish_voting_hint": "Concluir esta etapa e seguir",
-	"step_menu_about_heading": "Sobre esta conversa"
+	"step_menu_about_heading": "Sobre esta conversa",
+	"report_final_report": "Relatório final",
+	"report_executive_summary": "Resumo executivo",
+	"report_read_more": "Ler mais",
+	"report_show_more": "Mostrar mais",
+	"report_show_less": "Mostrar menos",
+	"report_sections": "Secções do relatório",
+	"report_card_x_of_y": "{x} de {y}",
+	"report_introduction": "Introdução",
+	"report_thank_you_title": "Obrigado",
+	"report_thank_you_body": "Obrigado por dedicar tempo a ler este relatório e a explorar as perspetivas partilhadas ao longo da conversa.",
+	"report_thank_you_hope": "Esperamos que ofereça uma imagem útil do que é importante para as pessoas e de onde as opiniões convergem ou divergem.",
+	"report_next_steps": "Próximos passos",
+	"report_share": "Partilhar este relatório",
+	"report_link_copied": "Ligação copiada"
 }

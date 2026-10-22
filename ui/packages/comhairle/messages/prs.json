@@ -494,5 +494,19 @@
 	"polis_vote_more_to_continue": "برای ادامه به {count} نظر دیگر رأی دهید.",
 	"polis_finish_voting": "رأی‌دهی من تمام شد",
 	"polis_finish_voting_hint": "این مرحله را تمام کنید و به مرحله بعد بروید",
-	"step_menu_about_heading": "درباره این گفتگو"
+	"step_menu_about_heading": "درباره این گفتگو",
+	"report_final_report": "گزارش نهایی",
+	"report_executive_summary": "خلاصهٔ اجرایی",
+	"report_read_more": "بیشتر بخوانید",
+	"report_show_more": "نمایش بیشتر",
+	"report_show_less": "نمایش کمتر",
+	"report_sections": "بخش‌های گزارش",
+	"report_card_x_of_y": "{x} از {y}",
+	"report_introduction": "مقدمه",
+	"report_thank_you_title": "تشکر",
+	"report_thank_you_body": "تشکر که وقت گذاشتید تا این گزارش را بخوانید و دیدگاه‌هایی را که در جریان گفتگو شریک شدند بررسی کنید.",
+	"report_thank_you_hope": "امیدواریم این گزارش تصویر مفیدی از آنچه برای مردم مهم است، و جاهایی که دیدگاه‌ها با هم یکی می‌شوند یا تفاوت دارند، ارائه کند.",
+	"report_next_steps": "گام‌های بعدی",
+	"report_share": "این گزارش را شریک کنید",
+	"report_link_copied": "لینک کاپی شد"
 }
