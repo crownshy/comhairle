@@ -98,38 +98,6 @@ export function buildEmailTypeGroups(
 	});
 }
 
-/**
- * Narrows each group to the one version a conversation's participants actually receive:
- * the conversation's own version if it has one, otherwise the base row.
- * @param conversationId The conversation to show, or null to show every version.
- */
-export function filterGroupsForConversation(
-	groups: EmailTypeGroup[],
-	conversationId: string | null
-): EmailTypeGroup[] {
-	if (!conversationId) return groups;
-
-	return groups.map((group) => {
-		const own = group.rows.find((row) => row.conversationId === conversationId);
-		return { ...group, rows: [own ?? group.rows[0]] };
-	});
-}
-
-/** The conversations that have their own version of at least one email, by title. */
-export function scopedConversations(
-	configs: EmailTemplateConfigWithScopeDto[]
-): ScopedConversation[] {
-	const byId = new Map<string, string>();
-	for (const config of configs) {
-		if (config.conversationId && !byId.has(config.conversationId)) {
-			byId.set(config.conversationId, config.conversationTitle ?? 'Untitled conversation');
-		}
-	}
-	return [...byId.entries()]
-		.map(([id, title]) => ({ id, title }))
-		.sort((a, b) => a.title.localeCompare(b.title));
-}
-
 /** A conversation, as far as the email list needs it. */
 export type ConversationSummary = { id: string; title: string };
 
