@@ -16,9 +16,13 @@
 				<span class="text-sm">Email type:</span>
 				<p class="text-lg font-bold">{snakeToStartCase(emailConfig.emailType)}</p>
 			</div>
-			{#if emailConfig.conversationTitle}
+			{#if emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId}
 				<div class="flex flex-col gap-1 px-6 pb-6">
-					<span class="text-sm">Conversation:</span>
+					<p class="max-w-40 text-right text-lg">Fallback for all conversations</p>
+				</div>
+			{:else if emailConfig.emailType === 'conversation_invite' && emailConfig.conversationTitle}
+				<div class="flex flex-col gap-1 px-6 pb-6">
+					<span class="text-right">Conversation:</span>
 					<p class="text-lg font-bold">{emailConfig.conversationTitle}</p>
 				</div>
 			{/if}

@@ -5693,7 +5693,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetEmailTemplateConfig",
     description: `Get custom email template configuration`,
     requestFormat: "json",
-    response: EmailTemplateConfigDto,
+    response: EmailTemplateConfigWithScopeDto,
   },
   {
     method: "put",

@@ -594,6 +594,98 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
     Ok(email_config)
 }
 
+/// An [`EmailTemplateConfig`] together with display details of the scope it
+/// applies to, so templates of the same email type can be told apart.
+///
+/// `conversation_title` is `None` when the template is not scoped to a
+/// conversation.
+#[derive(Debug, FromRow)]
+pub struct EmailTemplateConfigWithScope {
+    #[sqlx(flatten)]
+    pub config: EmailTemplateConfig,
+    pub conversation_title: Option<String>,
+}
+
+/// Selects email template configs joined with the title of the conversation
+/// they are scoped to, in `locale` with a fallback to the conversation's
+/// primary locale.
+fn select_with_scope(locale: &str) -> SelectStatement {
+    let tc = Alias::new("tc_title");
+    let tt = Alias::new("tt_title");
+    let tt_primary = Alias::new("tt_primary_title");
+
+    Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EmailTemplateConfigIden::Table, col)))
+        .expr_as(
+            Func::coalesce([
+                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
+                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
+            ]),
+            Alias::new("conversation_title"),
+        )
+        .from(EmailTemplateConfigIden::Table)
+        .left_join(
+            ConversationIden::Table,
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::ConversationId,
+            ))
+            .equals((ConversationIden::Table, ConversationIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextContentIden::Table,
+            tc.clone(),
+            Expr::col((ConversationIden::Table, ConversationIden::Title))
+                .equals((tc.clone(), TextContentIden::Id)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt.clone(), TextTranslationIden::ContentId))
+                .and(Expr::col((tt.clone(), TextTranslationIden::Locale)).eq(locale)),
+        )
+        .join_as(
+            JoinType::LeftJoin,
+            TextTranslationIden::Table,
+            tt_primary.clone(),
+            Expr::col((tc.clone(), TextContentIden::Id))
+                .equals((tt_primary.clone(), TextTranslationIden::ContentId))
+                .and(
+                    Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
+                        .equals((tc.clone(), TextContentIden::PrimaryLocale)),
+                ),
+        )
+        .to_owned()
+}
+
+/// Gets a single [`EmailTemplateConfig`] by `id`, paired with the title of the
+/// conversation it is scoped to.
+///
+/// The title is returned in `locale` when a translation exists, falling back
+/// to the conversation's primary locale, and is `None` for unscoped templates.
+///
+/// Returns [`ComhairleError::ResourceNotFound`] when no config has this `id`.
+#[instrument(err(Debug), skip(db))]
+pub async fn get_by_id_with_scope(
+    db: &PgPool,
+    id: Uuid,
+    locale: &str,
+) -> Result<EmailTemplateConfigWithScope, ComhairleError> {
+    let (sql, values) = select_with_scope(locale)
+        .and_where(Expr::col((EmailTemplateConfigIden::Table, EmailTemplateConfigIden::Id)).eq(id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let email_config = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Email Template Config")?;
+
+    Ok(email_config)
+}
+
 /// Finds the [`EmailTemplateConfig`] that should be used when sending an email
 /// of `email_type`.
 ///
@@ -691,18 +783,6 @@ pub async fn list(
     Ok(email_configs)
 }
 
-/// An [`EmailTemplateConfig`] together with display details of the scope it
-/// applies to, so templates of the same email type can be told apart.
-///
-/// `conversation_title` is `None` when the template is not scoped to a
-/// conversation.
-#[derive(Debug, FromRow)]
-pub struct EmailTemplateConfigWithScope {
-    #[sqlx(flatten)]
-    pub config: EmailTemplateConfig,
-    pub conversation_title: Option<String>,
-}
-
 /// Lists the email templates owned by `user_id`, each paired with the title of
 /// the conversation it is scoped to.
 ///
@@ -726,54 +806,7 @@ pub async fn list_with_scope(
     filter_options: EmailTemplateConfigFilterOptions,
     locale: &str,
 ) -> Result<Vec<EmailTemplateConfigWithScope>, ComhairleError> {
-    let tc = Alias::new("tc_title");
-    let tt = Alias::new("tt_title");
-    let tt_primary = Alias::new("tt_primary_title");
-
-    let query = Query::select()
-        .columns(DEFAULT_COLUMNS.map(|col| (EmailTemplateConfigIden::Table, col)))
-        .expr_as(
-            Func::coalesce([
-                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
-                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
-            ]),
-            Alias::new("conversation_title"),
-        )
-        .from(EmailTemplateConfigIden::Table)
-        .left_join(
-            ConversationIden::Table,
-            Expr::col((
-                EmailTemplateConfigIden::Table,
-                EmailTemplateConfigIden::ConversationId,
-            ))
-            .equals((ConversationIden::Table, ConversationIden::Id)),
-        )
-        .join_as(
-            JoinType::LeftJoin,
-            TextContentIden::Table,
-            tc.clone(),
-            Expr::col((ConversationIden::Table, ConversationIden::Title))
-                .equals((tc.clone(), TextContentIden::Id)),
-        )
-        .join_as(
-            JoinType::LeftJoin,
-            TextTranslationIden::Table,
-            tt.clone(),
-            Expr::col((tc.clone(), TextContentIden::Id))
-                .equals((tt.clone(), TextTranslationIden::ContentId))
-                .and(Expr::col((tt.clone(), TextTranslationIden::Locale)).eq(locale)),
-        )
-        .join_as(
-            JoinType::LeftJoin,
-            TextTranslationIden::Table,
-            tt_primary.clone(),
-            Expr::col((tc.clone(), TextContentIden::Id))
-                .equals((tt_primary.clone(), TextTranslationIden::ContentId))
-                .and(
-                    Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
-                        .equals((tc.clone(), TextContentIden::PrimaryLocale)),
-                ),
-        )
+    let query = select_with_scope(locale)
         .and_where(
             Expr::col((
                 EmailTemplateConfigIden::Table,
@@ -1245,6 +1278,31 @@ mod tests {
         let email_config = get_by_id(&pool, new_email_config.id).await?;
 
         assert_eq!(new_email_config.id, email_config.id, "ids don't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_email_config_with_scope(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+
+        let new_scoped = create(
+            &pool,
+            user.id,
+            &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+
+        let found_scoped = get_by_id_with_scope(&pool, new_scoped.id, "en").await?;
+
+        assert_eq!(
+            found_scoped.conversation_title,
+            Some(conversation.title),
+            "conversation_title does not match"
+        );
 
         Ok(())
     }
