@@ -86,6 +86,7 @@ struct PcaData {
 
 #[derive(Deserialize, Debug)]
 struct GroupCluster {
+    /// Base-cluster ids, not participant ids. Resolve through `BaseClusters::pids_of`.
     members: Vec<u32>,
 }
 
@@ -94,11 +95,36 @@ struct RepnessEntry {
     tid: u32,
 }
 
+/// Polis first buckets participants into many small base clusters, then groups those.
+/// Column-wise: `id[i]`, `members[i]` (participant ids), `x[i]` and `y[i]` describe one
+/// base cluster.
 #[derive(Deserialize, Debug)]
 struct BaseClusters {
+    #[serde(default)]
+    id: Vec<u32>,
     members: Vec<Vec<u32>>,
     x: Vec<f64>,
     y: Vec<f64>,
+}
+
+impl BaseClusters {
+    /// Participant ids in the given base clusters. Falls back to treating the id as an
+    /// index when Polis sent no `id` column.
+    fn pids_of(&self, base_cluster_ids: &[u32]) -> Vec<u32> {
+        base_cluster_ids
+            .iter()
+            .filter_map(|&base_id| {
+                let index = if self.id.is_empty() {
+                    Some(base_id as usize)
+                } else {
+                    self.id.iter().position(|&id| id == base_id)
+                };
+                index.and_then(|index| self.members.get(index))
+            })
+            .flatten()
+            .copied()
+            .collect()
+    }
 }
 
 pub struct PolisClient {
@@ -505,7 +531,7 @@ impl PolisClient {
             groups_report.push(GroupReportData {
                 group_id,
                 representative_comments,
-                members: cluster.members.clone(),
+                members: math_pca.base_clusters.pids_of(&cluster.members),
                 total_members: *group_sizes.get(idx).unwrap_or(&0),
             });
         }
@@ -513,7 +539,7 @@ impl PolisClient {
         // Build participants list with group membership
         let mut pid_to_group = HashMap::new();
         for (group_id, cluster) in math_pca.group_clusters.iter().enumerate() {
-            for &pid in cluster.members.iter() {
+            for pid in math_pca.base_clusters.pids_of(&cluster.members) {
                 pid_to_group.insert(pid, group_id as u32);
             }
         }
@@ -1105,6 +1131,7 @@ mod tests {
             group_clusters: Vec::new(),
             repness: HashMap::new(),
             base_clusters: BaseClusters {
+                id: Vec::new(),
                 members: Vec::new(),
                 x: Vec::new(),
                 y: Vec::new(),
@@ -1133,5 +1160,38 @@ mod tests {
     #[test]
     fn open_moderation_reports_pending_statements_too() {
         assert_eq!(reported_tids(ReportScope::AcceptedAndPending), vec![1, 2]);
+    }
+
+    #[test]
+    fn group_membership_resolves_base_clusters_to_participants() {
+        let mut math = math_for(vec![1]);
+        math.base_clusters = BaseClusters {
+            id: vec![10, 11, 12],
+            members: vec![vec![1, 2], vec![3], vec![4, 5]],
+            x: vec![0.0, 0.1, 0.2],
+            y: vec![0.0, 0.1, 0.2],
+        };
+        math.group_clusters = vec![
+            GroupCluster {
+                members: vec![10, 12],
+            },
+            GroupCluster { members: vec![11] },
+        ];
+
+        let report = PolisClient::new("polis.comhairle.scot")
+            .transform_report_data(&math, &[comment(1, 1.0)], ReportScope::AcceptedOnly)
+            .expect("transform should succeed");
+
+        assert_eq!(report.groups[0].members, vec![1, 2, 4, 5]);
+        assert_eq!(report.groups[1].members, vec![3]);
+        let group_of = |pid: u32| {
+            report
+                .participants
+                .iter()
+                .find(|p| p.pid == pid)
+                .and_then(|p| p.group_id)
+        };
+        assert_eq!(group_of(4), Some(0));
+        assert_eq!(group_of(3), Some(1));
     }
 }

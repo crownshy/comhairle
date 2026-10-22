@@ -5,6 +5,8 @@
 export type ToolSequence = {
 	/** Undefined at the tool's last page, so forward completes the step. */
 	next?: () => void;
+	/** Forward's label while `next` is set, such as "Submit". Left out, it says Next. */
+	nextLabel?: string;
 	/** Undefined at the tool's first page, so back leaves the step. */
 	previous?: () => void;
 	/** Fill of this step's progress segment, 0 to 1. */

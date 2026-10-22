@@ -272,21 +272,23 @@
 					{introUrl}
 					preview={isPreview}
 				/>
-				{#if showNavigationSkeleton.current}
-					<StepHeaderSkeleton />
-				{:else}
-					<StepHeader
-						title={workflowStep.name}
-						description={workflowStep.description}
-						{availableDocuments}
-						conversationId={conversation.id}
-					/>
-				{/if}
 			</div>
 		{/snippet}
 
 		{#snippet content()}
-			<div class={cn(STEP_COLUMN_CLASS, 'flex min-h-full flex-col pt-2')}>
+			<!-- The step name scrolls away with the tool so it never sits over the tool's
+			     content, and phones get the room back (ADR-0063). -->
+			{#if showNavigationSkeleton.current}
+				<StepHeaderSkeleton />
+			{:else}
+				<StepHeader
+					title={workflowStep.name}
+					description={workflowStep.description}
+					{availableDocuments}
+					conversationId={conversation.id}
+				/>
+			{/if}
+			<div class={cn(STEP_COLUMN_CLASS, 'flex grow flex-col pt-2')}>
 				<!-- SvelteKit keeps this page mounted between steps, so the key drops the last tool's state. -->
 				{#key workflowStep.id}
 					{#if showNavigationSkeleton.current}
@@ -319,6 +321,8 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 							onDone={stepComplete}
+							topic={toolConfig.topic}
+							strictModeration={toolConfig.strict_moderation}
 						/>
 					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						<HeyForm.UserUI
@@ -378,6 +382,7 @@
 		{#snippet bar()}
 			<StepPager
 				{forwardMode}
+				nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
 				{canGoBack}
 				{canGoForward}
 				loading={isSubmitting}
