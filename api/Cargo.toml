@@ -143,6 +143,7 @@ moka = { version = "0.12", features = ["future"] }
 sensemakar ={path="../sensemakar/sensemakar_core"}
 sensemakar_jobs ={path="../sensemakar/sensemakar_jobs"}
 sensemakar_types ={path="../sensemakar/sensemakar_types"}
+language-tags = { version = "0.3.2", features = ["serde"] }
 
 # adaptors
 

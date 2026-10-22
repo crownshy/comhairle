@@ -21,6 +21,7 @@ type InputKey =
 	| 'admin/polis/report'
 	| 'admin/polis/statements'
 	| 'admin/polis/summary'
+	| 'admin/polis/theme-collection'
 	| 'admin/regions'
 	| 'admin/system/permissions'
 	| 'admin/workflow-steps'

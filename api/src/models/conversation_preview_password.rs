@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 

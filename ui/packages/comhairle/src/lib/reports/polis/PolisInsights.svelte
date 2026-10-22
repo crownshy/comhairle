@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { ReportComment, PolisReportData } from '$lib/tools/polis/reportTypes';
-	import type { PolisStatementAux, WikiPollConversationSummary } from '@crownshy/api-client/api';
+	import type {
+		PolisStatementAux,
+		ThemeCollectionDto,
+		WikiPollConversationSummary
+	} from '@crownshy/api-client/api';
 	import {
 		getEngagementStats,
 		getConsensusStatements,
@@ -13,7 +17,9 @@
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
 	import PolisSummaryPanel from './PolisSummaryPanel.svelte';
+	import ThemeExplorer from '$lib/components/report/ThemeExplorer.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
@@ -22,20 +28,51 @@
 
 	let {
 		conversationId,
+		workflowId,
 		workflowStepId,
 		reportData,
 		statementAux,
 		actions,
-		summary
+		summary,
+		topic,
+		initialThemeCollection
 	}: {
 		conversationId: string;
+		workflowId: string;
 		workflowStepId: string;
 		reportData: PolisReportData | null;
 		statementAux: PolisStatementAux[];
 		/** Extra page actions, shown beside Download CSV. */
 		actions?: Snippet;
 		summary: WikiPollConversationSummary | null;
+		/** The Polis conversation's question, used to seed the theme-generation context. */
+		topic?: string | null;
+		/** The most recently generated theme collection, loaded server-side. */
+		initialThemeCollection?: ThemeCollectionDto | null;
 	} = $props();
+
+	const themeContext = $derived(
+		topic
+			? `Statements submitted through polis. The question being proposed is ${topic}`
+			: 'Statements submitted through polis'
+	);
+
+	/** AI-generated theme titles, keyed by Polis statement id (as a string, matching
+	 * Statement.sourceSubId). Seeded from `initialThemeCollection` and refreshed whenever
+	 * ThemeExplorer loads a (re)generated collection. */
+	function themeTitlesByStatementSubId(collection: ThemeCollectionDto): Record<string, string> {
+		const titles: Record<string, string> = {};
+		for (const theme of collection.themes) {
+			for (const statement of theme.statements) {
+				if (statement.sourceSubId) titles[statement.sourceSubId] = theme.title;
+			}
+		}
+		return titles;
+	}
+
+	let themeTitleByTid = $state<Record<string, string>>(
+		initialThemeCollection ? themeTitlesByStatementSubId(initialThemeCollection) : {}
+	);
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
 	);
@@ -86,12 +123,11 @@
 	});
 
 	/**
-	 * Overlay aux.themes onto each comment so the existing utils (which read
-	 * `comment.topics`) get aux-sourced themes for free. Themes are human-authored
-	 * today and live only in aux; Polis carries none, so `comment.topics` is empty
-	 * until a future source populates it. Comments with no aux row keep that empty
-	 * `topics` and simply contribute no themes. Works on a cloned copy so the
-	 * `reportData` prop is never mutated in place across reruns.
+	 * Overlay aux.themes (human-authored) and AI-generated theme titles onto each
+	 * comment so the existing utils (which read `comment.topics`) get both for free.
+	 * Comments with neither keep an empty `topics` and simply contribute no themes.
+	 * Works on a cloned copy so the `reportData` prop is never mutated in place
+	 * across reruns.
 	 */
 	const report = $derived.by<PolisReportData | null>(() => {
 		if (!reportData) return null;
@@ -99,7 +135,12 @@
 			...reportData,
 			comments: reportData.comments.map((c) => {
 				const aux = auxByTid[c.tid];
-				return aux ? { ...c, topics: aux.themes } : c;
+				const generatedTheme = themeTitleByTid[String(c.tid)];
+				const topics = [
+					...(aux?.themes ?? []),
+					...(generatedTheme ? [generatedTheme] : [])
+				];
+				return topics.length > 0 ? { ...c, topics } : c;
 			})
 		};
 	});
@@ -277,5 +318,16 @@
 
 		<!-- ===== Opinion groups ===== -->
 		<OpinionGroups comments={report.comments} groups={report.groups} {groupSummaries} />
+
+		<!-- ===== Themes ===== -->
+		<ThemeExplorer
+			{conversationId}
+			{workflowId}
+			{workflowStepId}
+			sourceTool="polis"
+			defaultContext={themeContext}
+			{initialThemeCollection}
+			onThemesLoaded={(titles) => (themeTitleByTid = titles)}
+		/>
 	</div>
 {/if}
