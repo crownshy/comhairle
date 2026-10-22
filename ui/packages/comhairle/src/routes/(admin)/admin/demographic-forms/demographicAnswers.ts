@@ -1,0 +1,59 @@
+import type { QuestionKind } from './demographicModel';
+
+export const PREFER_NOT_TO_SAY = 'Prefer not to say';
+export const OTHER_CHOICE = 'Other (please specify)';
+
+export type Answer = { selected: string[]; otherText: string; text: string };
+
+export const emptyAnswer = (): Answer => ({ selected: [], otherText: '', text: '' });
+
+const countableSelections = (answer: Answer) =>
+	answer.selected.filter((choice) => choice !== PREFER_NOT_TO_SAY).length;
+
+export function isChoiceDisabled(
+	answer: Answer,
+	choice: string,
+	kind: QuestionKind,
+	maxSelections: number | null
+) {
+	if (kind !== 'multiple_choice' || maxSelections === null) return false;
+	if (choice === PREFER_NOT_TO_SAY || answer.selected.includes(choice)) return false;
+	return countableSelections(answer) >= maxSelections;
+}
+
+export function toggleChoice(
+	answer: Answer,
+	choice: string,
+	kind: QuestionKind,
+	maxSelections: number | null
+): Answer {
+	let selected: string[];
+	if (answer.selected.includes(choice)) {
+		selected = answer.selected.filter((value) => value !== choice);
+	} else if (kind === 'single_choice' || choice === PREFER_NOT_TO_SAY) {
+		selected = [choice];
+	} else if (isChoiceDisabled(answer, choice, kind, maxSelections)) {
+		return answer;
+	} else {
+		selected = [...answer.selected.filter((value) => value !== PREFER_NOT_TO_SAY), choice];
+	}
+	return {
+		...answer,
+		selected,
+		otherText: selected.includes(OTHER_CHOICE) ? answer.otherText : ''
+	};
+}
+
+export const isAnswered = (answer: Answer) =>
+	answer.selected.length > 0 || answer.text.trim() !== '';
+
+/** Readable one-line version of an answer, used in the test summary. */
+export const summariseAnswer = (answer: Answer) => {
+	const parts = answer.selected.map((choice) =>
+		choice === OTHER_CHOICE && answer.otherText.trim() !== ''
+			? `Other: ${answer.otherText.trim()}`
+			: choice
+	);
+	if (answer.text.trim() !== '') parts.push(answer.text.trim());
+	return parts.join(', ');
+};

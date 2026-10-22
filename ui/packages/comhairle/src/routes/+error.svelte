@@ -5,6 +5,10 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { ArrowLeft } from 'lucide-svelte';
 	import { canAccessAdminPortal } from '$lib/utils/permissions';
+	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
+
+	// Errors can happen outside the (public) layout, which normally provides this context.
+	setSupportDrawer();
 
 	let status = $derived(page.status);
 	let message = $derived(page.error?.message ?? 'Something went wrong');

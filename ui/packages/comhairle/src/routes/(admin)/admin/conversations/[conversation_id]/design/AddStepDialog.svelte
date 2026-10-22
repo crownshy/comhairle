@@ -5,6 +5,13 @@
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
+	import type { DemographicSelection } from '$lib/demographicCatalogue';
+	import {
+		listPublishedDemographicForms,
+		listPublishedDemographicQuestions,
+		type PickerLoad,
+		type PublishedDemographicItem
+	} from '$lib/demographicCatalogue';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { createWorkflowStep } from './createWorkflowstep';
@@ -12,23 +19,31 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import type { ConversationDto, WorkflowDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
+	import DemographicItemPicker from './DemographicItemPicker.svelte';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
 	 * detail panel on the right). Mirrors the choose-a-template dialog's shell and
-	 * reuses {@link SelectableOptionRow}. It does not touch the API itself. On confirm
-	 * it emits either the selected tool's `creationKey` (via {@link onAdd}) or, for an
-	 * event stand-in like the video conference, calls {@link onAddEvent}; the parent
-	 * then creates the step or event and closes the dialog.
+	 * reuses {@link SelectableOptionRow}. On confirm it creates the step for the selected tool
+	 * (with the chosen question or form for demographic steps), or hands off to the
+	 * create-event flow for an event stand-in like the video conference.
 	 */
 	type Props = {
 		workflowId: WorkflowDto['id'];
 		conversationId: ConversationDto['id'];
 		highestStepOrder: number;
 		open?: boolean;
+		/** The hosting organisation whose question and form banks demographic steps draw from. */
+		organizationId: string | null;
 	};
 
-	let { workflowId, conversationId, highestStepOrder, open = $bindable(false) }: Props = $props();
+	let {
+		workflowId,
+		conversationId,
+		organizationId,
+		highestStepOrder,
+		open = $bindable(false)
+	}: Props = $props();
 
 	let adding = $state<boolean>(false);
 
@@ -37,7 +52,7 @@
 		PALETTE_TOOLS.find((t) => t.type === selectedType) ?? PALETTE_TOOLS[0]
 	);
 
-	async function addStep(creationKey: CreationKey) {
+	async function addStep(creationKey: CreationKey, selection?: DemographicSelection) {
 		if (adding) return;
 		adding = true;
 
@@ -45,7 +60,8 @@
 			creationKey,
 			conversationId,
 			workflowId,
-			highestStepOrder
+			highestStepOrder,
+			selection
 		});
 
 		adding = false;
@@ -84,6 +100,49 @@
 			})
 		);
 	}
+
+	let questionLoad = $state<PickerLoad>({ status: 'loading' });
+	let formLoad = $state<PickerLoad>({ status: 'loading' });
+	let picked = $state<{ type: string; item: PublishedDemographicItem } | null>(null);
+
+	const selectedCreationKey = $derived(
+		isEventPaletteItem(selected) ? null : selected.creationKey
+	);
+	const demographicNoun = $derived(
+		selectedCreationKey === 'Demographic Question'
+			? 'question'
+			: selectedCreationKey === 'Demographic Form'
+				? 'form'
+				: null
+	);
+	const pickerLoad = $derived(
+		selectedCreationKey === 'Demographic Form' ? formLoad : questionLoad
+	);
+	function needsOrganization(tool: (typeof PALETTE_TOOLS)[number]): boolean {
+		return (
+			!isEventPaletteItem(tool) &&
+			(tool.creationKey === 'Demographic Question' || tool.creationKey === 'Demographic Form')
+		);
+	}
+	const missingOrganization = $derived(organizationId === null);
+	const pickedForSelected = $derived(
+		picked && picked.type === selected.type ? picked.item : null
+	);
+
+	async function loadPickers() {
+		const [questions, forms] = await Promise.all([
+			listPublishedDemographicQuestions(organizationId),
+			listPublishedDemographicForms(organizationId)
+		]);
+		questionLoad =
+			questions.err === null ? { status: 'ready', items: questions.ok } : { status: 'error' };
+		formLoad = forms.err === null ? { status: 'ready', items: forms.ok } : { status: 'error' };
+	}
+
+	// Reload on every open so questions and forms published since the last open appear.
+	$effect(() => {
+		if (open) void loadPickers();
+	});
 </script>
 
 <Dialog.Root bind:open>
@@ -107,9 +166,25 @@
 						selected={selectedType === tool.type}
 						name={tool.displayName}
 						description={tool.tagline}
+						disabled={missingOrganization && needsOrganization(tool)}
 						onSelect={() => (selectedType = tool.type)}
 					/>
 				{/each}
+				{#if missingOrganization}
+					<p class="text-muted-foreground text-base">
+						Demographic steps are unavailable because this conversation has no hosting
+						organisation. Questions and forms come from the hosting organisation.
+						<a
+							href={resolve(
+								'/(admin)/admin/conversations/[conversation_id]/configure/team',
+								{ conversation_id: conversationId }
+							)}
+							class="text-primary underline"
+						>
+							Configure one
+						</a>
+					</p>
+				{/if}
 			</div>
 
 			<!-- Right: selected step-type detail -->
@@ -120,43 +195,54 @@
 					<h3 class="text-foreground text-base font-bold">{selected.displayName}</h3>
 					<p class="text-muted-foreground text-base">{selected.description}</p>
 
-					<!-- Setup guide callout -->
-					<a
-						href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-							tool_id: selected.infoSlug
-						})}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
-					>
-						<BookOpen class="text-primary size-4 shrink-0" />
-						<span class="flex flex-1 flex-col">
-							<span class="text-primary text-xs font-semibold">
-								Introduction & setup guide
+					{#if selected.infoSlug}
+						<!-- Setup guide callout -->
+						<a
+							href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+								tool_id: selected.infoSlug
+							})}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
+						>
+							<BookOpen class="text-primary size-4 shrink-0" />
+							<span class="flex flex-1 flex-col">
+								<span class="text-primary text-xs font-semibold">
+									Introduction & setup guide
+								</span>
+								<span class="text-muted-foreground text-xs">
+									Learn how to configure this step, see examples, and understand
+									best practices.
+								</span>
 							</span>
-							<span class="text-muted-foreground text-xs">
-								Learn how to configure this step, see examples, and understand best
-								practices.
-							</span>
-						</span>
-						<ExternalLink class="text-primary size-3.5 shrink-0" />
-					</a>
+							<ExternalLink class="text-primary size-3.5 shrink-0" />
+						</a>
+					{/if}
 				</div>
 
-				<!-- Example media placeholders (tokenized blocks; no photos) -->
-				<div class="flex gap-2.5">
-					{#each [0, 1, 2] as block (block)}
-						<div
-							class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
-						>
-							<span
-								class="text-primary/70 border-primary/40 -rotate-30 rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+				{#if demographicNoun}
+					<DemographicItemPicker
+						noun={demographicNoun}
+						load={pickerLoad}
+						selectedId={pickedForSelected?.id ?? null}
+						onSelect={(item) => (picked = { type: selected.type, item })}
+					/>
+				{:else}
+					<!-- Example media placeholders (tokenized blocks; no photos) -->
+					<div class="flex gap-2.5">
+						{#each [0, 1, 2] as block (block)}
+							<div
+								class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
 							>
-								Example
-							</span>
-						</div>
-					{/each}
-				</div>
+								<span
+									class="text-primary/70 border-primary/40 -rotate-30 rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
+								>
+									Example
+								</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
 
 				{#if selected.bestFor.length}
 					<section class="flex flex-col gap-2">
@@ -209,17 +295,21 @@
 		</div>
 
 		<Dialog.Footer class="items-center sm:justify-between">
-			<a
-				href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-					tool_id: selected.infoSlug
-				})}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
-			>
-				<BookOpen class="size-3.5" />
-				Learn more in the guidebook
-			</a>
+			{#if selected.infoSlug}
+				<a
+					href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+						tool_id: selected.infoSlug
+					})}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
+				>
+					<BookOpen class="size-3.5" />
+					Learn more in the guidebook
+				</a>
+			{:else}
+				<span></span>
+			{/if}
 			<div class="flex items-center gap-2">
 				<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}>
 					Cancel
@@ -228,8 +318,11 @@
 					variant="default"
 					size="sm"
 					loading={adding}
+					disabled={demographicNoun !== null && pickedForSelected === null}
 					onclick={() =>
-						isEventPaletteItem(selected) ? addEvent() : addStep(selected.creationKey)}
+						isEventPaletteItem(selected)
+							? addEvent()
+							: addStep(selected.creationKey, pickedForSelected ?? undefined)}
 				>
 					+ Add this step
 				</LoadingButton>

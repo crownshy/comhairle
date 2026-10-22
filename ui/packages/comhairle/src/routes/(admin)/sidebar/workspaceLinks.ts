@@ -1,6 +1,15 @@
 import type { ComponentType } from 'svelte';
 import { resolve } from '$app/paths';
-import { Building2, Images, LayoutGrid, Mail, Map, Shield } from 'lucide-svelte';
+import {
+	Building2,
+	ClipboardList,
+	FlaskConical,
+	Images,
+	LayoutGrid,
+	Mail,
+	Map,
+	Shield
+} from 'lucide-svelte';
 
 export type WorkspaceLink = {
 	label: string;
@@ -38,6 +47,16 @@ export function workspaceGroups({ isSiteAdmin, isSuperAdmin }: WorkspaceRoles): 
 					label: 'Email templates',
 					href: resolve('/admin/email-template-configs'),
 					icon: Mail
+				},
+				{
+					label: 'Demographic forms',
+					href: resolve('/admin/demographic-forms'),
+					icon: ClipboardList
+				},
+				{
+					label: 'Hybrid works (prototype)',
+					href: resolve('/admin/demographic-forms/prototype-conversation/design'),
+					icon: FlaskConical
 				}
 			]
 		});
