@@ -13,6 +13,7 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
 	import { key } from '$lib/utils/invalidationKey';
+	import { LocalizedConversationDto } from '@crownshy/api-client/api';
 
 	type FormState = {
 		subject?: string;
@@ -20,9 +21,16 @@
 	};
 
 	let { data } = $props();
-	const { schemas } = data;
+	const { schemas, conversations, emailConfigs } = data;
 
 	let selectedSchema = $state(schemas[0]);
+	let filteredConversations = $derived(
+		conversations.filter(
+			(conversation) =>
+				!emailConfigs.find((config) => config.conversationId === conversation.id)
+		)
+	);
+	let selectedConversation = $state<LocalizedConversationDto | null>(null);
 	let formState = $derived.by(() => {
 		const output: FormState = {
 			slots: {},
@@ -49,6 +57,10 @@
 		selectedSchema = schemas.find((s) => s.email_type === value);
 	}
 
+	function handleSelectConversation(value: string) {
+		selectedConversation = conversations.find((c) => c.id === value) ?? null;
+	}
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 
@@ -70,7 +82,11 @@
 					type: selectedSchema.email_type,
 					...parsed
 				},
-				...(formState.subject && { subject: formState.subject })
+				...(formState.subject && { subject: formState.subject }),
+				...(selectedConversation &&
+					selectedSchema.email_type === 'conversation_invite' && {
+						conversation_id: selectedConversation.id
+					})
 			});
 
 			notifications.send({
@@ -123,22 +139,49 @@
 <h1 class="text-4xl font-bold">Create new custom email</h1>
 
 <div class="flex justify-between">
-	<div class="flex flex-col gap-4">
-		<h2 class="text-xl font-semibold">Email type:</h2>
-		<Select.Root
-			type="single"
-			value={selectedSchema.email_type}
-			onValueChange={handleSelectSchema}
-		>
-			<Select.Trigger class="">{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger>
-			<Select.Content>
-				{#each schemas as schema (schema.email_type)}
-					<Select.Item value={schema.email_type}
-						>{snakeToStartCase(schema.email_type)}</Select.Item
+	<div class="mb-4 flex justify-between">
+		<div class="flex flex-col gap-4">
+			<h2 class="text-xl font-semibold">Email type:</h2>
+			<Select.Root
+				type="single"
+				value={selectedSchema.email_type}
+				onValueChange={handleSelectSchema}
+			>
+				<Select.Trigger class=""
+					>{snakeToStartCase(selectedSchema.email_type)}</Select.Trigger
+				>
+				<Select.Content>
+					{#each schemas as schema (schema.email_type)}
+						<Select.Item value={schema.email_type}
+							>{snakeToStartCase(schema.email_type)}</Select.Item
+						>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+			{#if selectedSchema.email_type === 'conversation_invite' && filteredConversations.length > 0}
+				<div class="flex flex-col gap-2">
+					<h2 class="text-xl font-semibold">Scoped Conversation</h2>
+					<Select.Root
+						type="single"
+						value={selectedConversation?.id}
+						onValueChange={handleSelectConversation}
 					>
-				{/each}
-			</Select.Content>
-		</Select.Root>
+						<Select.Trigger class="w-fit"
+							>{selectedConversation?.title ??
+								'All conversations (fallback)'}</Select.Trigger
+						>
+						<Select.Content>
+							<Select.Item value="">All conversations (fallback)</Select.Item>
+							{#each filteredConversations as conversation (conversation.id)}
+								<Select.Item value={conversation.id}>
+									{conversation.title}
+								</Select.Item>
+							{/each}
+						</Select.Content>
+					</Select.Root>
+				</div>
+			{/if}
+		</div>
 	</div>
 	<Button
 		variant="default"

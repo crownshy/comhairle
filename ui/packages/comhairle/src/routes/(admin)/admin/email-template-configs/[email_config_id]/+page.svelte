@@ -128,13 +128,31 @@
 			console.error(e);
 		}
 	}, 300);
+
+	const headerTitle = () => {
+		let title = snakeToStartCase(emailConfig.emailType);
+
+		if (
+			emailConfig.emailType === 'conversation_invite' &&
+			emailConfig.conversationId &&
+			emailConfig.conversationTitle
+		) {
+			title = title.concat(` (${emailConfig.conversationTitle})`);
+		}
+
+		if (emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId) {
+			title = title.concat(' (Fallback)');
+		}
+
+		return title;
+	};
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="text-4xl font-bold">Custom email: {snakeToStartCase(emailConfig.emailType)}</h1>
+<h1 class="text-4xl font-bold">{headerTitle()}</h1>
 
 <div class="flex justify-end gap-2">
 	<Button variant="destructive" type="button" onclick={() => (openDeleteModal = true)}
