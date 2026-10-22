@@ -55,9 +55,8 @@
 		Array.isArray(currentPage) ? currentPage.filter((p) => p.lang === getLocale()) : []
 	);
 	let content = $derived(currentPageTranslation[0]?.content);
-	// Glossary is stored on the conversation's metadata jsonb (edited in the admin Configure ->
-	// Glossary tab); terms get an auto tooltip in the rendered article, resolved to the
-	// participant's current locale (falling back to the conversation's primary locale).
+	// The glossary lives in the conversation's metadata (edited under Configure, Content). Its
+	// terms get a tooltip in the article, in the participant's locale or else the primary one.
 	let glossary = $derived(
 		resolveGlossaryFromMetadata(
 			conversation?.metadata,
