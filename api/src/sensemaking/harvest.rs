@@ -18,7 +18,7 @@ use crate::models::proposal_response::{
     self, ProposalResponseFilterOptions, ProposalResponseOrderOptions, ResponseValue,
 };
 use crate::models::statement::{self, CreateStatement, Statement};
-use crate::models::thinking_space_answer::{self, ThinkingSpaceAnswerFilterOptions};
+use crate::models::thinking_space_summary::{self, ThinkingSpaceSummaryFilterOptions};
 use crate::tools::heyform;
 
 /// Harvests the free-text source data for `workflow_step_id` from `tool` into
@@ -128,28 +128,29 @@ async fn harvest_thinking_space(
     state: &Arc<ComhairleState>,
     workflow_step_id: Uuid,
 ) -> Result<Vec<Statement>, ComhairleError> {
-    let answers = thinking_space_answer::list(
+    let summaries = thinking_space_summary::list(
         &state.db,
         &workflow_step_id,
-        ThinkingSpaceAnswerFilterOptions::default(),
+        ThinkingSpaceSummaryFilterOptions {
+            is_shared_with_organizer: Some(true),
+            ..Default::default()
+        },
     )
     .await?;
 
     let mut statements = Vec::new();
-    for answer in answers {
-        if answer.answer.trim().is_empty() {
+    for summary in summaries {
+        if summary.summary.trim().is_empty() {
             continue;
         }
 
         let payload = CreateStatement {
-            user_id: Some(answer.user_id),
-            content: answer.answer.clone(),
-            context: answer.question.clone(),
+            user_id: Some(summary.user_id),
+            content: summary.summary.clone(),
+            context: "Thinking space summary".to_string(),
             ai_generated: false,
             source_tool: "thinking_space".to_string(),
-            // The answer row's own id uniquely identifies it; root_question_id is
-            // shared across every participant who answered that question.
-            source_sub_id: Some(answer.id.to_string()),
+            source_sub_id: Some(summary.id.to_string()),
         };
         statements
             .push(statement::upsert_from_source(&state.db, workflow_step_id, &payload).await?);
