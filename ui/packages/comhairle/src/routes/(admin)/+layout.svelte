@@ -60,7 +60,6 @@
 {#if data.user}
 	<SideBar.Provider
 		class="bg-admin-background h-svh"
-		data-sidebar-tone="light"
 		style="--sidebar-width: {sidebarWidthPx}px;"
 		data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 	>
