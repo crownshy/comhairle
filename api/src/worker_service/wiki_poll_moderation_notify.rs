@@ -1,16 +1,19 @@
+use std::sync::Arc;
+
 use apalis::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tracing::info;
+use sqlx::PgPool;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
 use crate::ComhairleState;
-use crate::models::conversation::{self, ConversationFilterOptions, ConversationOrderOptions};
+use crate::models::conversation::{
+    self, ConversationFilterOptions, ConversationOrderOptions, LocalizedConversation,
+};
 use crate::models::job::{self, CreateJob};
 use crate::models::pagination::PageOptions;
-use crate::models::workflow;
-use crate::models::workflow_step;
+use crate::models::{permissions, users, workflow, workflow_step};
 use crate::tools::ToolConfig;
 use crate::wiki_poll_service::ModerationStatus;
 
@@ -62,7 +65,7 @@ pub async fn retrieve_and_enqueue_wiki_poll_moderation_notify_jobs(
         worker_service
             .push_send_wiki_poll_moderation_notify_job(SendWikiPollModerationNotifyJob {
                 job_id: job.id,
-                conversation_id: conversation.id,
+                conversation,
             })
             .await
             .map_err(|_| WorkerServiceError::BackgroundJobFailedToQueue)?;
@@ -71,10 +74,10 @@ pub async fn retrieve_and_enqueue_wiki_poll_moderation_notify_jobs(
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SendWikiPollModerationNotifyJob {
     job_id: Uuid,
-    conversation_id: Uuid,
+    conversation: LocalizedConversation,
 }
 
 pub async fn send_wiki_poll_moderation_notify_emails(
@@ -82,12 +85,12 @@ pub async fn send_wiki_poll_moderation_notify_emails(
     state: Data<Arc<ComhairleState>>,
 ) -> Result<()> {
     info!(
-        conversation_id = %req.conversation_id,
+        conversation_id = %req.conversation.id,
         job_id = %req.job_id,
         "Checking for wiki poll moderation comments"
     );
 
-    let workflows = workflow::list_for_conversation(&state.db, req.conversation_id)
+    let workflows = workflow::list_for_conversation(&state.db, req.conversation.id)
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
@@ -95,11 +98,15 @@ pub async fn send_wiki_poll_moderation_notify_emails(
 
     let mut wiki_poll_steps = Vec::new();
     for workflow in workflows {
-        let workflow_steps = workflow_step::list(&state.db, &workflow.id)
-            .await
-            .map_err(|e| WorkerServiceError::DbError(e.to_string()))
-            .ok_or_record_failure(&req.job_id, &state.db)
-            .await?;
+        let workflow_steps = workflow_step::list_localized(
+            &state.db,
+            &workflow.id,
+            &req.conversation.primary_locale,
+        )
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
         wiki_poll_steps.extend(workflow_steps.into_iter().filter_map(|step| {
             let Some(ToolConfig::Polis(config)) = &step.tool_config else {
@@ -147,12 +154,75 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         });
 
         if pending_count > 0 {
-            steps_with_pending.push((step, pending_count));
+            let moderation_url = format!(
+                "{}/admin/conversations/{}/design/step/{}/moderation",
+                state.config.domain, req.conversation.id, step.id
+            );
+            steps_with_pending.push((step, pending_count, moderation_url));
         }
     }
 
-    // TODO:
-    // 2. Send emails to mod and owner if so
+    let emails = collect_moderator_emails(&state.db, &req.conversation)
+        .await
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
+
+    // TODO: create util function for early return?
+    if emails.is_empty() {
+        let message = "No moderators for conversation, exiting.";
+        info!(
+            job_id = %req.job_id,
+            message
+        );
+        job::complete(&state.db, req.job_id, message)
+            .await
+            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+        return Ok(());
+    }
+
+    for email in emails {
+        // Log error and continue if email send fails to prevent retries re-sending
+        // emails to successful users
+        if let Err(e) = state.mailer.send_moderation_notification_email(
+            &email,
+            &req.conversation.title,
+            &steps_with_pending,
+        ) {
+            warn!("Failed to send moderation notification email to {email}: {e}");
+        }
+    }
 
     Ok(())
+}
+
+async fn collect_moderator_emails(
+    db: &PgPool,
+    conversation: &LocalizedConversation,
+) -> Result<Vec<String>> {
+    let mut emails = Vec::new();
+    let owner = users::get_user_by_id(&conversation.owner_id, db)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+    if let Some(email) = owner.email {
+        emails.push(email);
+    }
+
+    let moderators = permissions::list_users_with_permission(
+        db,
+        "conversation",
+        conversation.id,
+        Some("moderator"),
+    )
+    .await
+    .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+
+    for user in moderators {
+        if let Some(email) = user.email {
+            emails.push(email)
+        }
+    }
+
+    Ok(emails)
 }

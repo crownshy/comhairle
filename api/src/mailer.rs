@@ -24,6 +24,7 @@ use crate::models::email_template_config::{
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
+use crate::models::workflow_step::LocalizedWorkflowStep;
 use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
 
@@ -130,6 +131,13 @@ pub trait ComhairleMailer: Send + Sync {
         action: &str,
     ) -> Result<(), ComhairleError>;
 
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError>;
+
     fn preview_email(
         &self,
         template: &str,
@@ -178,6 +186,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_conversation_broadcast_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_moderation_notification_email()
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_send_permission_notification_email()
@@ -719,6 +730,42 @@ impl ComhairleMailer for Mailer {
                 resource_type => permission.resource_type,
                 resource_id => permission.resource_id,
                 action,
+            },
+            None,
+        )
+    }
+
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError> {
+        let mut list_items = String::new();
+        for (step, count, mod_url) in steps_with_pending {
+            list_items.push_str(&format!(
+                r#"
+                <li><a href="{}">{}</a> ({} pending comments)</a>
+            "#,
+                mod_url, step.name, count
+            ))
+        }
+        let body = format!(
+            r#"
+            <p style="font-weight: bold">Steps that require your attention</p>
+            <ul>
+                {list_items}
+            </ul>
+        "#
+        );
+
+        self.send_email(
+            email,
+            "A conversation needs your attention",
+            "moderation_notification_email.html",
+            context! {
+                conversation_title,
+                body,
             },
             None,
         )
