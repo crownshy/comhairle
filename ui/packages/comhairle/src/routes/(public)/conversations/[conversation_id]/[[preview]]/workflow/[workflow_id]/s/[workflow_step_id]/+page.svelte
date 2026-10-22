@@ -14,6 +14,8 @@
 	import StepShell from './StepShell.svelte';
 	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
+	import StepComplete from './StepComplete.svelte';
+	import StepProceedBar from './StepProceedBar.svelte';
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
 	import type { StepItem } from './stepItems';
@@ -129,11 +131,13 @@
 	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
+	let completedStepId = $state<string>();
 
 	// This page stays mounted between steps, so a finished submit has to be cleared here or
 	// coming Back to that step finds its pager still spinning and locked.
 	afterNavigate(() => {
 		submittingStepId = undefined;
+		completedStepId = undefined;
 	});
 
 	function forThisStep<T>(scoped: StepScoped<T> | undefined): T | undefined {
@@ -149,10 +153,13 @@
 	});
 	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
 	let isSubmitting = $derived(submittingStepId === workflowStep.id);
+	let isDone = $derived(completedStepId === workflowStep.id);
 
 	// Empty until the tool reports progress, and full while the step completes so the bar moves
 	// the moment Next is pressed (ADR-0047).
-	let fill = $derived(isRevisiting || isSubmitting ? 1 : (currentSequence?.progress ?? 0));
+	let fill = $derived(
+		isRevisiting || isSubmitting || isDone ? 1 : (currentSequence?.progress ?? 0)
+	);
 
 	function handleSequenceChange(sequence: ToolSequence) {
 		toolSequence = { stepId: workflowStep.id, value: sequence };
@@ -190,7 +197,21 @@
 			currentNextAction();
 			return;
 		}
+		// The completion screen is for a step the participant did, so a skip moves straight on.
+		if (forwardMode === 'skip') {
+			proceed();
+			return;
+		}
 		stepComplete();
+	}
+
+	/**
+	 * Shows the completion screen. Nothing is written yet: progress is recorded when the
+	 * participant presses Proceed, so a tool that finishes on its own does not navigate out
+	 * from under them (ADR-0064).
+	 */
+	function stepComplete() {
+		completedStepId = workflowStep.id;
 	}
 
 	function goToThankYouPage() {
@@ -236,7 +257,7 @@
 		);
 	}
 
-	async function stepComplete() {
+	async function proceed() {
 		if (isSubmitting) return;
 		submittingStepId = workflowStep.id;
 
@@ -268,7 +289,7 @@
 					steps={stepItems}
 					currentIndex={viewedIndex}
 					{fill}
-					position={currentSequence?.position}
+					position={isDone ? undefined : currentSequence?.position}
 					{introUrl}
 					preview={isPreview}
 				/>
@@ -291,7 +312,9 @@
 			<div class={cn(STEP_COLUMN_CLASS, 'flex grow flex-col pt-2')}>
 				<!-- SvelteKit keeps this page mounted between steps, so the key drops the last tool's state. -->
 				{#key workflowStep.id}
-					{#if showNavigationSkeleton.current}
+					{#if isDone}
+						<StepComplete />
+					{:else if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
 						{:else}
@@ -380,16 +403,20 @@
 		{/snippet}
 
 		{#snippet bar()}
-			<StepPager
-				{forwardMode}
-				nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
-				{canGoBack}
-				{canGoForward}
-				loading={isSubmitting}
-				blockedReason={currentSequence?.blockedReason}
-				onBack={goBack}
-				onForward={goForward}
-			/>
+			{#if isDone}
+				<StepProceedBar loading={isSubmitting} onProceed={proceed} />
+			{:else}
+				<StepPager
+					{forwardMode}
+					nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
+					{canGoBack}
+					{canGoForward}
+					loading={isSubmitting}
+					blockedReason={currentSequence?.blockedReason}
+					onBack={goBack}
+					onForward={goForward}
+				/>
+			{/if}
 		{/snippet}
 	</StepShell>
 {:else}
