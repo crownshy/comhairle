@@ -185,6 +185,7 @@
 				<Select
 					id="hello"
 					name="hello"
+					question="Ethnicity"
 					placeholder="Ethnicity"
 					options={[
 						{ label: 'hello', value: 'world' },
@@ -206,6 +207,7 @@
 									<Select
 										id={question.slug}
 										name={question.slug}
+										question="Ethnicity"
 										placeholder="Ethnicity"
 										options={[
 											{ label: 'hello', value: 'world' },
