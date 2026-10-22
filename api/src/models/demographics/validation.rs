@@ -1,6 +1,7 @@
+use std::collections::HashSet;
+
 use chrono::NaiveDate;
 use serde_json::Value;
-use std::collections::HashSet;
 use uuid::Uuid;
 
 use super::types::{

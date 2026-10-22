@@ -208,7 +208,7 @@
 </script>
 
 {#snippet fields()}
-	<div class="flex flex-col gap-1">
+	<div data-tour="step-name-field" class="flex flex-col gap-1">
 		<label for="name" class="text-lg font-semibold">Name</label>
 		<p class="text-muted-foreground mb-2 text-sm">
 			The name of the step that will be shown to participants.
@@ -222,7 +222,7 @@
 		/>
 	</div>
 
-	<div class="pt-4">
+	<div data-tour="step-description-field" class="pt-4">
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Description</span>
 			<p class="text-muted-foreground text-sm">
@@ -253,7 +253,7 @@
 		</div>
 	</div>
 
-	<div class="pt-4">
+	<div data-tour="step-data-protocol-field" class="pt-4">
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Data protocol</span>
 			<p class="text-muted-foreground text-sm">
@@ -395,10 +395,10 @@
 {#if inline}
 	<div class="flex flex-col gap-6">
 		{@render fields()}
-		<div class="border-border flex flex-col gap-4 border-t pt-6">
+		<div data-tour="step-switches" class="border-border flex flex-col gap-4 border-t pt-6">
 			{@render switches()}
 		</div>
-		<div class="border-border border-t pt-6">
+		<div data-tour="step-danger-zone" class="border-border border-t pt-6">
 			{@render dangerZone()}
 		</div>
 	</div>

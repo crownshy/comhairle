@@ -49,7 +49,7 @@ fn default_server_url() -> String {
 }
 
 #[inline(always)]
-fn heyform_base_url(server_url: &str) -> String {
+pub(crate) fn heyform_base_url(server_url: &str) -> String {
     if server_url.starts_with("http://") || server_url.starts_with("https://") {
         return server_url.to_string();
     }
@@ -343,7 +343,7 @@ impl ToolImpl for HeyFormTool {
     }
 }
 
-async fn get_heyform_config_for_workflow_step(
+pub(crate) async fn get_heyform_config_for_workflow_step(
     state: &Arc<ComhairleState>,
     workflow_step_id: Uuid,
 ) -> Result<HeyFormToolConfig, ComhairleError> {

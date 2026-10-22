@@ -1,43 +1,32 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        conversation::{ConversationFilterOptions, ConversationOrderOptions},
-        media::{FromWithMedia, MediaResolver},
-        organization::{self, OrganizationFilterOptions, OrganizationOrderOptions},
-        pagination::{OrderParams, PageOptions, PaginatedResults},
-        permissions::{
-            PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
-            conversation as conversation_permissions, has_resource_permission,
-            list_user_permissions, organization as organization_permissions, system,
-        },
-        user_group,
-        users::{UpdateUserRequest, UpgradeAccountRequest},
-    },
-    routes::{
-        conversations::dto::{LocalizedConversationDto, PermittedConversationDto},
-        organizations::dto::LocalizedOrganizationDto,
-        user::dto::UserDto,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::conversation::{ConversationFilterOptions, ConversationOrderOptions};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::organization::{self, OrganizationFilterOptions, OrganizationOrderOptions};
+use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
+use crate::models::permissions::{
+    PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
+    conversation as conversation_permissions, has_resource_permission, list_user_permissions,
+    organization as organization_permissions, system,
 };
+use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
+use crate::models::{self, user_group};
+use crate::routes::conversations::dto::{LocalizedConversationDto, PermittedConversationDto};
+use crate::routes::organizations::dto::LocalizedOrganizationDto;
+use crate::routes::user::dto::UserDto;
 
 pub mod dto;
 
@@ -517,18 +506,17 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_organization_id,
     };
     use crate::models::permissions::{ActorId, GrantRoleRequest, grant_role};
-    use crate::models::user_group;
+    use crate::models::user_group::{self, OrganizationGroup};
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
 
@@ -552,8 +540,14 @@ mod tests {
         let (status, _, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
 
-        user_group::set_organization_member(&state, organization_id, member_id, admin_id, false)
-            .await?;
+        user_group::add_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            member_id,
+            admin_id,
+        )
+        .await?;
         let (status, response, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(response["id"], json!(organization_id));
@@ -575,8 +569,14 @@ mod tests {
             .await?;
         assert_eq!(status, StatusCode::OK);
 
-        user_group::remove_organization_member(&state, organization_id, member_id, admin_id)
-            .await?;
+        user_group::remove_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            member_id,
+            admin_id,
+        )
+        .await?;
         let (status, _, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
         let (status, response, _) = member.get(&app, &actions_url).await?;
@@ -639,8 +639,14 @@ mod tests {
         let (status, _, _) = editor.delete(&app, &revoke_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
 
-        user_group::set_organization_member(&state, organization_id, editor_id, owner_id, false)
-            .await?;
+        user_group::add_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            editor_id,
+            owner_id,
+        )
+        .await?;
         let group_id = user_group::organization_group(&state.db, organization_id).await?;
         grant_role(
             &state,
@@ -664,8 +670,14 @@ mod tests {
             ])
         );
 
-        user_group::remove_organization_member(&state, organization_id, editor_id, owner_id)
-            .await?;
+        user_group::remove_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            editor_id,
+            owner_id,
+        )
+        .await?;
         let (status, response, _) = editor.get(&app, &url).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(

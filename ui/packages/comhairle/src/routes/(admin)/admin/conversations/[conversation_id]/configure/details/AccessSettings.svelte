@@ -124,7 +124,11 @@
 	</Form.Field>
 {/snippet}
 
-<section class="border-border flex flex-col gap-1 border-t pt-6" aria-labelledby="access-heading">
+<section
+	data-tour="access-settings"
+	class="border-border flex flex-col gap-1 border-t pt-6"
+	aria-labelledby="access-heading"
+>
 	<h3 id="access-heading" class="text-lg font-semibold">Access</h3>
 	<p class="text-muted-foreground text-base">Visibility, invites and participation.</p>
 

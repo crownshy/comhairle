@@ -22,6 +22,7 @@ type InputKey =
 	| 'admin/polis/report'
 	| 'admin/polis/statements'
 	| 'admin/polis/summary'
+	| 'admin/polis/theme-collection'
 	| 'admin/regions'
 	| 'admin/system/permissions'
 	| 'admin/workflow-steps'
@@ -32,6 +33,7 @@ type InputKey =
 	| 'public/notifications'
 	| 'public/participation'
 	| 'public/participation-count'
+	| 'public/report'
 	| 'public/user-progress'
 	| 'public/workflow-steps'
 	| 'user';

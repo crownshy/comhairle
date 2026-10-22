@@ -12,8 +12,6 @@ use thiserror::Error;
 #[template(path = "themes/extract_themes.md")]
 pub struct ThemeExtractor {
     existing_themes: Option<Vec<Theme>>,
-    // Not yet read by the template; plumbed through from CLI/API for a future constraint.
-    #[allow(dead_code)]
     allow_additional_themes: bool,
     context: Option<String>,
     additional_instructions: Option<String>,
@@ -85,10 +83,51 @@ impl ThemeExtractor {
 #[cfg(test)]
 mod tests {
 
+    use askama::Template;
+    use sensemakar_types::Theme;
+
     use crate::{
         test_helpers::{test_model, test_statements},
         theme_extraction::ThemeExtractor,
     };
+
+    #[test]
+    fn prompt_tells_model_to_keep_finding_themes_when_additional_themes_allowed() {
+        let extractor = ThemeExtractor::builder()
+            .existing_themes(vec![Theme {
+                id: "1".into(),
+                name: "Buses".into(),
+                description: "More buses".into(),
+            }])
+            .allow_additional_themes(true)
+            .build();
+
+        let rendered = extractor.render().unwrap();
+
+        assert!(
+            rendered.contains("should still be grouped into"),
+            "prompt should tell the model to keep extracting new themes: {rendered}"
+        );
+    }
+
+    #[test]
+    fn prompt_restricts_to_existing_themes_when_additional_themes_disallowed() {
+        let extractor = ThemeExtractor::builder()
+            .existing_themes(vec![Theme {
+                id: "1".into(),
+                name: "Buses".into(),
+                description: "More buses".into(),
+            }])
+            .allow_additional_themes(false)
+            .build();
+
+        let rendered = extractor.render().unwrap();
+
+        assert!(
+            rendered.contains("Only use the themes listed above"),
+            "prompt should restrict the model to the existing themes: {rendered}"
+        );
+    }
 
     #[tokio::test]
     async fn test_theme_assignment() {

@@ -14,7 +14,6 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
-use crate::models::conversation;
 use crate::models::demographics::responses::{self, ConsentState};
 use crate::models::demographics::types::{
     ConsentInput, DemographicFormDraftInput, DemographicFormDto, DemographicTag,
@@ -22,12 +21,11 @@ use crate::models::demographics::types::{
     ResponseInput,
 };
 use crate::models::demographics::{forms, questions, steps};
+use crate::models::permissions::conversation::Action;
 use crate::models::permissions::system::Action as SystemAction;
-use crate::models::permissions::{SystemResource, can_perform_action, conversation::Action};
-use crate::models::user_group;
+use crate::models::permissions::{SystemResource, can_perform_action};
 use crate::models::users::User;
-use crate::models::workflow;
-use crate::models::workflow_step;
+use crate::models::{conversation, user_group, workflow, workflow_step};
 use crate::routes::auth::RequiredUser;
 use crate::routes::translations::LocaleExtractor;
 
@@ -743,14 +741,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::setup_server;
-    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
+    use std::error::Error;
+    use std::sync::Arc;
+
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
     use uuid::Uuid;
+
+    use crate::setup_server;
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
 
     const DEFAULT_QUESTION_COUNT: usize = 5;
 

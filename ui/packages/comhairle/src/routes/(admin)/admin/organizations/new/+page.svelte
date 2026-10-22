@@ -11,6 +11,10 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { z } from 'zod';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { newOrganizationTour } from './tour';
+
+	useTour(() => newOrganizationTour);
 
 	const organizationFormSchema = z.object({
 		name: z.string().trim().min(1, 'Name is required'),
@@ -124,7 +128,7 @@
 </svelte:head>
 
 <div class="flex flex-col gap-6 p-8">
-	<h1 class="text-3xl font-semibold">Create organization</h1>
+	<h1 data-tour="page-header" class="text-3xl font-semibold">Create organization</h1>
 
 	<form class="flex flex-col gap-4" method="POST" use:enhance>
 		<div class="grid gap-4 md:grid-cols-2">

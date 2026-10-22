@@ -6,8 +6,11 @@
 	import { Download } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { monitorTour } from './tour';
 	import type { PageProps } from './$types';
+
+	useTour(() => monitorTour);
 
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;

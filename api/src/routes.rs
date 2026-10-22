@@ -25,6 +25,8 @@ pub mod regions;
 pub mod report_impacts;
 pub mod reports;
 pub mod services;
+pub mod statements;
+pub mod theme_collections;
 pub mod translations;
 pub mod user;
 pub mod user_conversation_preferences;
