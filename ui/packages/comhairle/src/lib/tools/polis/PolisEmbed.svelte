@@ -6,7 +6,7 @@
 	import {
 		ThumbsUp,
 		ThumbsDown,
-		PenLine,
+		CheckCircle2,
 		X,
 		ChevronRight,
 		MessageSquare,
@@ -21,9 +21,8 @@
 		getVoteData,
 		incrementVotes,
 		reconcileServerVotes,
-		resetVoteCount
+		startNextVotingRound
 	} from './polisVoteStore';
-	import { opinionCounter } from './polisCounter';
 	import { m } from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -34,29 +33,31 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		polis_id: string;
 		polis_url: string;
 		user_id: string;
-		onDone: () => void | Promise<void>;
 		requiredVotes?: number;
 		workflowStepId?: string;
 		isPreview?: boolean;
-		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		/** Completes the step from the threshold prompt's I'm done voting. */
+		onDone?: () => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
 		polis_id,
 		polis_url,
 		user_id,
-		onDone,
 		requiredVotes = 10,
 		workflowStepId = polis_id,
 		isPreview = false,
 		onCanContinueChange,
-		showRemainingStatementCount
+		onDone,
+		onSequenceChange
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -217,11 +218,6 @@
 	}
 
 	const disabled = $derived(voteCooldown || waitingForNext);
-	const canContinue = $derived(hasMetThreshold);
-
-	$effect(() => {
-		onCanContinueChange?.(canContinue);
-	});
 
 	let anchoredRemaining = $state<number | null>(null);
 	let anchoredTotal = $state<number | null>(null);
@@ -239,13 +235,18 @@
 		}
 	});
 
-	const opinionPosition = $derived(
-		opinionCounter(anchoredTotal ?? polisTotal, anchoredRemaining ?? polisRemaining)
-	);
+	const opinionsLeft = $derived(Math.max(0, anchoredRemaining ?? polisRemaining));
 
 	const poolExhausted = $derived(
 		polisReady && !polisLoading && !polisError && !polisCurrentStatement
 	);
+
+	// The pager is the only way out (ADR-0047), so an exhausted pool must unlock it too.
+	const canContinue = $derived(hasMetThreshold || poolExhausted);
+
+	$effect(() => {
+		onCanContinueChange?.(canContinue);
+	});
 
 	$effect(() => {
 		if (screen === 'voting' && poolExhausted) {
@@ -253,12 +254,24 @@
 		}
 	});
 
-	function doVote(type: 'agree' | 'disagree' | 'pass') {
+	type Vote = 'agree' | 'disagree' | 'pass';
+	/** The vote Polis failed to save, kept so Try again can resend it. */
+	let failedVote = $state<Vote | undefined>(undefined);
+
+	async function doVote(type: Vote) {
 		if (voteCooldown || !polisCurrentStatement) return;
 		waitingForNext = true;
 		voteCooldown = true;
+		failedVote = undefined;
 
-		polis.submitVote(type);
+		// Count the vote only once Polis has saved it, so Next never unlocks on lost votes.
+		const saved = await polis.submitVote(type);
+		if (!saved) {
+			failedVote = type;
+			waitingForNext = false;
+			voteCooldown = false;
+			return;
+		}
 		totalVotes++;
 
 		if (anchoredRemaining !== null && anchoredRemaining > 0) {
@@ -268,12 +281,11 @@
 		const data = incrementVotes(user_id, voteScopeKey, safeRequiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
-		if (data.totalVotes === safeRequiredVotes) {
-			setTimeout(() => {
-				screen = 'continue-prompt';
-				voteCooldown = false;
-				waitingForNext = false;
-			}, 600);
+		// Flip now: a delay shows the between-statements skeleton first, then swaps it out.
+		if (data.totalVotes - data.votesAtLastPrompt === safeRequiredVotes) {
+			screen = 'continue-prompt';
+			voteCooldown = false;
+			waitingForNext = false;
 			return;
 		}
 
@@ -283,22 +295,8 @@
 	}
 
 	function resumeVoting() {
-		resetVoteCount(user_id, voteScopeKey);
-		totalVotes = 0;
+		startNextVotingRound(user_id, voteScopeKey);
 		screen = 'voting';
-	}
-
-	let continuing = $state(false);
-
-	async function handleContinue() {
-		if (continuing) return;
-		continuing = true;
-		try {
-			await onDone();
-		} finally {
-			// Navigation usually unmounts us first; reset as a safety net if it didn't.
-			continuing = false;
-		}
 	}
 
 	async function submitOpinion(text: string): Promise<boolean> {
@@ -358,7 +356,21 @@
 		}
 	}
 
-	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
+	// Polis reports to the chrome's bar instead of drawing its own (ADR-0047).
+	const progress = $derived(
+		canContinue ? 1 : Math.min(1, Math.max(0, totalVotes / safeRequiredVotes))
+	);
+
+	const votesRemaining = $derived(Math.max(safeRequiredVotes - totalVotes, 1));
+	const blockedReason = $derived.by(() => {
+		if (canContinue) return undefined;
+		if (votesRemaining === 1) return m.polis_vote_one_more_to_continue();
+		return m.polis_vote_more_to_continue({ count: votesRemaining });
+	});
+
+	$effect(() => {
+		onSequenceChange?.({ progress, blockedReason });
+	});
 </script>
 
 {#snippet opinionTips()}
@@ -379,27 +391,6 @@
 			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<!-- Opinion counter -->
-			{#if showRemainingStatementCount && !polisReady}
-				<div class="flex h-6 items-center md:h-7">
-					<Skeleton class="h-4 w-32 rounded md:h-5" />
-				</div>
-				<Skeleton class="h-1.5 w-full rounded-full" />
-			{:else if showRemainingStatementCount && !polisError && !poolExhausted}
-				<p class="text-muted-foreground text-base font-semibold md:text-lg">
-					{m.polis_opinion_counter({
-						current: opinionPosition.current,
-						total: opinionPosition.total
-					})}
-				</p>
-				<div class="bg-primary/20 relative h-1.5 w-full overflow-hidden rounded-full">
-					<div
-						class="bg-primary absolute inset-y-0 start-0 rounded-full transition-all duration-300"
-						style="width: {progress}%"
-					></div>
-				</div>
-			{/if}
-
 			<!-- Statement text -->
 			<div class="w-full pt-2 pb-6">
 				{#if polisReady && polisError}
@@ -480,6 +471,18 @@
 				{/if}
 			</div>
 
+			{#if failedVote && !waitingForNext}
+				<div
+					class="border-destructive/20 bg-destructive/5 flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+					role="alert"
+				>
+					<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
+					<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
+						{m.try_again()}
+					</Button>
+				</div>
+			{/if}
+
 			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
 			{#if !polisError && (!polisReady || polisCurrentStatement)}
 				{@const VOTE_BUTTON_CLASS = 'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
@@ -524,25 +527,6 @@
 					<MessageSquarePlus class="size-6" />
 					{m.polis_add_your_own_opinion()}
 				</Button>
-			{/if}
-
-			<!-- Continue to next step (only after threshold) -->
-			{#if canContinue}
-				<div
-					class="mt-4 flex w-full justify-center border-t pt-6 sm:justify-start"
-					in:fade={{ duration: 300 }}
-				>
-					<LoadingButton
-						variant="primaryDark"
-						size="lg"
-						loading={continuing}
-						onclick={handleContinue}
-						class="gap-2 px-6 py-4 text-lg"
-					>
-						{m.polis_continue_to_next_step()}
-						{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
-					</LoadingButton>
-				</div>
 			{/if}
 		</div>
 	{:else if screen === 'add-opinion'}
@@ -609,7 +593,7 @@
 				<div
 					class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
 				>
-					{m.something_went_wrong()}
+					{m.polis_opinion_not_submitted()}
 				</div>
 			{/if}
 
@@ -666,39 +650,52 @@
 			</button>
 		</div>
 	{:else if screen === 'continue-prompt'}
-		<!-- Do you want to continue? -->
+		<!-- The threshold is met, so this is a fork and not a gate. Both ways on get the same weight,
+		     so finishing doesn't read as giving up. -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-center gap-6 px-4 py-8 text-center sm:items-start sm:px-8 sm:text-start md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-1 flex-col items-center justify-center gap-8 px-6 py-8 text-center md:px-16"
 			in:fade={{ duration: 300 }}
 		>
-			<div class="flex flex-col items-center gap-4 sm:flex-row">
-				<PenLine class="text-card-foreground h-8 w-8" />
-				<h2 class="text-card-foreground text-3xl font-semibold">
-					{m.polis_do_you_want_to_continue()}
+			<div class="flex flex-col items-center gap-3">
+				<CheckCircle2 class="text-primary size-8" />
+				<h2 class="text-card-foreground text-2xl leading-tight font-semibold">
+					{totalVotes === 1
+						? m.polis_votes_counted_one({ count: totalVotes })
+						: m.polis_votes_counted({ count: totalVotes })}
 				</h2>
+				<p class="text-muted-foreground max-w-[44ch] text-base">
+					{opinionsLeft > 0
+						? m.polis_continue_prompt_body()
+						: m.polis_nothing_left_to_vote_on()}
+				</p>
 			</div>
 
-			<div
-				class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
-			>
-				<Button
-					variant="default"
-					size="lg"
-					onclick={resumeVoting}
-					class="w-full max-w-72 gap-2 px-6 py-4 text-lg sm:w-72"
-				>
-					{m.polis_continue_voting()}
-				</Button>
-				<LoadingButton
-					variant="ghost"
-					size="lg"
-					loading={continuing}
-					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors"
-					onclick={handleContinue}
-				>
-					{m.polis_continue_to_next_step()}
-					{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
-				</LoadingButton>
+			<div class="flex w-full max-w-[360px] flex-col items-stretch gap-3">
+				{#if opinionsLeft > 0}
+					<Button
+						onclick={resumeVoting}
+						class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					>
+						<span class="text-lg font-semibold">{m.polis_keep_voting()}</span>
+						<span class="text-primary-foreground/80 text-base font-normal">
+							{opinionsLeft === 1
+								? m.polis_keep_voting_hint_one({ count: opinionsLeft })
+								: m.polis_keep_voting_hint({ count: opinionsLeft })}
+						</span>
+					</Button>
+				{/if}
+				{#if onDone}
+					<Button
+						variant={opinionsLeft > 0 ? 'outline' : 'default'}
+						onclick={onDone}
+						class="h-auto w-full flex-col gap-0.5 rounded-2xl px-6 py-3.5 whitespace-normal"
+					>
+						<span class="text-lg font-semibold">{m.polis_finish_voting()}</span>
+						<span class="text-base font-normal opacity-80"
+							>{m.polis_finish_voting_hint()}</span
+						>
+					</Button>
+				{/if}
 			</div>
 		</div>
 	{:else if screen === 'completed'}
@@ -708,7 +705,7 @@
 			in:fade={{ duration: 300 }}
 		>
 			<p class="text-card-foreground text-3xl font-normal">
-				{m.polis_voted_everything()}
+				{totalVotes === 0 ? m.polis_no_opinions_yet() : m.polis_voted_everything()}
 			</p>
 			<p class="text-muted-foreground text-lg">
 				{m.polis_come_back_later()}
@@ -726,19 +723,6 @@
 				<span class="hidden md:inline">{m.polis_add_opinion_long()}</span>
 				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
 			</Button>
-		</div>
-
-		<div class="mb-5 w-full px-4 sm:w-auto sm:px-0">
-			<LoadingButton
-				variant="primaryDark"
-				size="lg"
-				loading={continuing}
-				onclick={handleContinue}
-				class="w-full gap-2 px-6 py-4 text-lg sm:w-auto"
-			>
-				{m.continue_()}
-				{#if !continuing}<ChevronRight class="h-5 w-5 rtl:-scale-x-100" />{/if}
-			</LoadingButton>
 		</div>
 	{/if}
 </div>

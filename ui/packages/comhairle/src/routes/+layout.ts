@@ -10,7 +10,13 @@ export const load: LayoutLoad = async ({ url, data, depends }) => {
 	const token = data.token;
 	const user = data.user;
 	const { isCommunity, themeName } = data;
-	const api = createApiClient(url.origin + '/api', token, browser ? 'client' : 'server');
+	const api = createApiClient(
+		url.origin + '/api',
+		token,
+		browser ? 'client' : 'server',
+		undefined,
+		data.previewCookies
+	);
 
 	const [rolesResult, systemActions] = await Promise.all([
 		tryCatchAsync(() => api.GetUserRoles()),

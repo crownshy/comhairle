@@ -28,6 +28,8 @@
 		onColumnChange: (index: number) => void;
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
 		existingStatements: string[];
+		/** Seeds removed in Setup. Matching rows are skipped; the admin restores them instead. */
+		removedSeeds: string[];
 		/** Posting is in flight: freeze the list so it matches what is being posted. */
 		posting: boolean;
 	};
@@ -37,6 +39,7 @@
 		parsed,
 		onColumnChange,
 		existingStatements,
+		removedSeeds,
 		posting
 	}: Props = $props();
 
@@ -46,13 +49,15 @@
 	const issues = $derived(
 		findSeedIssues(
 			drafts.map((draft) => draft.text),
-			existingStatements
+			existingStatements,
+			removedSeeds
 		)
 	);
 
 	const ISSUE_LABELS: Record<SeedStatementIssue, string> = {
 		empty: 'Empty, will be skipped',
 		'duplicate-in-file': 'Repeated in this file',
+		'removed-seed': 'Removed earlier, restore it instead. Will be skipped',
 		'duplicate-in-step': 'Already in this step'
 	};
 

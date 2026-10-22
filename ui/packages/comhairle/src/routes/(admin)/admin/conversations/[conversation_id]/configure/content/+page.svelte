@@ -21,6 +21,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import TranslatableFieldWithSkeleton from '$lib/components/Translation/TranslatableFieldWithSkeleton.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import GlossaryEditor from './GlossaryEditor.svelte';
 
 	let { data } = $props();
 	const { conversation, streamedAvailableDocuments } = $derived(data);
@@ -142,7 +143,7 @@
 <PageHeader
 	level="h2"
 	title="Content"
-	description="Participant-facing copy shown throughout the conversation."
+	description="Participant-facing copy and glossary terms shown throughout the conversation."
 />
 
 <div class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6">
@@ -307,3 +308,7 @@
 		</Form.Control>
 	</Form.Field>
 </div>
+
+{#key conversation.id}
+	<GlossaryEditor {conversation} {primaryLocale} {supportedLanguages} {canEdit} />
+{/key}

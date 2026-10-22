@@ -2169,6 +2169,17 @@ export const PartialRecruitmentTarget = z
   .partial()
   .passthrough();
 export type PartialRecruitmentTarget = z.infer<typeof PartialRecruitmentTarget>;
+export const PreviewPasswordRequest = z
+  .object({ password: z.string() })
+  .passthrough();
+export type PreviewPasswordRequest = z.infer<typeof PreviewPasswordRequest>;
+export const PreviewPasswordStatus = z
+  .object({
+    enabled: z.boolean(),
+    updatedAt: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type PreviewPasswordStatus = z.infer<typeof PreviewPasswordStatus>;
 export const InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
@@ -3251,8 +3262,35 @@ export const EmailTemplateSlots = z.union([
     .passthrough(),
 ]);
 export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
+export const EmailTemplateConfigWithScopeDto = z
+  .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
+    conversationTitle: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    emailType: EmailType,
+    id: z.string().uuid(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    ownerId: z.string().uuid(),
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type EmailTemplateConfigWithScopeDto = z.infer<
+  typeof EmailTemplateConfigWithScopeDto
+>;
+export const CreateEmailTemplateConfig = z
+  .object({
+    conversation_id: z.union([z.string(), z.null()]).optional(),
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateEmailTemplateConfig = z.infer<
+  typeof CreateEmailTemplateConfig
+>;
 export const EmailTemplateConfigDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
     id: z.string().uuid(),
@@ -3263,15 +3301,6 @@ export const EmailTemplateConfigDto = z
   })
   .passthrough();
 export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
-export const CreateEmailTemplateConfig = z
-  .object({
-    slots: EmailTemplateSlots,
-    subject: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type CreateEmailTemplateConfig = z.infer<
-  typeof CreateEmailTemplateConfig
->;
 export const UpdateEmailTemplateConfig = z
   .object({
     slots: z.union([EmailTemplateSlots, z.null()]),
@@ -3707,6 +3736,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RecruitmentTargetDto,
   CreateRecruitmentTarget,
   PartialRecruitmentTarget,
+  PreviewPasswordRequest,
+  PreviewPasswordStatus,
   InviteType,
   LoginBehaviour,
   InviteStatus,
@@ -3845,8 +3876,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailType,
   email_type,
   EmailTemplateSlots,
-  EmailTemplateConfigDto,
+  EmailTemplateConfigWithScopeDto,
   CreateEmailTemplateConfig,
+  EmailTemplateConfigDto,
   UpdateEmailTemplateConfig,
   ContentType,
   SlotSchemaDefinition,
@@ -5127,12 +5159,58 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: NotificationRecipientsResponse,
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/preview_access",
+    alias: "UnlockConversationPreview",
+    description: `Sets a cookie that lets this browser read the draft conversation for a week, or until the password is changed or cleared.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ password: z.string() }).passthrough(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "GetConversationPreviewPassword",
+    requestFormat: "json",
+    response: PreviewPasswordStatus,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "SetConversationPreviewPassword",
+    description: `Changing it signs out everyone who unlocked the old one.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ password: z.string() }).passthrough(),
+      },
+    ],
+    response: PreviewPasswordStatus,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/preview_access/password",
+    alias: "ClearConversationPreviewPassword",
+    requestFormat: "json",
+    response: PreviewPasswordStatus,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/participation-count",
     alias: "GetParticipationCount",
     description: `Returns how many distinct people have at least one done step in this conversation.`,
     requestFormat: "json",
-    response: z.object({ participantCount: z.number().int().gte(0) }).passthrough(),
+    response: z
+      .object({ participantCount: z.number().int().gte(0) })
+      .passthrough(),
   },
   {
     method: "get",
@@ -5666,7 +5744,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: email_type,
       },
     ],
-    response: z.array(EmailTemplateConfigDto),
+    response: z.array(EmailTemplateConfigWithScopeDto),
   },
   {
     method: "post",
@@ -5689,7 +5767,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetEmailTemplateConfig",
     description: `Get custom email template configuration`,
     requestFormat: "json",
-    response: EmailTemplateConfigDto,
+    response: EmailTemplateConfigWithScopeDto,
   },
   {
     method: "put",

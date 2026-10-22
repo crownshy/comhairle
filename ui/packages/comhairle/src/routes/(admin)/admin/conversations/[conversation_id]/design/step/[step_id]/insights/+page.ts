@@ -6,15 +6,16 @@ import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insigh
 import { surveyInsightsLoader } from '$lib/reports/survey/insights-loader';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { HttpStatus } from '$lib/utils/constants';
+import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async (event) => {
 	const { api, toolConfig } = await event.parent();
 	const { step_id } = event.params;
 
 	// TODO: change to tool-agnostic
-	event.depends('polis:statement-aux');
-	event.depends('polis:report');
-	event.depends('polis:summary');
+	event.depends(key('admin/polis/statements'));
+	event.depends(key('admin/polis/report'));
+	event.depends(key('admin/polis/summary'));
 
 	const response = await tryCatchAsync(async () => {
 		switch (toolConfig?.type) {

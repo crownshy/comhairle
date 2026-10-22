@@ -14,6 +14,7 @@
 	} from './types';
 	import type { FlowMode } from './questionFlowState.svelte';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 
 	type Props = {
 		workflowStepId: string;
@@ -28,6 +29,7 @@
 		progressStatus?: ProgressStatus;
 		onDone?: () => void;
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -42,7 +44,8 @@
 		initialPermissionToShareWithOrganizers = null,
 		progressStatus = 'not_started',
 		onDone,
-		onCanContinueChange
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	let loaded = $state(false);
@@ -58,10 +61,9 @@
 	let generatingNextRound = $state(false);
 	let generationError = $state(false);
 
-	let canContinue = $derived(phase === 'summary');
-
+	// QuestionFlow and Summary each report to the pager while they are mounted.
 	$effect(() => {
-		onCanContinueChange?.(canContinue);
+		if (phase === 'questions') onCanContinueChange?.(false);
 	});
 
 	let configIncomplete = $derived(
@@ -217,13 +219,13 @@
 	<div class="relative flex min-h-[600px] flex-col">
 		{#if phase === 'questions'}
 			<QuestionFlow
-				{topic}
 				{workflowStepId}
 				questions={rootQuestions}
 				followUpCount={followUpRoundsCount}
 				initialAnswers={answers}
 				mode={flowMode}
 				onComplete={handleQuestionFlowComplete}
+				{onSequenceChange}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
@@ -242,6 +244,8 @@
 				onRetryGenerate={handleRetryGenerate}
 				{onDone}
 				onAnswerMore={handleAnswerMore}
+				{onCanContinueChange}
+				{onSequenceChange}
 			/>
 		{/if}
 	</div>

@@ -3,23 +3,27 @@ import type { LayoutLoad } from './$types';
 import type {
 	ComhairleDocument,
 	LocalizedConversationDto,
+	UserParticipationDto,
 	WorkflowDto
 } from '@crownshy/api-client/api';
+import type { createApiClient } from '@crownshy/api-client/client';
 import { key } from '$lib/utils/invalidationKey';
+import { isPreviewPasswordRequired, previewUnlockUrl } from '$lib/utils/previewAccess';
 
 export const load: LayoutLoad = async ({
 	parent,
 	params,
-	depends
+	depends,
+	url
 }): Promise<{
 	conversation: LocalizedConversationDto;
 	workflows: WorkflowDto[];
 	availableDocuments: ComhairleDocument[];
 	hasKnowledgeBaseDocs: boolean;
-	participation: any; // TODO:
-	api: any; // TODO:
+	participation: UserParticipationDto | null;
+	api: ReturnType<typeof createApiClient>;
 	user: any; // TODO:
-	preview: any; // TODO:
+	preview: boolean;
 }> => {
 	// The participation row carries the seal, which the write that finishes the flow brings
 	// into existence. Without its own key, invalidating after that write reruns the workflow
@@ -85,6 +89,9 @@ export const load: LayoutLoad = async ({
 	} catch (e) {
 		if (isRedirect(e)) {
 			throw e;
+		}
+		if (preview && isPreviewPasswordRequired(e)) {
+			redirect(302, previewUnlockUrl(conversation_id, url.pathname + url.search));
 		}
 		return redirect(302, '/');
 	}
