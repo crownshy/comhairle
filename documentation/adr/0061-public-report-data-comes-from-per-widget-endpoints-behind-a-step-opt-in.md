@@ -1,4 +1,4 @@
-# ADR-0046: Public report data comes from per-widget endpoints behind a step opt-in
+# ADR-0061: Public report data comes from per-widget endpoints behind a step opt-in
 
 **Status:** Proposal - to be discussed with the team
 **Date:** 2026-09-28

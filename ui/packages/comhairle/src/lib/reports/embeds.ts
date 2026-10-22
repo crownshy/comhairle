@@ -2,7 +2,7 @@ import { POLIS_EMBEDDABLE_COMPONENTS } from './polis/embeddableComponents';
 
 /**
  * Report widgets a facilitator can embed into the conversation report, keyed by the Step's
- * tool type (ADR-0012, ADR-0046). Metadata only, so settings pages can check it without
+ * tool type (ADR-0012, ADR-0061). Metadata only, so settings pages can check it without
  * bundling chart components. Adding a tool means one entry here and one in
  * `ReportEmbedLive.svelte`.
  */
