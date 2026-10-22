@@ -421,14 +421,16 @@ pub async fn add_organization_member(
     Ok(joined_groups.contains(&requested_group))
 }
 
-/// Email an existing user to say they were added to an Organization. A failed email is
-/// logged rather than returned so it can never undo the addition.
+/// Email a user to say they were added to an Organization. New accounts also receive
+/// their password setup link in this email. A failed email is logged rather than
+/// returned so it can never undo the addition.
 pub async fn notify_organization_addition(
     state: &Arc<ComhairleState>,
     organization_id: Uuid,
     user_id: Uuid,
     group: OrganizationGroup,
-) {
+    set_password_link: Option<String>,
+) -> bool {
     let (user, organization) = match tokio::try_join!(
         users::get_user_by_id(&user_id, &state.db),
         organization::get_by_id(&state.db, &organization_id),
@@ -436,29 +438,48 @@ pub async fn notify_organization_addition(
         Ok(found) => found,
         Err(error) => {
             tracing::warn!("Could not load details for the organization addition email: {error}");
-            return;
+            return false;
         }
     };
     let Some(email) = user.email else {
-        return;
+        return false;
     };
 
-    let subject = format!("You have been added to {}", organization.name);
     let admin_sign_in_link = format!("{}/auth/login?backTo=/admin", state.config.domain);
-    let sent = state.mailer.send_email(
-        &email,
-        &subject,
-        "organization_team_onboarding.html",
-        minijinja::context! {
-            subject => &subject,
-            organization_name => &organization.name,
-            role_label => group.label(),
-            admin_sign_in_link,
-        },
-        None,
-    );
-    if let Err(error) = sent {
-        tracing::warn!("Could not send the organization addition email: {error}");
+    let (subject, template, context) = match set_password_link {
+        Some(set_password_link) => {
+            let subject = format!("Your Comhairle account for {}", organization.name);
+            let context = minijinja::context! {
+                subject => &subject,
+                username => &user.username,
+                organization_name => &organization.name,
+                role_label => group.label(),
+                set_password_link,
+                admin_sign_in_link,
+            };
+            (subject, "organization_user_account_created.html", context)
+        }
+        None => {
+            let subject = format!("You have been added to {}", organization.name);
+            let context = minijinja::context! {
+                subject => &subject,
+                organization_name => &organization.name,
+                role_label => group.label(),
+                admin_sign_in_link,
+            };
+            (subject, "organization_team_onboarding.html", context)
+        }
+    };
+
+    match state
+        .mailer
+        .send_email(&email, &subject, template, context, None)
+    {
+        Ok(()) => true,
+        Err(error) => {
+            tracing::warn!("Could not send the organization addition email: {error}");
+            false
+        }
     }
 }
 
