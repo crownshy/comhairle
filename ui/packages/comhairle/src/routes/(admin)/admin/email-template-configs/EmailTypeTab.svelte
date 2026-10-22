@@ -2,13 +2,46 @@
 	import { resolve } from '$app/paths';
 	import { Info, Plus } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { canScopeToConversation, type EmailTypeView } from '$lib/utils/emailTemplateGroups';
+	import {
+		canScopeToConversation,
+		type EmailTypeView,
+		type EmailTemplateRow
+	} from '$lib/utils/emailTemplateGroups';
 	import { EMAIL_TYPE_COPY } from './emailTypeCopy';
 	import DefaultTemplateCard from './DefaultTemplateCard.svelte';
 	import ConversationTemplatesTable from './ConversationTemplatesTable.svelte';
+	import type { EmailTypeSchema, LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { notifications } from '$lib/notifications.svelte';
+	import InboxPreviewDialog from './InboxPreviewDialog.svelte';
+	import { renderTemplatePreview, type RenderedPreview } from './templatePreview';
+	import { templateHref } from './templateHref';
 
-	type Props = { view: EmailTypeView };
-	let { view }: Props = $props();
+	type Props = {
+		view: EmailTypeView;
+		schema: EmailTypeSchema;
+		conversations: LocalizedConversationDto[];
+	};
+	let { view, schema, conversations }: Props = $props();
+
+	let previewOpen = $state(false);
+	let preview = $state<RenderedPreview | null>(null);
+	let previewRow = $state<EmailTemplateRow | null>(null);
+
+	async function openPreview(row: EmailTemplateRow) {
+		const conversation = conversations.find((candidate) => candidate.id === row.conversationId);
+		const rendered = await renderTemplatePreview(
+			schema,
+			row,
+			conversation ? { title: conversation.title, imageUrl: conversation.imageUrl } : null
+		);
+		if (!rendered) {
+			notifications.send({ priority: 'ERROR', message: 'The preview could not be loaded.' });
+			return;
+		}
+		preview = rendered;
+		previewRow = row;
+		previewOpen = true;
+	}
 
 	let copy = $derived(EMAIL_TYPE_COPY[view.emailType]);
 	let scopable = $derived(canScopeToConversation(view.emailType));
@@ -21,7 +54,11 @@
 <div data-tour="email-configs-list" class="flex max-w-5xl flex-col gap-7">
 	<p class="text-muted-foreground text-base">{copy.sentWhen}</p>
 
-	<DefaultTemplateCard row={view.base} emailType={view.emailType} />
+	<DefaultTemplateCard
+		row={view.base}
+		emailType={view.emailType}
+		onPreview={() => openPreview(view.base)}
+	/>
 
 	{#if scopable}
 		{#if fallbackCount > 0}
@@ -53,6 +90,7 @@
 				<ConversationTemplatesTable
 					rows={view.conversationVersions}
 					emailType={view.emailType}
+					onPreview={openPreview}
 				/>
 			{:else}
 				<p class="text-muted-foreground text-base">
@@ -64,5 +102,18 @@
 		<p class="text-muted-foreground text-base">
 			Event emails use one version for all your events.
 		</p>
+	{/if}
+	{#if preview && previewRow}
+		{@const editHref = templateHref(previewRow, view.emailType)}
+		<InboxPreviewDialog
+			bind:open={previewOpen}
+			subject={preview.subject}
+			html={preview.html}
+			variables={schema.variables}
+		>
+			{#snippet footer()}
+				<Button href={editHref}>Edit this email</Button>
+			{/snippet}
+		</InboxPreviewDialog>
 	{/if}
 </div>

@@ -20,6 +20,8 @@ export type EmailTemplateRow = {
 	createdAt?: string;
 	conversationId?: string;
 	conversationTitle?: string;
+	/** The saved wording. Absent for Comhairle's default, which comes from the schema. */
+	slots?: EmailTemplateConfigWithScopeDto['slots'];
 };
 
 export type EmailTypeGroup = {
@@ -40,7 +42,8 @@ export function canScopeToConversation(emailType: EmailType): boolean {
 
 function conversationRow(
 	config: EmailTemplateConfigWithScopeDto,
-	schema: EmailTypeSchema
+	schema: EmailTypeSchema,
+	slots: config.slots
 ): EmailTemplateRow {
 	return {
 		key: config.id,
@@ -55,7 +58,8 @@ function conversationRow(
 
 function baseRow(
 	schema: EmailTypeSchema,
-	allConversationsConfig: EmailTemplateConfigWithScopeDto | undefined
+	allConversationsConfig: EmailTemplateConfigWithScopeDto | undefined,
+	slots: allConversationsConfig.slots
 ): EmailTemplateRow {
 	if (!allConversationsConfig) {
 		return {

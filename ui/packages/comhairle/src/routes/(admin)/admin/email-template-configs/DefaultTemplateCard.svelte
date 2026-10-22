@@ -6,8 +6,8 @@
 	import { EMAIL_TYPE_COPY } from './emailTypeCopy';
 	import { templateHref } from './templateHref';
 
-	type Props = { row: EmailTemplateRow; emailType: EmailType };
-	let { row, emailType }: Props = $props();
+	type Props = { row: EmailTemplateRow; emailType: EmailType; onPreview: () => void };
+	let { row, emailType, onPreview }: Props = $props();
 
 	let copy = $derived(EMAIL_TYPE_COPY[emailType]);
 	let isCustom = $derived(row.source !== 'default');
@@ -29,8 +29,13 @@
 		<span class="text-muted-foreground text-sm">
 			{row.createdAt ? `Created ${formatDateShort(row.createdAt)}` : 'Not customised'}
 		</span>
-		<Button href={templateHref(row, emailType)} variant="outline" size="sm" class="text-sm">
-			{isCustom ? 'Edit' : 'Customise'}
-		</Button>
+		<div class="flex gap-2">
+			<Button type="button" variant="ghost" size="sm" class="text-sm" onclick={onPreview}
+				>Preview</Button
+			>
+			<Button href={templateHref(row, emailType)} variant="outline" size="sm" class="text-sm">
+				{isCustom ? 'Edit' : 'Customise'}
+			</Button>
+		</div>
 	</div>
 </section>

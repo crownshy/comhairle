@@ -49,5 +49,5 @@
 />
 <SubTabStrip tone="primary" paramName="type" items={tabs} defaultValue={DEFAULT_TYPE} />
 <TabContent>
-	<EmailTypeTab {view} />
+	<EmailTypeTab {view} {schema} conversations={data.conversations} />
 </TabContent>

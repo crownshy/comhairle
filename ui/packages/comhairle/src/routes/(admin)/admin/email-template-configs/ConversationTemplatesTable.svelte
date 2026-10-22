@@ -4,8 +4,12 @@
 	import type { EmailType } from '@crownshy/api-client/api';
 	import { templateHref } from './templateHref';
 
-	type Props = { rows: EmailTemplateRow[]; emailType: EmailType };
-	let { rows, emailType }: Props = $props();
+	type Props = {
+		rows: EmailTemplateRow[];
+		emailType: EmailType;
+		onPreview: (row: EmailTemplateRow) => void;
+	};
+	let { rows, emailType, onPreview }: Props = $props();
 
 	const HEAD_CLASS = 'text-muted-foreground px-4 py-2.5 text-sm font-semibold';
 </script>
@@ -41,6 +45,13 @@
 						{row.createdAt ? formatDateShort(row.createdAt) : ''}
 					</td>
 					<td class="px-4 py-2.5 text-right">
+						<button
+							type="button"
+							onclick={() => onPreview(row)}
+							class="text-primary inline-flex h-8 cursor-pointer items-center px-3 text-sm font-medium hover:underline"
+						>
+							Preview<span class="sr-only">: {row.conversationTitle}</span>
+						</button>
 						<a
 							href={templateHref(row, emailType)}
 							class="text-primary inline-flex h-8 items-center px-3 text-sm font-medium hover:underline"

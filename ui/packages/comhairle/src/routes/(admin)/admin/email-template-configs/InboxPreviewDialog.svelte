@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Inbox, Search, Send, Star } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { inboxSnippet } from '$lib/utils/emailInboxSnippet';
@@ -9,9 +10,10 @@
 		subject: string;
 		html: string;
 		variables: string[];
+		footer?: Snippet;
 	};
 
-	let { open = $bindable(), subject, html, variables }: Props = $props();
+	let { open = $bindable(), subject, html, variables, footer }: Props = $props();
 
 	// The From address the mailer sets (api/src/mailer.rs). It has no display name, so
 	// participants see the bare address.
@@ -78,7 +80,8 @@
 			<Dialog.Description class="text-base">
 				A mock inbox using your current wording.
 				{#if variables.length > 0}
-					Variables ({variableNames}) show example values here. Participants see the real ones.
+					Variables ({variableNames}) show example values here. Participants see the real
+					ones.
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
@@ -120,7 +123,9 @@
 								<Send class="size-4" aria-hidden="true" /> Sent
 							</span>
 						</nav>
-						<ul class="border-border divide-border min-h-0 divide-y overflow-y-auto border-r">
+						<ul
+							class="border-border divide-border min-h-0 divide-y overflow-y-auto border-r"
+						>
 							<li>{@render inboxRow()}</li>
 							{#each PLACEHOLDER_ROWS as row (row)}
 								{@render placeholderRow()}
@@ -174,5 +179,8 @@
 				</div>
 			</Tabs.Content>
 		</Tabs.Root>
+		{#if footer}
+			<Dialog.Footer>{@render footer()}</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>
