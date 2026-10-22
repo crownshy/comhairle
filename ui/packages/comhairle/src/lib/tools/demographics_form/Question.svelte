@@ -25,10 +25,14 @@
 
 {#if q}
 	{#if q.question_type === 'number'}
-		<Input label={q.text} type="number" />
+		{#key q.id}
+			<Input label={q.text} type="number" />
+		{/key}
 	{:else if q.question_type === 'single_select'}
 		<SelectList title={q.text} name={q.id} options={getOptions(q)} onselect={() => {}} />
 	{:else}
-		<Input label={q.text} />
+		{#key q.id}
+			<Input label={q.text} />
+		{/key}
 	{/if}
 {/if}
