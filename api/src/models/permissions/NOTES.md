@@ -46,13 +46,15 @@ Grants are additive; there are no explicit denies. Unknown role names do not
 grant typed actions.
 
 - Conversation `content_editor`: read/update; `conversation_co_host`: read only.
-- Organization `organization_admin`: read/update/delete, membership and permission management.
+- Organization `organization_admin` (granted to the admin group): read/update/delete, membership and permission management.
+- Organization `organization_member` (granted to the members group): read only.
 - System `super_admin`: global authority. Legacy `admin` has no typed actions;
   do not treat it as equivalent to `super_admin`.
 
 ## Editing and edge cases
 
-- **Organizations are not recipients.** Resolve `Organization.user_group_id`.
+- **Organizations are not recipients.** Resolve `Organization.user_group_id` (members)
+  and `Organization.admin_group_id` (administrators). Admins are always also members.
   Membership comes from `user_group_member`, not legacy `User.organization_id`.
 - **Direct and inherited roles are independent.** Revoking a direct grant does
   not remove group access. Edit the group grant or membership to remove inheritance.

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		/** Row label, e.g. "OVERALL" or "GROUP A". Omit for a bare bar. */
@@ -22,28 +23,28 @@
 	const segments = $derived([
 		{
 			key: 'agreed',
-			label: 'Agreed',
+			label: m.vote_bar_agreed(),
 			pct: agreed,
 			color: 'var(--vote-agreed)',
 			outline: false
 		},
 		{
 			key: 'passed',
-			label: 'Passed',
+			label: m.vote_bar_neutral(),
 			pct: passed,
 			color: 'var(--vote-passed)',
 			outline: false
 		},
 		{
 			key: 'notVoted',
-			label: 'Not voted',
+			label: m.vote_bar_not_voted(),
 			pct: notVoted,
 			color: 'var(--vote-not-voted)',
 			outline: true
 		},
 		{
 			key: 'disagreed',
-			label: 'Disagreed',
+			label: m.vote_bar_disagreed(),
 			pct: disagreed,
 			color: 'var(--vote-disagreed)',
 			outline: false
@@ -74,8 +75,12 @@
 	});
 
 	const summary = $derived(
-		`${Math.round(agreed)}% agreed, ${Math.round(passed)}% passed, ` +
-			`${Math.round(notVoted)}% not voted, ${Math.round(disagreed)}% disagreed`
+		m.vote_bar_summary({
+			agreed: Math.round(agreed),
+			neutral: Math.round(passed),
+			notVoted: Math.round(notVoted),
+			disagreed: Math.round(disagreed)
+		})
 	);
 
 	// The slice under the cursor, tracked by key so it survives prop-driven

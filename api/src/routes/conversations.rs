@@ -24,7 +24,6 @@ use crate::models::conversation::{
 use crate::models::conversation_email_notification_recipients::{
     self as email_recipients_model, CreateConversationEmailNotificationRecipients,
 };
-use crate::models::demographics;
 use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::notification::{
     self as notification_model, CreateNotification, NotificationContextType,
@@ -41,7 +40,7 @@ use crate::models::permissions::{
 };
 use crate::models::user_participation::{self};
 use crate::models::users::{self, User};
-use crate::models::{organization, user_conversation_preferences, user_progress};
+use crate::models::{demographics, organization, user_conversation_preferences, user_progress};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
 use crate::routes::preview_access::{has_preview_grant, preview_denied_error};
 use crate::routes::translations::LocaleExtractor;
@@ -402,13 +401,19 @@ async fn list_conversation_cohosts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<OrganizationWithPermissionDto>>), ComhairleError> {
+    let owning_organization_id = conversation::get_by_id(&state.db, &conversation_id)
+        .await?
+        .organization_id;
     let organizations = permissions::list_organizations_with_permission(
         &state.db,
         "conversation",
         conversation_id,
         Some(Role::Observer.as_ref()),
     )
-    .await?;
+    .await?
+    .into_iter()
+    .filter(|organization| Some(organization.id) != owning_organization_id)
+    .collect();
 
     Ok((StatusCode::OK, Json(organizations)))
 }
@@ -3743,6 +3748,100 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn owning_organization_members_read_and_administrators_edit_until_the_owner_changes(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::model_test_helpers::get_random_user_id;
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut owner).await?;
+        let other_organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut owner).await?;
+
+        let mut member = UserSession::new_guest();
+        let member_id = get_random_user_id(&app, &mut member).await?;
+        let mut administrator = UserSession::new_guest();
+        let administrator_id = get_random_user_id(&app, &mut administrator).await?;
+        for (group, user_id) in [("members", member_id), ("admins", administrator_id)] {
+            let (status, _, _) = owner
+                .put(
+                    &app,
+                    &format!("/organizations/{organization_id}/groups/{group}/members/{user_id}"),
+                    Body::empty(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+        }
+
+        let (_, value, _) = owner.create_random_unlaunched_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+        let id = conversation.id.to_string();
+        let rename = json!({ "tags": ["owned"] });
+
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = owner
+            .update_conversation(&app, &id, json!({ "organization_id": organization_id }))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::OK, "members can read");
+        let (status, _, _) = member
+            .update_conversation(&app, &id, rename.clone())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "members cannot edit");
+        let (status, _, _) = administrator.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = administrator
+            .update_conversation(&app, &id, rename.clone())
+            .await?;
+        assert_eq!(status, StatusCode::OK, "administrators can edit");
+
+        let (_, response, _) = owner
+            .get(&app, &format!("/conversation/{id}/cohosts"))
+            .await?;
+        let cohosts: Vec<OrganizationWithPermissionDto> = serde_json::from_value(response)?;
+        assert!(
+            cohosts.is_empty(),
+            "the owning organization is not a co-host"
+        );
+
+        let (status, _, _) = owner
+            .update_conversation(
+                &app,
+                &id,
+                json!({ "organization_id": other_organization_id }),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "revoked on owner change");
+        let (status, _, _) = administrator.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        sqlx::query("UPDATE conversation SET organization_id = NULL WHERE id = $1")
+            .bind(conversation.id)
+            .execute(&pool)
+            .await?;
+        let remaining: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM conversation_group_permissions WHERE resource_id = $1 AND grant_reason = 'Owning organization'",
+        )
+        .bind(conversation.id)
+        .fetch_one(&pool)
+        .await?;
+        assert_eq!(remaining, 0, "revoked when the owner is cleared");
 
         Ok(())
     }

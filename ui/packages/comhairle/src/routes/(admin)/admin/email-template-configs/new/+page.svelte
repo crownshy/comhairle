@@ -17,6 +17,10 @@
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { newEmailTemplateConfigTour } from './tour';
+
+	useTour(() => newEmailTemplateConfigTour);
 
 	type FormState = {
 		subject?: string;

@@ -3,9 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 	import { SYSTEM_RESOURCE_ID } from '$lib/utils/permissions';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { systemRolesTour } from './tour';
 	import type { PageProps } from './$types';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
+
+	useTour(() => systemRolesTour);
 
 	let { data }: PageProps = $props();
 	let roleAssignments = $state<ReturnType<typeof RoleAssignments>>();

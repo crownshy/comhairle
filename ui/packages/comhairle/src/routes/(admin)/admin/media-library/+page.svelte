@@ -15,6 +15,10 @@
 	import { capitalise } from '$lib/utils/casingUtils';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { mediaLibraryTour } from './tour';
+
+	useTour(() => mediaLibraryTour);
 
 	const { data } = $props();
 
@@ -89,7 +93,7 @@
 </SectionHeader>
 
 <TabContent>
-	<div class="flex flex-row gap-4">
+	<div data-tour="media-filters" class="flex flex-row gap-4">
 		{@render filterButton('audio')}
 		{@render filterButton('image')}
 		{@render filterButton('video')}

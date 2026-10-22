@@ -18,6 +18,7 @@
 	import type { Snippet } from 'svelte';
 	import { ArrowLeft, ArrowUpRight, BookOpen } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { helpStore } from '$lib/help/helpStore.svelte';
 
 	type Props = {
 		content: SectionHeaderContent;
@@ -27,34 +28,31 @@
 		compact?: boolean;
 		/** Page buttons shown at the right of the title row. */
 		actions?: Snippet;
+		/** The page below is full-bleed, so the header sits at the left gutter instead of centring. */
+		fullBleed?: boolean;
 	};
 
-	let { content, hasTabs = false, compact = false, actions }: Props = $props();
+	let { content, hasTabs = false, compact = false, actions, fullBleed = false }: Props = $props();
+
+	let column = $derived(fullBleed ? 'w-full' : 'max-w-admin mx-auto w-full');
+	// Shares this page's guide with the help button while the header is on screen.
+	$effect(() => {
+		const guide = content.guide;
+		if (!guide) return;
+		helpStore.setGuide(guide);
+		return () => helpStore.clearGuide(guide);
+	});
 </script>
 
 {#snippet trailing()}
 	<div class="flex shrink-0 items-center gap-2 self-start">
 		{@render actions?.()}
-		{#if content.guide}
-			<!-- eslint-disable svelte/no-navigation-without-resolve -- guide hrefs are built with resolve() -->
-			<a
-				href={content.guide.href}
-				target="_blank"
-				rel="noopener noreferrer"
-				title="Open the guide in a new tab"
-				class="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors"
-			>
-				<BookOpen class="text-primary size-4 shrink-0" />
-				<span class="max-w-60 truncate">{content.guide.label}</span>
-				<ArrowUpRight class="text-muted-foreground size-4 shrink-0" />
-			</a>
-			<!-- eslint-enable svelte/no-navigation-without-resolve -->
-		{/if}
 	</div>
 {/snippet}
 
 <!-- When a tab strip follows, it supplies the bottom border so header and tabs read as one block. -->
 <header
+	data-tour="section-header"
 	class={cn(
 		'bg-admin-background px-gutter shrink-0',
 		!hasTabs && 'border-border border-b',
@@ -63,7 +61,7 @@
 	)}
 >
 	{#if compact}
-		<div class="max-w-admin mx-auto flex w-full items-center justify-between gap-3">
+		<div class={cn(column, 'flex items-center justify-between gap-3')}>
 			<div class="flex min-w-0 items-center gap-1.5 text-base">
 				{#if content.back}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- back hrefs are built with resolve() -->
@@ -87,7 +85,7 @@
 		</div>
 	{:else}
 		<div
-			class="max-w-admin mx-auto flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+			class={cn(column, 'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between')}
 		>
 			<div class="flex min-w-0 flex-col gap-1">
 				{#if content.back}
