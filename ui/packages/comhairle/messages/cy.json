@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "Ewch yn ôl i {conversation}",
 	"pager_back": "Yn ôl",
 	"pager_skip": "Hepgor",
+	"step_complete_title": "Cam wedi'i gwblhau",
+	"step_complete_proceed": "Ymlaen",
 	"prioritization_review_or_continue": "Adolygwch eich atebion os hoffech wneud unrhyw newidiadau, neu pwyswch Nesaf i barhau.",
 	"prioritization_review_my_answers": "Adolygu fy atebion",
 	"prioritization_review_hint": "Tapiwch gynnig i adolygu neu addasu eich atebion. Caiff newidiadau eu cadw pan fyddwch yn pwyso Nesaf.",

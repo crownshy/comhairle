@@ -43,6 +43,8 @@
 	"next": "Next",
 	"pager_back": "Back",
 	"pager_skip": "Skip",
+	"step_complete_title": "Step completed",
+	"step_complete_proceed": "Proceed",
 	"prioritization_review_or_continue": "Review your answers if you'd like to make any changes, or press Next to continue.",
 	"prioritization_review_my_answers": "Review my answers",
 	"prioritization_review_hint": "Tap a proposal to review or adjust your answers. Changes are saved when you press Next.",

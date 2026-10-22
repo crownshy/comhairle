@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "Revenir à {conversation}",
 	"pager_back": "Retour",
 	"pager_skip": "Passer",
+	"step_complete_title": "Étape terminée",
+	"step_complete_proceed": "Continuer",
 	"prioritization_review_or_continue": "Relisez vos réponses si vous souhaitez les modifier, ou appuyez sur Suivant pour continuer.",
 	"prioritization_review_my_answers": "Relire mes réponses",
 	"prioritization_review_hint": "Touchez une proposition pour relire ou modifier vos réponses. Les modifications sont enregistrées lorsque vous appuyez sur Suivant.",

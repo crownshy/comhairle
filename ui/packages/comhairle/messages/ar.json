@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "عُد إلى {conversation}",
 	"pager_back": "رجوع",
 	"pager_skip": "تخطَّ",
+	"step_complete_title": "اكتملت الخطوة",
+	"step_complete_proceed": "متابعة",
 	"prioritization_review_or_continue": "راجع إجاباتك إذا أردت إجراء أي تغييرات، أو اضغط التالي للمتابعة.",
 	"prioritization_review_my_answers": "مراجعة إجاباتي",
 	"prioritization_review_hint": "اضغط على مقترح لمراجعة إجاباتك أو تعديلها. تُحفظ التغييرات عند الضغط على التالي.",

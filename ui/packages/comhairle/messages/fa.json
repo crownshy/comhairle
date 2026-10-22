@@ -462,6 +462,8 @@
 	"conversations_return_page_title": "بازگشت به {conversation}",
 	"pager_back": "بازگشت",
 	"pager_skip": "رد شدن",
+	"step_complete_title": "مرحله تکمیل شد",
+	"step_complete_proceed": "ادامه",
 	"prioritization_review_or_continue": "اگر می‌خواهید تغییری بدهید پاسخ‌هایتان را مرور کنید، یا برای ادامه بعدی را بزنید.",
 	"prioritization_review_my_answers": "مرور پاسخ‌هایم",
 	"prioritization_review_hint": "روی یک پیشنهاد بزنید تا پاسخ‌هایتان را مرور یا اصلاح کنید. تغییرات با زدن بعدی ذخیره می‌شوند.",
