@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import type { PageLoad } from './$types';
 import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
 import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
@@ -9,13 +10,16 @@ import { HttpStatus } from '$lib/utils/constants';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async (event) => {
-	const { api, toolConfig } = await event.parent();
+	const { api, conversation, workflowSteps } = await event.parent();
 	const { step_id } = event.params;
 
 	// TODO: change to tool-agnostic
 	event.depends(key('admin/polis/statements'));
 	event.depends(key('admin/polis/report'));
 	event.depends(key('admin/polis/summary'));
+
+	const step = workflowSteps.find((s) => s.id === step_id);
+	const toolConfig = step && (conversation.isLive ? step.toolConfig : step.previewToolConfig);
 
 	const response = await tryCatchAsync(async () => {
 		switch (toolConfig?.type) {
@@ -27,19 +31,19 @@ export const load: PageLoad = async (event) => {
 				return await thinkingSpaceInsightsLoader(api, step_id);
 			case 'heyform':
 				return await surveyInsightsLoader(api, step_id);
-			case 'learn':
-			case 'stories':
-			case 'elicitationbot':
-				throw Error('Not yet implemented');
+			default:
+				throw Error('This step has no Insights');
 		}
 	});
 
-	if (response.err !== null) {
+	if (!step || response.err !== null) {
 		redirect(
 			HttpStatus.TemporaryRedirect,
-			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/setup`
+			resolve('/(admin)/admin/conversations/[conversation_id]/insights', {
+				conversation_id: event.params.conversation_id
+			})
 		);
 	}
 
-	return response.ok;
+	return { step, ...response.ok };
 };

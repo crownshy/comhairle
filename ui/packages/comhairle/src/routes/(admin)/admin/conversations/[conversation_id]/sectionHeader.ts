@@ -52,7 +52,7 @@ export function guideLink(ref: HandbookTopicRef | undefined): GuideLink {
 }
 
 /**
- * The most specific topic for a page. A workflow step's own tab (`step/insights`) wins over
+ * The most specific topic for a page. A workflow step's own tab (`step/<tab>`) wins over
  * every step page (`step`), which wins over the whole section.
  */
 function sectionGuide(section: ConversationSection, pageSegments: string[]): GuideLink {

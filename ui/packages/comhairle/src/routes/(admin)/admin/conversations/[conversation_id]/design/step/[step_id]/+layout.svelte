@@ -32,7 +32,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<!-- The step's own tabs (Setup/Configure/Insights), the only strip under the step
+<!-- The step's own tabs (Setup/Configure), the only strip under the step
 	 header. Rendered from `data` so a hard refresh of /design/step/* paints it straight away. -->
 <div data-tour="step-subtabs" class="shrink-0">
 	<SubTabStrip tone="primary" items={subtabItems} {basePath} />

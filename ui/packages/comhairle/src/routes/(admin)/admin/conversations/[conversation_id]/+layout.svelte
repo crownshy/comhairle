@@ -69,14 +69,14 @@
 		return path === base || path.startsWith(`${base}/`);
 	});
 
-	// A workflow step's sub-tabs (Configure/Setup/Insights) are real routes, so
+	// A workflow step's sub-tabs (Configure/Setup) are real routes, so
 	// navigating between them changes the pathname. That's *not* a section switch: Row 3, Row 4
 	// and the content shell all stay mounted while only the inner page swaps. Collapsing the
 	// sub-tab segment off a step path lets `switchingSection` tell the two apart.
 	function sectionKey(pathname: string): string {
 		return pathname
 			.replace(/\/+$/, '')
-			.replace(/(\/design\/step\/[^/]+)\/(configure|setup|insights)$/, '$1');
+			.replace(/(\/design\/step\/[^/]+)\/(configure|setup)$/, '$1');
 	}
 
 	// A pending navigation to a *different* section or step (its `sectionKey` changes, unlike
