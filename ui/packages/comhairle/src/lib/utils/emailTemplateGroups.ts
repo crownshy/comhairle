@@ -129,3 +129,36 @@ export function scopedConversations(
 		.map(([id, title]) => ({ id, title }))
 		.sort((a, b) => a.title.localeCompare(b.title));
 }
+
+/** A conversation, as far as the email list needs it. */
+export type ConversationSummary = { id: string; title: string };
+
+export type EmailTypeView = {
+	emailType: EmailType;
+	/** What every conversation sends unless it has its own: the custom default, or Comhairle's. */
+	base: EmailTemplateRow;
+	/** Conversations with their own version, by title. */
+	conversationVersions: EmailTemplateRow[];
+	/** Conversations that send the base version. Always empty for event emails. */
+	usingBase: ConversationSummary[];
+};
+
+/**
+ * What one email type's tab shows: the default, the conversations with their own version,
+ * and the conversations that fall back to the default.
+ */
+export function buildEmailTypeView(
+	schema: EmailTypeSchema,
+	configs: EmailTemplateConfigWithScopeDto[],
+	conversations: ConversationSummary[]
+): EmailTypeView {
+	const [base, ...conversationVersions] = buildEmailTypeGroups([schema], configs)[0].rows;
+	const customised = new Set(conversationVersions.map((row) => row.conversationId));
+	const usingBase = canScopeToConversation(schema.email_type)
+		? conversations
+				.filter((conversation) => !customised.has(conversation.id))
+				.map(({ id, title }) => ({ id, title }))
+		: [];
+
+	return { emailType: schema.email_type, base, conversationVersions, usingBase };
+}

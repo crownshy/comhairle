@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { EmailTemplateConfigWithScopeDto, EmailTypeSchema } from '@crownshy/api-client/api';
 import {
+	buildEmailTypeView,
 	buildEmailTypeGroups,
 	filterGroupsForConversation,
 	scopedConversations
@@ -100,5 +101,38 @@ describe('scopedConversations', () => {
 			{ id: 'c1', title: 'Allotments' },
 			{ id: 'c2', title: 'Zebra crossings' }
 		]);
+	});
+});
+
+describe('buildEmailTypeView', () => {
+	const CONVERSATIONS = [
+		{ id: 'c1', title: 'Allotments' },
+		{ id: 'c2', title: 'Zebra crossings' },
+		{ id: 'c3', title: 'Bus routes' }
+	];
+
+	it('splits the default from conversations with their own version', () => {
+		const view = buildEmailTypeView(
+			SCHEMAS[0],
+			[config({ id: 'all' }), config({ id: 'a', conversationId: 'c1', conversationTitle: 'Allotments' })],
+			CONVERSATIONS
+		);
+
+		expect(view.base.key).toBe('all');
+		expect(view.conversationVersions.map((row) => row.key)).toEqual(['a']);
+	});
+
+	it('lists the conversations that fall back to the default', () => {
+		const view = buildEmailTypeView(
+			SCHEMAS[0],
+			[config({ id: 'a', conversationId: 'c1', conversationTitle: 'Allotments' })],
+			CONVERSATIONS
+		);
+
+		expect(view.usingBase.map((conversation) => conversation.id)).toEqual(['c2', 'c3']);
+	});
+
+	it('has no fallback list for emails that cannot be per conversation', () => {
+		expect(buildEmailTypeView(SCHEMAS[1], [], CONVERSATIONS).usingBase).toEqual([]);
 	});
 });
