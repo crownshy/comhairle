@@ -2,26 +2,19 @@ use std::sync::Arc;
 
 use apalis::prelude::Data;
 use language_tags::LanguageTag;
-use sensemakar::{
-    statement_theme_assigner::StatementThemeAssigner, theme_extraction::ThemeExtractor,
-};
+use sensemakar::statement_theme_assigner::StatementThemeAssigner;
+use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar_types::{Statement as SensemakarStatement, Theme as SensemakarTheme};
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    models::{
-        self,
-        job::{self, UpdateJob},
-        statement::Statement,
-        theme::NewTheme,
-    },
-    sensemakar_service,
-};
-
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
+use crate::models::job::{self, UpdateJob};
+use crate::models::statement::Statement;
+use crate::models::theme::NewTheme;
+use crate::models::{self};
+use crate::{ComhairleState, sensemakar_service};
 
 /// Queued after an admin requests theme generation for a workflow step. The
 /// statements have already been harvested from the source tool and persisted;

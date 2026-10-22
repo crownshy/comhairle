@@ -6,7 +6,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -436,12 +437,11 @@ pub async fn delete_collection(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::error::Error;
 
     use serde_json::json;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
@@ -449,7 +449,7 @@ mod tests {
     use crate::test_helpers::learn_tool_config;
 
     async fn get_random_workflow_step_id(
-        app: &axum::Router,
+        app: &crate::App,
         session: &mut crate::test_helpers::UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let conversation_id = get_random_conversation_id(app, session).await?;

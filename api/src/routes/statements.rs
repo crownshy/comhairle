@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::extract::{Json, Path, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
@@ -12,7 +10,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::middleware::permissions::{PermissionRequirement, authorize};
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::models::statement::{self, CreateStatement, UpdateStatement};
 use crate::routes::statements::dto::StatementDto;
 use crate::{ComhairleError, ComhairleState};
@@ -143,15 +142,12 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
-    use serde_json::json;
-
-    use super::*;
-
     use std::error::Error;
 
+    use serde_json::json;
     use sqlx::PgPool;
 
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
@@ -159,7 +155,7 @@ mod tests {
     use crate::test_helpers::{UserSession, learn_tool_config};
 
     async fn create_step_and_url(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
     ) -> Result<String, Box<dyn Error>> {
         let conversation_id = get_random_conversation_id(app, session).await?;

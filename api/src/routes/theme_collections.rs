@@ -1,22 +1,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::extract::{Json, Path, Query, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 use crate::middleware::permissions::{PermissionRequirement, authorize};
 use crate::models::job::CreateJob;
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::models::statement;
 use crate::models::theme::{self, CreateThemeCollection, NewTheme, UpdateTheme, UpdateThemePinned};
 use crate::routes::auth::RequiredUser;
@@ -386,22 +384,20 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
-    use serde_json::json;
-
-    use super::*;
-
     use std::error::Error;
 
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::{UserSession, learn_tool_config};
-    use sqlx::PgPool;
 
     async fn create_step_and_url(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
     ) -> Result<(Uuid, String), Box<dyn Error>> {
         let conversation_id = get_random_conversation_id(app, session).await?;
