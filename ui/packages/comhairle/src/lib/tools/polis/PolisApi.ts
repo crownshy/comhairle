@@ -1,4 +1,5 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { PolisCommentRow } from './onboarding/onboarding';
 
 export type PolisStatement = {
 	txt: string;
@@ -161,6 +162,55 @@ export default class PolisApi {
 		}
 	}
 
+	/**
+	 * Every statement a participant may see, with vote counts. Unlike the report, this does not
+	 * wait for Polis's math to run, so statements added a moment ago are included.
+	 */
+	async fetchStatements(): Promise<PolisCommentRow[]> {
+		const r = await fetch(
+			`${this.baseUrl}/api/v3/comments?conversation_id=${this.polisId}&include_voting_patterns=true`,
+			{ credentials: 'include' }
+		);
+		if (!r.ok) throw new Error(`comments failed: ${r.status}`);
+		return r.json();
+	}
+
+	private async postVote(tid: number, vote: 'agree' | 'disagree' | 'pass'): Promise<void> {
+		const voteValue = { agree: -1, disagree: 1, pass: 0 }[vote];
+		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
+
+		const response = await fetch(`${this.baseUrl}/api/v3/votes`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include',
+			body: JSON.stringify({
+				agid: 1,
+				conversation_id: this.polisId,
+				tid,
+				vote: voteValue,
+				high_priority: false,
+				lang: this.lang,
+				...authType
+			})
+		});
+		if (!response.ok) throw new Error(`submitVote failed: ${response.status}`);
+		const data = (await response.json()) as { currentPid?: number };
+		if (typeof data.currentPid === 'number' && data.currentPid !== this._pid) {
+			this._pid = data.currentPid;
+			this.notify();
+		}
+	}
+
+	/** Votes on a statement the caller chose, leaving the current statement where it is. */
+	async voteOn(tid: number, vote: 'agree' | 'disagree' | 'pass'): Promise<boolean> {
+		const result = await tryCatchAsync(() => this.postVote(tid, vote));
+		if (result.err !== null) {
+			console.error('[PolisApi] Error with vote:', result.err);
+			return false;
+		}
+		return true;
+	}
+
 	/** Resolves true once Polis has saved the vote, false if it failed. On failure the
 	 * current statement stays put so the participant can vote again. */
 	async submitVote(vote: 'agree' | 'disagree' | 'pass'): Promise<boolean> {
@@ -174,36 +224,12 @@ export default class PolisApi {
 		this._error = undefined;
 		this.notify();
 
-		const voteValue = { agree: -1, disagree: 1, pass: 0 }[vote];
-		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
-
-		const result = await tryCatchAsync(async () => {
-			const response = await fetch(`${this.baseUrl}/api/v3/votes`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'include',
-				body: JSON.stringify({
-					agid: 1,
-					conversation_id: this.polisId,
-					tid: votedTid,
-					vote: voteValue,
-					high_priority: false,
-					lang: this.lang,
-					...authType
-				})
-			});
-			if (!response.ok) throw new Error(`submitVote failed: ${response.status}`);
-			return (await response.json()) as { currentPid?: number };
-		});
-
+		const result = await tryCatchAsync(() => this.postVote(votedTid, vote));
 		if (result.err !== null) {
 			console.error('[PolisApi] Error with vote:', result.err);
 			this._loading = false;
 			this.notify();
 			return false;
-		}
-		if (typeof result.ok.currentPid === 'number') {
-			this._pid = result.ok.currentPid;
 		}
 		this.fetchNextStatement();
 		return true;

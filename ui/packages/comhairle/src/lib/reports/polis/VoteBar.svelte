@@ -29,7 +29,7 @@
 		},
 		{
 			key: 'passed',
-			label: 'Passed',
+			label: 'Neutral',
 			pct: passed,
 			color: 'var(--vote-passed)',
 			outline: false
@@ -74,7 +74,7 @@
 	});
 
 	const summary = $derived(
-		`${Math.round(agreed)}% agreed, ${Math.round(passed)}% passed, ` +
+		`${Math.round(agreed)}% agreed, ${Math.round(passed)}% neutral, ` +
 			`${Math.round(notVoted)}% not voted, ${Math.round(disagreed)}% disagreed`
 	);
 

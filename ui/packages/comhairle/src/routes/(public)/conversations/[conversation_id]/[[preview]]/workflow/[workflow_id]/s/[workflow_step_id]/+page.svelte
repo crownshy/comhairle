@@ -319,6 +319,8 @@
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 							onDone={stepComplete}
+							topic={toolConfig.topic}
+							strictModeration={toolConfig.strict_moderation}
 						/>
 					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						<HeyForm.UserUI

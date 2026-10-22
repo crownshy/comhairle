@@ -35,6 +35,25 @@
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import type { PolisReportData } from './reportTypes';
+	import {
+		FREE_VOTES,
+		earlySnapshot,
+		groupPortrait,
+		isRevealDue,
+		pickPractice,
+		stageAfterSeedResult,
+		firstVotingStage,
+		toPracticeStatements,
+		type PracticePick,
+		type PracticeStatement,
+		type Stage,
+		type Vote
+	} from './onboarding/onboarding';
+	import { hasSeenOnboarding, markOnboardingSeen } from './onboarding/seen';
+	import GuideScreen from './onboarding/GuideScreen.svelte';
+	import GroupsReveal from './onboarding/GroupsReveal.svelte';
+	import CrowdStatement from './onboarding/CrowdStatement.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -47,6 +66,8 @@
 		/** Completes the step from the threshold prompt's I'm done voting. */
 		onDone?: () => void;
 		onSequenceChange?: OnSequenceChange;
+		topic?: string | null;
+		strictModeration?: boolean | null;
 	};
 
 	let {
@@ -58,7 +79,9 @@
 		isPreview = false,
 		onCanContinueChange,
 		onDone,
-		onSequenceChange
+		onSequenceChange,
+		topic,
+		strictModeration
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -74,6 +97,50 @@
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
 	let polisPid = $state<number | undefined>(undefined);
+	let waitingForNext = $state(false);
+
+	// First-timer onboarding (ADR-0062): one instruction or one vote on screen at a time.
+	const onboardingScope = `${user_id}-${voteScopeKey}`;
+	const initialData = getVoteData(user_id, voteScopeKey);
+	let stage = $state<Stage>(
+		initialData.totalVotes > 0 || hasSeenOnboarding(onboardingScope) ? 'done' : 'deciding'
+	);
+	let pick = $state<PracticePick>({ seed: undefined, participant: undefined });
+	let seedVote = $state<Vote | undefined>(undefined);
+	let practisedAny = false;
+	// Someone who started with only organisers' statements gets the "someone like you" line on
+	// the first participant statement Polis serves them instead.
+	let firstHere = $state(false);
+	let someoneElseSeen = $state(false);
+	let freeVotes = $state(0);
+	let votesSinceOnboarding = 0;
+	let groupsAfterOpinion = false;
+	// After onboarding, the groups screen comes back every few votes.
+	let groupsShown = $state(false);
+	let report = $state<PolisReportData | undefined>(undefined);
+	let reportLoading = $state(false);
+
+	const onboarding = $derived(stage !== 'done');
+
+	const practiceStatement = $derived<PracticeStatement | undefined>(
+		stage === 'seed' ? pick.seed : stage === 'participant' ? pick.participant : undefined
+	);
+
+	// During practice the card shows the picked statement in place of the one Polis served.
+	const shownStatement = $derived<PolisStatement | undefined>(
+		practiceStatement
+			? {
+					txt: practiceStatement.text,
+					tid: practiceStatement.tid,
+					is_seed: practiceStatement.is_seed,
+					is_meta: false,
+					is_seen: false,
+					lang: undefined,
+					remaining: polisRemaining,
+					total: polisTotal
+				}
+			: polisCurrentStatement
+	);
 
 	// The current statement resolved into the participant's active locale. When a
 	// stored translation exists it carries the translated `text` plus the original
@@ -84,7 +151,7 @@
 	let lastLocalizedKey = '';
 
 	// Text to render: the translation when one is available, else the raw Polis text.
-	const displayText = $derived(localized?.text ?? polisCurrentStatement?.txt ?? '');
+	const displayText = $derived(localized?.text ?? shownStatement?.txt ?? '');
 	const isTranslated = $derived(localized?.is_translation ?? false);
 
 	// Resolve a locale code (e.g. "gd") to a language name in the viewer's locale,
@@ -102,9 +169,9 @@
 	// A monotonic token drops stale responses so a slow lookup can't overwrite a
 	// newer statement. A missing aux row (e.g. just-submitted) falls back to raw text.
 	$effect(() => {
-		const tid = polisCurrentStatement?.tid;
+		const tid = shownStatement?.tid;
 		const locale = getLocale();
-		// `polisCurrentStatement` is reassigned on every loading toggle; only act
+		// The shown statement is reassigned on every loading toggle; only act
 		// when the statement or viewer locale actually changed.
 		const key = `${tid ?? ''}:${locale}`;
 		if (key === lastLocalizedKey) return;
@@ -149,7 +216,6 @@
 
 	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
 
-	const initialData = getVoteData(user_id, voteScopeKey);
 	let totalVotes = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
@@ -163,18 +229,120 @@
 		);
 		if (result.err !== null) {
 			console.error('[PolisEmbed] Failed to load server vote count:', result.err);
+		} else {
+			const data = reconcileServerVotes(
+				user_id,
+				voteScopeKey,
+				result.ok.vote_count,
+				safeRequiredVotes
+			);
+			totalVotes = data.totalVotes;
+			hasMetThreshold = data.hasMetThreshold;
+		}
+		if (stage === 'deciding') await startOnboarding(totalVotes);
+	});
+
+	async function loadReport() {
+		reportLoading = true;
+		const result = await tryCatchAsync(() =>
+			apiClient.PolisGetReportData({ queries: { workflow_step_id: stepId } })
+		);
+		// No math run yet, or the poll is gone; the groups screen then says there are no groups.
+		report = result.err === null ? result.ok : undefined;
+		reportLoading = false;
+	}
+
+	async function startOnboarding(votesSoFar: number) {
+		if (votesSoFar > 0) {
+			finishOnboarding();
 			return;
 		}
-		const data = reconcileServerVotes(
-			user_id,
-			voteScopeKey,
-			result.ok.vote_count,
-			safeRequiredVotes
-		);
-		totalVotes = data.totalVotes;
-		hasMetThreshold = data.hasMetThreshold;
+		// Polis's own list rather than the report, which leaves out statements its math has
+		// not reached yet. Without either, onboarding runs on whatever Polis serves.
+		const result = await tryCatchAsync(() => polis.fetchStatements());
+		const statements =
+			result.err === null ? toPracticeStatements(result.ok, strictModeration ?? false) : [];
+		pick = pickPractice(statements);
+		firstHere = !pick.participant;
+		stage = 'intro';
+	}
+
+	function startFreeVoting() {
+		// Polis served its first statement before the practice votes; it may be one of them.
+		if (practisedAny) polis.fetchNextStatement();
+		stage = 'free';
+	}
+
+	function goTo(next: Stage) {
+		if (next === 'free') startFreeVoting();
+		else stage = next;
+	}
+
+	function finishOnboarding() {
+		stage = 'done';
+		groupsShown = false;
+		votesSinceOnboarding = 0;
+		markOnboardingSeen(onboardingScope);
+	}
+
+	function skipOnboarding() {
+		if (practisedAny && stage !== 'free') polis.fetchNextStatement();
+		finishOnboarding();
+		someoneElseSeen = true;
+		screen = 'voting';
+	}
+
+	function showOnboardingGroups() {
+		stage = 'groups';
+		loadReport();
+	}
+
+	function closeGroups() {
+		if (stage === 'groups') finishOnboarding();
+		else groupsShown = false;
+	}
+
+	async function revealGroupsIfAny() {
+		await loadReport();
+		if (portrait) groupsShown = true;
+	}
+
+	const introTitle = $derived(
+		topic ? m.polis_onboarding_intro_topic({ topic }) : m.polis_onboarding_intro()
+	);
+
+	const showSomeoneElse = $derived(
+		firstHere &&
+			!someoneElseSeen &&
+			(stage === 'free' || stage === 'done') &&
+			!waitingForNext &&
+			shownStatement !== undefined &&
+			!shownStatement.is_seed
+	);
+
+	/** The one line above the statement while onboarding, saying what to do with it. */
+	const votingGuide = $derived.by(() => {
+		if (stage === 'seed') return m.polis_onboarding_try_seed();
+		if (stage === 'participant' || showSomeoneElse) return m.polis_onboarding_try_participant();
+		if (stage === 'free')
+			return m.polis_onboarding_keep_going({ count: FREE_VOTES - freeVotes });
+		return undefined;
 	});
-	let waitingForNext = $state(false);
+
+	/** An onboarding screen that replaces the voting UI, if one is due. */
+	const guideStage = $derived.by(() => {
+		if (stage === 'intro' || stage === 'seed-result' || stage === 'missing') return stage;
+		if (stage === 'groups' || groupsShown) return 'groups';
+		return undefined;
+	});
+
+	const portrait = $derived(report ? groupPortrait(report, polisPid) : undefined);
+	const snapshot = $derived(earlySnapshot(report));
+
+	const missingText = $derived(
+		`${strictModeration ? m.polis_onboarding_missing_body_moderated() : m.polis_onboarding_missing_body()} ${m.polis_onboarding_missing_anytime()}`
+	);
+
 	let voteCooldown = $state(false);
 	let opinionText = $state('');
 	let opinionSubmitted = $state(false);
@@ -218,7 +386,7 @@
 		}
 	}
 
-	const disabled = $derived(voteCooldown || waitingForNext);
+	const disabled = $derived(voteCooldown || waitingForNext || stage === 'deciding');
 
 	let anchoredRemaining = $state<number | null>(null);
 	let anchoredTotal = $state<number | null>(null);
@@ -250,17 +418,60 @@
 	});
 
 	$effect(() => {
-		if (screen === 'voting' && poolExhausted) {
+		if (screen === 'voting' && poolExhausted && !practiceStatement && !guideStage) {
 			screen = 'completed';
 		}
 	});
 
-	type Vote = 'agree' | 'disagree' | 'pass';
 	/** The vote Polis failed to save, kept so Try again can resend it. */
 	let failedVote = $state<Vote | undefined>(undefined);
 
+	/** Counts a vote towards progress. True when it is the one that meets the threshold. */
+	function countVote(): boolean {
+		totalVotes++;
+		if (anchoredRemaining !== null && anchoredRemaining > 0) {
+			anchoredRemaining--;
+		}
+		const data = incrementVotes(user_id, voteScopeKey, safeRequiredVotes);
+		hasMetThreshold = data.hasMetThreshold;
+		return data.totalVotes - data.votesAtLastPrompt === safeRequiredVotes;
+	}
+
+	function afterLiveVote() {
+		if (stage === 'free') {
+			freeVotes++;
+			if (freeVotes >= FREE_VOTES) stage = 'missing';
+		} else if (stage === 'done') {
+			votesSinceOnboarding++;
+			if (isRevealDue(votesSinceOnboarding)) revealGroupsIfAny();
+		}
+	}
+
+	async function practiceVote(statement: PracticeStatement, vote: Vote) {
+		voteCooldown = true;
+		const ok = await polis.voteOn(statement.tid, vote);
+		voteCooldown = false;
+		if (!ok) {
+			skipOnboarding();
+			return;
+		}
+		practisedAny = true;
+		countVote();
+		if (stage === 'seed') {
+			seedVote = vote;
+			stage = 'seed-result';
+		} else {
+			startFreeVoting();
+		}
+	}
+
 	async function doVote(type: Vote) {
-		if (voteCooldown || !polisCurrentStatement) return;
+		if (voteCooldown || !shownStatement) return;
+		if (practiceStatement) {
+			practiceVote(practiceStatement, type);
+			return;
+		}
+		if (showSomeoneElse) someoneElseSeen = true;
 		waitingForNext = true;
 		voteCooldown = true;
 		failedVote = undefined;
@@ -273,17 +484,11 @@
 			voteCooldown = false;
 			return;
 		}
-		totalVotes++;
-
-		if (anchoredRemaining !== null && anchoredRemaining > 0) {
-			anchoredRemaining--;
-		}
-
-		const data = incrementVotes(user_id, voteScopeKey, safeRequiredVotes);
-		hasMetThreshold = data.hasMetThreshold;
+		const metThreshold = countVote();
+		afterLiveVote();
 
 		// Flip now: a delay shows the between-statements skeleton first, then swaps it out.
-		if (data.totalVotes - data.votesAtLastPrompt === safeRequiredVotes) {
+		if (metThreshold) {
 			screen = 'continue-prompt';
 			voteCooldown = false;
 			waitingForNext = false;
@@ -293,6 +498,19 @@
 		setTimeout(() => {
 			voteCooldown = false;
 		}, 800);
+	}
+
+	/** Back from writing a statement: on to the groups if the missing screen sent them there. */
+	function returnToVoting() {
+		if (groupsAfterOpinion) {
+			groupsAfterOpinion = false;
+			showOnboardingGroups();
+		}
+		if (polis.state.remaining === 0 && !guideStage) {
+			screen = 'completed';
+		} else {
+			screen = 'voting';
+		}
 	}
 
 	function resumeVoting() {
@@ -324,7 +542,7 @@
 		opinionSubmitted = true;
 		returningToVoting = true;
 		setTimeout(() => {
-			screen = 'voting';
+			returnToVoting();
 			opinionSubmitted = false;
 			returningToVoting = false;
 		}, 2000);
@@ -342,19 +560,12 @@
 	}
 
 	function openAddOpinion() {
-		visibleStatementWhenOpened = polisCurrentStatement;
+		if (stage === 'missing') groupsAfterOpinion = true;
+		visibleStatementWhenOpened = shownStatement;
 		screen = 'add-opinion';
 		opinionSubmitted = false;
 		opinionError = false;
 		returningToVoting = false;
-	}
-
-	function closeAddOpinion() {
-		if (polis.state.remaining === 0) {
-			screen = 'completed';
-		} else {
-			screen = 'voting';
-		}
 	}
 
 	// Polis reports to the chrome's bar instead of drawing its own (ADR-0047).
@@ -385,140 +596,234 @@
 	</ul>
 {/snippet}
 
+{#snippet skipIntro()}
+	<Button
+		variant="link"
+		class="text-muted-foreground hover:text-foreground h-auto px-0 text-base"
+		onclick={skipOnboarding}
+	>
+		{m.polis_onboarding_skip()}
+	</Button>
+{/snippet}
+
 <div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
-	{#if screen === 'voting'}
+	{#if screen === 'voting' && guideStage}
+		<div
+			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
+		>
+			{#if guideStage === 'intro'}
+				<GuideScreen
+					title={introTitle}
+					next={m.polis_onboarding_next()}
+					onNext={() => goTo(firstVotingStage(pick))}
+				>
+					<p class="text-card-foreground text-lg">{m.polis_onboarding_intro_body()}</p>
+				</GuideScreen>
+			{:else if guideStage === 'seed-result' && pick.seed && seedVote}
+				<GuideScreen
+					title={m.polis_onboarding_seed_result()}
+					next={m.polis_onboarding_next()}
+					onNext={() => goTo(stageAfterSeedResult(pick))}
+				>
+					<CrowdStatement statement={pick.seed} ownVote={seedVote} />
+					<p class="text-card-foreground text-lg">
+						{m.polis_onboarding_seed_result_changes()}
+					</p>
+				</GuideScreen>
+			{:else if guideStage === 'missing'}
+				<GuideScreen
+					title={m.polis_onboarding_missing_title()}
+					next={m.polis_onboarding_keep_voting()}
+					onNext={showOnboardingGroups}
+				>
+					<p class="text-card-foreground text-lg">{missingText}</p>
+					{#snippet actions()}
+						<Button
+							variant="ghost"
+							size="lg"
+							class="h-12 gap-2 px-6 text-lg"
+							onclick={openAddOpinion}
+						>
+							<MessageSquarePlus class="size-5" />
+							{m.polis_add_your_own_opinion()}
+						</Button>
+					{/snippet}
+				</GuideScreen>
+			{:else if reportLoading}
+				<Skeleton class="h-9 w-3/4 rounded-md" />
+				<Skeleton class="h-24 w-full rounded-xl" />
+			{:else}
+				<GuideScreen
+					title={portrait
+						? m.polis_onboarding_groups_title()
+						: m.polis_onboarding_no_groups_title()}
+					next={m.polis_onboarding_keep_voting()}
+					onNext={closeGroups}
+				>
+					<GroupsReveal {portrait} {snapshot} />
+				</GuideScreen>
+			{/if}
+			{#if onboarding}
+				{@render skipIntro()}
+			{/if}
+		</div>
+	{:else if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
 			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-4 sm:px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
-			<!-- Statement text -->
-			<div class="w-full pt-2 pb-6">
-				{#if polisReady && polisError}
-					<div
-						class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
+			{#if votingGuide && !polisError}
+				{#key votingGuide}
+					<p
+						class="text-card-foreground text-xl leading-snug font-medium sm:text-2xl"
 						in:fade={{ duration: 300 }}
 					>
-						<AlertTriangle class="text-destructive h-8 w-8" />
-						<p class="text-foreground text-lg font-medium">
-							{m.something_went_wrong()}
-						</p>
-						<p class="text-muted-foreground text-base">
-							{m.polis_error_description()}
-						</p>
-					</div>
-				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
-					<!-- Loading, between statements, or briefly empty before the screen
+						{votingGuide}
+					</p>
+				{/key}
+			{/if}
+
+			<div class="flex w-full flex-col gap-1 md:gap-6">
+				<!-- Statement text -->
+				<div class="w-full pt-2 pb-6">
+					{#if polisReady && polisError}
+						<div
+							class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
+							in:fade={{ duration: 300 }}
+						>
+							<AlertTriangle class="text-destructive h-8 w-8" />
+							<p class="text-foreground text-lg font-medium">
+								{m.something_went_wrong()}
+							</p>
+							<p class="text-muted-foreground text-base">
+								{m.polis_error_description()}
+							</p>
+						</div>
+					{:else if !polisReady || waitingForNext || polisLoading || !shownStatement || stage === 'deciding'}
+						<!-- Loading, between statements, or briefly empty before the screen
 					     flips to "completed". Rows match a one-line source label, the statement
 					     box and its line heights so nothing below moves when the statement arrives. -->
-					<div in:fade={{ duration: 200 }} class="w-full">
-						<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
-							<Skeleton class="mb-3 h-5 w-64 max-w-full rounded-md sm:mb-4 sm:h-6" />
-							<div class="flex h-7 items-center sm:h-9">
-								<Skeleton class="h-6 w-full rounded sm:h-7" />
-							</div>
-							<div class="flex h-7 items-center sm:h-9">
-								<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
+						<div in:fade={{ duration: 200 }} class="w-full">
+							<div class="border-foreground/10 rounded-2xl border p-3 sm:p-6">
+								<Skeleton
+									class="mb-3 h-5 w-64 max-w-full rounded-md sm:mb-4 sm:h-6"
+								/>
+								<div class="flex h-7 items-center sm:h-9">
+									<Skeleton class="h-6 w-full rounded sm:h-7" />
+								</div>
+								<div class="flex h-7 items-center sm:h-9">
+									<Skeleton class="h-6 w-3/5 rounded sm:h-7" />
+								</div>
 							</div>
 						</div>
-					</div>
-				{:else if polisCurrentStatement}
-					{@const source = statementSourceOf(polisCurrentStatement.is_seed)}
-					<div
-						class={cn(
-							'rounded-2xl border p-3 transition-colors sm:p-6',
-							source.cardClass
-						)}
-						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
-					>
-						<StatementSourceLabel {source} />
-						<p
-							class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
-						>
-							{displayText}
-						</p>
-						{#if isTranslated}
-							<button
-								type="button"
-								onclick={() => (showOriginal = !showOriginal)}
-								class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
-								aria-expanded={showOriginal}
+					{:else}
+						{@const source = statementSourceOf(shownStatement.is_seed)}
+						<!-- Keyed so back-to-back practice statements animate in like served ones. -->
+						{#key shownStatement.tid}
+							<div
+								class={cn(
+									'rounded-2xl border p-3 transition-colors sm:p-6',
+									source.cardClass
+								)}
+								in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 							>
-								<Languages class="h-4 w-4" />
-								{localized?.source_locale
-									? m.polis_translated_from({
-											language: languageName(localized.source_locale)
-										})
-									: m.polis_translated_label()}
-							</button>
-							{#if showOriginal}
-								<div
-									class="border-border bg-muted/40 text-card-foreground mt-2 rounded-lg border p-4 text-left"
-									in:fade={{ duration: 150 }}
+								<StatementSourceLabel {source} />
+								<p
+									class="text-card-foreground mt-3 text-xl leading-snug font-normal sm:mt-4 sm:text-3xl sm:leading-9"
 								>
-									<p
-										class="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase"
+									{displayText}
+								</p>
+								{#if isTranslated}
+									<button
+										type="button"
+										onclick={() => (showOriginal = !showOriginal)}
+										class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+										aria-expanded={showOriginal}
 									>
-										{m.polis_original_statement()}
-									</p>
-									<p class="text-base leading-7">{localized?.original_text}</p>
-									<p class="text-muted-foreground mt-2 text-xs">
-										{m.polis_ai_translation_note()}
-									</p>
-								</div>
-							{/if}
-						{/if}
+										<Languages class="h-4 w-4" />
+										{localized?.source_locale
+											? m.polis_translated_from({
+													language: languageName(localized.source_locale)
+												})
+											: m.polis_translated_label()}
+									</button>
+									{#if showOriginal}
+										<div
+											class="border-border bg-muted/40 text-card-foreground mt-2 rounded-lg border p-4 text-left"
+											in:fade={{ duration: 150 }}
+										>
+											<p
+												class="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase"
+											>
+												{m.polis_original_statement()}
+											</p>
+											<p class="text-base leading-7">
+												{localized?.original_text}
+											</p>
+											<p class="text-muted-foreground mt-2 text-xs">
+												{m.polis_ai_translation_note()}
+											</p>
+										</div>
+									{/if}
+								{/if}
+							</div>
+						{/key}
+					{/if}
+				</div>
+
+				{#if failedVote && !waitingForNext}
+					<div
+						class="border-destructive/20 bg-destructive/5 flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
+						role="alert"
+					>
+						<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
+						<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
+							{m.try_again()}
+						</Button>
+					</div>
+				{/if}
+
+				<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
+				{#if !polisError && (!polisReady || shownStatement)}
+					{@const VOTE_BUTTON_CLASS =
+						'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
+					<!-- Vote buttons -->
+					<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
+						<Button
+							size="lg"
+							disabled={disabled || !polisReady}
+							onclick={() => doVote('agree')}
+							class={VOTE_BUTTON_CLASS}
+						>
+							<ThumbsUp class="size-6" />
+							{m.polis_agree()}
+						</Button>
+						<Button
+							size="lg"
+							disabled={disabled || !polisReady}
+							onclick={() => doVote('disagree')}
+							class={VOTE_BUTTON_CLASS}
+						>
+							<ThumbsDown class="size-6" />
+							{m.polis_disagree()}
+						</Button>
+						<Button
+							variant="ghost"
+							size="lg"
+							class="text-foreground/80 hover:text-foreground h-12 w-full px-0 text-lg hover:bg-transparent has-[>svg]:px-0 sm:w-auto sm:justify-start"
+							disabled={disabled || !polisReady}
+							onclick={() => doVote('pass')}
+						>
+							{m.polis_neutral()}
+						</Button>
 					</div>
 				{/if}
 			</div>
 
-			{#if failedVote && !waitingForNext}
-				<div
-					class="border-destructive/20 bg-destructive/5 flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
-					role="alert"
-				>
-					<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
-					<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
-						{m.try_again()}
-					</Button>
-				</div>
-			{/if}
-
-			<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
-			{#if !polisError && (!polisReady || polisCurrentStatement)}
-				{@const VOTE_BUTTON_CLASS = 'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
-				<!-- Vote buttons -->
-				<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
-					<Button
-						size="lg"
-						disabled={disabled || !polisReady}
-						onclick={() => doVote('agree')}
-						class={VOTE_BUTTON_CLASS}
-					>
-						<ThumbsUp class="size-6" />
-						{m.polis_agree()}
-					</Button>
-					<Button
-						size="lg"
-						disabled={disabled || !polisReady}
-						onclick={() => doVote('disagree')}
-						class={VOTE_BUTTON_CLASS}
-					>
-						<ThumbsDown class="size-6" />
-						{m.polis_disagree()}
-					</Button>
-					<Button
-						variant="ghost"
-						size="lg"
-						class="text-foreground/80 hover:text-foreground h-12 w-full px-0 text-lg hover:bg-transparent has-[>svg]:px-0 sm:w-auto sm:justify-start"
-						disabled={disabled || !polisReady}
-						onclick={() => doVote('pass')}
-					>
-						{m.polis_pass_unsure()}
-						<ChevronRight class="size-5 rtl:-scale-x-100" />
-					</Button>
-				</div>
-
+			{#if onboarding}
+				{@render skipIntro()}
+			{:else if !polisError && (!polisReady || shownStatement)}
 				<Button
 					variant="ghost"
 					class="text-muted-foreground hover:text-foreground mt-3 h-auto w-full px-0 py-1 text-center text-lg font-normal whitespace-normal hover:bg-transparent has-[>svg]:px-0 sm:mt-0 sm:w-auto sm:justify-start sm:text-start"
@@ -549,7 +854,7 @@
 				<Button
 					variant="link"
 					class="text-foreground/80 hover:text-foreground/60 shrink-0 text-xl transition-colors"
-					onclick={closeAddOpinion}
+					onclick={returnToVoting}
 					aria-label={m.polis_close()}
 				>
 					<X class="h-5 w-5" />
@@ -646,7 +951,7 @@
 
 			<button
 				class="text-muted-foreground hover:text-foreground self-center text-base font-medium transition-colors sm:mt-2 sm:self-start"
-				onclick={closeAddOpinion}
+				onclick={returnToVoting}
 			>
 				&larr; {m.polis_back_to_voting()}
 			</button>
