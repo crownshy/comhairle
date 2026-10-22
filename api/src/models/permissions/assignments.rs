@@ -330,7 +330,7 @@ pub async fn save(
     if let (ResourceType::Organization, Recipient::User(user_id)) = (resource_type, recipient)
         && let Some(group) = newly_granted_organization_group(&current.roles, &request.roles)
     {
-        user_group::notify_organization_addition(state, resource_id, user_id, group).await;
+        user_group::notify_organization_addition(state, resource_id, user_id, group, None).await;
     }
     Ok(snapshot)
 }
