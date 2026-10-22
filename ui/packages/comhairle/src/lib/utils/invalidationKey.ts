@@ -11,6 +11,7 @@ type InputKey =
 	| 'admin/conversation/workflow'
 	| 'admin/conversation/design/workflow'
 	| 'admin/conversations'
+	| 'admin/demographic-forms'
 	| 'admin/documents'
 	| 'admin/email-template-config'
 	| 'admin/event'

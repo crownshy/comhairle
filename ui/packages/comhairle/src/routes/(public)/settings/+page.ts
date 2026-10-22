@@ -8,26 +8,11 @@ export const load: PageLoad = async ({ parent, depends }) => {
 	if (!user) {
 		redirect(307, '/');
 	}
-	try {
-		const participation = await api.GetConversationsUserIsParticipatingIn();
-		const conversation_settings = await api.GetAllUserConversationPreferences();
-		const [questionsRes, responsesRes] = await Promise.all([
-			api
-				.GetDemographicsQuestions({ queries: { limit: 100 } })
-				.catch(() => ({ records: [] })),
-			api
-				.GetDemographicsResponses({ queries: { user_id: user.id, limit: 100 } })
-				.catch(() => ({ records: [] }))
-		]);
+	const [participation, conversation_settings, demographicAnswers] = await Promise.all([
+		api.GetConversationsUserIsParticipatingIn(),
+		api.GetAllUserConversationPreferences(),
+		api.ListMyDemographicAnswers()
+	]);
 
-		return {
-			participation,
-			conversation_settings,
-			user,
-			demographicQuestions: questionsRes.records || [],
-			demographicResponses: responsesRes.records || []
-		};
-	} catch (error) {
-		throw error;
-	}
+	return { participation, conversation_settings, user, demographicAnswers };
 };
