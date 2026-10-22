@@ -8,10 +8,14 @@ export const load: PageLoad = async ({ parent, depends }) => {
 	const { api } = await parent();
 
 	const result = await tryCatchAsync(() =>
-		Promise.all([api.ListEmailTemplateConfigs(), api.ListEmailTemplateSchemas()])
+		Promise.all([
+			api.ListEmailTemplateConfigs(),
+			api.ListEmailTemplateSchemas(),
+			api.GetOwnedConversations({ queries: { limit: 1000 } })
+		])
 	);
 	if (result.err !== null) redirect(302, '/admin');
 
-	const [emailConfigs, schemas] = result.ok;
-	return { emailConfigs, schemas };
+	const [emailConfigs, schemas, conversations] = result.ok;
+	return { emailConfigs, schemas, conversations: conversations.records };
 };
