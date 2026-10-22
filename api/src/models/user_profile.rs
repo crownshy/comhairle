@@ -1,19 +1,18 @@
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        demographics::{defaults::record_signup_answers, types::SignupAnswers},
-    },
-};
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::demographics::defaults::record_signup_answers;
+use crate::models::demographics::types::SignupAnswers;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_profile")]
@@ -186,11 +185,11 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleErro
     reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
 )]
 mod tests {
-    use super::*;
-
-    use sqlx::PgPool;
     use std::error::Error;
 
+    use sqlx::PgPool;
+
+    use super::*;
     use crate::models::demographics::defaults::{self, AGE_VERSION_ID, GENDER_VERSION_ID};
     use crate::routes::auth::SignupRequest;
 

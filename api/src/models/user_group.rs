@@ -2,16 +2,20 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
+use sea_query::{Alias, Expr, Func, JoinType, OnConflict, PostgresQueryBuilder, Query, enum_def};
+use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::organization::OrganizationIden;
 
 pub const CACHE_TTL_SECONDS: u64 = 300;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, FromRow)]
+#[enum_def(table_name = "user_group")]
 pub struct UserGroup {
     pub id: Uuid,
     pub name: String,
@@ -28,27 +32,131 @@ pub fn membership_cache_key(user_id: Uuid) -> String {
     format!("memberships:v1:user:{user_id}")
 }
 
+/// The two User groups every Organization owns. Members hold the view role and
+/// Admins hold the admin role.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationGroup {
+    Members,
+    Admins,
+}
+
+impl OrganizationGroup {
+    fn column(self) -> OrganizationIden {
+        match self {
+            Self::Members => OrganizationIden::UserGroupId,
+            Self::Admins => OrganizationIden::AdminGroupId,
+        }
+    }
+}
+
+#[derive(sea_query::Iden)]
+enum UserGroupMemberIden {
+    #[iden = "user_group_member"]
+    Table,
+    GroupId,
+    UserId,
+}
+
+#[derive(sea_query::Iden)]
+enum UserGroupMembershipVersionIden {
+    #[iden = "user_group_membership_version"]
+    Table,
+    UserId,
+    Version,
+}
+
+#[derive(sea_query::Iden)]
+enum SystemGroupPermissionsIden {
+    #[iden = "system_group_permissions"]
+    Table,
+    GroupId,
+    RoleName,
+}
+
+#[derive(sea_query::Iden)]
+enum OrganizationUserPermissionsIden {
+    #[iden = "organization_user_permissions"]
+    Table,
+    UserId,
+    ResourceId,
+}
+
+#[derive(sea_query::Iden)]
+enum ComhairleUserIden {
+    #[iden = "comhairle_user"]
+    Table,
+    Id,
+    Username,
+    Email,
+    OrganizationId,
+}
+
+pub async fn organization_group_for(
+    db: &sqlx::PgPool,
+    organization_id: Uuid,
+    group: OrganizationGroup,
+) -> Result<Uuid, ComhairleError> {
+    let (sql, values) = Query::select()
+        .column(group.column())
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col(OrganizationIden::Id).eq(organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_scalar_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
+/// The Organization's members group.
 pub async fn organization_group(
     db: &sqlx::PgPool,
     organization_id: Uuid,
 ) -> Result<Uuid, ComhairleError> {
-    sqlx::query_scalar("SELECT user_group_id FROM organization WHERE id = $1")
-        .bind(organization_id)
-        .fetch_one(db)
-        .await
-        .map_err(ComhairleError::DatabaseError)
+    organization_group_for(db, organization_id, OrganizationGroup::Members).await
 }
 
 pub async fn memberships(
     state: &Arc<ComhairleState>,
     user_id: Uuid,
 ) -> Result<Vec<Uuid>, ComhairleError> {
-    let version: i64 = sqlx::query_scalar(
-        "SELECT coalesce((SELECT version FROM user_group_membership_version WHERE user_id = $1), 0)",
-    )
-    .bind(user_id)
-    .fetch_one(&state.db)
-    .await?;
+    let (sql, values) = Query::select()
+        .expr(Func::coalesce([
+            Expr::col((
+                UserGroupMembershipVersionIden::Table,
+                UserGroupMembershipVersionIden::Version,
+            ))
+            .into(),
+            Expr::val(0).into(),
+        ]))
+        .column((UserGroupMemberIden::Table, UserGroupMemberIden::GroupId))
+        .from(ComhairleUserIden::Table)
+        .join(
+            JoinType::LeftJoin,
+            UserGroupMembershipVersionIden::Table,
+            Expr::col((
+                UserGroupMembershipVersionIden::Table,
+                UserGroupMembershipVersionIden::UserId,
+            ))
+            .equals((ComhairleUserIden::Table, ComhairleUserIden::Id)),
+        )
+        .join(
+            JoinType::LeftJoin,
+            UserGroupMemberIden::Table,
+            Expr::col((UserGroupMemberIden::Table, UserGroupMemberIden::UserId))
+                .equals((ComhairleUserIden::Table, ComhairleUserIden::Id)),
+        )
+        .and_where(Expr::col((ComhairleUserIden::Table, ComhairleUserIden::Id)).eq(user_id))
+        .order_by(
+            (UserGroupMemberIden::Table, UserGroupMemberIden::GroupId),
+            sea_query::Order::Asc,
+        )
+        .build_sqlx(PostgresQueryBuilder);
+    let rows: Vec<(i64, Option<Uuid>)> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&state.db)
+        .await?;
+    let version = rows.first().map_or(0, |(version, _)| *version);
     let cache_key = membership_cache_key(user_id);
     if let Some(connection) = &state.redis_conn
         && let Ok(Some(raw)) = connection.get(&cache_key).await
@@ -58,13 +166,13 @@ pub async fn memberships(
         return Ok(cached.groups);
     }
 
-    let memberships = sqlx::query_as::<_, CachedMemberships>(
-        "SELECT coalesce((SELECT version FROM user_group_membership_version WHERE user_id = $1), 0) AS version,
-         ARRAY(SELECT group_id FROM user_group_member WHERE user_id = $1 ORDER BY group_id) AS groups",
-    )
-    .bind(user_id)
-    .fetch_one(&state.db)
-    .await?;
+    let memberships = CachedMemberships {
+        version,
+        groups: rows
+            .into_iter()
+            .filter_map(|(_, group_id)| group_id)
+            .collect(),
+    };
     if let Some(connection) = &state.redis_conn
         && let Ok(serialized) = serde_json::to_string(&memberships)
     {
@@ -86,20 +194,150 @@ pub async fn is_organization_member(
     organization_id: Uuid,
     user_id: Uuid,
 ) -> Result<bool, ComhairleError> {
-    Ok(sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM user_group_member JOIN organization
-        ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1 AND user_id = $2)")
-        .bind(organization_id).bind(user_id).fetch_one(db).await?)
+    let membership = Query::select()
+        .expr(Expr::val(1))
+        .from(UserGroupMemberIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            OrganizationIden::Table,
+            Expr::col((OrganizationIden::Table, OrganizationIden::UserGroupId))
+                .equals((UserGroupMemberIden::Table, UserGroupMemberIden::GroupId))
+                .or(
+                    Expr::col((OrganizationIden::Table, OrganizationIden::AdminGroupId))
+                        .equals((UserGroupMemberIden::Table, UserGroupMemberIden::GroupId)),
+                ),
+        )
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(organization_id))
+        .and_where(Expr::col((UserGroupMemberIden::Table, UserGroupMemberIden::UserId)).eq(user_id))
+        .to_owned();
+    let (sql, values) = Query::select()
+        .expr(Expr::exists(membership))
+        .build_sqlx(PostgresQueryBuilder);
+
+    Ok(sqlx::query_scalar_with(&sql, values).fetch_one(db).await?)
 }
 
-pub async fn set_organization_member(
-    state: &Arc<ComhairleState>,
+pub async fn organization_groups_of_user(
+    db: &sqlx::PgPool,
     organization_id: Uuid,
     user_id: Uuid,
+) -> Result<Vec<OrganizationGroup>, ComhairleError> {
+    let member = Query::select()
+        .expr(Expr::val(1))
+        .from(UserGroupMemberIden::Table)
+        .and_where(Expr::col(UserGroupMemberIden::UserId).eq(user_id))
+        .and_where(
+            Expr::col(UserGroupMemberIden::GroupId)
+                .equals((OrganizationIden::Table, OrganizationIden::UserGroupId)),
+        )
+        .to_owned();
+    let administrator = Query::select()
+        .expr(Expr::val(1))
+        .from(UserGroupMemberIden::Table)
+        .and_where(Expr::col(UserGroupMemberIden::UserId).eq(user_id))
+        .and_where(
+            Expr::col(UserGroupMemberIden::GroupId)
+                .equals((OrganizationIden::Table, OrganizationIden::AdminGroupId)),
+        )
+        .to_owned();
+    let (sql, values) = Query::select()
+        .expr(Expr::exists(member))
+        .expr(Expr::exists(administrator))
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col(OrganizationIden::Id).eq(organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+    let (member, administrator): (bool, bool) =
+        sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    Ok([
+        (member, OrganizationGroup::Members),
+        (administrator, OrganizationGroup::Admins),
+    ]
+    .into_iter()
+    .filter_map(|(belongs, group)| belongs.then_some(group))
+    .collect())
+}
+
+#[derive(Debug, FromRow)]
+pub struct OrganizationTeamMember {
+    pub id: Uuid,
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub is_member: bool,
+    pub is_admin: bool,
+}
+
+pub async fn organization_team(
+    db: &sqlx::PgPool,
+    organization_id: Uuid,
+) -> Result<Vec<OrganizationTeamMember>, ComhairleError> {
+    let membership = Alias::new("membership");
+    let is_member = Func::cust("bool_or").arg(
+        Expr::col((membership.clone(), UserGroupMemberIden::GroupId))
+            .equals((OrganizationIden::Table, OrganizationIden::UserGroupId)),
+    );
+    let is_admin = Func::cust("bool_or").arg(
+        Expr::col((membership.clone(), UserGroupMemberIden::GroupId))
+            .equals((OrganizationIden::Table, OrganizationIden::AdminGroupId)),
+    );
+    let (sql, values) = Query::select()
+        .columns([
+            (ComhairleUserIden::Table, ComhairleUserIden::Id),
+            (ComhairleUserIden::Table, ComhairleUserIden::Username),
+            (ComhairleUserIden::Table, ComhairleUserIden::Email),
+        ])
+        .expr_as(is_member, Alias::new("is_member"))
+        .expr_as(is_admin, Alias::new("is_admin"))
+        .from(OrganizationIden::Table)
+        .join_as(
+            JoinType::InnerJoin,
+            UserGroupMemberIden::Table,
+            membership.clone(),
+            Expr::col((membership.clone(), UserGroupMemberIden::GroupId))
+                .equals((OrganizationIden::Table, OrganizationIden::UserGroupId))
+                .or(
+                    Expr::col((membership.clone(), UserGroupMemberIden::GroupId))
+                        .equals((OrganizationIden::Table, OrganizationIden::AdminGroupId)),
+                ),
+        )
+        .join(
+            JoinType::InnerJoin,
+            ComhairleUserIden::Table,
+            Expr::col((ComhairleUserIden::Table, ComhairleUserIden::Id))
+                .equals((membership.clone(), UserGroupMemberIden::UserId)),
+        )
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(organization_id))
+        .group_by_columns([
+            (ComhairleUserIden::Table, ComhairleUserIden::Id),
+            (ComhairleUserIden::Table, ComhairleUserIden::Username),
+            (ComhairleUserIden::Table, ComhairleUserIden::Email),
+        ])
+        .order_by(
+            (ComhairleUserIden::Table, ComhairleUserIden::Email),
+            sea_query::Order::Asc,
+        )
+        .order_by(
+            (ComhairleUserIden::Table, ComhairleUserIden::Id),
+            sea_query::Order::Asc,
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
+/// Add a user to one of an Organization's groups. Administrators are always members, so
+/// joining the administrators group also joins the members group.
+pub async fn add_organization_member(
+    state: &Arc<ComhairleState>,
+    organization_id: Uuid,
+    group: OrganizationGroup,
+    user_id: Uuid,
     caller_id: Uuid,
-    administrator: bool,
 ) -> Result<(), ComhairleError> {
     use super::permissions::organization::Action;
-    use super::permissions::{self, ActorId};
+    use super::permissions::{self};
     if user_id == caller_id {
         return Err(ComhairleError::UserNotAuthorized);
     }
@@ -112,14 +350,33 @@ pub async fn set_organization_member(
         caller_id,
     )
     .await?;
-    let group_id = organization_group(&state.db, organization_id).await?;
-    let grants_superadmin: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM system_group_permissions
-        WHERE group_id = $1 AND role_name = 'super_admin')",
-    )
-    .bind(group_id)
-    .fetch_one(&mut *transaction)
-    .await?;
+    let (sql, values) = Query::select()
+        .columns([
+            OrganizationIden::UserGroupId,
+            OrganizationIden::AdminGroupId,
+        ])
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col(OrganizationIden::Id).eq(organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+    let (members_group, admins_group): (Uuid, Uuid) = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *transaction)
+        .await?;
+    let target_groups = match group {
+        OrganizationGroup::Members => vec![members_group],
+        OrganizationGroup::Admins => vec![members_group, admins_group],
+    };
+    let superadmin_permission = Query::select()
+        .expr(Expr::val(1))
+        .from(SystemGroupPermissionsIden::Table)
+        .and_where(Expr::col(SystemGroupPermissionsIden::GroupId).is_in(target_groups.clone()))
+        .and_where(Expr::col(SystemGroupPermissionsIden::RoleName).eq("super_admin"))
+        .to_owned();
+    let (sql, values) = Query::select()
+        .expr(Expr::exists(superadmin_permission))
+        .build_sqlx(PostgresQueryBuilder);
+    let grants_superadmin: bool = sqlx::query_scalar_with(&sql, values)
+        .fetch_one(&mut *transaction)
+        .await?;
     if grants_superadmin {
         permissions::authorize_transaction(
             &mut transaction,
@@ -129,39 +386,33 @@ pub async fn set_organization_member(
         )
         .await?;
     }
-    sqlx::query(
-        "INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-    )
-    .bind(group_id)
-    .bind(user_id)
-    .execute(&mut *transaction)
-    .await?;
-    if administrator {
-        sqlx::query("INSERT INTO organization_user_permissions (user_id, resource_id, role_name, granted_by, grant_reason)
-            VALUES ($1, $2, 'organization_admin', $3, 'Organization team management') ON CONFLICT DO NOTHING")
-            .bind(user_id).bind(organization_id).bind(caller_id).execute(&mut *transaction).await?;
-    } else {
-        sqlx::query("DELETE FROM organization_user_permissions WHERE user_id = $1 AND resource_id = $2 AND role_name = 'organization_admin'")
-            .bind(user_id).bind(organization_id).execute(&mut *transaction).await?;
+    let mut insert = Query::insert()
+        .into_table(UserGroupMemberIden::Table)
+        .columns([UserGroupMemberIden::GroupId, UserGroupMemberIden::UserId])
+        .to_owned();
+    for group_id in target_groups {
+        insert.values([group_id.into(), user_id.into()])?;
     }
+    insert.on_conflict(OnConflict::new().do_nothing().to_owned());
+    let (sql, values) = insert.build_sqlx(PostgresQueryBuilder);
+    sqlx::query_with(&sql, values)
+        .execute(&mut *transaction)
+        .await?;
     transaction
         .commit()
         .await
         .map_err(permissions::permission_database_error)?;
     invalidate_memberships(state, user_id).await;
-    permissions::invalidate_actor_roles(
-        state,
-        "organization",
-        &organization_id,
-        ActorId::User(user_id),
-    )
-    .await?;
     Ok(())
 }
 
+/// Remove a user from one of an Organization's groups. Leaving the administrators group
+/// demotes the user to member; leaving the members group removes them from the
+/// Organization entirely, including the administrators group and any direct grants.
 pub async fn remove_organization_member(
     state: &Arc<ComhairleState>,
     organization_id: Uuid,
+    group: OrganizationGroup,
     user_id: Uuid,
     caller_id: Uuid,
 ) -> Result<(), ComhairleError> {
@@ -179,40 +430,62 @@ pub async fn remove_organization_member(
         caller_id,
     )
     .await?;
-    sqlx::query(
-        "DELETE FROM user_group_member WHERE user_id = $1 AND group_id =
-        (SELECT user_group_id FROM organization WHERE id = $2)",
-    )
-    .bind(user_id)
-    .bind(organization_id)
-    .execute(&mut *transaction)
-    .await?;
-    sqlx::query(
-        "DELETE FROM organization_user_permissions WHERE user_id = $1 AND resource_id = $2",
-    )
-    .bind(user_id)
-    .bind(organization_id)
-    .execute(&mut *transaction)
-    .await?;
-    sqlx::query(
-        "UPDATE comhairle_user SET organization_id = NULL WHERE id = $1 AND organization_id = $2",
-    )
-    .bind(user_id)
-    .bind(organization_id)
-    .execute(&mut *transaction)
-    .await?;
+    let (sql, values) = Query::select()
+        .columns([
+            OrganizationIden::UserGroupId,
+            OrganizationIden::AdminGroupId,
+        ])
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col(OrganizationIden::Id).eq(organization_id))
+        .build_sqlx(PostgresQueryBuilder);
+    let (members_group, admins_group): (Uuid, Uuid) = sqlx::query_as_with(&sql, values)
+        .fetch_one(&mut *transaction)
+        .await?;
+    let target_groups = match group {
+        OrganizationGroup::Members => vec![members_group, admins_group],
+        OrganizationGroup::Admins => vec![admins_group],
+    };
+    let (sql, values) = Query::delete()
+        .from_table(UserGroupMemberIden::Table)
+        .and_where(Expr::col(UserGroupMemberIden::UserId).eq(user_id))
+        .and_where(Expr::col(UserGroupMemberIden::GroupId).is_in(target_groups))
+        .build_sqlx(PostgresQueryBuilder);
+    sqlx::query_with(&sql, values)
+        .execute(&mut *transaction)
+        .await?;
+    if group == OrganizationGroup::Members {
+        let (sql, values) = Query::delete()
+            .from_table(OrganizationUserPermissionsIden::Table)
+            .and_where(Expr::col(OrganizationUserPermissionsIden::UserId).eq(user_id))
+            .and_where(Expr::col(OrganizationUserPermissionsIden::ResourceId).eq(organization_id))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *transaction)
+            .await?;
+        let (sql, values) = Query::update()
+            .table(ComhairleUserIden::Table)
+            .value(ComhairleUserIden::OrganizationId, Option::<Uuid>::None)
+            .and_where(Expr::col(ComhairleUserIden::Id).eq(user_id))
+            .and_where(Expr::col(ComhairleUserIden::OrganizationId).eq(organization_id))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *transaction)
+            .await?;
+    }
     transaction
         .commit()
         .await
         .map_err(permissions::permission_database_error)?;
     invalidate_memberships(state, user_id).await;
-    permissions::invalidate_actor_roles(
-        state,
-        "organization",
-        &organization_id,
-        ActorId::User(user_id),
-    )
-    .await?;
+    if group == OrganizationGroup::Members {
+        permissions::invalidate_actor_roles(
+            state,
+            "organization",
+            &organization_id,
+            ActorId::User(user_id),
+        )
+        .await?;
+    }
     Ok(())
 }
 
@@ -242,18 +515,20 @@ mod tests {
                 .call()?,
         );
         assert!(memberships(&state, user_id).await?.is_empty());
-        sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $3), ($2, $3)")
-            .bind(first_group)
-            .bind(second_group)
-            .bind(user_id)
-            .execute(&pool)
-            .await?;
+        let (sql, values) = Query::insert()
+            .into_table(UserGroupMemberIden::Table)
+            .columns([UserGroupMemberIden::GroupId, UserGroupMemberIden::UserId])
+            .values([first_group.into(), user_id.into()])?
+            .values([second_group.into(), user_id.into()])?
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values).execute(&pool).await?;
         assert_eq!(memberships(&state, user_id).await?.len(), 2);
-        sqlx::query("DELETE FROM user_group_member WHERE group_id = $1 AND user_id = $2")
-            .bind(first_group)
-            .bind(user_id)
-            .execute(&pool)
-            .await?;
+        let (sql, values) = Query::delete()
+            .from_table(UserGroupMemberIden::Table)
+            .and_where(Expr::col(UserGroupMemberIden::GroupId).eq(first_group))
+            .and_where(Expr::col(UserGroupMemberIden::UserId).eq(user_id))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values).execute(&pool).await?;
         assert_eq!(memberships(&state, user_id).await?, vec![second_group]);
         Ok(())
     }

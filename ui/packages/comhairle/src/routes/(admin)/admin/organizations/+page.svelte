@@ -5,6 +5,11 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { organizationsTour } from './tour';
+
+	useTour(() => organizationsTour);
+
 	let props: PageProps = $props();
 	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
 	let canCreateOrganization = $derived(permissions.can('system', 'organization_create'));
@@ -23,14 +28,14 @@
 >
 	{#snippet actions()}
 		{#if canCreateOrganization}
-			<Button href="/admin/organizations/new">
+			<Button href="/admin/organizations/new" data-tour="new-organization">
 				<Plus class="size-4" />
 				Create organisation
 			</Button>
 		{/if}
 	{/snippet}
 </SectionHeader><TabContent>
-	<div class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
+	<div data-tour="organizations-list" class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
 		{#each organizationAccess as access (access.organization.id)}
 			<div class="bg-card border-border flex h-full flex-col gap-4 rounded-2xl border p-6">
 				<div class="flex items-start justify-between gap-4">

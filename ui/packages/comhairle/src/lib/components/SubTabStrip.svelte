@@ -23,6 +23,8 @@
 		 * server-renders and deep-links cleanly. Omit for query-param sub-tabs.
 		 */
 		basePath?: string;
+		/** The page below is full-bleed, so the tabs sit at the left gutter instead of centring. */
+		fullBleed?: boolean;
 	};
 
 	let {
@@ -30,7 +32,8 @@
 		paramName = 'subtab',
 		defaultValue,
 		tone = 'secondary',
-		basePath
+		basePath,
+		fullBleed = false
 	}: Props = $props();
 
 	let currentValue = $derived(
@@ -63,7 +66,8 @@
 >
 	<ul
 		class={cn(
-			'max-w-admin mx-auto flex w-full items-center',
+			'flex w-full items-center',
+			!fullBleed && 'max-w-admin mx-auto',
 			isSectionStrip ? 'gap-6' : cn(SUB_TAB_LIST_OFFSET, 'gap-1.5')
 		)}
 	>

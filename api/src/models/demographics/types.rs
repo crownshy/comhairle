@@ -7,10 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::models::translations::TextContentId;
-
 use super::responses::ConsentState;
 use super::{DatePrecision, LocationFormat, QuestionType, VersionStatus};
+use crate::models::translations::TextContentId;
 
 // ---------------------------------------------------------------------------
 // Inputs

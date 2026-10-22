@@ -4,6 +4,10 @@
 	import * as Card from '$lib/components/ui/card';
 	import EventCard from '$lib/components/EventCard.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { eventsListTour } from './tour';
+
+	useTour(() => eventsListTour);
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -19,7 +23,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="flex max-w-[700px] flex-col gap-6">
+<div data-tour="events-list" class="flex max-w-[700px] flex-col gap-6">
 	{#if events.length === 0}
 		<div
 			class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"

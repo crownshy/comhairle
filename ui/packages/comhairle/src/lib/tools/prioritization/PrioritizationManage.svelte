@@ -294,7 +294,7 @@
 </script>
 
 <section class="space-y-10">
-	<div class="space-y-4">
+	<div data-tour="prioritization-questions" class="space-y-4">
 		<header class="flex items-start justify-between gap-4">
 			<div>
 				<h2 class="text-2xl font-semibold">Questions</h2>
@@ -413,7 +413,7 @@
 		</div>
 	{/if}
 
-	<div class="space-y-4">
+	<div data-tour="prioritization-section-questions" class="space-y-4">
 		<header class="flex items-start justify-between gap-4">
 			<div>
 				<h2 class="text-2xl font-semibold">Per-section questions</h2>
@@ -499,7 +499,7 @@
 		{/if}
 	</div>
 
-	<div class="space-y-4">
+	<div data-tour="prioritization-proposals" class="space-y-4">
 		<header class="flex items-start justify-between gap-4">
 			<div>
 				<h2 class="text-2xl font-semibold">Proposals</h2>
