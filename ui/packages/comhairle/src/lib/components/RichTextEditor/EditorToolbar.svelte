@@ -6,6 +6,7 @@
 	import TableControlsPopover from './TableControlsPopover.svelte';
 	import { insertDefaultTable } from './tableActions';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import { cn } from '$lib/utils';
 
 	import {
 		List,
@@ -25,25 +26,21 @@
 		Music,
 		type Icon
 	} from 'lucide-svelte';
-	import type { ComponentType } from 'svelte';
+	import type { ComponentType, Snippet } from 'svelte';
 
 	type Props = {
 		editor: Editor | undefined;
 		activeStates: ActiveStates;
 		documents: ComhairleDocument[];
-		menuExpanded: boolean;
-		compact?: boolean;
-		onToggleMenu: () => void;
+		disabled?: boolean;
+		/** Extra controls pinned to the right end of the toolbar, such as the translate button. They stay usable when the toolbar is disabled. */
+		actions?: Snippet;
 	};
 
-	let {
-		editor,
-		activeStates,
-		documents,
-		menuExpanded,
-		compact = false,
-		onToggleMenu
-	}: Props = $props();
+	let { editor, activeStates, documents, disabled = false, actions }: Props = $props();
+
+	const overflowId = $props.id();
+	let overflowOpen = $state(false);
 
 	// TODO: Upgrade lucide icons library to be able to use svelte 5 syntax as ComponentType is deprecated
 	type ButtonProps = {
@@ -52,10 +49,22 @@
 		onclick?: (event: MouseEvent) => void;
 		classes?: string;
 	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
+
+	const TOOLBAR_BUTTON_CLASS =
+		'text-muted-foreground hover:bg-accent hover:text-accent-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-sm leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40';
+	const ACTIVE_BUTTON_CLASS =
+		'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold';
+	const GROUP_CLASS = 'flex items-center gap-0.5';
 </script>
 
+<!--
+	As the toolbar narrows, groups move from the right into the "More" row. The breakpoints
+	are container queries on the toolbar, not the viewport, because the same editor sits in
+	full-width pages, side-by-side translation panes and dialogs.
+-->
+
 {#snippet divider()}
-	<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+	<div class="bg-border mx-1 h-5 w-px shrink-0" aria-hidden="true"></div>
 {/snippet}
 
 {#snippet button({ title, active, onclick, classes, text, Icon }: ButtonProps)}
@@ -64,10 +73,8 @@
 		{onclick}
 		{title}
 		aria-label={title}
-		class={`btn ${classes}`}
-		class:!bg-primary={active}
-		class:!text-primary-foreground={active}
-		class:!font-semibold={active}
+		aria-pressed={active}
+		class={cn(TOOLBAR_BUTTON_CLASS, classes, active && ACTIVE_BUTTON_CLASS)}
 	>
 		{#if text}
 			{text}
@@ -77,16 +84,137 @@
 		{/if}
 	</button>
 {/snippet}
-<div
-	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 px-3 xl:p-2"
->
-	<!-- Always visible on mobile: Heading + BISU -->
-	<div class="flex flex-1 items-center gap-1 xl:flex-none">
-		<!-- Heading selector -->
-		<div class="flex items-center gap-0.5">
-			<div class="relative inline-block xl:flex-1">
+
+{#snippet lists()}
+	{@render button({
+		title: 'Bullet List',
+		active: activeStates.bulletList,
+		onclick: () => editor?.chain().focus().toggleBulletList().run(),
+		Icon: List
+	})}
+	{@render button({
+		title: 'Numbered List',
+		active: activeStates.orderedList,
+		onclick: () => editor?.chain().focus().toggleOrderedList().run(),
+		Icon: ListOrdered
+	})}
+{/snippet}
+
+{#snippet quoteAndLink()}
+	{@render button({
+		title: 'Blockquote',
+		active: activeStates.blockquote,
+		onclick: () => editor?.chain().focus().toggleBlockquote().run(),
+		Icon: Quote
+	})}
+	<UrlInputPopover
+		type="link"
+		onSubmit={(url) => {
+			editor?.chain().focus().setLink({ href: url }).run();
+		}}
+	>
+		{@render button({
+			title: 'Add Link',
+			active: activeStates.link,
+			onclick: (event) => {
+				if (activeStates.link) {
+					event.stopPropagation();
+					editor?.chain().focus().unsetLink().run();
+				}
+			},
+			Icon: LinkIcon
+		})}
+	</UrlInputPopover>
+{/snippet}
+
+{#snippet alignment()}
+	{@render button({
+		title: 'Align Left',
+		active: activeStates.textAlign === 'left',
+		onclick: () => editor?.chain().focus().setTextAlign('left').run(),
+		Icon: AlignLeft
+	})}
+	{@render button({
+		title: 'Align Center',
+		active: activeStates.textAlign === 'center',
+		onclick: () => editor?.chain().focus().setTextAlign('center').run(),
+		Icon: AlignCenter
+	})}
+	{@render button({
+		title: 'Align Right',
+		active: activeStates.textAlign === 'right',
+		onclick: () => editor?.chain().focus().setTextAlign('right').run(),
+		Icon: AlignRight
+	})}
+	{@render button({
+		title: 'Justify',
+		active: activeStates.textAlign === 'justify',
+		onclick: () => editor?.chain().focus().setTextAlign('justify').run(),
+		Icon: AlignJustify
+	})}
+{/snippet}
+
+{#snippet media()}
+	<UrlInputPopover
+		type="image"
+		allowLocalSelection
+		onSubmit={(url) => {
+			editor?.chain().focus().setImage({ src: url }).run();
+		}}
+	>
+		{@render button({ title: 'Add Image', active: false, Icon: ImageIcon })}
+	</UrlInputPopover>
+	<UrlInputPopover
+		type="video"
+		allowLocalSelection
+		onSubmit={(url) => {
+			editor?.chain().focus().setIframe({ src: url }).run();
+		}}
+	>
+		{@render button({ title: 'Add Video', active: false, Icon: Video })}
+	</UrlInputPopover>
+	<UrlInputPopover
+		type="audio"
+		allowLocalSelection
+		onSubmit={(url) => {
+			editor?.chain().focus().setAudio({ src: url, autoplay: false, controls: true }).run();
+		}}
+	>
+		{@render button({ title: 'Add Audio', active: false, Icon: Music })}
+	</UrlInputPopover>
+	<DocumentPickerPopover
+		{documents}
+		onSelect={(documentId) => {
+			editor?.chain().focus().setSourceDocument({ documentId }).run();
+		}}
+	>
+		{@render button({ title: 'Insert Source Document', active: false, Icon: FileText })}
+	</DocumentPickerPopover>
+{/snippet}
+
+{#snippet table()}
+	<!-- Outside a table the click inserts one; inside a table it opens the manage menu. -->
+	<TableControlsPopover {editor}>
+		{@render button({
+			title: activeStates.table ? 'Table options' : 'Insert Table',
+			active: activeStates.table,
+			onclick: (event) => {
+				if (!activeStates.table && editor) {
+					event.stopPropagation();
+					insertDefaultTable(editor);
+				}
+			},
+			Icon: TableIcon
+		})}
+	</TableControlsPopover>
+{/snippet}
+
+<div class="border-border bg-muted @container rounded-t-xl border border-b-0">
+	<div class="flex min-h-12 items-center px-2 py-1.5">
+		<fieldset {disabled} class="contents">
+			<div class="relative w-28 min-w-20 shrink">
 				<select
-					class="text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-24 shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent px-1.5 py-1 pr-6 text-sm xl:w-full"
+					class="text-muted-foreground hover:bg-accent hover:text-accent-foreground h-8 w-full cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent pr-6 pl-2 text-sm"
 					value={activeStates.heading}
 					aria-label="Text style"
 					onchange={(e) => {
@@ -112,232 +240,91 @@
 				</select>
 				<ChevronDown
 					size={12}
-					class="text-muted-foreground pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2"
+					class="text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2"
 				/>
 			</div>
-		</div>
 
-		{@render divider()}
+			{@render divider()}
 
-		<!-- BISU (always visible) -->
-		<div class="flex items-center gap-0.5">
-			{@render button({
-				title: 'Bold',
-				active: activeStates.bold,
-				onclick: () => editor?.chain().focus().toggleBold().run(),
-				text: 'B',
-				classes: 'font-bold'
-			})}
-			{@render button({
-				title: 'Italic',
-				active: activeStates.italic,
-				onclick: () => editor?.chain().focus().toggleItalic().run(),
-				text: 'I',
-				classes: 'italic'
-			})}
-			{@render button({
-				title: 'Strikethrough',
-				active: activeStates.strike,
-				onclick: () => editor?.chain().focus().toggleStrike().run(),
-				text: 'S',
-				classes: 'line-through'
-			})}
-			{@render button({
-				title: 'Underline',
-				active: activeStates.underline,
-				onclick: () => editor?.chain().focus().toggleUnderline().run(),
-				text: 'U',
-				classes: 'underline'
-			})}
-		</div>
+			<div class={GROUP_CLASS}>
+				{@render button({
+					title: 'Bold',
+					active: activeStates.bold,
+					onclick: () => editor?.chain().focus().toggleBold().run(),
+					text: 'B',
+					classes: 'font-bold'
+				})}
+				{@render button({
+					title: 'Italic',
+					active: activeStates.italic,
+					onclick: () => editor?.chain().focus().toggleItalic().run(),
+					text: 'I',
+					classes: 'italic'
+				})}
+				{@render button({
+					title: 'Strikethrough',
+					active: activeStates.strike,
+					onclick: () => editor?.chain().focus().toggleStrike().run(),
+					text: 'S',
+					classes: 'line-through'
+				})}
+				{@render button({
+					title: 'Underline',
+					active: activeStates.underline,
+					onclick: () => editor?.chain().focus().toggleUnderline().run(),
+					text: 'U',
+					classes: 'underline'
+				})}
+			</div>
 
-		<!-- Mobile/Compact "more" toggle -->
-		{#if compact}
+			<div class="hidden items-center @md:flex">
+				{@render divider()}
+				<div class={GROUP_CLASS}>{@render lists()}</div>
+			</div>
+			<div class="hidden items-center @lg:flex">
+				{@render divider()}
+				<div class={GROUP_CLASS}>{@render quoteAndLink()}</div>
+			</div>
+			<div class="hidden items-center @2xl:flex">
+				{@render divider()}
+				<div class={GROUP_CLASS}>{@render alignment()}</div>
+			</div>
+			<div class="hidden items-center @3xl:flex">
+				{@render divider()}
+				<div class={GROUP_CLASS}>{@render media()}</div>
+				{@render divider()}
+				<div class={GROUP_CLASS}>{@render table()}</div>
+			</div>
+
 			<button
 				type="button"
-				class="text-muted-foreground hover:bg-accent hover:text-accent-foreground ml-auto flex shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-1.5 xl:hidden"
-				onclick={onToggleMenu}
-				aria-label="More options"
+				class={cn(TOOLBAR_BUTTON_CLASS, 'ml-1 @3xl:hidden', overflowOpen && 'bg-accent')}
+				title="More formatting"
+				aria-label="More formatting"
+				aria-expanded={overflowOpen}
+				aria-controls={overflowId}
+				onclick={() => (overflowOpen = !overflowOpen)}
 			>
-				<MoreHorizontal size={18} />
+				<MoreHorizontal size={16} />
 			</button>
+		</fieldset>
+
+		{#if actions}
+			<div class="ml-auto flex items-center pl-1">{@render actions()}</div>
 		{/if}
 	</div>
 
-	<!-- Desktop toolbar content / Mobile expandable content (hidden in compact mode) -->
-	{#if !compact}
-		<div
-			class="border-border bg-background absolute top-full right-0 left-0 z-10 hidden flex-col gap-2 border border-t-0 p-3 shadow-lg xl:static xl:flex xl:w-auto xl:flex-row xl:items-center xl:gap-1 xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none"
-			class:flex={menuExpanded}
-			class:hidden={!menuExpanded}
+	{#if overflowOpen}
+		<fieldset
+			{disabled}
+			id={overflowId}
+			class="border-border flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5 @3xl:hidden"
 		>
-			{@render divider()}
-
-			<!-- Lists -->
-			<div class="flex items-center gap-0.5">
-				{@render button({
-					title: 'Bullet List',
-					active: activeStates.bulletList,
-					onclick: () => editor?.chain().focus().toggleBulletList().run(),
-					Icon: List
-				})}
-				{@render button({
-					title: 'Numbered List',
-					active: activeStates.orderedList,
-					onclick: () => editor?.chain().focus().toggleOrderedList().run(),
-					Icon: ListOrdered
-				})}
-			</div>
-
-			{@render divider()}
-
-			<!-- Text Alignment -->
-			<div class="flex items-center gap-0.5">
-				{@render button({
-					title: 'Align Left',
-					active: activeStates.textAlign === 'left',
-					onclick: () => editor?.chain().focus().setTextAlign('left').run(),
-					Icon: AlignLeft
-				})}
-				{@render button({
-					title: 'Align Center',
-					active: activeStates.textAlign === 'center',
-					onclick: () => editor?.chain().focus().setTextAlign('center').run(),
-					Icon: AlignCenter
-				})}
-				{@render button({
-					title: 'Align Right',
-					active: activeStates.textAlign === 'right',
-					onclick: () => editor?.chain().focus().setTextAlign('right').run(),
-					Icon: AlignRight
-				})}
-				{@render button({
-					title: 'Justify',
-					active: activeStates.textAlign === 'justify',
-					onclick: () => editor?.chain().focus().setTextAlign('justify').run(),
-					Icon: AlignJustify
-				})}
-			</div>
-
-			{@render divider()}
-
-			<!-- Blockquote & Link -->
-			{@render button({
-				title: 'Blockquote',
-				active: activeStates.blockquote,
-				onclick: () => editor?.chain().focus().toggleBlockquote().run(),
-				Icon: Quote
-			})}
-			<UrlInputPopover
-				type="link"
-				onSubmit={(url) => {
-					editor?.chain().focus().setLink({ href: url }).run();
-				}}
-			>
-				{@render button({
-					title: 'Add Link',
-					active: activeStates.link,
-					onclick: (event) => {
-						if (activeStates.link) {
-							event.stopPropagation();
-							editor?.chain().focus().unsetLink().run();
-						}
-					},
-					Icon: LinkIcon
-				})}
-			</UrlInputPopover>
-
-			{@render divider()}
-
-			<!-- Image, Video & Audio -->
-			<UrlInputPopover
-				type="image"
-				allowLocalSelection
-				onSubmit={(url) => {
-					editor?.chain().focus().setImage({ src: url }).run();
-				}}
-			>
-				{@render button({
-					title: 'Add Image',
-					active: false,
-					Icon: ImageIcon
-				})}
-			</UrlInputPopover>
-			<UrlInputPopover
-				type="video"
-				allowLocalSelection
-				onSubmit={(url) => {
-					editor?.chain().focus().setIframe({ src: url }).run();
-				}}
-			>
-				{@render button({
-					title: 'Add Video',
-					active: false,
-					Icon: Video
-				})}
-			</UrlInputPopover>
-			<UrlInputPopover
-				type="audio"
-				allowLocalSelection
-				onSubmit={(url) => {
-					editor
-						?.chain()
-						.focus()
-						.setAudio({ src: url, autoplay: false, controls: true })
-						.run();
-				}}
-			>
-				{@render button({
-					title: 'Add Audio',
-					active: false,
-					Icon: Music
-				})}
-			</UrlInputPopover>
-			<DocumentPickerPopover
-				{documents}
-				onSelect={(docId) => {
-					editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
-				}}
-			>
-				{@render button({
-					title: 'Insert Source Document',
-					active: false,
-					Icon: FileText
-				})}
-			</DocumentPickerPopover>
-
-			{@render divider()}
-
-			<!-- Table: click inserts when not in a table; when the caret is inside a
-			     table, the click instead opens the manage dropdown (row/col ops also
-			     live in the floating menu over the table). -->
-			<TableControlsPopover {editor}>
-				{@render button({
-					title: activeStates.table ? 'Table options' : 'Insert Table',
-					active: activeStates.table,
-					onclick: (event) => {
-						if (!activeStates.table && editor) {
-							// Suppress the popover (same trick as the link button) and insert.
-							event.stopPropagation();
-							insertDefaultTable(editor);
-						}
-					},
-					Icon: TableIcon
-				})}
-			</TableControlsPopover>
-		</div>
+			<div class={cn(GROUP_CLASS, '@md:hidden')}>{@render lists()}</div>
+			<div class={cn(GROUP_CLASS, '@lg:hidden')}>{@render quoteAndLink()}</div>
+			<div class={cn(GROUP_CLASS, '@2xl:hidden')}>{@render alignment()}</div>
+			<div class={GROUP_CLASS}>{@render media()}</div>
+			<div class={GROUP_CLASS}>{@render table()}</div>
+		</fieldset>
 	{/if}
 </div>
-
-<style>
-	@reference '../../../app.css';
-
-	.btn {
-		@apply flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1.5 py-1 text-sm leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40;
-		color: var(--color-muted-foreground);
-	}
-	.btn:hover {
-		background-color: var(--color-accent);
-		color: var(--color-accent-foreground);
-	}
-</style>

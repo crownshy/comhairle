@@ -2,10 +2,9 @@ use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
 use super::responses::record_response;
 use super::types::SignupAnswers;
+use crate::error::ComhairleError;
 
 /// Fixed ids seeded by the migration.
 pub const AGE_VERSION_ID: Uuid = Uuid::from_u128(0xde000002_0000_4000_8000_000000000001);

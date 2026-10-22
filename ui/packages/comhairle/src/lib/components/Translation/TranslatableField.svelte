@@ -129,31 +129,34 @@
 </script>
 
 <!-- Inline field -->
+{#snippet translateAction()}
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon"
+		class="size-8"
+		title="Translate"
+		aria-label="Translate"
+		onclick={() => openDialog()}
+	>
+		<Languages class="size-4" />
+	</Button>
+{/snippet}
+
 <div class="flex flex-col gap-2">
 	{#if editorType === 'rich'}
-		<div class="relative">
-			<RichTextEditor
-				{value}
-				editable={!disabled}
-				onChange={handleRichChange}
-				{placeholder}
-				{minHeight}
-				{maxHeight}
-				{availableDocuments}
-				{conversationId}
-				{reportEmbedSteps}
-			/>
-			{#if hasTranslations}
-				<Button
-					type="button"
-					variant="link"
-					class="absolute top-2 right-2 z-10"
-					onclick={() => openDialog()}
-				>
-					<Languages class="h-4 w-4" />
-				</Button>
-			{/if}
-		</div>
+		<RichTextEditor
+			{value}
+			editable={!disabled}
+			onChange={handleRichChange}
+			{placeholder}
+			{minHeight}
+			{maxHeight}
+			{availableDocuments}
+			{conversationId}
+			{reportEmbedSteps}
+			toolbarActions={hasTranslations ? translateAction : undefined}
+		/>
 	{:else}
 		<div class="relative">
 			{#if inputType === 'textarea'}

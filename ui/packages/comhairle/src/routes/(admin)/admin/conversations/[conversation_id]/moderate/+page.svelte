@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { ChevronRight, MessagesSquare } from 'lucide-svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { moderateTour } from './tour';
+
+	useTour(() => moderateTour);
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -16,7 +20,10 @@
 		There is nothing to moderate yet. Add a Polis step in Process design.
 	</p>
 {:else}
-	<ul class="bg-background divide-border border-border max-w-3xl divide-y rounded-xl border">
+	<ul
+		data-tour="moderate-steps"
+		class="bg-background divide-border border-border max-w-3xl divide-y rounded-xl border"
+	>
 		{#each polisSteps as step (step.id)}
 			<li>
 				<a

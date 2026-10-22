@@ -131,6 +131,11 @@
 	--vote-not-voted-border: #e5e7eb;
 
 	--beeswarm-dot: #030712;
+
+	/* One value in every theme, like --beeswarm-dot, and not in the Figma Themes collection.
+	   Kept apart from primary, which the Proceed button under it uses (ADR-0064). */
+	--step-complete: #2a9d90;
+	--step-complete-foreground: #ffffff;
 }
 
 .dark {
@@ -630,6 +635,8 @@
 
 	--color-seed-highlight: var(--seed-highlight);
 	--color-seed-highlight-bg: var(--seed-highlight-bg);
+	--color-step-complete: var(--step-complete);
+	--color-step-complete-foreground: var(--step-complete-foreground);
 	--color-participant-highlight: var(--participant-highlight);
 	--color-participant-highlight-bg: var(--participant-highlight-bg);
 
@@ -645,22 +652,6 @@
 	--shadow-lg: var(--shadow-lg);
 	--shadow-xl: var(--shadow-xl);
 	--shadow-2xl: var(--shadow-2xl);
-}
-
-/* Light, floating admin sidebar: a white card on the admin background instead of a dark
-   panel. Scoped to the admin layout (`data-sidebar-tone="light"`) because the public site
-   uses the same sidebar tokens for its dark nav. */
-[data-sidebar-tone='light'] {
-	--sidebar: var(--card);
-	--sidebar-foreground: var(--foreground);
-	--sidebar-accent: var(--accent);
-	--sidebar-accent-foreground: var(--accent-foreground);
-	--sidebar-primary: var(--primary);
-	--sidebar-primary-foreground: var(--primary-foreground);
-	--sidebar-secondary: var(--primary);
-	--sidebar-active-bg: var(--secondary);
-	--sidebar-ring: var(--ring);
-	--sidebar-border: var(--border);
 }
 
 /* Focus indicator: a light inner band and a dark outer band, so one of them clears 3:1 against

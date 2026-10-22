@@ -9,6 +9,8 @@
 	type Props = {
 		/** `skip` only when an optional step cannot advance yet (ADR-0047). */
 		forwardMode: 'next' | 'skip';
+		/** A tool's own name for forward while it is moving through its pages. */
+		nextLabel?: string;
 		canGoBack: boolean;
 		canGoForward: boolean;
 		loading?: boolean;
@@ -20,6 +22,7 @@
 
 	let {
 		forwardMode,
+		nextLabel,
 		canGoBack,
 		canGoForward,
 		loading = false,
@@ -31,7 +34,7 @@
 	const PAGER_BUTTON_CLASS =
 		'text-foreground inline-flex items-center gap-1 transition-transform active:scale-90 disabled:opacity-30 motion-reduce:transition-none motion-reduce:active:scale-100';
 
-	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : m.next());
+	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : (nextLabel ?? m.next()));
 	let explainBlocked = $derived(!canGoForward && !loading && blockedReason !== undefined);
 </script>
 

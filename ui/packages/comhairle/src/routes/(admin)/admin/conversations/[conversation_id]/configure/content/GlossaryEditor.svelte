@@ -344,7 +344,7 @@
 	{/if}
 
 	<!-- Toolbar: filter the list plus the row-level actions. -->
-	<div class="flex flex-wrap items-center gap-2">
+	<div data-tour="glossary-toolbar" class="flex flex-wrap items-center gap-2">
 		<div class="relative flex-1 md:max-w-xs">
 			<Search
 				class="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"

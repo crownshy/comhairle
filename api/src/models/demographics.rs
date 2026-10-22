@@ -119,6 +119,13 @@ mod tests {
     use sqlx::PgPool;
     use uuid::Uuid;
 
+    use super::defaults::{ETHNICITY_VERSION_ID, GENDER_VERSION_ID};
+    use super::responses::{self, ConsentState};
+    use super::types::{
+        DemographicFormDraftInput, QuestionDraftInput, QuestionVersionDto, ResponseInput,
+    };
+    use super::validation::validate_answer;
+    use super::{VersionStatus, forms, questions, report, steps};
     use crate::error::ComhairleError;
     use crate::models::organization::{self, CreateOrganization, OrganizationType};
     use crate::models::translations::{TextFormat, new_translation};
@@ -129,18 +136,6 @@ mod tests {
         DemographicQuestionToolConfig, VersionPolicy,
     };
     use crate::tools::{ToolConfig, ToolImpl};
-
-    use super::VersionStatus;
-    use super::defaults::{ETHNICITY_VERSION_ID, GENDER_VERSION_ID};
-    use super::forms;
-    use super::questions;
-    use super::report;
-    use super::responses::{self, ConsentState};
-    use super::steps;
-    use super::types::{
-        DemographicFormDraftInput, QuestionDraftInput, QuestionVersionDto, ResponseInput,
-    };
-    use super::validation::validate_answer;
 
     const LOCALE: &str = "en";
     const AGE_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000001);

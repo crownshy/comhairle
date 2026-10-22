@@ -431,6 +431,62 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_publish_step_policy_to_participants(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (status, policy, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/moderation_policies"),
+                json!({
+                    "name": "Policy",
+                    "reasons": [{ "label": "Spam", "description": "Repeated adverts." }]
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "policy not created: {policy}");
+        let (step_url, mut preview_tool_config) =
+            create_polis_step(&app, &mut session, conversation_id).await?;
+        preview_tool_config["moderation_policy_id"] = policy["id"].clone();
+        let (status, res, _) = session
+            .put(
+                &app,
+                &step_url,
+                json!({ "preview_tool_config": preview_tool_config })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "step update failed: {res}");
+
+        let step_id = step_url.rsplit('/').next().ok_or("step url has no id")?;
+        let mut participant = UserSession::new_guest();
+        participant.signup_guest(&app).await?;
+        let (status, reasons, _) = participant
+            .get(
+                &app,
+                &format!("/tools/polis/moderation_policy?workflow_step_id={step_id}&preview=true"),
+            )
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "participant couldn't read policy: {reasons}"
+        );
+        assert_eq!(
+            reasons,
+            json!([{ "label": "Spam", "description": "Repeated adverts." }])
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_404_deleting_policy_in_use_in_another_conversation(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

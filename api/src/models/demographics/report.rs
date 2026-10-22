@@ -9,15 +9,14 @@ use sea_query_binder::SqlxBinder;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use super::VersionStatus;
+use super::types::*;
 use crate::error::ComhairleError;
 use crate::models::translations::{TextContentId, localize_translations};
 use crate::models::user_participation::UserParticipationIden;
 use crate::models::user_profile::UserProfileIden;
 use crate::models::workflow::WorkflowIden;
 use crate::models::workflow_step::WorkflowStepIden;
-
-use super::VersionStatus;
-use super::types::*;
 
 /// The `type` tags of the demographic tool configs stored in `workflow_step.tool_config`.
 const QUESTION_STEP_TYPE: &str = "demographicquestion";

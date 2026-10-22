@@ -72,7 +72,6 @@ pub async fn retrieve_and_enqueue_scheduled_emails(
         .required_worker_service()
         .map_err(|_| WorkerServiceError::NoWorkerServiceConfigured)?;
 
-    // TODO: is 10 minutes sufficient
     let scheduled_emails = list_upcoming_scheduled_emails(&state.db, chrono::Duration::minutes(10))
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;

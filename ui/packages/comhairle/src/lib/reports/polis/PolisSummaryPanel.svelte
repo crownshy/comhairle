@@ -1,8 +1,8 @@
 <!--
 	@component Trigger for the sensemaking-generated Polis summary (consensus /
 	disagreement / per-group descriptions). Kicks off POST /tools/polis/summary,
-	polls the returned job via GET /jobs/{job_id}, and on completion invalidates
-	the Polis summary key so the parent loader re-fetches the persisted result. Button-only:
+	polls the returned job via `useJob`, and on completion invalidates the Polis
+	summary key so the parent loader re-fetches the persisted result. Button-only:
 	the generated text itself is rendered by the parent (AreaOfConsensus cards,
 	OpinionGroups), not here.
 -->
@@ -11,6 +11,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
+	import { useJob } from '$lib/hooks/use-job.svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import { LoadingButton } from '$lib/components/ui/button';
@@ -25,15 +26,15 @@
 	let { workflowStepId, summary }: Props = $props();
 
 	let requesting = $state(false);
-	let jobId = $state<string | null>(null);
-	let jobStatus = $state<string | null>(null);
-	let jobError = $state<string | null>(null);
+	const job = useJob({
+		onComplete: () => invalidate(key('admin/polis/summary')),
+		onError: (message) => notifications.send({ priority: 'ERROR', message })
+	});
 
-	const isWorking = $derived(requesting || (jobId !== null && jobStatus !== 'completed'));
+	const isWorking = $derived(requesting || job.isWorking);
 
 	async function requestSummary() {
 		requesting = true;
-		jobError = null;
 
 		const res = await tryCatchAsync(() =>
 			apiClient.PolisRequestSummary({ workflow_step_id: workflowStepId })
@@ -47,40 +48,8 @@
 			return;
 		}
 
-		jobId = res.ok.job_id;
-		jobStatus = 'pending';
+		job.start(res.ok.job_id);
 	}
-
-	async function poll() {
-		if (!jobId) return;
-
-		const res = await tryCatchAsync(() => apiClient.GetJob({ params: { job_id: jobId! } }));
-
-		if (res.err !== null) {
-			console.error('GetJob failed', res.err);
-			return;
-		}
-
-		jobStatus = res.ok.status ?? null;
-
-		if (jobStatus === 'completed') {
-			jobId = null;
-			await invalidate(key('admin/polis/summary'));
-			return;
-		}
-
-		if (jobStatus === 'error') {
-			jobError = res.ok.error ?? 'Summary generation failed';
-			notifications.send({ priority: 'ERROR', message: jobError });
-			jobId = null;
-		}
-	}
-
-	$effect(() => {
-		if (!jobId || jobStatus === 'completed' || jobStatus === 'error') return;
-		const timeout = setTimeout(poll, 5000);
-		return () => clearTimeout(timeout);
-	});
 </script>
 
 <div class="flex flex-col items-stretch gap-1">
@@ -90,7 +59,7 @@
 	</LoadingButton>
 	{#if isWorking}
 		<p class="text-muted-foreground text-center text-xs">
-			Generating summary{jobStatus ? ` (${jobStatus})` : ''}…
+			Generating summary{job.status ? ` (${job.status})` : ''}…
 		</p>
 	{:else if summary}
 		<p class="text-muted-foreground text-center text-xs">

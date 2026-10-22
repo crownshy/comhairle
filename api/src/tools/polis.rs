@@ -22,6 +22,7 @@ use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::job::CreateJob;
+use crate::models::moderation_policy::{self, PublishedReason};
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::conversation::Action;
 use crate::models::polis_statement_aux::{
@@ -168,7 +169,7 @@ pub struct PolisToolConfig {
     pub admin_user: String,
     pub admin_password: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
@@ -186,9 +187,11 @@ pub struct PolisToolConfig {
     // defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
+    #[serde(default = "default_true")]
+    pub notify_moderators: bool,
 }
 
-fn default_show_remaining_statements() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -206,6 +209,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             moderation_policy_id: self.moderation_policy_id,
+            notify_moderators: self.notify_moderators,
         }
     }
 }
@@ -214,7 +218,7 @@ impl ToolConfigSanitize for PolisToolConfig {
 pub struct PolisToolSetup {
     pub topic: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
 }
 
@@ -303,6 +307,21 @@ impl ToolImpl for PolisTool {
                              required-votes progress from server data.",
                         )
                         .response::<200, Json<VoteCountResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/moderation_policy",
+                get_with(get_published_moderation_policy, |op| {
+                    op.id("PolisGetPublishedModerationPolicy")
+                        .tag("Tools")
+                        .summary("Get the moderation policy participants can read for a step")
+                        .description(
+                            "Lists the reject reasons (label and description) the step's \
+                             moderators pick from, so participants can read the rules before \
+                             they write a statement. Reads the draft config when preview is \
+                             set or the step isn't launched.",
+                        )
+                        .response::<200, Json<Vec<PublishedReason>>>()
                 }),
             )
             .api_route(
@@ -835,6 +854,45 @@ async fn get_user_vote_count(
     };
 
     Ok((StatusCode::OK, Json(VoteCountResponse { vote_count })))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct PublishedModerationPolicyQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(default)]
+    pub preview: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_published_moderation_policy(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<PublishedModerationPolicyQuery>,
+) -> Result<(StatusCode, Json<Vec<PublishedReason>>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &query.workflow_step_id).await?;
+
+    let config = match (query.preview, workflow_step.tool_config) {
+        (false, Some(live)) => live,
+        _ => workflow_step.preview_tool_config,
+    };
+    let ToolConfig::Polis(config) = config else {
+        return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()));
+    };
+
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+
+    let reasons = moderation_policy::published_reasons_for_step(
+        &state.db,
+        conversation_id,
+        config.moderation_policy_id,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(reasons)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -1885,6 +1943,7 @@ pub async fn launch(
             // None is a preview created before the mirror existed, so its real
             // Polis value is unknown. Go live moderated rather than guess.
             strict_moderation: preview_config.strict_moderation.unwrap_or(true),
+            notify_moderators: preview_config.notify_moderators,
         },
         &preview_config.server_url,
         client,
@@ -1920,6 +1979,7 @@ struct PolisPollSettings {
     topic: Option<String>,
     description: Option<String>,
     strict_moderation: bool,
+    notify_moderators: bool,
 }
 
 impl Default for PolisPollSettings {
@@ -1928,6 +1988,7 @@ impl Default for PolisPollSettings {
             topic: None,
             description: None,
             strict_moderation: true,
+            notify_moderators: true,
         }
     }
 }
@@ -1973,6 +2034,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(settings.strict_moderation),
         moderation_policy_id: None,
+        notify_moderators: settings.notify_moderators,
     })
 }
 
@@ -2731,6 +2793,7 @@ mod tests {
             is_active: Some(true),
             strict_moderation: Some(false),
             moderation_policy_id: Some(Uuid::new_v4()),
+            notify_moderators: true,
         }
     }
 
