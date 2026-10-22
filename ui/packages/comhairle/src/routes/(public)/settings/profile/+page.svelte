@@ -9,56 +9,10 @@
 	import { Form, Input, SelectList, Submit, validate } from '$lib/components/EasyForm';
 	import Demographics from '$lib/interfaces/Demographics';
 	import { Second } from '$lib/utils/units';
-	import { Button } from '$lib/components/ui/button';
-	import { apiClient } from '@crownshy/api-client/client';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import UserDetailsSchema from './UserDetailsSchema';
-	import UpdatePasswordDialog from './UpdatePasswordDialog.svelte';
+	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 
 	let { data }: PageProps = $props();
 	let { user, demographicQuestions, demographicResponses } = $derived(data);
-
-	async function handleUserDetails(formData: FormData) {
-		const result = validate(formData, UserDetailsSchema);
-		if (result.err !== null) {
-			console.error(result.err);
-			notifications.send({
-				message: `Validation error: ${result.err}`,
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		const username = formData.get('username') as string;
-		const email = formData.get('email') as string;
-
-		const updatedValues: { username?: string; email?: string } = {};
-		let hasChanges = false;
-
-		if (username !== user.username) {
-			updatedValues.username = username;
-			hasChanges = true;
-		}
-
-		if (email !== user.email) {
-			updatedValues.email = email;
-			hasChanges = true;
-		}
-
-		if (!hasChanges) {
-			return;
-		}
-
-		const updatedUser = await tryCatchAsync(() => apiClient.UpdateUserDetails(updatedValues));
-		if (updatedUser.err !== null) {
-			console.error(updatedUser.err);
-			notifications.send({
-				message: 'Failed to update user details. Please try again.',
-				priority: 'ERROR'
-			});
-			return;
-		}
-	}
 
 	function getInitialValue(questionSlug: string): string {
 		return (
@@ -139,38 +93,7 @@
 			</div>
 		</div>
 	{:else}
-		<div class="space-y-6 border-b py-5">
-			<div>
-				<h2 class="text-lg font-medium">Account Details</h2>
-				<span class="text-muted-foreground text-sm"
-					>Update your username and password here.</span
-				>
-			</div>
-
-			<Form class="flex flex-col gap-4" handleSubmission={handleUserDetails}>
-				{#snippet children(isSubmitting)}
-					<Input
-						{...UserDetailsSchema.username}
-						label="Username"
-						defaultValue={user.username}
-						placeholder="Enter your username"
-					/>
-					<Input
-						{...UserDetailsSchema.email}
-						label="Email"
-						type="email"
-						defaultValue={user.email}
-						placeholder="Enter your email"
-					/>
-					<Submit class="self-end" text="Save Changes" {isSubmitting} />
-				{/snippet}
-			</Form>
-
-			<span class="block text-sm font-medium">Password</span>
-			<UpdatePasswordDialog>
-				<Button>Change password</Button>
-			</UpdatePasswordDialog>
-		</div>
+		<UserDetailsForm {user} />
 
 		<div class="space-y-6 border-b py-5">
 			<div>
