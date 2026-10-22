@@ -4,6 +4,7 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { INPUT_STYLE } from '$lib/components/ui/input/styles';
 	import { cn } from '$lib/utils';
+	import SelectItem from './SelectItem.svelte';
 
 	type Value = string;
 	type Label = string;
@@ -65,10 +66,7 @@
 			</Drawer.Header>
 			<section class="mx-5 flex flex-col gap-5 overflow-y-auto">
 				{#each options as option (option.value)}
-					<label class=" border-primary bg-primary/30 rounded-xl p-5">
-						<input type="radio" />
-						{option.label}
-					</label>
+					<SelectItem {name} onselect={(value) => void (selected = value)} {...option} />
 				{/each}
 			</section>
 		</Drawer.Content>
