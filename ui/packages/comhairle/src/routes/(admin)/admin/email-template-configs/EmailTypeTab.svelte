@@ -26,6 +26,7 @@
 	let previewOpen = $state(false);
 	let preview = $state<RenderedPreview | null>(null);
 	let previewRow = $state<EmailTemplateRow | null>(null);
+	let showFallbacks = $state(false);
 
 	async function openPreview(row: EmailTemplateRow) {
 		const conversation = conversations.find((candidate) => candidate.id === row.conversationId);
@@ -62,18 +63,40 @@
 
 	{#if scopable}
 		{#if fallbackCount > 0}
-			<p
-				class="bg-accent text-foreground flex items-start gap-2.5 rounded-lg px-4 py-3 text-base"
+			<div
+				class="bg-accent text-foreground flex flex-col gap-2 rounded-lg px-4 py-3 text-base"
 			>
-				<Info class="text-primary mt-0.5 size-5 shrink-0" aria-hidden="true" />
-				<span>
-					<strong
-						>{fallbackCount}
-						{fallbackCount === 1 ? 'conversation' : 'conversations'}</strong
+				<p class="flex items-start gap-2.5">
+					<Info class="text-primary mt-0.5 size-5 shrink-0" aria-hidden="true" />
+					<span>
+						<strong
+							>{fallbackCount}
+							{fallbackCount === 1 ? 'conversation' : 'conversations'}</strong
+						>
+						without their own version {fallbackCount === 1 ? 'sends' : 'send'} the default
+						above.
+						<button
+							type="button"
+							class="text-primary cursor-pointer font-medium underline-offset-4 hover:underline"
+							aria-expanded={showFallbacks}
+							aria-controls="fallback-conversations"
+							onclick={() => (showFallbacks = !showFallbacks)}
+						>
+							{showFallbacks ? 'Hide' : 'See which'}
+						</button>
+					</span>
+				</p>
+				{#if showFallbacks}
+					<ul
+						id="fallback-conversations"
+						class="text-muted-foreground ms-7 list-disc ps-5 text-base"
 					>
-					without their own version {fallbackCount === 1 ? 'sends' : 'send'} the default above.
-				</span>
-			</p>
+						{#each view.usingBase as conversation (conversation.id)}
+							<li>{conversation.title}</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
 		{/if}
 
 		<section aria-labelledby="own-heading" class="flex flex-col gap-2.5">

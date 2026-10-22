@@ -44,7 +44,7 @@
 					<td class="text-muted-foreground px-4 py-3.5 text-sm">
 						{row.createdAt ? formatDateShort(row.createdAt) : ''}
 					</td>
-					<td class="px-4 py-2.5 text-right">
+					<td class="px-4 py-2.5 text-right whitespace-nowrap">
 						<button
 							type="button"
 							onclick={() => onPreview(row)}

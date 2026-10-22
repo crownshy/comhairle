@@ -42,8 +42,7 @@ export function canScopeToConversation(emailType: EmailType): boolean {
 
 function conversationRow(
 	config: EmailTemplateConfigWithScopeDto,
-	schema: EmailTypeSchema,
-	slots: config.slots
+	schema: EmailTypeSchema
 ): EmailTemplateRow {
 	return {
 		key: config.id,
@@ -52,14 +51,14 @@ function conversationRow(
 		configId: config.id,
 		createdAt: config.createdAt,
 		conversationId: config.conversationId ?? undefined,
-		conversationTitle: config.conversationTitle ?? undefined
+		conversationTitle: config.conversationTitle ?? undefined,
+		slots: config.slots
 	};
 }
 
 function baseRow(
 	schema: EmailTypeSchema,
-	allConversationsConfig: EmailTemplateConfigWithScopeDto | undefined,
-	slots: allConversationsConfig.slots
+	allConversationsConfig: EmailTemplateConfigWithScopeDto | undefined
 ): EmailTemplateRow {
 	if (!allConversationsConfig) {
 		return {
@@ -73,7 +72,8 @@ function baseRow(
 		source: 'all',
 		subject: allConversationsConfig.subject ?? schema.default_subject,
 		configId: allConversationsConfig.id,
-		createdAt: allConversationsConfig.createdAt
+		createdAt: allConversationsConfig.createdAt,
+		slots: allConversationsConfig.slots
 	};
 }
 
