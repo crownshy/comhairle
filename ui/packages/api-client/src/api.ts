@@ -3247,6 +3247,7 @@ export const EmailTemplateSlots = z.union([
 export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
 export const EmailTemplateConfigWithScopeDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     conversationTitle: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
@@ -3272,6 +3273,7 @@ export type CreateEmailTemplateConfig = z.infer<
 >;
 export const EmailTemplateConfigDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
     id: z.string().uuid(),
