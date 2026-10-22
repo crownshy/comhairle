@@ -1276,21 +1276,33 @@ mod tests {
     fn should_set_and_clear_hosting_organization_only_as_organization_admin(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
-        let app = setup_server(Arc::new(state)).await?;
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
 
         let mut org_admin = UserSession::new_admin();
         org_admin.signup(&app).await?;
-        let (_, response, _) = org_admin.create_random_organization(&app).await?;
+        let (status, response, _) = org_admin.create_random_organization(&app).await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         let organization: crate::routes::organizations::dto::OrganizationDto =
             serde_json::from_value(response)?;
 
         let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
         other_admin.signup(&app).await?;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(other_admin.id.unwrap()),
+                permission_triplet: system::Role::Admin.system_triplet()?,
+                granted_by: &org_admin.id.unwrap(),
+                grant_reason: "Hosting organization test setup",
+            },
+        )
+        .await?;
 
-        let (_, response, _) = other_admin
+        let (status, response, _) = other_admin
             .create_random_unlaunched_conversation(&app)
             .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         let other_conversation: ConversationDto = serde_json::from_value(response)?;
         let other_url = format!("/conversation/{}/organization", other_conversation.id);
         let (status, _, _) = other_admin
@@ -1308,9 +1320,10 @@ mod tests {
             "an admin of another organization cannot host here"
         );
 
-        let (_, response, _) = org_admin
+        let (status, response, _) = org_admin
             .create_random_unlaunched_conversation(&app)
             .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         let conversation: ConversationDto = serde_json::from_value(response)?;
         let url = format!("/conversation/{}/organization", conversation.id);
         let (status, response, _) = org_admin
@@ -1344,20 +1357,32 @@ mod tests {
     fn should_refuse_hosting_organization_change_through_update_for_non_admins(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
-        let app = setup_server(Arc::new(state)).await?;
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(Arc::clone(&state)).await?;
 
         let mut org_admin = UserSession::new_admin();
         org_admin.signup(&app).await?;
-        let (_, response, _) = org_admin.create_random_organization(&app).await?;
+        let (status, response, _) = org_admin.create_random_organization(&app).await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         let organization: crate::routes::organizations::dto::OrganizationDto =
             serde_json::from_value(response)?;
 
         let mut other_admin = UserSession::new("other_admin", TEST_PASSWORD, "test1@crown-shy.com");
         other_admin.signup(&app).await?;
-        let (_, response, _) = other_admin
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(other_admin.id.unwrap()),
+                permission_triplet: system::Role::Admin.system_triplet()?,
+                granted_by: &org_admin.id.unwrap(),
+                grant_reason: "Hosting organization test setup",
+            },
+        )
+        .await?;
+        let (status, response, _) = other_admin
             .create_random_unlaunched_conversation(&app)
             .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         let (status, _, _) = other_admin
