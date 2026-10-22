@@ -68,8 +68,9 @@ grant typed actions.
   [../user_group.rs](../user_group.rs).
 - **Organization additions send one email.** A user who newly joins an
   Organization, through a group membership or by gaining an organization role in
-  an assignment save, is emailed via `notify_organization_addition`. Repeat saves
-  and removals send nothing.
+  an assignment save, is emailed via `notify_organization_addition`. New accounts
+  receive their password setup link in that same email. Repeat saves and removals
+  send nothing.
 - **Self-demotion is restricted.** Organization assignment saves reject changes
   to the caller's own direct roles and removal of an inherited administrator role
   through a group they belong to. Membership workflows also forbid self-changes.

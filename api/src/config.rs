@@ -26,6 +26,14 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
         .set_default("mailer.user", "")?
         .set_default("mailer.password", "")?
         .set_default("mailer.from_email", "invites@comhairle.scot")?
+        .set_default(
+            "mailer.logo_url",
+            "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo_lg.png",
+        )?
+        .set_default(
+            "mailer.footer_logo_url",
+            "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo.png",
+        )?
         .set_default("heyform_url", "forms.comhairle.scot")?
         .set_default("polis_url", "polis.comhairle.scot")?
         .add_source(
@@ -49,6 +57,8 @@ pub struct MailerConfig {
     pub user: String,
     pub password: String,
     pub from_email: String,
+    pub logo_url: String,
+    pub footer_logo_url: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

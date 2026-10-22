@@ -255,32 +255,32 @@ async fn add_member(
         user.id,
     )
     .await?;
-    if created_account {
-        let token = generate_jwt()
-            .user(&updated_user)
-            .secret(&state.config.jwt_secret)
-            .custom_claims(EmailLinkClaims {
-                email: updated_user.email.clone(),
-            })
-            .duration(chrono::Duration::hours(24))
-            .call()?;
-        let reset_link = format!(
-            "{}/auth/password-reset/update?token={}",
-            state.config.domain, token
-        );
-        emailed = state
-            .mailer
-            .send_user_account_created_email(
-                &updated_user.email,
-                &updated_user.username,
-                reset_link,
-            )
-            .is_ok();
-    }
-
     if newly_added {
-        user_group::notify_organization_addition(&state, organization_id, updated_user.id, group)
-            .await;
+        let set_password_link = if created_account {
+            let token = generate_jwt()
+                .user(&updated_user)
+                .secret(&state.config.jwt_secret)
+                .custom_claims(EmailLinkClaims {
+                    email: updated_user.email.clone(),
+                })
+                .duration(chrono::Duration::hours(24))
+                .call()?;
+            let reset_link = format!(
+                "{}/auth/password-reset/update?token={}",
+                state.config.domain, token
+            );
+            Some(reset_link)
+        } else {
+            None
+        };
+        emailed = user_group::notify_organization_addition(
+            &state,
+            organization_id,
+            updated_user.id,
+            group,
+            set_password_link,
+        )
+        .await;
     }
 
     let groups =
@@ -316,7 +316,8 @@ async fn add_group_member(
         user_group::add_organization_member(&state, organization_id, group, user_id, user.id)
             .await?;
     if newly_added {
-        user_group::notify_organization_addition(&state, organization_id, user_id, group).await;
+        user_group::notify_organization_addition(&state, organization_id, user_id, group, None)
+            .await;
     }
 
     Ok(StatusCode::OK)
@@ -1068,6 +1069,68 @@ mod tests {
         let emails = added_emails();
         assert_eq!(emails.len(), 2, "promotion to administrator is an addition");
         assert!(emails[1].2.contains("administrator"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn new_organization_users_receive_one_combined_email(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use std::sync::Mutex;
+
+        use axum::body::Body;
+
+        use crate::mailer::{MockComhairleMailer, SentEmail};
+        use crate::models::model_test_helpers::{
+            get_random_organization_id, setup_app_and_session_with_state,
+        };
+        use crate::test_helpers::test_state;
+
+        let sent: Arc<Mutex<Vec<SentEmail>>> = Arc::default();
+        let state = Arc::new(
+            test_state()
+                .db(pool)
+                .mailer(Arc::new(MockComhairleMailer::recording(sent.clone())))
+                .call()?,
+        );
+        let (app, mut creator) = setup_app_and_session_with_state(state).await?;
+        let organization_id = get_random_organization_id(&app, &mut creator).await?;
+        let target_email = "new-member@example.com";
+        let request = serde_json::json!({
+            "email": target_email,
+            "group": "members",
+            "allow_create_user": true
+        });
+
+        let (status, response, _) = creator
+            .post(
+                &app,
+                &format!("/organizations/{organization_id}/members"),
+                Body::from(request.to_string()),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response["emailed"], true);
+
+        let emails = sent
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|sent_email| sent_email.to == target_email)
+            .map(|sent_email| {
+                (
+                    sent_email.template.clone(),
+                    sent_email.subject.clone(),
+                    sent_email.context.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(emails.len(), 1);
+        assert_eq!(emails[0].0, "organization_user_account_created.html");
+        assert!(emails[0].1.contains("Comhairle account"));
+        assert!(emails[0].2.contains("organization_name"));
+        assert!(emails[0].2.contains("set_password_link"));
+        assert!(!emails[0].2.contains("organization_team_onboarding.html"));
         Ok(())
     }
 }

@@ -1,0 +1,14 @@
+{% extends "email_layout.html" %}
+{% block content %}
+  <p>Hello{% if username %} {{ username }}{% endif %}!</p>
+
+  <p>A Comhairle user account has been created for you, and you have been added to {{ organization_name }} with {{ role_label }} access.</p>
+
+  <p>To finish setup, please set your password using the secure link below. This link expires in 24 hours.</p>
+
+  <p><a href="{{ set_password_link }}">Set your password</a></p>
+
+  <p>After setting your password, you can sign in to access your organisation.</p>
+
+  <p><a href="{{ admin_sign_in_link }}">Sign in</a></p>
+{% endblock %}
