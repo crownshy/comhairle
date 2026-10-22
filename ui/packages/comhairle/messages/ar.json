@@ -491,5 +491,19 @@
 	"polis_vote_more_to_continue": "صوّت على {count} آراء أخرى للمتابعة.",
 	"polis_finish_voting": "انتهيت من التصويت",
 	"polis_finish_voting_hint": "أنهِ هذه الخطوة وانتقل إلى التالية",
-	"step_menu_about_heading": "حول هذه المحادثة"
+	"step_menu_about_heading": "حول هذه المحادثة",
+	"report_final_report": "التقرير النهائي",
+	"report_executive_summary": "الملخص التنفيذي",
+	"report_read_more": "اقرأ المزيد",
+	"report_show_more": "عرض المزيد",
+	"report_show_less": "عرض أقل",
+	"report_sections": "أقسام التقرير",
+	"report_card_x_of_y": "{x} من {y}",
+	"report_introduction": "مقدمة",
+	"report_thank_you_title": "شكرًا لك",
+	"report_thank_you_body": "شكرًا لك على تخصيص الوقت لقراءة هذا التقرير واستكشاف وجهات النظر التي طُرحت خلال المحادثة.",
+	"report_thank_you_hope": "نأمل أن يقدّم صورة مفيدة عمّا يهم الناس، وعن المواضع التي تتفق فيها الآراء أو تختلف.",
+	"report_next_steps": "الخطوات التالية",
+	"report_share": "شارك هذا التقرير",
+	"report_link_copied": "تم نسخ الرابط"
 }

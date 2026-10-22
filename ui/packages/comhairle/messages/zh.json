@@ -491,5 +491,19 @@
 	"polis_vote_more_to_continue": "再对 {count} 条意见投票即可继续。",
 	"polis_finish_voting": "我投完了",
 	"polis_finish_voting_hint": "完成此步骤并继续",
-	"step_menu_about_heading": "关于此对话"
+	"step_menu_about_heading": "关于此对话",
+	"report_final_report": "最终报告",
+	"report_executive_summary": "执行摘要",
+	"report_read_more": "阅读更多",
+	"report_show_more": "显示更多",
+	"report_show_less": "收起",
+	"report_sections": "报告章节",
+	"report_card_x_of_y": "{x} / {y}",
+	"report_introduction": "引言",
+	"report_thank_you_title": "谢谢",
+	"report_thank_you_body": "感谢您花时间阅读本报告，并了解在整个对话中分享的各种观点。",
+	"report_thank_you_hope": "希望它能帮助您了解人们关心什么，以及哪些观点一致、哪些观点存在分歧。",
+	"report_next_steps": "后续步骤",
+	"report_share": "分享本报告",
+	"report_link_copied": "链接已复制"
 }

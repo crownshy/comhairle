@@ -538,5 +538,19 @@
 	"revisit_step_stories_action": "Read stories",
 	"conversations_return_page_title": "Jump back in to {conversation}",
 	"polis_finish_voting": "I'm done voting",
-	"polis_finish_voting_hint": "Finish this step and move on"
+	"polis_finish_voting_hint": "Finish this step and move on",
+	"report_final_report": "Final report",
+	"report_executive_summary": "Executive summary",
+	"report_read_more": "Read more",
+	"report_show_more": "Show more",
+	"report_show_less": "Show less",
+	"report_sections": "Report sections",
+	"report_card_x_of_y": "{x} of {y}",
+	"report_introduction": "Introduction",
+	"report_thank_you_title": "Thank you",
+	"report_thank_you_body": "Thank you for taking the time to read this report and explore the perspectives shared throughout the conversation.",
+	"report_thank_you_hope": "We hope it gives a useful picture of what matters to people, and of where views come together or differ.",
+	"report_next_steps": "Next steps",
+	"report_share": "Share this report",
+	"report_link_copied": "Link copied"
 }

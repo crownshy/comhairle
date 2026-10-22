@@ -491,5 +491,19 @@
 	"polis_vote_more_to_continue": "Bhòt air {count} beachdan eile airson leantainn air adhart.",
 	"polis_finish_voting": "Tha mi deiseil a' bhòtadh",
 	"polis_finish_voting_hint": "Crìochnaich an ceum seo agus gluais air adhart",
-	"step_menu_about_heading": "Mun chòmhradh seo"
+	"step_menu_about_heading": "Mun chòmhradh seo",
+	"report_final_report": "Aithisg dheireannach",
+	"report_executive_summary": "Geàrr-chunntas",
+	"report_read_more": "Leugh tuilleadh",
+	"report_show_more": "Seall barrachd",
+	"report_show_less": "Seall nas lugha",
+	"report_sections": "Earrannan na h-aithisge",
+	"report_card_x_of_y": "{x} à {y}",
+	"report_introduction": "Ro-ràdh",
+	"report_thank_you_title": "Mòran taing",
+	"report_thank_you_body": "Mòran taing airson an ùine a ghabhail an aithisg seo a leughadh agus na beachdan a chaidh a cho-roinn sa chòmhradh a rannsachadh.",
+	"report_thank_you_hope": "Tha sinn an dòchas gun toir i dealbh feumail air na tha cudromach do dhaoine, agus air far a bheil beachdan a' tighinn còmhla no a' dol an aghaidh a chèile.",
+	"report_next_steps": "Na h-ath cheuman",
+	"report_share": "Co-roinn an aithisg seo",
+	"report_link_copied": "Chaidh an ceangal a lethbhreacadh"
 }

@@ -491,5 +491,19 @@
 	"polis_vote_more_to_continue": "Pleidleisiwch ar {count} barn arall i barhau.",
 	"polis_finish_voting": "Rwyf wedi gorffen pleidleisio",
 	"polis_finish_voting_hint": "Gorffen y cam hwn a symud ymlaen",
-	"step_menu_about_heading": "Am y sgwrs hon"
+	"step_menu_about_heading": "Am y sgwrs hon",
+	"report_final_report": "Adroddiad terfynol",
+	"report_executive_summary": "Crynodeb gweithredol",
+	"report_read_more": "Darllen mwy",
+	"report_show_more": "Dangos mwy",
+	"report_show_less": "Dangos llai",
+	"report_sections": "Adrannau'r adroddiad",
+	"report_card_x_of_y": "{x} o {y}",
+	"report_introduction": "Cyflwyniad",
+	"report_thank_you_title": "Diolch",
+	"report_thank_you_body": "Diolch am gymryd yr amser i ddarllen yr adroddiad hwn ac archwilio'r safbwyntiau a rannwyd drwy gydol y sgwrs.",
+	"report_thank_you_hope": "Gobeithiwn ei fod yn rhoi darlun defnyddiol o'r hyn sy'n bwysig i bobl, ac o ble mae barn yn cytuno neu'n gwahaniaethu.",
+	"report_next_steps": "Camau nesaf",
+	"report_share": "Rhannu'r adroddiad hwn",
+	"report_link_copied": "Dolen wedi'i chopïo"
 }

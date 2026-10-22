@@ -491,5 +491,19 @@
 	"polis_vote_more_to_continue": "د دوام لپاره په {count} نورو نظرونو رایه ورکړئ.",
 	"polis_finish_voting": "زما رایه ورکول بشپړ شول",
 	"polis_finish_voting_hint": "دا ګام بشپړ کړئ او مخ ته لاړ شئ",
-	"step_menu_about_heading": "د دې خبرو اترو په اړه"
+	"step_menu_about_heading": "د دې خبرو اترو په اړه",
+	"report_final_report": "وروستی راپور",
+	"report_executive_summary": "اجرائیوي لنډیز",
+	"report_read_more": "نور ولولئ",
+	"report_show_more": "نور وښایاست",
+	"report_show_less": "لږ وښایاست",
+	"report_sections": "د راپور برخې",
+	"report_card_x_of_y": "{x} له {y}",
+	"report_introduction": "پیژندنه",
+	"report_thank_you_title": "مننه",
+	"report_thank_you_body": "مننه چې د دې راپور د لوستلو او په ټوله خبرو اترو کې د شریکو شویو نظرونو د کتلو لپاره مو وخت ورکړ.",
+	"report_thank_you_hope": "هیله ده چې دا د هغه څه یو ګټور انځور وړاندې کړي چې خلکو ته مهم دي، او دا چې نظرونه چېرته سره یو ځای کیږي یا توپیر لري.",
+	"report_next_steps": "راتلونکي ګامونه",
+	"report_share": "دا راپور شریک کړئ",
+	"report_link_copied": "لینک کاپي شو"
 }
