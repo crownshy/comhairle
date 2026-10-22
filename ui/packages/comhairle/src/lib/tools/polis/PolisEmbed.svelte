@@ -250,6 +250,8 @@
 	// across devices, not just this browser. Best-effort: on failure we keep the
 	// local count seeded above.
 	onMount(async () => {
+		// Fetched alongside the vote count, so a first-timer waits one round trip, not two.
+		const practice = stage === 'deciding' ? loadPracticeStatements() : undefined;
 		const result = await tryCatchAsync(() =>
 			apiClient.PolisGetUserVoteCount({ queries: { workflow_step_id: stepId } })
 		);
@@ -265,7 +267,7 @@
 			totalVotes = data.totalVotes;
 			hasMetThreshold = data.hasMetThreshold;
 		}
-		if (stage === 'deciding') await startOnboarding(totalVotes);
+		if (practice) await startOnboarding(totalVotes, practice);
 	});
 
 	async function loadReport() {
@@ -278,23 +280,24 @@
 		reportLoading = false;
 	}
 
-	async function startOnboarding(votesSoFar: number) {
-		if (votesSoFar > 0) {
-			finishOnboarding();
-			return;
-		}
-		// Polis's own list rather than the report, which leaves out statements its math has
-		// not reached yet; the report only adds the counts. Without the list, onboarding runs
-		// on whatever Polis serves.
+	// Polis's own list rather than the report, which leaves out statements its math has not
+	// reached yet; the report only adds the counts. Without the list, onboarding runs on
+	// whatever Polis serves.
+	async function loadPracticeStatements(): Promise<PracticeStatement[]> {
 		const [result] = await Promise.all([
 			tryCatchAsync(() => polis.fetchStatements()),
 			loadReport()
 		]);
-		const statements =
-			result.err === null
-				? toPracticeStatements(result.ok, strictModeration ?? false, report)
-				: [];
-		practicePick = pickPractice(statements);
+		if (result.err !== null) return [];
+		return toPracticeStatements(result.ok, strictModeration ?? false, report);
+	}
+
+	async function startOnboarding(votesSoFar: number, practice: Promise<PracticeStatement[]>) {
+		if (votesSoFar > 0) {
+			finishOnboarding();
+			return;
+		}
+		practicePick = pickPractice(await practice);
 		firstHere = !practicePick.participant;
 		stage = 'intro';
 	}
@@ -831,29 +834,38 @@
 
 <div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting' && stage === 'deciding'}
-		<!-- Blank until we know whether onboarding runs, so an intro never follows statement
-		     skeletons. -->
-		<div class="min-h-80 w-full" aria-busy="true"></div>
+		<!-- Shaped like the intro, which is what almost everyone here sees next. -->
+		<div
+			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
+			aria-busy="true"
+		>
+			<Skeleton class="h-9 w-3/4 rounded-md" />
+			<Skeleton class="h-6 w-full rounded-md" />
+			<Skeleton class="h-6 w-2/3 rounded-md" />
+			<Skeleton class="h-12 w-32 rounded-md" />
+		</div>
 	{:else if screen === 'voting' && guideStage}
 		<div
 			data-tour="polis-onboarding"
 			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-4 py-8 sm:px-8 md:px-24 md:py-12"
 		>
 			{#if guideStage === 'intro'}
-				<GuideScreen
-					title={introTitle}
-					next={m.polis_onboarding_next()}
-					onNext={() => goTo(firstVotingStage(practicePick))}
-				>
-					<p class="text-card-foreground text-lg">
-						{m.polis_onboarding_intro_body()}
-					</p>
-					{#if firstHere}
+				<div class="w-full" in:fade={{ duration: 200 }}>
+					<GuideScreen
+						title={introTitle}
+						next={m.polis_onboarding_next()}
+						onNext={() => goTo(firstVotingStage(practicePick))}
+					>
 						<p class="text-card-foreground text-lg">
-							{m.polis_onboarding_first_here()}
+							{m.polis_onboarding_intro_body()}
 						</p>
-					{/if}
-				</GuideScreen>
+						{#if firstHere}
+							<p class="text-card-foreground text-lg">
+								{m.polis_onboarding_first_here()}
+							</p>
+						{/if}
+					</GuideScreen>
+				</div>
 			{:else if guideStage === 'seed-result' && practicePick.seed && seedVote}
 				<GuideScreen
 					title={m.polis_onboarding_seed_result()}

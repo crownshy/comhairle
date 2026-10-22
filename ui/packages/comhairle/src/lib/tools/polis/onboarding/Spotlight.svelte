@@ -109,4 +109,17 @@
 	:global(.driver-active [data-spotlight-keep] *) {
 		pointer-events: auto;
 	}
+
+	/* driver.js's own animation also moves the lit area, so only the dimming fades in. */
+	@media (prefers-reduced-motion: no-preference) {
+		:global(.driver-overlay) {
+			animation: spotlight-dim-in 300ms ease-out;
+		}
+	}
+
+	@keyframes -global-spotlight-dim-in {
+		from {
+			opacity: 0;
+		}
+	}
 </style>
