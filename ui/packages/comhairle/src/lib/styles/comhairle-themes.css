@@ -662,3 +662,11 @@
 	--sidebar-ring: var(--ring);
 	--sidebar-border: var(--border);
 }
+
+/* Focus indicator: a light inner band and a dark outer band, so one of them clears 3:1 against
+   any surface in any theme. Declared for .dark too, so a dark-mode override can't miss it. */
+:root,
+.dark {
+	--focus-ring-inner: #f9f9f9;
+	--focus-ring-outer: #193146;
+}

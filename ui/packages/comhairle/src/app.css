@@ -22,6 +22,23 @@ body {
 	}
 }
 
+/* Every keyboard focus gets the same two-band indicator (WCAG 1.4.11, 2.4.7).
+   Unlayered on purpose: unlayered CSS wins over Tailwind's layered utilities, so this
+   overrides outline-none and the half-opacity ring-ring/50 classes on every control. */
+:focus-visible {
+	outline: 2px solid var(--focus-ring-inner);
+	outline-offset: 0;
+	box-shadow: 0 0 0 4px var(--focus-ring-outer);
+}
+/* For controls inside a scrolling strip, which clips anything drawn outside them:
+   draw the same two bands just inside the edge instead. */
+.focus-inset:focus-visible {
+	outline-color: transparent;
+	box-shadow:
+		inset 0 0 0 2px var(--focus-ring-outer),
+		inset 0 0 0 4px var(--focus-ring-inner);
+}
+
 /* Make prose respect theme colors in both light and dark mode. Every colour the plugin
    exposes is mapped; anything left out keeps the plugin's hardcoded slate, which reads
    as near-black text on a dark page. `kbd-shadows` is the one exception: it wants

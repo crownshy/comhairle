@@ -9,7 +9,7 @@ import { cn } from '$lib/utils';
  */
 export function sectionTabClass(active: boolean, className?: string): string {
 	return cn(
-		'inline-flex h-11 items-center gap-1.5 border-b-2 text-base font-medium whitespace-nowrap transition-colors',
+		'focus-inset inline-flex h-11 items-center gap-1.5 border-b-2 -mx-2 px-2 text-base font-medium whitespace-nowrap transition-colors',
 		active
 			? 'border-primary text-foreground'
 			: 'text-muted-foreground hover:text-foreground border-transparent',
@@ -24,7 +24,7 @@ export function sectionTabClass(active: boolean, className?: string): string {
  */
 export function subTabClass(active: boolean): string {
 	return cn(
-		'text-foreground inline-flex h-10 items-center px-3.5 text-base font-medium whitespace-nowrap transition-opacity',
+		'focus-inset text-foreground inline-flex h-10 items-center px-3.5 -mx-2 px-2 text-base font-medium whitespace-nowrap transition-opacity',
 		active ? 'text-primary' : 'opacity-70 hover:opacity-100'
 	);
 }
