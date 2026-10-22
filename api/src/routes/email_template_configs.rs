@@ -39,8 +39,10 @@ async fn get(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Path(email_config_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<EmailTemplateConfigDto>), ComhairleError> {
-    let email_config = email_template_config::get_by_id(&state.db, email_config_id).await?;
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<EmailTemplateConfigWithScopeDto>), ComhairleError> {
+    let email_config =
+        email_template_config::get_by_id_with_scope(&state.db, email_config_id, &locale).await?;
 
     Ok((StatusCode::OK, Json(email_config.into())))
 }
@@ -164,7 +166,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Get custom email template configuration")
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
-                    .response::<200, Json<EmailTemplateConfigDto>>()
+                    .response::<200, Json<EmailTemplateConfigWithScopeDto>>()
             }),
         )
         .api_route(
