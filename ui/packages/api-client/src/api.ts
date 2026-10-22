@@ -3262,8 +3262,35 @@ export const EmailTemplateSlots = z.union([
     .passthrough(),
 ]);
 export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
+export const EmailTemplateConfigWithScopeDto = z
+  .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
+    conversationTitle: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    emailType: EmailType,
+    id: z.string().uuid(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    ownerId: z.string().uuid(),
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type EmailTemplateConfigWithScopeDto = z.infer<
+  typeof EmailTemplateConfigWithScopeDto
+>;
+export const CreateEmailTemplateConfig = z
+  .object({
+    conversation_id: z.union([z.string(), z.null()]).optional(),
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateEmailTemplateConfig = z.infer<
+  typeof CreateEmailTemplateConfig
+>;
 export const EmailTemplateConfigDto = z
   .object({
+    conversationId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
     id: z.string().uuid(),
@@ -3274,15 +3301,6 @@ export const EmailTemplateConfigDto = z
   })
   .passthrough();
 export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
-export const CreateEmailTemplateConfig = z
-  .object({
-    slots: EmailTemplateSlots,
-    subject: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type CreateEmailTemplateConfig = z.infer<
-  typeof CreateEmailTemplateConfig
->;
 export const UpdateEmailTemplateConfig = z
   .object({
     slots: z.union([EmailTemplateSlots, z.null()]),
@@ -3858,8 +3876,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailType,
   email_type,
   EmailTemplateSlots,
-  EmailTemplateConfigDto,
+  EmailTemplateConfigWithScopeDto,
   CreateEmailTemplateConfig,
+  EmailTemplateConfigDto,
   UpdateEmailTemplateConfig,
   ContentType,
   SlotSchemaDefinition,
@@ -5189,7 +5208,9 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetParticipationCount",
     description: `Returns how many distinct people have at least one done step in this conversation.`,
     requestFormat: "json",
-    response: z.object({ participantCount: z.number().int().gte(0) }).passthrough(),
+    response: z
+      .object({ participantCount: z.number().int().gte(0) })
+      .passthrough(),
   },
   {
     method: "get",
@@ -5723,7 +5744,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: email_type,
       },
     ],
-    response: z.array(EmailTemplateConfigDto),
+    response: z.array(EmailTemplateConfigWithScopeDto),
   },
   {
     method: "post",
@@ -5746,7 +5767,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetEmailTemplateConfig",
     description: `Get custom email template configuration`,
     requestFormat: "json",
-    response: EmailTemplateConfigDto,
+    response: EmailTemplateConfigWithScopeDto,
   },
   {
     method: "put",
