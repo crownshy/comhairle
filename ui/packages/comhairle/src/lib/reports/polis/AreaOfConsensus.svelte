@@ -57,7 +57,7 @@
 	// not-voted swatch so its (near-white) fill stays visible on the card.
 	const legend = [
 		{ label: '%Agreed', color: 'var(--vote-agreed)', border: false },
-		{ label: '%Passed', color: 'var(--vote-passed)', border: false },
+		{ label: '%Neutral', color: 'var(--vote-passed)', border: false },
 		{ label: '%not voted', color: 'var(--vote-not-voted)', border: true },
 		{ label: '%Disagreed', color: 'var(--vote-disagreed)', border: false }
 	];

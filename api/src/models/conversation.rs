@@ -245,17 +245,17 @@ impl PartialConversation {
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ConversationFilterOptions {
-    keyword: Option<String>,
-    is_public: Option<bool>,
-    is_live: Option<bool>,
-    is_complete: Option<bool>,
-    is_invite_only: Option<bool>,
-    owner_id: Option<Uuid>,
+    pub keyword: Option<String>,
+    pub is_public: Option<bool>,
+    pub is_live: Option<bool>,
+    pub is_complete: Option<bool>,
+    pub is_invite_only: Option<bool>,
+    pub owner_id: Option<Uuid>,
     /// Lets the admin list show conversations shared with you without the ones you own.
-    exclude_owner_id: Option<Uuid>,
-    organization_id: Option<Uuid>,
-    created_before: Option<DateTime<Utc>>,
-    created_after: Option<DateTime<Utc>>,
+    pub exclude_owner_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
+    pub created_before: Option<DateTime<Utc>>,
+    pub created_after: Option<DateTime<Utc>>,
 }
 
 impl ConversationFilterOptions {
@@ -373,8 +373,8 @@ impl ConversationFilterOptions {
 
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConversationOrderOptions {
-    title: Option<Order>,
-    created_at: Option<Order>,
+    pub title: Option<Order>,
+    pub created_at: Option<Order>,
 }
 
 impl Default for ConversationOrderOptions {

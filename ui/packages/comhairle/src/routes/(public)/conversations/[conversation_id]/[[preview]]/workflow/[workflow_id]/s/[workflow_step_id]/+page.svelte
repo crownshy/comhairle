@@ -14,6 +14,8 @@
 	import StepShell from './StepShell.svelte';
 	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
+	import StepComplete from './StepComplete.svelte';
+	import StepProceedBar from './StepProceedBar.svelte';
 	import StepHeader from './StepHeader.svelte';
 	import StepHeaderSkeleton from './StepHeaderSkeleton.svelte';
 	import type { StepItem } from './stepItems';
@@ -129,11 +131,13 @@
 	let toolSequence = $state.raw<StepScoped<ToolSequence>>();
 	let toolCanContinue = $state.raw<StepScoped<boolean>>();
 	let submittingStepId = $state<string>();
+	let completionScreenStepId = $state<string>();
 
 	// This page stays mounted between steps, so a finished submit has to be cleared here or
 	// coming Back to that step finds its pager still spinning and locked.
 	afterNavigate(() => {
 		submittingStepId = undefined;
+		completionScreenStepId = undefined;
 	});
 
 	function forThisStep<T>(scoped: StepScoped<T> | undefined): T | undefined {
@@ -149,10 +153,13 @@
 	});
 	let canProceed = $derived(forThisStep(toolCanContinue) ?? toolNeedsNoSignal);
 	let isSubmitting = $derived(submittingStepId === workflowStep.id);
+	let isOnCompletionScreen = $derived(completionScreenStepId === workflowStep.id);
 
 	// Empty until the tool reports progress, and full while the step completes so the bar moves
 	// the moment Next is pressed (ADR-0047).
-	let fill = $derived(isRevisiting || isSubmitting ? 1 : (currentSequence?.progress ?? 0));
+	let fill = $derived(
+		isRevisiting || isSubmitting || isOnCompletionScreen ? 1 : (currentSequence?.progress ?? 0)
+	);
 
 	function handleSequenceChange(sequence: ToolSequence) {
 		toolSequence = { stepId: workflowStep.id, value: sequence };
@@ -190,8 +197,32 @@
 			currentNextAction();
 			return;
 		}
-		stepComplete();
+		// A skip skips the completion screen too (ADR-0064).
+		if (forwardMode === 'skip') {
+			proceed();
+			return;
+		}
+		showCompletionScreen();
 	}
+
+	// Progress is written on Proceed, not here (ADR-0064).
+	function showCompletionScreen() {
+		completionScreenStepId = workflowStep.id;
+	}
+
+	// Mirrors where proceed() lands, so the last step's button reads Finish.
+	let proceedFinishesWorkflow = $derived.by(() => {
+		const laterSteps = sortedSteps.slice(viewedIndex + 1);
+		if (isRevisiting) {
+			return actualCurrentStep === null && !laterSteps.some((ws) => ws.canRevisit);
+		}
+		if (recordsProgress) {
+			return sortedSteps.every(
+				(ws) => ws.id === workflowStep.id || ws.progressStatus === 'done'
+			);
+		}
+		return laterSteps.length === 0;
+	});
 
 	function goToThankYouPage() {
 		return navigateTo(thank_you_page(conversation.id, workflow_id, isPreview) + queryString);
@@ -236,7 +267,7 @@
 		);
 	}
 
-	async function stepComplete() {
+	async function proceed() {
 		if (isSubmitting) return;
 		submittingStepId = workflowStep.id;
 
@@ -268,28 +299,33 @@
 					steps={stepItems}
 					currentIndex={viewedIndex}
 					{fill}
-					position={currentSequence?.position}
+					position={isOnCompletionScreen ? undefined : currentSequence?.position}
 					{introUrl}
 					preview={isPreview}
 				/>
-				{#if showNavigationSkeleton.current}
-					<StepHeaderSkeleton />
-				{:else}
-					<StepHeader
-						title={workflowStep.name}
-						description={workflowStep.description}
-						{availableDocuments}
-						conversationId={conversation.id}
-					/>
-				{/if}
 			</div>
 		{/snippet}
 
 		{#snippet content()}
-			<div class={cn(STEP_COLUMN_CLASS, 'flex min-h-full flex-col pt-2')}>
+			<!-- The step name scrolls away with the tool so it never sits over the tool's
+			     content, and phones get the room back (ADR-0063). It stays put while Proceed
+			     navigates away from the completion screen. -->
+			{#if showNavigationSkeleton.current && !isOnCompletionScreen}
+				<StepHeaderSkeleton />
+			{:else}
+				<StepHeader
+					title={workflowStep.name}
+					description={workflowStep.description}
+					{availableDocuments}
+					conversationId={conversation.id}
+				/>
+			{/if}
+			<div class={cn(STEP_COLUMN_CLASS, 'flex grow flex-col pt-2')}>
 				<!-- SvelteKit keeps this page mounted between steps, so the key drops the last tool's state. -->
 				{#key workflowStep.id}
-					{#if showNavigationSkeleton.current}
+					{#if isOnCompletionScreen}
+						<StepComplete />
+					{:else if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
 						{:else}
@@ -318,7 +354,9 @@
 							{isPreview}
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
-							onDone={stepComplete}
+							onDone={showCompletionScreen}
+							topic={toolConfig.topic}
+							strictModeration={toolConfig.strict_moderation}
 						/>
 					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						<HeyForm.UserUI
@@ -326,7 +364,7 @@
 							surveyId={toolConfig.survey_id}
 							surveyURL={toolConfig.survey_url}
 							serverURL={toolConfig.server_url}
-							onDone={stepComplete}
+							onDone={showCompletionScreen}
 							onSequenceChange={handleSequenceChange}
 						/>
 					{:else if toolConfig?.type === LivedExperience.TOOL_NAME}
@@ -343,7 +381,7 @@
 							requestUserSharePermission={workflowStep.requestUserSharePermission}
 							initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
 							progressStatus={workflowStep.progressStatus}
-							onDone={stepComplete}
+							onDone={showCompletionScreen}
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
@@ -354,7 +392,7 @@
 							workflowStepId={workflowStep.id}
 							userId={user.id}
 							topic={toolConfig.topic}
-							onDone={stepComplete}
+							onDone={showCompletionScreen}
 							onCanContinueChange={handleCanContinueChange}
 						/>
 					{:else if toolConfig?.type === Prioritization.TOOL_NAME}
@@ -366,7 +404,7 @@
 								supportedLanguages: conversation.supportedLanguages
 							}}
 							participantId={user.id}
-							onDone={stepComplete}
+							onDone={showCompletionScreen}
 							onCanContinueChange={handleCanContinueChange}
 							onSequenceChange={handleSequenceChange}
 						/>
@@ -376,15 +414,24 @@
 		{/snippet}
 
 		{#snippet bar()}
-			<StepPager
-				{forwardMode}
-				{canGoBack}
-				{canGoForward}
-				loading={isSubmitting}
-				blockedReason={currentSequence?.blockedReason}
-				onBack={goBack}
-				onForward={goForward}
-			/>
+			{#if isOnCompletionScreen}
+				<StepProceedBar
+					finishes={proceedFinishesWorkflow}
+					loading={isSubmitting}
+					onProceed={proceed}
+				/>
+			{:else}
+				<StepPager
+					{forwardMode}
+					nextLabel={currentNextAction ? currentSequence?.nextLabel : undefined}
+					{canGoBack}
+					{canGoForward}
+					loading={isSubmitting}
+					blockedReason={currentSequence?.blockedReason}
+					onBack={goBack}
+					onForward={goForward}
+				/>
+			{/if}
 		{/snippet}
 	</StepShell>
 {:else}

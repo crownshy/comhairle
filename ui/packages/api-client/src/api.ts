@@ -545,6 +545,13 @@ export const VoteCountResponse = z
   .object({ vote_count: z.number().int().gte(0) })
   .passthrough();
 export type VoteCountResponse = z.infer<typeof VoteCountResponse>;
+export const PublishedReason = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    label: z.string(),
+  })
+  .passthrough();
+export type PublishedReason = z.infer<typeof PublishedReason>;
 export const UpdatePolisConfigRequest = z
   .object({
     description: z.union([z.string(), z.null()]).optional(),
@@ -1569,6 +1576,7 @@ export const ToolConfig = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1795,6 +1803,7 @@ export const ToolConfigWithTranslations = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -1954,6 +1963,7 @@ export const LocalizedToolConfig = z.union([
         .union([z.string(), z.null()])
         .optional()
         .default(null),
+      notify_moderators: z.boolean().optional().default(true),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
@@ -2215,6 +2225,114 @@ export const PartialWorkflowStep = z
   .partial()
   .passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const CreateThemeCollection = z
+  .object({
+    context: z.string(),
+    originSubId: z.union([z.string(), z.null()]).optional().default(null),
+    originTool: z.string().optional().default("manual"),
+    requestedByUserId: z.union([z.string(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type CreateThemeCollection = z.infer<typeof CreateThemeCollection>;
+export const StatementDto = z
+  .object({
+    aiGenerated: z.boolean(),
+    content: z.string(),
+    context: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    sourceSubId: z.union([z.string(), z.null()]).optional(),
+    sourceTool: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.union([z.string(), z.null()]).optional(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type StatementDto = z.infer<typeof StatementDto>;
+export const ThemeDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    createdByAi: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    pinned: z.boolean(),
+    statements: z.array(StatementDto),
+    themeCollectionId: z.string().uuid(),
+    title: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type ThemeDto = z.infer<typeof ThemeDto>;
+export const ThemeCollectionDto = z
+  .object({
+    context: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    originSubId: z.union([z.string(), z.null()]).optional(),
+    originTool: z.string(),
+    requestedByUserId: z.union([z.string(), z.null()]).optional(),
+    themes: z.array(ThemeDto),
+    updatedAt: z.string().datetime({ offset: true }),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThemeCollectionDto = z.infer<typeof ThemeCollectionDto>;
+export const GenerateThemeCollectionRequest = z
+  .object({
+    additionalInstructions: z
+      .union([z.string(), z.null()])
+      .optional()
+      .default(null),
+    context: z.string(),
+    sourceTool: z.string(),
+    subScope: z.union([z.string(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type GenerateThemeCollectionRequest = z.infer<
+  typeof GenerateThemeCollectionRequest
+>;
+export const GenerateThemeCollectionResponse = z
+  .object({ job_id: z.string().uuid(), theme_collection_id: z.string().uuid() })
+  .passthrough();
+export type GenerateThemeCollectionResponse = z.infer<
+  typeof GenerateThemeCollectionResponse
+>;
+export const source_tool = z
+  .union([z.string(), z.null()])
+  .optional()
+  .default(null);
+export type source_tool = z.infer<typeof source_tool>;
+export const NewTheme = z
+  .object({
+    createdByAi: z.boolean().optional().default(false),
+    description: z.string(),
+    title: z.string(),
+  })
+  .passthrough();
+export type NewTheme = z.infer<typeof NewTheme>;
+export const UpdateTheme = z
+  .object({ description: z.string(), title: z.string() })
+  .passthrough();
+export type UpdateTheme = z.infer<typeof UpdateTheme>;
+export const UpdateThemePinned = z
+  .object({ pinned: z.boolean() })
+  .passthrough();
+export type UpdateThemePinned = z.infer<typeof UpdateThemePinned>;
+export const CreateStatement = z
+  .object({
+    aiGenerated: z.boolean().optional().default(false),
+    content: z.string(),
+    context: z.string(),
+    sourceSubId: z.union([z.string(), z.null()]).optional().default(null),
+    sourceTool: z.string().optional().default("manual"),
+    userId: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateStatement = z.infer<typeof CreateStatement>;
+export const UpdateStatement = z
+  .object({ content: z.string(), context: z.string() })
+  .passthrough();
+export type UpdateStatement = z.infer<typeof UpdateStatement>;
 export const UserProgressDto = z
   .object({
     id: z.string().uuid(),
@@ -3082,13 +3200,13 @@ export const UpdateOrganizationBody = z
   .partial()
   .passthrough();
 export type UpdateOrganizationBody = z.infer<typeof UpdateOrganizationBody>;
-export const OrganizationTeamRole = z.enum(["member", "admin"]);
-export type OrganizationTeamRole = z.infer<typeof OrganizationTeamRole>;
+export const OrganizationGroup = z.enum(["members", "admins"]);
+export type OrganizationGroup = z.infer<typeof OrganizationGroup>;
 export const OrganizationTeamUserDto = z
   .object({
     email: z.union([z.string(), z.null()]).optional(),
+    groups: z.array(OrganizationGroup),
     id: z.string().uuid(),
-    role: OrganizationTeamRole,
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
@@ -3103,7 +3221,7 @@ export const UpsertOrganizationUserBody = z
   .object({
     allow_create_user: z.union([z.boolean(), z.null()]).optional(),
     email: z.string(),
-    role: z.union([OrganizationTeamRole, z.null()]).optional(),
+    group: z.union([OrganizationGroup, z.null()]).optional(),
   })
   .passthrough();
 export type UpsertOrganizationUserBody = z.infer<
@@ -3118,12 +3236,6 @@ export const UpsertOrganizationUserResponseDto = z
   .passthrough();
 export type UpsertOrganizationUserResponseDto = z.infer<
   typeof UpsertOrganizationUserResponseDto
->;
-export const UpdateOrganizationMemberRoleBody = z
-  .object({ role: OrganizationTeamRole })
-  .passthrough();
-export type UpdateOrganizationMemberRoleBody = z.infer<
-  typeof UpdateOrganizationMemberRoleBody
 >;
 export const RegionType = z.enum(["custom", "official"]);
 export type RegionType = z.infer<typeof RegionType>;
@@ -3774,6 +3886,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ParticipantReportData,
   WikiPollReport,
   VoteCountResponse,
+  PublishedReason,
   UpdatePolisConfigRequest,
   WikiPoll,
   PostSeedRequest,
@@ -3922,6 +4035,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateWorkflowStep,
   WorkflowStepDto,
   PartialWorkflowStep,
+  CreateThemeCollection,
+  StatementDto,
+  ThemeDto,
+  ThemeCollectionDto,
+  GenerateThemeCollectionRequest,
+  GenerateThemeCollectionResponse,
+  source_tool,
+  NewTheme,
+  UpdateTheme,
+  UpdateThemePinned,
+  CreateStatement,
+  UpdateStatement,
   UserProgressDto,
   UpdateUserProgress,
   RecruitmentTargetDto,
@@ -4035,12 +4160,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateOrganization,
   OrganizationDto,
   UpdateOrganizationBody,
-  OrganizationTeamRole,
+  OrganizationGroup,
   OrganizationTeamUserDto,
   OrganizationTeamResponseDto,
   UpsertOrganizationUserBody,
   UpsertOrganizationUserResponseDto,
-  UpdateOrganizationMemberRoleBody,
   RegionType,
   LocalizedRegionDto,
   PaginatedResults_for_LocalizedRegionDto,
@@ -5357,20 +5481,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: NotificationRecipientsResponse,
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/organization",
-    alias: "SetConversationHostingOrganization",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: HostingOrganizationRequest,
-      },
-    ],
-    response: ConversationDto,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/participation-count",
     alias: "GetParticipationCount",
@@ -5739,8 +5849,161 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
-    path: "/demographics/defaults",
-    alias: "ListDemographicDefaults",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements",
+    alias: "ListStatements",
+    requestFormat: "json",
+    response: z.array(StatementDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements",
+    alias: "CreateStatement",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateStatement,
+      },
+    ],
+    response: StatementDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements/:statement_id",
+    alias: "UpdateStatement",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateStatement,
+      },
+    ],
+    response: StatementDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/statements/:statement_id",
+    alias: "DeleteStatement",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections",
+    alias: "CreateThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateThemeCollection,
+      },
+    ],
+    response: ThemeCollectionDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id",
+    alias: "ListThemeCollectionThemes",
+    requestFormat: "json",
+    response: ThemeCollectionDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id",
+    alias: "DeleteThemeCollection",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes",
+    alias: "AddTheme",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: NewTheme,
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id",
+    alias: "UpdateTheme",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateTheme,
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id",
+    alias: "DeleteTheme",
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/:theme_collection_id/themes/:theme_id/pin",
+    alias: "SetThemePinned",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ pinned: z.boolean() }).passthrough(),
+      },
+    ],
+    response: ThemeDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/generate",
+    alias: "GenerateThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: GenerateThemeCollectionRequest,
+      },
+    ],
+    response: GenerateThemeCollectionResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/theme_collections/latest",
+    alias: "GetLatestThemeCollection",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "source_tool",
+        type: "Query",
+        schema: source_tool,
+      },
+      {
+        name: "sub_scope",
+        type: "Query",
+        schema: source_tool,
+      },
+    ],
+    response: ThemeCollectionDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/conversations_questions",
+    alias: "GetConversationDemographics",
+    description: `Retrieve demographics responses for a specific conversation and question`,
     requestFormat: "json",
     response: z.array(QuestionDto),
   },
@@ -6574,10 +6837,60 @@ curl -X POST \
     response: OrganizationDto,
   },
   {
+    method: "put",
+    path: "/organizations/:organization_id/groups/:group/members/:user_id",
+    alias: "AddOrganizationGroupMember",
+    description: `Adds an existing user to the organization&#x27;s members or admins group. Joining the admins group also joins the members group`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "group",
+        type: "Path",
+        schema: z.enum(["members", "admins"]),
+      },
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "delete",
+    path: "/organizations/:organization_id/groups/:group/members/:user_id",
+    alias: "RemoveOrganizationGroupMember",
+    description: `Removes a user from the organization&#x27;s admins group, or from the whole organization when the members group is given`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "group",
+        type: "Path",
+        schema: z.enum(["members", "admins"]),
+      },
+      {
+        name: "organization_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "user_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
     method: "post",
     path: "/organizations/:organization_id/members",
     alias: "AddOrganizationMember",
-    description: `Adds a member by email and bootstraps an account when needed`,
+    description: `Adds a user by email to the members or admins group and bootstraps an account when needed`,
     requestFormat: "json",
     parameters: [
       {
@@ -6595,31 +6908,6 @@ curl -X POST \
     description: `Removes a user&#x27;s organization membership`,
     requestFormat: "json",
     parameters: [
-      {
-        name: "organization_id",
-        type: "Path",
-        schema: z.string().uuid(),
-      },
-      {
-        name: "user_id",
-        type: "Path",
-        schema: z.string().uuid(),
-      },
-    ],
-    response: z.void(),
-  },
-  {
-    method: "put",
-    path: "/organizations/:organization_id/members/:user_id/role",
-    alias: "UpdateOrganizationMemberRole",
-    description: `Updates organization member role between member and admin`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: UpdateOrganizationMemberRoleBody,
-      },
       {
         name: "organization_id",
         type: "Path",
@@ -6660,7 +6948,7 @@ curl -X POST \
     method: "get",
     path: "/organizations/:organization_id/team",
     alias: "GetOrganizationTeam",
-    description: `Returns members and administrators for an organization`,
+    description: `Returns the users in the organization members and admins groups`,
     requestFormat: "json",
     response: OrganizationTeamResponseDto,
   },
@@ -7277,6 +7565,26 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: WikiPoll,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/moderation_policy",
+    alias: "PolisGetPublishedModerationPolicy",
+    description: `Lists the reject reasons (label and description) the step&#x27;s moderators pick from, so participants can read the rules before they write a statement. Reads the draft config when preview is set or the step isn&#x27;t launched.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "preview",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PublishedReason),
   },
   {
     method: "get",

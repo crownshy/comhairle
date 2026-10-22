@@ -8,15 +8,14 @@ use sea_query_binder::SqlxBinder;
 use sqlx::{PgConnection, PgExecutor, PgPool};
 use uuid::Uuid;
 
+use super::VersionStatus;
+use super::types::*;
+use super::validation::{invalid, validate_question_draft};
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::translations::{
     TextContentId, TextFormat, localize_translations, new_translation_in_connection,
 };
-
-use super::VersionStatus;
-use super::types::*;
-use super::validation::{invalid, validate_question_draft};
 
 const VERSION_COLUMNS: [DemographicQuestionVersionIden; 17] = [
     DemographicQuestionVersionIden::Id,

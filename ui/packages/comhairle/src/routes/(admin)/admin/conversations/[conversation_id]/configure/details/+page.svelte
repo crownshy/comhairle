@@ -37,6 +37,10 @@
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
 	import AccessSettings from './AccessSettings.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { detailsConfigTour } from './tour';
+
+	useTour(() => detailsConfigTour);
 
 	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
@@ -288,6 +292,7 @@
 </script>
 
 <PageHeader
+	data-tour="page-header"
 	level="h2"
 	title="Details"
 	description="Title, description, language, banner and who can take part."
@@ -295,7 +300,7 @@
 
 <!-- One superForm still backs every field (its inline validation + $form binding); there is
 	 no submit — every field autosaves (see ADR-0004), so this is a plain container. -->
-<div class="flex flex-col">
+<div data-tour="details-fields" class="flex flex-col">
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>

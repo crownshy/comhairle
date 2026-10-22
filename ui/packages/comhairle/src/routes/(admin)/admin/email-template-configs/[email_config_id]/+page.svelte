@@ -17,6 +17,10 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { emailTemplateConfigTour } from './tour';
+
+	useTour(() => emailTemplateConfigTour);
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;

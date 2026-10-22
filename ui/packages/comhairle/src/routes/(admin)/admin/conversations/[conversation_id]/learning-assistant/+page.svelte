@@ -31,6 +31,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import { useDebounce } from 'runed';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { learningAssistantTour } from './tour';
+
+	useTour(() => learningAssistantTour);
 
 	const MAX_SIZE = 50 * MB;
 
