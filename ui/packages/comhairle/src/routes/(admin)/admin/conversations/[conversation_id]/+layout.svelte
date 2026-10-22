@@ -138,7 +138,9 @@
 			/>
 		{/if}
 	{:else if isInvitesSection}
-		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
+		<div data-tour="invite-subtabs">
+			<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
+		</div>
 	{:else if isEventsSection}
 		<EventStrip conversationId={conversation.id} events={data.events} />
 	{/if}

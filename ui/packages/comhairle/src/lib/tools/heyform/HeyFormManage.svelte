@@ -161,7 +161,11 @@
 <svelte:document onfullscreenchange={syncFullscreen} />
 
 {#if canEdit}
-	<div bind:this={viewport} class="bg-muted relative h-full w-full overflow-hidden">
+	<div
+		bind:this={viewport}
+		data-tour="heyform-builder"
+		class="bg-muted relative h-full w-full overflow-hidden"
+	>
 		{#if ready}
 			<button
 				type="button"

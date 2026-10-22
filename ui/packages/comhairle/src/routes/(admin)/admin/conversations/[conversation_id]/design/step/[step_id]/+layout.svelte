@@ -2,6 +2,10 @@
 	import { page } from '$app/state';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { stepTour } from './tour';
+
+	useTour(() => stepTour);
 
 	let { data, children } = $props();
 	const canEdit = $derived(
@@ -30,7 +34,9 @@
 
 <!-- The step's own tabs (Setup/Configure/Insights), the only strip under the step
 	 header. Rendered from `data` so a hard refresh of /design/step/* paints it straight away. -->
-<SubTabStrip tone="primary" items={subtabItems} {basePath} />
+<div data-tour="step-subtabs" class="shrink-0">
+	<SubTabStrip tone="primary" items={subtabItems} {basePath} />
+</div>
 
 {#if isHeyformSetup}
 	<div class="bg-admin-background min-h-0 grow overflow-hidden">

@@ -30,6 +30,10 @@
 	import * as Alert from '$lib/components/ui/alert';
 	import { key } from '$lib/utils/invalidationKey';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { newEventTour } from './tour';
+
+	useTour(() => newEventTour);
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
@@ -200,7 +204,7 @@
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
 
-<h2 class="mb-4 text-xl font-bold">New event</h2>
+<h2 data-tour="page-header" class="mb-4 text-xl font-bold">New event</h2>
 
 <div class="flex flex-col gap-4">
 	<h3 class="text-card-foreground text-base font-semibold">Edit information</h3>

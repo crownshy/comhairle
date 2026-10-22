@@ -35,6 +35,10 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { permissions } from '$lib/permissions.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { processDesignTour } from './tour';
+
+	useTour(() => processDesignTour);
 
 	const { data } = $props();
 	const { conversation } = $derived(data);
@@ -330,6 +334,7 @@
 					<h2 class="text-xl font-bold">Process steps</h2>
 					<DropdownMenu.Root>
 						<DropdownMenu.Trigger
+							data-tour="choose-template"
 							class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"
 						>
 							Choose from templates

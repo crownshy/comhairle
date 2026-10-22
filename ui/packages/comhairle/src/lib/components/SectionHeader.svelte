@@ -55,6 +55,7 @@
 
 <!-- When a tab strip follows, it supplies the bottom border so header and tabs read as one block. -->
 <header
+	data-tour="section-header"
 	class={cn(
 		'bg-admin-background px-gutter shrink-0',
 		!hasTabs && 'border-border border-b',
