@@ -6,7 +6,7 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import { Label } from '$lib/components/ui/label';
 	import { notifications } from '$lib/notifications.svelte';
-	import { Form, Input, Select, Submit, validate } from '$lib/components/EasyForm';
+	import { Form, Input, SelectList, Submit, validate } from '$lib/components/EasyForm';
 	import Demographics from '$lib/interfaces/Demographics';
 	import { Second } from '$lib/utils/units';
 	import { Button } from '$lib/components/ui/button';
@@ -182,16 +182,15 @@
 			</div>
 
 			{#if demographicQuestions.length === 0}
-				<Select
-					id="hello"
+				<SelectList
+					title="Ethnicity"
 					name="hello"
-					question="Ethnicity"
-					placeholder="Ethnicity"
 					options={[
 						{ label: 'hello', value: 'world' },
 						{ label: 'a', value: 'b' },
 						{ label: 'c', value: 'd' }
 					]}
+					onselect={console.log}
 				/>
 				<span class="text-muted-foreground mt-4 text-sm italic">
 					No demographic questions are currently available.
@@ -204,16 +203,15 @@
 								<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
 								<Label for={question.slug}>{question.displayName}</Label>
 								{#if question.bucketConfig?.type === 'string' && question.bucketConfig?.options?.length > 0}
-									<Select
-										id={question.slug}
+									<SelectList
+										title="Ethnicity"
 										name={question.slug}
-										question="Ethnicity"
-										placeholder="Ethnicity"
 										options={[
 											{ label: 'hello', value: 'world' },
 											{ label: 'a', value: 'b' },
 											{ label: 'c', value: 'd' }
 										]}
+										onselect={console.log}
 									/>
 								{:else}
 									<Input
