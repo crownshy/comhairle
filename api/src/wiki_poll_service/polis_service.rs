@@ -114,12 +114,12 @@ impl BaseClusters {
         base_cluster_ids
             .iter()
             .filter_map(|&base_id| {
-                let idx = if self.id.is_empty() {
+                let index = if self.id.is_empty() {
                     Some(base_id as usize)
                 } else {
                     self.id.iter().position(|&id| id == base_id)
                 };
-                idx.and_then(|idx| self.members.get(idx))
+                index.and_then(|index| self.members.get(index))
             })
             .flatten()
             .copied()

@@ -1,7 +1,8 @@
 import type { PolisReportData, ReportComment, VoteCounts } from '../reportTypes';
-import { totalVotes } from '../report';
+import type { PolisCommentRow, Vote } from '../PolisApi';
+import { sumVotes, totalVotes } from '../report';
 
-export type Vote = 'agree' | 'disagree' | 'pass';
+export type { Vote };
 
 /**
  * Where a first-timer is in onboarding. Each stage is one thing on screen: an instruction
@@ -27,20 +28,12 @@ export const REVEAL_EVERY = 15;
 
 /** A statement as Polis lists it for participants, with its vote counts when known. */
 export type PracticeStatement = {
+	// `tid` is Polis's statement id within a conversation.
 	tid: number;
 	text: string;
 	is_seed: boolean;
 	/** Undefined when the report has no counts for it yet, so nothing is claimed about them. */
 	votes: VoteCounts | undefined;
-};
-
-/** The fields we read from a row of Polis's participant `/api/v3/comments`. */
-export type PolisCommentRow = {
-	tid: number;
-	txt: string;
-	is_seed?: boolean;
-	is_meta?: boolean;
-	mod?: number;
 };
 
 /**
@@ -49,11 +42,6 @@ export type PolisCommentRow = {
  * Polis only sends vote counts on its moderator list, so the counts come from the report,
  * which lags new statements until the next math run.
  */
-function isVisible(mod: number | undefined, strictModeration: boolean): boolean {
-	if (mod === undefined) return true;
-	return mod >= (strictModeration ? 1 : 0);
-}
-
 export function toPracticeStatements(
 	rows: PolisCommentRow[],
 	strictModeration: boolean,
@@ -70,13 +58,17 @@ export function toPracticeStatements(
 		}));
 }
 
+function isVisible(mod: number | undefined, strictModeration: boolean): boolean {
+	if (mod === undefined) return true;
+	return mod >= (strictModeration ? 1 : 0);
+}
+
 export type PracticePick = {
 	seed: PracticeStatement | undefined;
 	participant: PracticeStatement | undefined;
 };
 
-const votesOn = (s: PracticeStatement) =>
-	s.votes ? s.votes.agrees + s.votes.disagrees + s.votes.passes : 0;
+const votesOn = (statement: PracticeStatement) => (statement.votes ? sumVotes(statement.votes) : 0);
 
 /**
  * The organisers' statement and the participant statement the first two votes are on. Most
@@ -117,7 +109,7 @@ export function crowdBar(
 	if (ownVote === 'agree') counts.agrees++;
 	if (ownVote === 'disagree') counts.disagrees++;
 	if (ownVote === 'pass') counts.passes++;
-	const voters = counts.agrees + counts.disagrees + counts.passes;
+	const voters = sumVotes(counts);
 	const share = (n: number) => (voters > 0 ? (n / voters) * 100 : 0);
 	return {
 		agreed: share(counts.agrees),
@@ -151,8 +143,8 @@ export function groupPortrait(
 
 	const agreed: ReportComment[] = [];
 	const disagreed: ReportComment[] = [];
-	for (const rep of group.representative_comments) {
-		const comment = report.comments.find((c) => c.tid === rep.tid);
+	for (const representative of group.representative_comments) {
+		const comment = report.comments.find((c) => c.tid === representative.tid);
 		const votes = comment?.group_votes.find((v) => v.group_id === group.group_id);
 		if (!comment || !votes) continue;
 		if (votes.agrees > votes.disagrees) agreed.push(comment);

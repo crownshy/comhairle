@@ -17,6 +17,28 @@
 	const bar = $derived(crowdBar(statement, ownVote));
 	const voteLabel = { agree: m.polis_agree, disagree: m.polis_disagree, pass: m.polis_neutral };
 	const othersVoted = $derived((bar?.voters ?? 0) > 1);
+	const legend = $derived(
+		bar && [
+			{
+				label: m.polis_agree(),
+				percent: bar.agreed,
+				color: 'var(--vote-agreed)',
+				muted: false
+			},
+			{
+				label: m.polis_neutral(),
+				percent: bar.passed,
+				color: 'var(--vote-passed)',
+				muted: true
+			},
+			{
+				label: m.polis_disagree(),
+				percent: bar.disagreed,
+				color: 'var(--vote-disagreed)',
+				muted: false
+			}
+		]
+	);
 </script>
 
 <div class={cn('flex w-full flex-col gap-4 rounded-2xl border p-4 sm:p-6', source.cardClass)}>
@@ -35,24 +57,18 @@
 				class="flex flex-wrap justify-between gap-x-4 gap-y-1 text-base whitespace-nowrap"
 				aria-hidden="true"
 			>
-				<span class="flex items-center gap-1.5">
-					<span class="size-2.5 rounded-full" style="background: var(--vote-agreed);"
-					></span>
-					{m.polis_agree()}
-					{Math.round(bar.agreed)}%
-				</span>
-				<span class="text-muted-foreground flex items-center gap-1.5">
-					<span class="size-2.5 rounded-full" style="background: var(--vote-passed);"
-					></span>
-					{m.polis_neutral()}
-					{Math.round(bar.passed)}%
-				</span>
-				<span class="flex items-center gap-1.5">
-					<span class="size-2.5 rounded-full" style="background: var(--vote-disagreed);"
-					></span>
-					{m.polis_disagree()}
-					{Math.round(bar.disagreed)}%
-				</span>
+				{#each legend ?? [] as entry (entry.color)}
+					<span
+						class={cn(
+							'flex items-center gap-1.5',
+							entry.muted && 'text-muted-foreground'
+						)}
+					>
+						<span class="size-2.5 rounded-full" style:background={entry.color}></span>
+						{entry.label}
+						{Math.round(entry.percent)}%
+					</span>
+				{/each}
 			</div>
 		</div>
 	{/if}

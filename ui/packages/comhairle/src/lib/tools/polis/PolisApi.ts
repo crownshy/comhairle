@@ -1,8 +1,8 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { PolisCommentRow } from './onboarding/onboarding';
 
 export type PolisStatement = {
 	txt: string;
+	// `tid` is Polis's statement id within a conversation.
 	tid: number;
 	is_meta: boolean;
 	is_seed: boolean;
@@ -10,6 +10,17 @@ export type PolisStatement = {
 	lang: string | undefined;
 	remaining: number;
 	total: number;
+};
+
+export type Vote = 'agree' | 'disagree' | 'pass';
+
+/** The fields we read from a row of Polis's participant `/api/v3/comments`. */
+export type PolisCommentRow = {
+	tid: number;
+	txt: string;
+	is_seed?: boolean;
+	is_meta?: boolean;
+	mod?: number;
 };
 
 export type PolisApiState = {
@@ -167,14 +178,15 @@ export default class PolisApi {
 	 * math to run, so statements added a moment ago are included. It carries no vote counts.
 	 */
 	async fetchStatements(): Promise<PolisCommentRow[]> {
-		const r = await fetch(`${this.baseUrl}/api/v3/comments?conversation_id=${this.polisId}`, {
-			credentials: 'include'
-		});
-		if (!r.ok) throw new Error(`comments failed: ${r.status}`);
-		return r.json();
+		const response = await fetch(
+			`${this.baseUrl}/api/v3/comments?conversation_id=${this.polisId}`,
+			{ credentials: 'include' }
+		);
+		if (!response.ok) throw new Error(`comments failed: ${response.status}`);
+		return response.json();
 	}
 
-	private async postVote(tid: number, vote: 'agree' | 'disagree' | 'pass'): Promise<void> {
+	private async postVote(tid: number, vote: Vote): Promise<void> {
 		const voteValue = { agree: -1, disagree: 1, pass: 0 }[vote];
 		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
 
@@ -201,7 +213,7 @@ export default class PolisApi {
 	}
 
 	/** Votes on a statement the caller chose, leaving the current statement where it is. */
-	async voteOn(tid: number, vote: 'agree' | 'disagree' | 'pass'): Promise<boolean> {
+	async voteOn(tid: number, vote: Vote): Promise<boolean> {
 		const result = await tryCatchAsync(() => this.postVote(tid, vote));
 		if (result.err !== null) {
 			console.error('[PolisApi] Error with vote:', result.err);
@@ -212,7 +224,7 @@ export default class PolisApi {
 
 	/** Resolves true once Polis has saved the vote, false if it failed. On failure the
 	 * current statement stays put so the participant can vote again. */
-	async submitVote(vote: 'agree' | 'disagree' | 'pass'): Promise<boolean> {
+	async submitVote(vote: Vote): Promise<boolean> {
 		if (!this._currentStatement) {
 			console.error('[PolisApi] No current statement to vote on');
 			return false;

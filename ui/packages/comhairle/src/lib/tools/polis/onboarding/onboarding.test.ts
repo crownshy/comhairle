@@ -8,9 +8,9 @@ import {
 	pickPractice,
 	stageAfterSeedResult,
 	toPracticeStatements,
-	type PolisCommentRow,
 	type PracticeStatement
 } from './onboarding';
+import type { PolisCommentRow } from '../PolisApi';
 import type { PolisReportData, ReportComment } from '../reportTypes';
 
 function comment(

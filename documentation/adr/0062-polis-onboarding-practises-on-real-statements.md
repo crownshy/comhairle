@@ -86,6 +86,8 @@ off while it is open, because the overlay sits above dialogs.
 - `strict_moderation` and `topic` now reach the voting screen.
 - "Skip the intro" in the pager's forward corner bends ADR-0048, which says that slot reads Next
   or Skip.
+- The Next button inside each onboarding screen bends ADR-0047, which rejected tools keeping
+  their own in-body next buttons.
 - The step name scrolling with the tool (ADR-0063) is what stops it showing through the lit area.
 - The new copy is English only until it is translated.
 - Open on #1203: whether admins pick the practice statements, how many votes `math/pca2` needs

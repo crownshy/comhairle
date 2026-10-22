@@ -3,11 +3,7 @@
 	import { driver, type Driver } from 'driver.js';
 	import 'driver.js/dist/driver.css';
 
-	let {
-		target,
-		moment,
-		onSkip
-	}: {
+	type Props = {
 		/** Matches a `data-tour` attribute in the markup. */
 		target: string;
 		/** Names what is on screen; the spotlight redraws when it changes. Undefined hides it
@@ -15,21 +11,23 @@
 		moment: string | undefined;
 		/** Escape closes the spotlight, which skips onboarding. */
 		onSkip: () => void;
-	} = $props();
+	};
 
-	const PADDING = 16;
+	let { target, moment, onSkip }: Props = $props();
+
+	const STAGE_PADDING_PX = 16;
 
 	let instance: Driver | undefined;
 	let closingOurselves = false;
-	let queued = 0;
+	let pendingFrame = 0;
 	// Content loading in (a skeleton becoming the groups) grows the lit area without any
 	// event driver.js hears, so its size is watched directly.
 	let sizeWatcher: ResizeObserver | undefined;
 
 	function remeasure() {
-		if (queued) return;
-		queued = requestAnimationFrame(() => {
-			queued = 0;
+		if (pendingFrame) return;
+		pendingFrame = requestAnimationFrame(() => {
+			pendingFrame = 0;
 			if (instance?.isActive()) instance.refresh();
 		});
 	}
@@ -40,8 +38,8 @@
 			// Dark enough that the step chrome behind drops away and only the lit area reads.
 			overlayColor: '#000',
 			overlayOpacity: 0.85,
-			stagePadding: PADDING,
-			stageRadius: PADDING,
+			stagePadding: STAGE_PADDING_PX,
+			stageRadius: STAGE_PADDING_PX,
 			smoothScroll: false,
 			// A tap outside does nothing, so a stray thumb does not lose the flow.
 			overlayClickBehavior: () => {},
@@ -94,7 +92,7 @@
 				document.removeEventListener(name, remeasure, { capture: true });
 			}
 			window.removeEventListener('resize', remeasure);
-			cancelAnimationFrame(queued);
+			cancelAnimationFrame(pendingFrame);
 			hide();
 		};
 	});

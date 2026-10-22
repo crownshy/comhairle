@@ -107,7 +107,7 @@
 	let stage = $state<Stage>(
 		initialData.totalVotes > 0 || hasSeenOnboarding(onboardingScope) ? 'done' : 'deciding'
 	);
-	let pick = $state<PracticePick>({ seed: undefined, participant: undefined });
+	let practicePick = $state<PracticePick>({ seed: undefined, participant: undefined });
 	let seedVote = $state<Vote | undefined>(undefined);
 	let participantVote = $state<Vote | undefined>(undefined);
 	let practisedAny = false;
@@ -124,9 +124,11 @@
 
 	const onboarding = $derived(stage !== 'done');
 
-	const practiceStatement = $derived<PracticeStatement | undefined>(
-		stage === 'seed' ? pick.seed : stage === 'participant' ? pick.participant : undefined
-	);
+	const practiceStatement = $derived.by<PracticeStatement | undefined>(() => {
+		if (stage === 'seed') return practicePick.seed;
+		if (stage === 'participant') return practicePick.participant;
+		return undefined;
+	});
 
 	// During practice the card shows the picked statement in place of the one Polis served.
 	const shownStatement = $derived<PolisStatement | undefined>(
@@ -292,8 +294,8 @@
 			result.err === null
 				? toPracticeStatements(result.ok, strictModeration ?? false, report)
 				: [];
-		pick = pickPractice(statements);
-		firstHere = !pick.participant;
+		practicePick = pickPractice(statements);
+		firstHere = !practicePick.participant;
 		stage = 'intro';
 	}
 
@@ -512,10 +514,10 @@
 		}
 	}
 
-	async function doVote(type: Vote) {
+	async function doVote(vote: Vote) {
 		if (voteCooldown || !shownStatement) return;
 		if (practiceStatement) {
-			practiceVote(practiceStatement, type);
+			practiceVote(practiceStatement, vote);
 			return;
 		}
 		if (showSomeoneElse) someoneElseSeen = true;
@@ -524,9 +526,9 @@
 		failedVote = undefined;
 
 		// Count the vote only once Polis has saved it, so Next never unlocks on lost votes.
-		const saved = await polis.submitVote(type);
+		const saved = await polis.submitVote(vote);
 		if (!saved) {
-			failedVote = type;
+			failedVote = vote;
 			waitingForNext = false;
 			voteCooldown = false;
 			return;
@@ -829,28 +831,31 @@
 				<GuideScreen
 					title={introTitle}
 					next={m.polis_onboarding_next()}
-					onNext={() => goTo(firstVotingStage(pick))}
+					onNext={() => goTo(firstVotingStage(practicePick))}
 				>
 					<p class="text-card-foreground text-lg">{m.polis_onboarding_intro_body()}</p>
 				</GuideScreen>
-			{:else if guideStage === 'seed-result' && pick.seed && seedVote}
+			{:else if guideStage === 'seed-result' && practicePick.seed && seedVote}
 				<GuideScreen
 					title={m.polis_onboarding_seed_result()}
 					next={m.polis_onboarding_next()}
-					onNext={() => goTo(stageAfterSeedResult(pick))}
+					onNext={() => goTo(stageAfterSeedResult(practicePick))}
 				>
-					<CrowdStatement statement={pick.seed} ownVote={seedVote} />
+					<CrowdStatement statement={practicePick.seed} ownVote={seedVote} />
 					<p class="text-card-foreground text-lg">
 						{m.polis_onboarding_seed_result_changes()}
 					</p>
 				</GuideScreen>
-			{:else if guideStage === 'participant-result' && pick.participant && participantVote}
+			{:else if guideStage === 'participant-result' && practicePick.participant && participantVote}
 				<GuideScreen
 					title={m.polis_onboarding_seed_result()}
 					next={m.polis_onboarding_next()}
 					onNext={startFreeVoting}
 				>
-					<CrowdStatement statement={pick.participant} ownVote={participantVote} />
+					<CrowdStatement
+						statement={practicePick.participant}
+						ownVote={participantVote}
+					/>
 				</GuideScreen>
 			{:else if guideStage === 'missing'}
 				<GuideScreen
@@ -974,14 +979,14 @@
 											in:fade={{ duration: 150 }}
 										>
 											<p
-												class="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase"
+												class="text-muted-foreground mb-1 text-sm font-semibold tracking-wide uppercase"
 											>
 												{m.polis_original_statement()}
 											</p>
 											<p class="text-base leading-7">
 												{localized?.original_text}
 											</p>
-											<p class="text-muted-foreground mt-2 text-xs">
+											<p class="text-muted-foreground mt-2 text-sm">
 												{m.polis_ai_translation_note()}
 											</p>
 										</div>
