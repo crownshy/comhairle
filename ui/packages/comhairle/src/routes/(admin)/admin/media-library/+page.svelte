@@ -118,13 +118,13 @@
 									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
 									bind:group={selected}
 								/>
-								<span>
+								<span class="block w-full">
 									<MediaItem {type} {...media} />
 								</span>
 							</label>
 						{:else}
 							<Dialog.Trigger
-								class="inline aspect-video h-full"
+								class="block aspect-video h-full w-full"
 								onclick={() => (details = media)}
 							>
 								<MediaItem {type} {...media} alt="" />
