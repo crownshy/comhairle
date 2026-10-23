@@ -4,9 +4,10 @@
 		label: string;
 		value: string;
 		onselect: (value: string) => void;
+		defaultChecked?: boolean;
 	};
 
-	let { name, label, value, onselect }: Props = $props();
+	let { name, label, value, onselect, defaultChecked }: Props = $props();
 </script>
 
 <label
@@ -17,7 +18,8 @@
 		class="hidden"
 		{name}
 		{value}
-		onselect={(e) => onselect((e.target as HTMLInputElement).value)}
+		{defaultChecked}
+		onchange={(e) => onselect((e.target as HTMLInputElement).value)}
 	/>
 	{label}
 </label>
