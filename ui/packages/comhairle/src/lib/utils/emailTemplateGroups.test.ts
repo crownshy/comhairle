@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { EmailTemplateConfigWithScopeDto, EmailTypeSchema } from '@crownshy/api-client/api';
-import {
-	buildEmailTypeView,
-	buildEmailTypeGroups,
-	filterGroupsForConversation,
-	scopedConversations
-} from './emailTemplateGroups';
+import { buildEmailTypeView, buildEmailTypeGroups } from './emailTemplateGroups';
 
 const schema = (email_type: EmailTypeSchema['email_type'], default_subject: string) =>
 	({ email_type, default_subject, slots: [], template: '', variables: [] }) as EmailTypeSchema;
@@ -65,45 +60,6 @@ describe('buildEmailTypeGroups', () => {
 	});
 });
 
-describe('filterGroupsForConversation', () => {
-	const groups = buildEmailTypeGroups(SCHEMAS, [
-		config({ id: 'all' }),
-		config({ id: 'a', conversationId: 'c1', conversationTitle: 'Allotments' })
-	]);
-
-	it('returns every row when no conversation is chosen', () => {
-		expect(filterGroupsForConversation(groups, null)).toBe(groups);
-	});
-
-	it('shows the conversation's own version, or what it falls back to', () => {
-		const filtered = filterGroupsForConversation(groups, 'c1');
-
-		expect(filtered[0].rows.map((row) => row.key)).toEqual(['a']);
-		expect(filtered[1].rows.map((row) => row.source)).toEqual(['default']);
-	});
-});
-
-describe('scopedConversations', () => {
-	it('lists each customised conversation once, by title', () => {
-		expect(
-			scopedConversations([
-				config({ id: '1', conversationId: 'c2', conversationTitle: 'Zebra crossings' }),
-				config({ id: '2', conversationId: 'c1', conversationTitle: 'Allotments' }),
-				config({
-					id: '3',
-					conversationId: 'c2',
-					conversationTitle: 'Zebra crossings',
-					emailType: 'event_reminder'
-				}),
-				config({ id: '4' })
-			])
-		).toEqual([
-			{ id: 'c1', title: 'Allotments' },
-			{ id: 'c2', title: 'Zebra crossings' }
-		]);
-	});
-});
-
 describe('buildEmailTypeView', () => {
 	const CONVERSATIONS = [
 		{ id: 'c1', title: 'Allotments' },
@@ -114,7 +70,10 @@ describe('buildEmailTypeView', () => {
 	it('splits the default from conversations with their own version', () => {
 		const view = buildEmailTypeView(
 			SCHEMAS[0],
-			[config({ id: 'all' }), config({ id: 'a', conversationId: 'c1', conversationTitle: 'Allotments' })],
+			[
+				config({ id: 'all' }),
+				config({ id: 'a', conversationId: 'c1', conversationTitle: 'Allotments' })
+			],
 			CONVERSATIONS
 		);
 
