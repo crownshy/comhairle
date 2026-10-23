@@ -40,7 +40,7 @@
 
 <div class="flex w-full flex-col">
 	{#if label}
-		<Label class="mb-1 text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">{label}</Label>
+		<Label class="mb-1 text-sm font-semibold lg:w-75 lg:shrink-0 lg:pt-2">{label}</Label>
 	{/if}
 	<span class:pile={type === 'password'}>
 		<Input
