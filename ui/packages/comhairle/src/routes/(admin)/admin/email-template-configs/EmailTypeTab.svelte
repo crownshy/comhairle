@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { Info, Plus } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
@@ -15,6 +14,7 @@
 	import InboxPreviewDialog from './InboxPreviewDialog.svelte';
 	import { renderTemplatePreview, type RenderedPreview } from './templatePreview';
 	import { templateHref } from './templateHref';
+	import ChooseConversationDialog from './ChooseConversationDialog.svelte';
 
 	type Props = {
 		view: EmailTypeView;
@@ -27,6 +27,7 @@
 	let preview = $state<RenderedPreview | null>(null);
 	let previewRow = $state<EmailTemplateRow | null>(null);
 	let showFallbacks = $state(false);
+	let choosingConversation = $state(false);
 
 	async function openPreview(row: EmailTemplateRow) {
 		const conversation = conversations.find((candidate) => candidate.id === row.conversationId);
@@ -47,9 +48,6 @@
 	let copy = $derived(EMAIL_TYPE_COPY[view.emailType]);
 	let scopable = $derived(canScopeToConversation(view.emailType));
 	let fallbackCount = $derived(view.usingBase.length);
-	let newHref = $derived(
-		`${resolve('/(admin)/admin/email-template-configs/new')}?type=${view.emailType}`
-	);
 </script>
 
 <div data-tour="email-configs-list" class="flex max-w-5xl flex-col gap-7">
@@ -102,9 +100,16 @@
 		<section aria-labelledby="own-heading" class="flex flex-col gap-2.5">
 			<div class="flex flex-wrap items-end justify-between gap-3">
 				<h2 id="own-heading" class="text-foreground text-lg font-semibold">
-					Conversations with their own version ({view.conversationVersions.length})
+					Conversations with their own invitation versions ({view.conversationVersions
+						.length})
 				</h2>
-				<Button href={newHref} variant="outline" size="sm" class="text-sm">
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					class="text-sm"
+					onclick={() => (choosingConversation = true)}
+				>
 					<Plus class="size-4" aria-hidden="true" />
 					Add for a conversation
 				</Button>
@@ -121,6 +126,11 @@
 				</p>
 			{/if}
 		</section>
+		<ChooseConversationDialog
+			bind:open={choosingConversation}
+			emailType={view.emailType}
+			conversations={view.usingBase}
+		/>
 	{:else}
 		<p class="text-muted-foreground text-base">
 			Event emails use one version for all your events.

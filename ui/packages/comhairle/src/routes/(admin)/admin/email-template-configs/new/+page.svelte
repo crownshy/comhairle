@@ -3,8 +3,6 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
-	import * as Select from '$lib/components/ui/select';
-	import { Label } from '$lib/components/ui/label';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { notifications } from '$lib/notifications.svelte';
@@ -28,13 +26,10 @@
 	let { data } = $props();
 
 	const FORM_ID = 'email-template-form';
-	const ALL_CONVERSATIONS = 'all';
-	const NO_SCOPE_CHOSEN = '';
 
-	// The list page links here with ?type= so Customise opens on the right email.
-	let selectedType = $derived<string>(
-		page.url.searchParams.get('type') ?? data.schemas[0].email_type
-	);
+	// The list page fixes the email with ?type= and, for one conversation, ?conversation=.
+	let selectedType = $derived(page.url.searchParams.get('type') ?? data.schemas[0].email_type);
+	let conversationParam = $derived(page.url.searchParams.get('conversation'));
 	let schema = $derived(
 		data.schemas.find((candidate) => candidate.email_type === selectedType) ?? data.schemas[0]
 	);
@@ -50,25 +45,20 @@
 				!configsOfType.some((config) => config.conversationId === conversation.id)
 		)
 	);
-	// When the all-conversations version exists already, make the admin pick a conversation.
-	let scope = $derived(scopable && existingAllVersion ? NO_SCOPE_CHOSEN : ALL_CONVERSATIONS);
-	let scopeLabel = $derived(
-		scope === ALL_CONVERSATIONS
-			? copy.allScopeLabel
-			: (availableConversations.find((conversation) => conversation.id === scope)?.title ??
-					'Choose a conversation')
-	);
-	let blockedByExisting = $derived(scope === ALL_CONVERSATIONS && !!existingAllVersion);
-	let saveStatus = $state<SaveStatus>('idle');
 	let chosenConversation = $derived(
-		scopable ? availableConversations.find((conversation) => conversation.id === scope) : undefined
+		scopable && conversationParam
+			? availableConversations.find((conversation) => conversation.id === conversationParam)
+			: undefined
 	);
+	let conversationUnavailable = $derived(!!conversationParam && !chosenConversation);
+	let blockedByExisting = $derived(!conversationParam && !!existingAllVersion);
+	let saveStatus = $state<SaveStatus>('idle');
 	let knownVariables = $derived<KnownVariables>(
 		chosenConversation ? { conversation_title: chosenConversation.title } : {}
 	);
 
 	async function createVersion(submission: EmailTemplateSubmission): Promise<boolean> {
-		const conversationId = scopable && scope !== ALL_CONVERSATIONS ? scope : undefined;
+		const conversationId = chosenConversation?.id;
 		const result = await tryCatchAsync(() =>
 			apiClient.CreateEmailTemplateConfig({
 				slots: { type: schema.email_type, ...submission.slots },
@@ -99,58 +89,23 @@
 </svelte:head>
 
 {#snippet settings()}
-	<div class="flex flex-wrap gap-4">
-		<div class="flex flex-col gap-1.5">
-			<Label for="email-type" class="text-sm font-medium">Email</Label>
-			<Select.Root
-				type="single"
-				value={selectedType}
-				onValueChange={(value) => (selectedType = value)}
-			>
-				<Select.Trigger id="email-type" class="min-w-64 text-base">
-					{copy.name}
-				</Select.Trigger>
-				<Select.Content>
-					{#each data.schemas as option (option.email_type)}
-						<Select.Item value={option.email_type}>
-							{EMAIL_TYPE_COPY[option.email_type].name}
-						</Select.Item>
-					{/each}
-				</Select.Content>
-			</Select.Root>
-		</div>
-		{#if scopable}
-			<div class="flex flex-col gap-1.5">
-				<Label for="email-scope" class="text-sm font-medium">Applies to</Label>
-				<Select.Root
-					type="single"
-					value={scope}
-					onValueChange={(value) => (scope = value)}
-				>
-					<Select.Trigger id="email-scope" class="min-w-64 text-base">
-						{scopeLabel}
-					</Select.Trigger>
-					<Select.Content>
-						<Select.Item value={ALL_CONVERSATIONS} disabled={!!existingAllVersion}>
-							{copy.allScopeLabel}{existingAllVersion ? ' (already customised)' : ''}
-						</Select.Item>
-						{#each availableConversations as conversation (conversation.id)}
-							<Select.Item value={conversation.id}>
-								{conversation.title}
-							</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
-		{:else}
-			<div class="flex flex-col gap-1.5">
-				<span class="text-sm font-medium">Applies to</span>
-				<span class="text-foreground flex h-9 items-center text-base">
-					{copy.allScopeLabel}
-				</span>
-			</div>
-		{/if}
+	<div class="flex flex-col gap-1">
+		<span class="text-muted-foreground text-sm font-medium">Applies to</span>
+		<span class="text-foreground text-base font-medium">
+			{chosenConversation?.title ?? copy.allScopeLabel}
+		</span>
 	</div>
+	{#if conversationUnavailable}
+		<p role="status" class="bg-muted text-foreground rounded-lg px-4 py-3 text-base">
+			This conversation already has its own version, or you can't edit its emails.
+			<a
+				href={resolve('/(admin)/admin/email-template-configs')}
+				class="text-primary font-medium underline underline-offset-4"
+			>
+				Back to email templates
+			</a>
+		</p>
+	{/if}
 	{#if blockedByExisting && existingAllVersion}
 		<p role="status" class="bg-muted text-foreground rounded-lg px-4 py-3 text-base">
 			This email is already customised for {copy.allScopeLabel.toLowerCase()}.
@@ -180,7 +135,7 @@
 			status={saveStatus}
 			submitLabel="Save custom email"
 			cancelHref={resolve('/(admin)/admin/email-template-configs')}
-			disabled={blockedByExisting || scope === NO_SCOPE_CHOSEN}
+			disabled={blockedByExisting || conversationUnavailable}
 		/>
 	{/snippet}
 </SectionHeader>
