@@ -71,8 +71,7 @@
 							>{fallbackCount}
 							{fallbackCount === 1 ? 'conversation' : 'conversations'}</strong
 						>
-						without their own version {fallbackCount === 1 ? 'sends' : 'send'} the default
-						above.
+						{fallbackCount === 1 ? 'uses' : 'use'} the default template.
 						<button
 							type="button"
 							class="text-primary cursor-pointer font-medium underline-offset-4 hover:underline"
@@ -100,7 +99,7 @@
 		<section aria-labelledby="own-heading" class="flex flex-col gap-2.5">
 			<div class="flex flex-wrap items-end justify-between gap-3">
 				<h2 id="own-heading" class="text-foreground text-lg font-semibold">
-					Conversations with their own invitation versions ({view.conversationVersions
+					Conversations with their own invitation email ({view.conversationVersions
 						.length})
 				</h2>
 				<Button
@@ -122,7 +121,7 @@
 				/>
 			{:else}
 				<p class="text-muted-foreground text-base">
-					No conversation has its own version yet.
+					No conversation has its own invitation email yet.
 				</p>
 			{/if}
 		</section>

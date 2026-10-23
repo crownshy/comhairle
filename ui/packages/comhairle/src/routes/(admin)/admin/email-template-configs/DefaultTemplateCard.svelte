@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateShort } from '$lib/utils';
-	import type { EmailTemplateRow } from '$lib/utils/emailTemplateGroups';
+	import { canScopeToConversation, type EmailTemplateRow } from '$lib/utils/emailTemplateGroups';
 	import type { EmailType } from '@crownshy/api-client/api';
 	import { EMAIL_TYPE_COPY } from './emailTypeCopy';
 	import { templateHref } from './templateHref';
@@ -11,13 +11,18 @@
 
 	let copy = $derived(EMAIL_TYPE_COPY[emailType]);
 	let isCustom = $derived(row.source !== 'default');
-	let heading = $derived(
-		isCustom ? `Default for ${copy.allScopeLabel.toLowerCase()}` : "Comhairle's standard email"
+	let usedWhen = $derived(
+		canScopeToConversation(emailType)
+			? 'Sent when a conversation doesn’t have its own invitation email.'
+			: `Used for ${copy.allScopeLabel.toLowerCase()}.`
 	);
 </script>
 
 <section aria-labelledby="default-heading" class="flex flex-col gap-2.5">
-	<h2 id="default-heading" class="text-foreground text-lg font-semibold">{heading}</h2>
+	<div class="flex flex-col gap-0.5">
+		<h2 id="default-heading" class="text-foreground text-lg font-semibold">Default template</h2>
+		<p class="text-muted-foreground text-base">{usedWhen}</p>
+	</div>
 	<div
 		class="border-border flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border px-5 py-4"
 	>

@@ -43,8 +43,7 @@
 	content={{
 		eyebrow: 'Library',
 		title: 'Email templates',
-		description:
-			'The emails Comhairle sends to participants. Change the wording for all of your conversations, or give one conversation its own version.'
+		description: 'The email templates you can customise for each conversation.'
 	}}
 />
 <SubTabStrip tone="primary" paramName="type" items={tabs} defaultValue={DEFAULT_TYPE} />
