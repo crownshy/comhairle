@@ -45,14 +45,27 @@
 		text-decoration: none;
 		font-size: 14px;
 	    }
-		
-	    .page {
+
+	    .outer-page {
 		max-width: 700px;
 		margin: 0 auto;
+	    }
+		
+	    .page {
 		background: white;
 		text-align: center;
 		padding: 12px 24px;
 		font-weight: 500;
+	    }
+
+	    .br-top {
+		border-top-left-radius: 20px;
+		border-top-right-radius: 20px;
+	    }
+
+	    .br-bottom {
+		border-bottom-left-radius: 20px;
+		border-bottom-right-radius: 20px;
 	    }
 
 	    .card {
@@ -85,8 +98,13 @@
 
     <div class="main">
 	<img class="logo" src="{{ header_logo_url }}" />
-	<div class="page">
-	    {% block content %}{% endblock %}
+	<div class="outer-page">
+	    {% if banner_image %}
+		<img class="br-top" src="{{banner_image}}" style="height: auto; width: 100%; display: block;" />
+	    {% endif %}
+	    <div class="page br-bottom{%if not banner_image %} br-top{% endif %}">
+		{% block content %}{% endblock %}
+	    </div>
 	</div>
 
 	<div class="footer">
