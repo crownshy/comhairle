@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def};
+use sea_query::{Expr, JoinType, OnConflict, PostgresQueryBuilder, Query, UnionType, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -86,24 +86,40 @@ impl CreateUserConversationPreferences {
     }
 }
 
+/// Joining a conversation calls this every time, so an existing row is left alone rather
+/// than looked up first. A lookup that misses is logged as an error by `instrument`.
 #[instrument(err(Debug), skip(db))]
-pub async fn create_with_defaults(
+pub async fn create_defaults_if_missing(
     db: &PgPool,
     user_id: &Uuid,
     conversation_id: &Uuid,
-) -> Result<UserConversationPreferences, ComhairleError> {
-    create(
-        db,
-        &CreateUserConversationPreferences {
-            user_id: (*user_id),
-            conversation_id: (*conversation_id),
-            receive_updates_by_notification: Some(false),
-            receive_updates_by_email: Some(false),
-            receive_similar_conversation_updates_by_email: Some(false),
-            receive_similar_conversation_updates_by_notification: Some(false),
-        },
-    )
-    .await
+) -> Result<(), ComhairleError> {
+    let defaults = CreateUserConversationPreferences {
+        user_id: *user_id,
+        conversation_id: *conversation_id,
+        receive_updates_by_notification: Some(false),
+        receive_updates_by_email: Some(false),
+        receive_similar_conversation_updates_by_email: Some(false),
+        receive_similar_conversation_updates_by_notification: Some(false),
+    };
+
+    let (sql, values) = Query::insert()
+        .into_table(UserConversationPreferencesIden::Table)
+        .columns(defaults.columns())
+        .values(defaults.values())?
+        .on_conflict(
+            OnConflict::columns([
+                UserConversationPreferencesIden::UserId,
+                UserConversationPreferencesIden::ConversationId,
+            ])
+            .do_nothing()
+            .to_owned(),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+
+    Ok(())
 }
 
 #[instrument(err(Debug), skip(db))]
