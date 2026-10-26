@@ -3,6 +3,7 @@
 	import IconLogo from '$lib/assets/comhairle_logo.svg';
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
+	import ScotGovLogo from '$lib/assets/Scottish_Government_Logo_White_text.svg';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 
@@ -11,6 +12,8 @@
 		/** Names the link when the mark alone doesn't say where it goes. */
 		ariaLabel?: string;
 		showText?: boolean;
+		/** Show the theme's own organisation logo (Scottish Government) instead. Header and admin sidebar only. */
+		themeBrand?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
 		class?: string;
@@ -20,6 +23,7 @@
 		href = '/',
 		ariaLabel,
 		showText = true,
+		themeBrand = false,
 		logoSize = 'md',
 		color = 'text-primary-foreground',
 		class: className = ''
@@ -31,6 +35,12 @@
 		lg: 'h-12 w-52'
 	};
 
+	const brandHeightMap = {
+		sm: 'h-7',
+		md: 'h-8',
+		lg: 'h-10'
+	};
+
 	const iconSizeMap = {
 		sm: 'h-8 w-8',
 		md: 'h-10 w-10',
@@ -39,6 +49,7 @@
 
 	let customLogoUrl = env.PUBLIC_LOGO_URL;
 	let isWaves = $derived(!customLogoUrl && themeStore.name === 'waves');
+	let isScotGov = $derived(themeBrand && !customLogoUrl && themeStore.name === 'scot-gov');
 	let logoSrc = $derived(showText ? FullLogo : IconLogo);
 	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
 </script>
@@ -49,6 +60,12 @@
 			src={customLogoUrl}
 			alt="Logo"
 			class="inline-block h-12 shrink-0 overflow-hidden object-contain {sizeClass}"
+		/>
+	{:else if isScotGov}
+		<img
+			src={ScotGovLogo}
+			alt="Scottish Government"
+			class="inline-block w-auto shrink-0 {brandHeightMap[logoSize]}"
 		/>
 	{:else if isWaves}
 		<img
