@@ -51,7 +51,7 @@
 			options={getOptions(q)}
 			onselect={(value) => {
 				cache.set(q.id, value);
-				onValue(value);
+				onValue({ option_ids: [value] });
 			}}
 			defaultSelected={cache.get(q.id) ?? defaultValue}
 		/>
