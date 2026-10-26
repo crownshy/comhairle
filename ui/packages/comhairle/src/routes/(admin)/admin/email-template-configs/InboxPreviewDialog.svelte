@@ -21,7 +21,7 @@
 	const SENDER_INITIAL = 'N';
 	const PLACEHOLDER_ROWS = [0, 1, 2];
 
-	let view = $state<'desktop' | 'phone'>('desktop');
+	let view = $state<'desktop' | 'phone' | 'email'>('email');
 	let snippet = $derived(inboxSnippet(html));
 	let shownSubject = $derived(subject || 'No subject');
 	let variableNames = $derived(variables.map((variable) => `{{${variable}}}`).join(', '));
@@ -87,11 +87,19 @@
 		</Dialog.Header>
 
 		<Tabs.Root bind:value={view} class="flex min-h-0 flex-1 flex-col gap-4">
-			<Tabs.List class="self-start">
+			<Tabs.List class="self-start"
+				><Tabs.Trigger value="email">Email only</Tabs.Trigger>
 				<Tabs.Trigger value="desktop">Desktop</Tabs.Trigger>
 				<Tabs.Trigger value="phone">Phone</Tabs.Trigger>
 			</Tabs.List>
-
+			<Tabs.Content value="email" class="min-h-0 flex-1">
+				<iframe
+					title="Email preview"
+					srcdoc={html}
+					sandbox=""
+					class="border-border h-[68vh] w-full rounded-xl border bg-white"
+				></iframe>
+			</Tabs.Content>
 			<Tabs.Content value="desktop" class="min-h-0 flex-1">
 				<div
 					class="border-border bg-card flex h-[68vh] flex-col overflow-hidden rounded-xl border"
