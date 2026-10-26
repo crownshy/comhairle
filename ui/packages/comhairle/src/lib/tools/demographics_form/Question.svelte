@@ -1,12 +1,19 @@
+<script lang="ts" module>
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	let cache = new Map();
+</script>
+
 <script lang="ts">
 	import { Input, SelectList, type Option } from '$lib/components/EasyForm';
 	import type { QuestionDto } from '@crownshy/api-client/api';
 
 	type Props = {
 		q: QuestionDto['latest_published'] | undefined;
+		onValue: (value: unknown) => void;
+		defaultValue: unknown;
 	};
 
-	let { q }: Props = $props();
+	let { q, onValue, defaultValue }: Props = $props();
 
 	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
 		const options: Option[] = question.options.map((o) => ({
@@ -26,13 +33,39 @@
 {#if q}
 	{#if q.question_type === 'number'}
 		{#key q.id}
-			<Input label={q.text} type="number" />
+			<Input
+				label={q.text}
+				type="number"
+				onblur={(e) => {
+					const { value } = e.currentTarget;
+					cache.set(q.id, value);
+					onValue(Number(value));
+				}}
+				defaultValue={cache.get(q.id) ?? defaultValue}
+			/>
 		{/key}
 	{:else if q.question_type === 'single_select'}
-		<SelectList title={q.text} name={q.id} options={getOptions(q)} onselect={() => {}} />
+		<SelectList
+			title={q.text}
+			name={q.id}
+			options={getOptions(q)}
+			onselect={(value) => {
+				cache.set(q.id, value);
+				onValue(value);
+			}}
+			defaultSelected={cache.get(q.id) ?? defaultValue}
+		/>
 	{:else}
 		{#key q.id}
-			<Input label={q.text} />
+			<Input
+				label={q.text}
+				onblur={(e) => {
+					const { value } = e.currentTarget;
+					cache.set(q.id, value);
+					onValue(value);
+				}}
+				defaultValue={cache.get(q.id) ?? defaultValue}
+			/>
 		{/key}
 	{/if}
 {/if}

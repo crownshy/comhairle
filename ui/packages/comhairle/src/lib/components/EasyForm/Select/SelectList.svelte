@@ -7,14 +7,20 @@
 		name: string;
 		options: Option[];
 		onselect: (value: string) => void;
+		defaultSelected?: string;
 	};
 
-	let { title, name, options, onselect }: Props = $props();
+	let { title, name, options, onselect, defaultSelected }: Props = $props();
 </script>
 
 <div class="mb-5 text-sm font-semibold">{title}</div>
 <section class="flex flex-col gap-y-2">
 	{#each options as option (option.value)}
-		<SelectItem {name} {onselect} {...option} />
+		<SelectItem
+			{name}
+			{onselect}
+			{...option}
+			defaultSelected={option.value === defaultSelected}
+		/>
 	{/each}
 </section>
