@@ -123,7 +123,7 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/">
+								<a {...btnProps} href="/admin/conversations">
 									<LayoutDashboard class="size-4" />
 									{m.workspace()}
 								</a>
