@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { notifications } from './notifications.svelte';
 import { goto } from '$app/navigation';
+import { normaliseBackTo } from './utils/backTo';
 
 export function conversation_url(conversation_id: string, isPreview: boolean = false) {
 	return `/conversations/${conversation_id}${isPreview ? '/preview' : ''}`;
@@ -66,7 +67,7 @@ export function loginRedirectClient(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
-	goto(`/auth/login?backTo=${encodeURIComponent(backTo)}`);
+	goto(`/auth/login?backTo=${encodeURIComponent(normaliseBackTo(backTo))}`);
 }
 
 /**
@@ -80,7 +81,7 @@ export function loginRedirectServer(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
-	redirect(302, `/auth/login?backTo=${encodeURIComponent(backTo)}`);
+	redirect(302, `/auth/login?backTo=${encodeURIComponent(normaliseBackTo(backTo))}`);
 }
 
 // Redirect to the signup page with a link back to the current
@@ -89,7 +90,7 @@ export function signupRedirect(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
-	goto(`/auth/signup?backTo=${encodeURIComponent(backTo)}`);
+	goto(`/auth/signup?backTo=${encodeURIComponent(normaliseBackTo(backTo))}`);
 }
 
 // Redirect to the signup guest page with a link back to the current
@@ -98,5 +99,5 @@ export function signupGuestRedirect(backTo: string, message?: string) {
 	if (message) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
-	goto(`/auth/anonymous-signup?backTo=${encodeURIComponent(backTo)}`);
+	goto(`/auth/anonymous-signup?backTo=${encodeURIComponent(normaliseBackTo(backTo))}`);
 }

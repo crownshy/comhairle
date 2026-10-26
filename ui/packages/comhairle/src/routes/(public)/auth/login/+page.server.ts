@@ -1,9 +1,9 @@
 import type { PageServerLoad } from './$types.js';
+import { normaliseBackTo } from '$lib/utils/backTo';
 
 export const load: PageServerLoad = async ({ url }) => {
-	let backTo = url.searchParams.get("backTo") ?? "/"
+	const backTo = normaliseBackTo(url.searchParams.get('backTo'));
 	return {
 		backTo
 	};
 };
-

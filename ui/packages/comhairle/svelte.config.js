@@ -22,6 +22,9 @@ const config = {
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
+		// Server-side resolve() would otherwise return paths relative to the current URL, which
+		// breaks redirect() targets (e.g. /admin -> ./admin/conversations => /admin/admin/conversations).
+		paths: { relative: false },
 		csp: {
 			mode: 'auto', // uses hashes for prerendered, nonces for SSR
 			directives: {
