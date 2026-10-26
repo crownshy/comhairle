@@ -22,12 +22,13 @@ use crate::models::email_template_config::{
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
-use crate::models::media::MediaResolver;
+use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
 use crate::models::workflow_step::LocalizedWorkflowStep;
 use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
+use crate::routes::conversations::dto::LocalizedConversationDto;
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
 
@@ -336,6 +337,17 @@ impl ComhairleMailer for Mailer {
             None => None,
         };
 
+        let media = MediaResolver::load(
+            &state.db,
+            &conversation.image.map(|image| [image]).unwrap_or_default(),
+        )
+        .await?;
+        let conversation = LocalizedConversationDto::from_with_media(
+            conversation,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -344,18 +356,8 @@ impl ComhairleMailer for Mailer {
                 .unwrap_or_else(|| conversation.id.to_string()),
             invite_id
         );
-
-        let media = MediaResolver::load(
-            &state.db,
-            &conversation.image.map(|image| [image]).unwrap_or_default(),
-        )
-        .await?;
-        let conversation_image_url = conversation
-            .image
-            .and_then(|image| media.url_for(image))
-            .unwrap_or_else(|| state.config.default_conversation_image_url.clone());
         let conversation_title = conversation.title.clone();
-
+        let conversation_image_url = conversation.image_url.clone();
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
@@ -387,6 +389,7 @@ impl ComhairleMailer for Mailer {
             conversation_title,
             conversation_image_url,
             domain => state.config.domain,
+            banner_image => conversation.image_url,
             organization_name => organization.map(|org| org.name),
             ..rendered_map
         };

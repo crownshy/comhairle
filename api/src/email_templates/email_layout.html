@@ -60,10 +60,13 @@
 		text-decoration: none;
 		font-size: 14px;
 	    }
-		
-	    .page {
+
+	    .outer-page {
 		max-width: 700px;
 		margin: 0 auto;
+	    }
+		
+	    .page {
 		background: white;
 		text-align: center;
 		border-radius: 16px;
@@ -75,11 +78,13 @@
 		font-weight: 500;
 	    }
 
+
 	    .hero {
 		display: block;
 		width: 100%;
 		height: auto;
 		border: 0;
+
 	    }
 
 	    .card {
@@ -153,10 +158,12 @@
     </header>
 
     <div class="main">
+
 	<img class="header-logo" src="{{ header_logo_url }}" alt="" />
 	<div class="page">
 	    {% block hero %}{% endblock %}
 	    <div class="page-body">
+
 		{% block content %}{% endblock %}
 	    </div>
 	</div>
