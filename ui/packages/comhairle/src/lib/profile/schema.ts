@@ -59,6 +59,12 @@ export const sendOtpSchema = z.object({
 });
 export type SendOtpForm = z.infer<typeof sendOtpSchema>;
 
+export const signupOtpSchema = z.object({
+	username: z.string().min(3),
+	email: z.string().email(m.please_enter_a_valid_email())
+});
+export type SignupOtpForm = z.infer<typeof signupOtpSchema>;
+
 export const loginOtpSchema = z.object({
 	code: z.string().min(6, { message: m.please_enter_a_password() })
 });
