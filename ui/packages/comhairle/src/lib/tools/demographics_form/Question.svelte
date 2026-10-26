@@ -45,16 +45,18 @@
 			/>
 		{/key}
 	{:else if q.question_type === 'single_select'}
-		<SelectList
-			title={q.text}
-			name={q.id}
-			options={getOptions(q)}
-			onselect={(value) => {
-				cache.set(q.id, value);
-				onValue({ option_ids: [value] });
-			}}
-			defaultSelected={cache.get(q.id) ?? defaultValue}
-		/>
+		{#key q.id}
+			<SelectList
+				title={q.text}
+				name={q.id}
+				options={getOptions(q)}
+				onselect={(value) => {
+					cache.set(q.id, value);
+					onValue({ option_ids: [value] });
+				}}
+				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids?.[0]}
+			/>
+		{/key}
 	{:else}
 		{#key q.id}
 			<Input
