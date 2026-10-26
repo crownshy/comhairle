@@ -33,9 +33,16 @@
 		supportedLanguages
 	}: Props = $props();
 
-	let draftQuestion = $derived<QuestionConfig<DraftTranslatableJsonField>>(
-		question ?? { id: crypto.randomUUID(), text: { localized: '' }, intent: { localized: '' } }
-	);
+	let draftQuestion = $derived.by<QuestionConfig<DraftTranslatableJsonField>>(() => {
+		void open;
+		return (
+			question ?? {
+				id: crypto.randomUUID(),
+				text: { localized: '' },
+				intent: { localized: '' }
+			}
+		);
+	});
 
 	const textTransSource = $derived.by(() => {
 		void open;
