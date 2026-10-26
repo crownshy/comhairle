@@ -58,6 +58,16 @@
 	});
 
 	onMount(async () => {
+		const answersResponse = await tryCatchAsync(() => apiClient.ListMyDemographicAnswers());
+		if (answersResponse.err !== null) {
+			notifications.addFlash({
+				message: 'Could not load answers, please try again',
+				priority: 'ERROR'
+			});
+			return;
+		}
+		answers = answersResponse.ok;
+
 		const demographicForm = await tryCatchAsync(() =>
 			apiClient.GetDemographicForm({
 				queries: { organization: organizationId },
@@ -85,27 +95,10 @@
 		);
 
 		questions = questionsResponses.map((r) => r.ok).filter((q) => q !== null);
-
-		const answersResponse = await tryCatchAsync(() => apiClient.ListMyDemographicAnswers());
-		if (answersResponse.err !== null) {
-			notifications.addFlash({
-				message: 'Could not load answers, please try again',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		answers = answersResponse.ok;
 	});
 </script>
 
 {#if questions.length > 0}
-	{console.log(
-		answers.find(
-			(a) =>
-				a.answer.question_version_id === questions[questionNumber - 1].versions.at(-1)?.id
-		)?.answer.value
-	)}
 	<Question
 		q={questions[questionNumber - 1].latest_published}
 		onValue={(newValue) => void (value = newValue)}
