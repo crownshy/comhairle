@@ -22,7 +22,7 @@
 
 	let questions = $state.raw<QuestionDto[]>([]);
 	let questionNumber = $state<number>(1);
-	let answers: MyDemographicAnswer[] = $state.raw<MyDemographicAnswer[]>([]);
+	let answers = $state.raw<MyDemographicAnswer[]>([]);
 
 	let value: unknown;
 
@@ -55,6 +55,7 @@
 
 	$effect(() => {
 		onSequenceChange?.(sequence);
+		value = undefined;
 	});
 
 	onMount(async () => {
