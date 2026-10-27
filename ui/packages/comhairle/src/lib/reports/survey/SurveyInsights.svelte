@@ -51,62 +51,64 @@
 
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
-{:else}
-	<div class="flex justify-end pb-4">
-		<Button href={csvExportUrl} download size="sm" disabled={!canExport}>
-			<Download class="size-4" />
-			Download CSV
-		</Button>
-	</div>
-	{#each data as section (section.id)}
-		{#if isValidQuestion(section)}
-			<div class="py-10" {@attach handleNested(section.properties?.parent)}>
-				<h2 class="text-md font-bold">{section.title}</h2>
-				<div class="flex flex-row">
-					<h3 class="text-muted-foreground mr-10 text-sm">
+{:else}<div class="flex max-w-3xl flex-col gap-6">
+		<div class="flex justify-end pb-4">
+			<Button href={csvExportUrl} download size="sm" disabled={!canExport}>
+				<Download class="size-4" />
+				Download CSV
+			</Button>
+		</div>
+		{#each data as section (section.id)}
+			{#if isValidQuestion(section)}
+				<div
+					class="bg-card flex flex-col gap-4 rounded-xl border p-6"
+					{@attach handleNested(section.properties?.parent)}
+				>
+					<h2 class="text-lg font-semibold">{section.title}</h2>
+					<p class="text-muted-foreground text-base">
 						{section.answered}
 						{section.answered === 1 ? 'response' : 'responses'}
 						·
 						{Math.round((section.answered / section.total) * 100)}% Completion
-					</h3>
+					</p>
+					{#if isChoiceQuestion(section)}
+						{#if section.answers.length <= 3}
+							<Doughnut data={section.answers} key="label" value="count" />
+						{:else}
+							<SurveyBarChart
+								data={section.answers}
+								x="label"
+								y="count"
+								kind={section.kind}
+							/>
+						{/if}
+					{/if}
+					{#if isNonChoiceQuestion(section)}
+						{#if section.answers.length <= 0}
+							<div class="text-muted-foreground">No responses yet</div>
+						{/if}
+						{#if isNumericArray(section.answers)}
+							<KdePlot
+								data={{ answers: section.answers }}
+								maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
+								minLabel={section.properties?.leftLabel}
+								centerLabel={section.properties?.centerLabel}
+								maxLabel={section.properties?.rightLabel}
+							/>
+						{/if}
+						{#if isStringArray(section.answers)}
+							<SurveyFreeTextQuestion
+								{conversationId}
+								{workflowId}
+								{workflowStepId}
+								questionId={section.id}
+								questionTitle={section.title}
+								answers={section.answers}
+							/>
+						{/if}
+					{/if}
 				</div>
-				{#if isChoiceQuestion(section)}
-					{#if section.answers.length <= 3}
-						<Doughnut data={section.answers} key="label" value="count" />
-					{:else}
-						<SurveyBarChart
-							data={section.answers}
-							x="label"
-							y="count"
-							kind={section.kind}
-						/>
-					{/if}
-				{/if}
-				{#if isNonChoiceQuestion(section)}
-					{#if section.answers.length <= 0}
-						<div class="text-muted-foreground">No responses yet</div>
-					{/if}
-					{#if isNumericArray(section.answers)}
-						<KdePlot
-							data={{ answers: section.answers }}
-							maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
-							minLabel={section.properties?.leftLabel}
-							centerLabel={section.properties?.centerLabel}
-							maxLabel={section.properties?.rightLabel}
-						/>
-					{/if}
-					{#if isStringArray(section.answers)}
-						<SurveyFreeTextQuestion
-							{conversationId}
-							{workflowId}
-							{workflowStepId}
-							questionId={section.id}
-							questionTitle={section.title}
-							answers={section.answers}
-						/>
-					{/if}
-				{/if}
-			</div>
-		{/if}
-	{/each}
+			{/if}
+		{/each}
+	</div>
 {/if}
