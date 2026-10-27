@@ -9,7 +9,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { toolMeta, toolInfoUrl, type ToolType } from '$lib/tool_meta';
+	import { toolMeta, toolInfoUrl, canRevisitTool, type ToolType } from '$lib/tool_meta';
 	import type { ConversationTemplate } from '$lib/conversation_templates';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
@@ -432,6 +432,7 @@
 								{#snippet children(step, index)}
 									{@const type = stepType(step)}
 									{@const meta = toolMeta(type)}
+									{@const revisitAllowed = canRevisitTool(type)}
 									<!-- Single-row card. The step name is a stretched link making the whole card navigate to Configure; the actions menu sits above it (z-10) so its clicks win. Pointer cursor + hover lift read as clickable. -->
 									<div
 										data-step-id={step.id}
@@ -561,13 +562,14 @@
 														Required
 													</DropdownMenu.CheckboxItem>
 													<DropdownMenu.CheckboxItem
-														checked={step.canRevisit}
-														disabled={!canUpdate}
+														checked={revisitAllowed && step.canRevisit}
+														disabled={!canUpdate || !revisitAllowed}
 														onCheckedChange={(value) =>
 															setStepFlag(step, 'canRevisit', value)}
 													>
 														Revisitable
 													</DropdownMenu.CheckboxItem>
+
 													<DropdownMenu.Separator />
 													<DropdownMenu.Item>
 														<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
