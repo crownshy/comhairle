@@ -16,9 +16,13 @@
 	import Switcher from '$lib/components/Switcher.svelte';
 	import { type Icon } from 'lucide-svelte';
 	import { ArrowDownWideNarrow, ChartNoAxesColumn, ChartPie } from 'lucide-svelte';
-	import { type ComponentProps, type ComponentType } from 'svelte';
+	import { type ComponentProps, type ComponentType, type Snippet } from 'svelte';
 
-	type Props = ComponentProps<typeof BarChart> & { kind: HeyFormFieldKind; view?: View };
+	type Props = ComponentProps<typeof BarChart> & {
+		kind: HeyFormFieldKind;
+		view?: View;
+		title?: Snippet;
+	};
 
 	let {
 		orientation: initialOrientation,
@@ -27,6 +31,7 @@
 		y,
 		kind,
 		view = $bindable(),
+		title,
 		...props
 	}: Props = $props();
 
@@ -62,24 +67,27 @@
 	{@render icon(ChartPie)}
 {/snippet}
 
-<div class="flex flex-row justify-end">
-	<Switcher
-		initiallySelected={currentView}
-		options={[
-			{
-				id: 'vertical',
-				content: VIcon,
-				aria: 'Columns'
-			},
-			{
-				id: 'horizontal',
-				content: HIcon,
-				aria: 'Bars'
-			},
-			...(donutAllowed ? [{ id: 'donut', content: DIcon, aria: 'Donut' }] : [])
-		]}
-		onswitch={(id) => (view = id as View)}
-	/>
+<div class="flex items-start justify-between gap-4">
+	<div class="min-w-0">{@render title?.()}</div>
+	<div class="shrink-0">
+		<Switcher
+			initiallySelected={currentView}
+			options={[
+				{
+					id: 'vertical',
+					content: VIcon,
+					aria: 'Columns'
+				},
+				{
+					id: 'horizontal',
+					content: HIcon,
+					aria: 'Bars'
+				},
+				...(donutAllowed ? [{ id: 'donut', content: DIcon, aria: 'Donut' }] : [])
+			]}
+			onswitch={(id) => (view = id as View)}
+		/>
+	</div>
 </div>
 {#if currentView === 'donut'}
 	<div class="flex flex-1 flex-col justify-center">

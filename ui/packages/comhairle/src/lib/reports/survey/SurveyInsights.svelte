@@ -91,13 +91,19 @@
 </script>
 
 {#snippet questionBody(section: SurveyQuestion, level: 'h2' | 'h3' = 'h2')}
-	<svelte:element this={level} class="text-lg font-semibold">{section.title}</svelte:element>
-	<p class="text-muted-foreground text-base">
-		{section.answered}
-		{section.answered === 1 ? 'response' : 'responses'}
-		·
-		{Math.round((section.answered / section.total) * 100)}% Completion
-	</p>
+	{#snippet header()}
+		<div class="flex flex-col gap-1">
+			<svelte:element this={level} class="text-lg font-semibold"
+				>{section.title}</svelte:element
+			>
+			<p class="text-muted-foreground text-base">
+				{section.answered}
+				{section.answered === 1 ? 'response' : 'responses'}
+				·
+				{Math.round((section.answered / section.total) * 100)}% Completion
+			</p>
+		</div>
+	{/snippet}
 	{#if isChoiceQuestion(section)}
 		<SurveyBarChart
 			data={section.answers}
@@ -105,7 +111,10 @@
 			y="count"
 			kind={section.kind}
 			bind:view={views[section.id]}
+			title={header}
 		/>
+	{:else}
+		{@render header()}
 	{/if}
 	{#if isNonChoiceQuestion(section)}
 		{#if section.answers.length <= 0}
