@@ -144,7 +144,7 @@
 						style="width: {Math.min(average.percentage, 100)}%"
 					>
 						<div
-							class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-xs"
+							class="bg-primary text-primary-foreground absolute top-1/2 right-0 -translate-y-1/2 rounded-full px-1.5 py-px text-sm"
 						>
 							{average.value.toFixed(1)}
 						</div>

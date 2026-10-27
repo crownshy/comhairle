@@ -83,7 +83,13 @@
 	</p>
 	{#if isChoiceQuestion(section)}
 		{#if section.answers.length <= 3}
-			<Doughnut data={section.answers} key="label" value="count" />
+			<Doughnut
+				data={section.answers}
+				key="label"
+				value="count"
+				height={200}
+				legend={{ placement: 'right', orientation: 'vertical' }}
+			/>
 		{:else}
 			<SurveyBarChart data={section.answers} x="label" y="count" kind={section.kind} />
 		{/if}
@@ -95,6 +101,7 @@
 		{#if isNumericArray(section.answers)}
 			<KdePlot
 				data={{ answers: section.answers }}
+				height={96}
 				maxX={section.properties?.total ?? Math.max(10, ...section.answers)}
 				minLabel={section.properties?.leftLabel}
 				centerLabel={section.properties?.centerLabel}
