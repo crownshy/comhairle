@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import SurveyBarChart from './SurveyBarChart.svelte';
 	import SurveyFreeTextQuestion from './SurveyFreeTextQuestion.svelte';
@@ -61,10 +60,6 @@
 		return asked === 0 ? 0 : Math.round((answered / asked) * 100);
 	});
 
-	// Groups and free-text questions need the full row; single charts sit two to a row.
-	const isWide = (block: Block): boolean =>
-		block.kind === 'group' || isStringArray(block.question.answers);
-
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
 	);
@@ -94,17 +89,7 @@
 		{Math.round((section.answered / section.total) * 100)}% Completion
 	</p>
 	{#if isChoiceQuestion(section)}
-		{#if section.answers.length <= 3}
-			<Doughnut
-				data={section.answers}
-				key="label"
-				value="count"
-				height={200}
-				legend={{ placement: 'right', orientation: 'vertical' }}
-			/>
-		{:else}
-			<SurveyBarChart data={section.answers} x="label" y="count" kind={section.kind} />
-		{/if}
+		<SurveyBarChart data={section.answers} x="label" y="count" kind={section.kind} />
 	{/if}
 	{#if isNonChoiceQuestion(section)}
 		{#if section.answers.length <= 0}
