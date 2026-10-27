@@ -15,6 +15,7 @@
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
 	import ChoiceBars from './ChoiceBars.svelte';
+	import ChoiceColumns from './ChoiceColumns.svelte';
 	import { type Icon } from 'lucide-svelte';
 	import { ArrowDownWideNarrow, ChartNoAxesColumn, ChartPie } from 'lucide-svelte';
 	import { type ComponentProps, type ComponentType, type Snippet } from 'svelte';
@@ -103,11 +104,12 @@
 {:else if currentView === 'horizontal'}
 	<ChoiceBars data={sortedData ?? data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
 {:else}
-	<BarChart
+	<ChoiceColumns data={data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
+	<!-- <BarChart
 		data={currentView === 'vertical' ? data : (sortedData ?? data)}
 		{x}
 		{y}
 		orientation={currentView}
 		{...props}
-	/>
+	/> -->
 {/if}
