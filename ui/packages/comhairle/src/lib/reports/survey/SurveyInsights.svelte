@@ -1,6 +1,6 @@
 <script lang="ts">
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
-	import SurveyBarChart from './SurveyBarChart.svelte';
+	import SurveyBarChart, { defaultView, type View } from './SurveyBarChart.svelte';
 	import SurveyFreeTextQuestion from './SurveyFreeTextQuestion.svelte';
 	import type { ChoiceQuestion, NonChoiceQuestion, SurveyQuestion } from './insights-loader';
 	import {
@@ -50,10 +50,16 @@
 		}
 		return result;
 	});
+	// Which chart each choice question shows; empty until an admin switches view.
+	let views = $state<Record<string, View>>({});
 
+	const viewOf = (question: ChoiceQuestion): View =>
+		views[question.id] ?? defaultView(question.kind, question.answers.length);
 	// Choice charts are compact enough to pair up; scales, groups and free text need the full row.
 	const isHalfWidth = (block: Block): boolean =>
-		block.kind === 'question' && isChoiceQuestion(block.question);
+		block.kind === 'question' &&
+		isChoiceQuestion(block.question) &&
+		viewOf(block.question) !== 'horizontal';
 
 	const validQuestions = $derived(data.filter(isValidQuestion));
 	// Every question shares the same submission count, so the largest total is the number of responses.
@@ -93,7 +99,13 @@
 		{Math.round((section.answered / section.total) * 100)}% Completion
 	</p>
 	{#if isChoiceQuestion(section)}
-		<SurveyBarChart data={section.answers} x="label" y="count" kind={section.kind} />
+		<SurveyBarChart
+			data={section.answers}
+			x="label"
+			y="count"
+			kind={section.kind}
+			bind:view={views[section.id]}
+		/>
 	{/if}
 	{#if isNonChoiceQuestion(section)}
 		{#if section.answers.length <= 0}
@@ -124,7 +136,7 @@
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
-	<div class="flex max-w-6xl flex-col gap-6">
+	<div class="flex max-w-3xl flex-col gap-6">
 		<section aria-label="Summary" class="flex flex-wrap items-end justify-between gap-4">
 			<div class="flex flex-wrap gap-4">
 				<MetricOverviewCard
@@ -159,13 +171,12 @@
 						class="bg-card flex flex-col gap-6 rounded-xl border p-6 lg:col-span-2"
 					>
 						<h2 class="text-xl font-semibold">{block.title}</h2>
-						<div class="grid gap-x-10 gap-y-8 lg:grid-cols-2">
-							{#each block.questions as question (question.id)}
-								<div class="flex flex-col gap-4">
-									{@render questionBody(question, 'h3')}
-								</div>
-							{/each}
-						</div>
+
+						{#each block.questions as question (question.id)}
+							<div class="flex flex-col gap-4 border-t pt-6">
+								{@render questionBody(question, 'h3')}
+							</div>
+						{/each}
 					</section>
 				{/if}
 			{/each}
