@@ -31,8 +31,8 @@
 </script>
 
 {#if q}
-	{#if q.question_type === 'number'}
-		{#key q.id}
+	{#key q.id}
+		{#if q.question_type === 'number'}
 			<Input
 				label={q.text}
 				type="number"
@@ -43,9 +43,7 @@
 				}}
 				defaultValue={cache.get(q.id) ?? defaultValue}
 			/>
-		{/key}
- {:else if q.question_type === 'single_select' || q.question_type === 'multi_select'}
-		{#key q.id}
+		{:else if q.question_type === 'single_select' || q.question_type === 'multi_select'}
 			<SelectList
 				title={q.text}
 				name={q.id}
@@ -58,11 +56,7 @@
 				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids}
 			/>
 				}}
-				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids?.[0]}
-			/>
-		{/key}
 	{:else if q.question_type === 'location'}
-		{#key q.id}
 			<Input
 				label={q.text}
 				onblur={(e) => {
@@ -72,9 +66,8 @@
 				}}
 				defaultValue={cache.get(q.id) ?? defaultValue}
 			/>
-		{/key}
-	{:else}
-		{#key q.id}
+		{:else}
+			<!-- types "any_string" and "custom" -->
 			<Input
 				label={q.text}
 				onblur={(e) => {
@@ -84,6 +77,6 @@
 				}}
 				defaultValue={cache.get(q.id) ?? defaultValue}
 			/>
-		{/key}
-	{/if}
+		{/if}
+	{/key}
 {/if}
