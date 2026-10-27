@@ -414,7 +414,7 @@
 						</div>
 					{:else}
 						{#if reorderedSteps !== undefined}
-							<p class="text-muted-foreground text-sm">
+							<p data-tour="step-flags-key" class="text-muted-foreground text-sm">
 								<span class="text-destructive" aria-hidden="true">*</span> Required:
 								participants can't skip it.
 								<span class="font-medium">Revisitable:</span> participants can go back
