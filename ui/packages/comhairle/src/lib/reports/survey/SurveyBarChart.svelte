@@ -105,11 +105,4 @@
 	<ChoiceBars data={sortedData ?? data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
 {:else}
 	<ChoiceColumns data={data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
-	<!-- <BarChart
-		data={currentView === 'vertical' ? data : (sortedData ?? data)}
-		{x}
-		{y}
-		orientation={currentView}
-		{...props}
-	/> -->
 {/if}
