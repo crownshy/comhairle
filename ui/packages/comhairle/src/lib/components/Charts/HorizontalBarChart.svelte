@@ -39,11 +39,11 @@
 	orientation="horizontal"
 	{y}
 	{x}
-	labels
+	labels={{ format: 'integer' }}
 	xScale={undefined}
 	yScale={scaleBand().paddingOuter(0.4).paddingInner(0.4)}
 	grid={false}
 	axis="y"
 	height={200}
-	padding={{ left: 170 }}
+	padding={{ left: 170, right: 40 }}
 />

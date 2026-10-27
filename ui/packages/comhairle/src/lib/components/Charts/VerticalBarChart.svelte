@@ -43,7 +43,7 @@
 			highlight: { area: { fill: 'none' } },
 			...BarProps
 		}}
-		xScale={scaleBand().paddingInner(0.7)}
+		xScale={scaleBand().paddingInner(0.7).paddingOuter(0.4)}
 		{height}
 		{...props}
 	>
