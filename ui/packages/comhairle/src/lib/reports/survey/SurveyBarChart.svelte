@@ -14,6 +14,7 @@
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
+	import ChoiceBars from './ChoiceBars.svelte';
 	import { type Icon } from 'lucide-svelte';
 	import { ArrowDownWideNarrow, ChartNoAxesColumn, ChartPie } from 'lucide-svelte';
 	import { type ComponentProps, type ComponentType, type Snippet } from 'svelte';
@@ -52,7 +53,7 @@
 </script>
 
 {#snippet icon(Icon: ComponentType<Icon>)}
-	<Icon class="size-6" />
+	<Icon class="size-4" />
 {/snippet}
 
 {#snippet VIcon()}
@@ -99,6 +100,8 @@
 			legend={{ placement: 'right', orientation: 'vertical' }}
 		/>
 	</div>
+{:else if currentView === 'horizontal'}
+	<ChoiceBars data={sortedData ?? data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
 {:else}
 	<BarChart
 		data={currentView === 'vertical' ? data : (sortedData ?? data)}

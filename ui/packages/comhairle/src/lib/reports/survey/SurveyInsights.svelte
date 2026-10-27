@@ -96,10 +96,9 @@
 			<svelte:element this={level} class="text-lg font-semibold"
 				>{section.title}</svelte:element
 			>
-			<p class="text-muted-foreground text-base">
+			<p class="text-muted-foreground text-sm">
 				{section.answered}
-				{section.answered === 1 ? 'response' : 'responses'}
-				·
+				{section.answered === 1 ? 'response' : 'responses'},
 				{Math.round((section.answered / section.total) * 100)}% Completion
 			</p>
 		</div>
@@ -169,7 +168,7 @@
 				{#if block.kind === 'question'}
 					<section
 						class={[
-							'bg-card flex flex-col gap-4 rounded-xl border p-6',
+							'bg-card flex flex-col gap-4 rounded-sm border p-6',
 							!isHalfWidth(block) && 'lg:col-span-2'
 						]}
 					>
@@ -177,7 +176,7 @@
 					</section>
 				{:else}
 					<section
-						class="bg-card flex flex-col gap-6 rounded-xl border p-6 lg:col-span-2"
+						class="bg-card flex flex-col gap-6 rounded-sm border p-6 lg:col-span-2"
 					>
 						<h2 class="text-xl font-semibold">{block.title}</h2>
 

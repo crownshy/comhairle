@@ -23,10 +23,10 @@
 	let selectedId = $derived<Id>(initiallySelected ?? options[0].id);
 </script>
 
-<section class="bg-muted flex flex-row flex-wrap items-center gap-2 rounded-md p-2">
+<section class="bg-muted flex flex-row flex-wrap items-center gap-1 rounded-sm p-1">
 	{#each options as option (option.id)}
 		<Button
-			size="sm"
+			size="icon"
 			variant={option.id === selectedId ? 'default' : 'secondary'}
 			title={option.aria}
 			aria-label={option.aria}
@@ -34,7 +34,7 @@
 				selectedId = option.id;
 				onswitch(option.id);
 			}}
-			class="rounded-md border border-transparent px-4 py-4"
+			class="rounded-sm border border-transparent px-4 py-4"
 		>
 			{@render option.content()}
 		</Button>
