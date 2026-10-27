@@ -57,6 +57,18 @@
 				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids?.[0]}
 			/>
 		{/key}
+	{:else if q.question_type === 'location'}
+		{#key q.id}
+			<Input
+				label={q.text}
+				onblur={(e) => {
+					const { value } = e.currentTarget;
+					cache.set(q.id, value);
+					onValue(value);
+				}}
+				defaultValue={cache.get(q.id) ?? defaultValue}
+			/>
+		{/key}
 	{:else}
 		{#key q.id}
 			<Input
