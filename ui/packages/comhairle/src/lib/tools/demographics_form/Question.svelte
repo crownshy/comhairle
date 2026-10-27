@@ -44,15 +44,19 @@
 				defaultValue={cache.get(q.id) ?? defaultValue}
 			/>
 		{/key}
-	{:else if q.question_type === 'single_select'}
+ {:else if q.question_type === 'single_select' || q.question_type === 'multi_select'}
 		{#key q.id}
 			<SelectList
 				title={q.text}
 				name={q.id}
+				multiple={q.question_type === 'multi_select'}
 				options={getOptions(q)}
 				onselect={(value) => {
 					cache.set(q.id, value);
-					onValue({ option_ids: [value] });
+					onValue({ option_ids: value });
+				}}
+				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids}
+			/>
 				}}
 				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids?.[0]}
 			/>
