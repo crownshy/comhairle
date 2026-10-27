@@ -55,8 +55,18 @@
 				}}
 				defaultSelected={cache.get(q.id) ?? defaultValue?.option_ids}
 			/>
+		{:else if q.question_type === 'date'}
+			<Input
+				type="date"
+				label={q.text}
+				onblur={(e) => {
+					const value = e.currentTarget.value.replaceAll('-', '/');
+					cache.set(q.id, value);
+					onValue(value);
 				}}
-	{:else if q.question_type === 'location'}
+				defaultValue={cache.get(q.id) ?? defaultValue.replaceAll('/', '-')}
+			/>
+		{:else if q.question_type === 'location'}
 			<Input
 				label={q.text}
 				onblur={(e) => {
