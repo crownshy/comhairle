@@ -1,28 +1,24 @@
 use std::sync::Arc;
 
-use crate::ComhairleState;
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
-use crate::models::users::UserIden;
-use crate::tools::ToolConfigSanitize;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, Order, Query, enum_def};
-use sea_query::{JoinType, PostgresQueryBuilder};
+use sea_query::{Expr, JoinType, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::PgConnection;
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{
-    SqlxResultExt, moderation_policy,
-    user_progress::{self, ProgressStatus, UserProgressIden},
-};
-use crate::tools::{ToolConfig, ToolSetup};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
+use crate::models::users::UserIden;
+use crate::models::{SqlxResultExt, moderation_policy};
+use crate::tools::{ToolConfig, ToolConfigSanitize, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -178,7 +174,7 @@ pub async fn launch(
     )
     .await?;
     let (primary_locale, supported_languages) =
-        conversation_locales(&state, &workflow_step.workflow_id).await?;
+        conversation_locales(state, &workflow_step.workflow_id).await?;
 
     // When a Polis poll goes live, seed the aux statement table from the new
     // live poll so moderation/theming has rows to work with immediately.
@@ -324,15 +320,15 @@ impl CreateWorkflowStep {
         ]
     }
 
-    pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![
+    pub fn try_values(&self) -> Result<Vec<sea_query::SimpleExpr>, ComhairleError> {
+        let activation_rule = serde_json::to_value(self.activation_rule.clone())?.into();
+
+        Ok(vec![
             self.step_order.into(),
-            serde_json::to_value(self.activation_rule.clone())
-                .unwrap()
-                .into(),
+            activation_rule,
             self.is_offline.into(),
             self.required.into(),
-        ]
+        ])
     }
 }
 
@@ -625,7 +621,7 @@ pub async fn create(
     .await?;
 
     let mut columns = new_workflow_step.columns();
-    let mut values = new_workflow_step.values();
+    let mut values = new_workflow_step.try_values()?;
 
     columns.push(WorkflowStepIden::Name);
     values.push(name_translation.id.into());
@@ -665,8 +661,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(WorkflowStepIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -787,21 +782,18 @@ pub async fn get_current_active_step_for_user_localised(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            self,
-            conversation::{self, PartialConversation},
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            user_progress::UpdateUserProgress,
-            workflow,
-        },
-        routes::{
-            auth::SignupRequest, workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto,
-        },
-    };
+    use std::error::Error;
 
     use super::*;
-    use std::error::Error;
+    use crate::models::conversation::{self, PartialConversation};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::user_progress::UpdateUserProgress;
+    use crate::models::{self, workflow};
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_step_for_live_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {

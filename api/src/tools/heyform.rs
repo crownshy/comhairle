@@ -7,25 +7,30 @@ use async_trait::async_trait;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::middleware::from_fn_with_state;
 use heyform_sdk::client::HeyFormClient;
 use heyform_sdk::{
     CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, Form, FormField, FormKind,
     FormReport, FormReportResponse, InteractiveMode, LoginInput, Parent, SignUpInput, Submission,
     Submissions,
 };
+use rand::distributions::Alphanumeric;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
-use rand::{Rng, distributions::Alphanumeric};
+use rand::{Rng, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ComhairleState;
-use crate::error::ComhairleError;
-use crate::models;
-use crate::routes::auth::RequiredAdminUser;
-
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
+use crate::error::ComhairleError;
+use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
+use crate::routes::auth::RequiredAdminUser;
+use crate::{ComhairleState, models};
+
+/// `(status, headers, body)` for a CSV download response.
+type CsvExportResponse = (StatusCode, [(String, String); 2], String);
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct HeyFormToolConfig {
@@ -44,7 +49,7 @@ fn default_server_url() -> String {
 }
 
 #[inline(always)]
-fn heyform_base_url(server_url: &str) -> String {
+pub(crate) fn heyform_base_url(server_url: &str) -> String {
     if server_url.starts_with("http://") || server_url.starts_with("https://") {
         return server_url.to_string();
     }
@@ -82,34 +87,14 @@ fn generate_password() -> String {
     let mut rng = thread_rng();
 
     // Ensure at least one of each required character type
-    let lowercase = (b'a'..=b'z').map(char::from).collect::<Vec<_>>();
-    let uppercase = (b'A'..=b'Z').map(char::from).collect::<Vec<_>>();
-    let numbers = (b'0'..=b'9').map(char::from).collect::<Vec<_>>();
-
     let mut password = vec![
-        *lowercase
-            .choose(&mut rng)
-            .expect("Failed to choose a lowercase letter"),
-        *uppercase
-            .choose(&mut rng)
-            .expect("Failed to choose an uppercase letter"),
-        *numbers.choose(&mut rng).expect("Failed to choose a number"),
+        char::from(rng.gen_range(b'a'..=b'z')),
+        char::from(rng.gen_range(b'A'..=b'Z')),
+        char::from(rng.gen_range(b'0'..=b'9')),
     ];
 
     // Fill remaining 9 characters from all alphanumeric
-    let all_chars: Vec<char> = lowercase
-        .into_iter()
-        .chain(uppercase)
-        .chain(numbers)
-        .collect();
-
-    for _ in 0..9 {
-        password.push(
-            *all_chars
-                .choose(&mut rng)
-                .expect("Failed to choose a character"),
-        );
-    }
+    password.extend((0..9).map(|_| char::from(rng.sample(Alphanumeric))));
 
     // Shuffle to avoid predictable pattern
     password.shuffle(&mut rng);
@@ -294,7 +279,7 @@ impl ToolImpl for HeyFormTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
@@ -340,11 +325,25 @@ impl ToolImpl for HeyFormTool {
                         .response::<200, Json<SurveyInsights>>()
                 }),
             )
-            .with_state(state.clone())
+            .api_route(
+                "/survey_tool/conversation/{conversation_id}/workflow_step/{step_id}/submissions/csv",
+                get_with(submissions_csv, |op| {
+                    op.id("HeyFormExportSubmissionsCsv")
+                        .tag("Tools")
+                        .summary("Export raw survey submissions as CSV")
+                        .description(
+                            "Downloads one row per respondent and one column per question, with \
+                             choice ids resolved to their labels. Unaggregated, unlike /insights.",
+                        )
+                }).route_layer(from_fn_with_state(
+                    PermissionRequirement::<ConversationResource>::new(Action::Export),
+                    permission_middleware::<ConversationResource>,
+                )),
+            )
     }
 }
 
-async fn get_heyform_config_for_workflow_step(
+pub(crate) async fn get_heyform_config_for_workflow_step(
     state: &Arc<ComhairleState>,
     workflow_step_id: Uuid,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
@@ -563,10 +562,10 @@ fn extract_field_title(title: &serde_json::Value) -> Option<String> {
                 if let Some(s) = content.as_str() {
                     return Some(s.to_owned());
                 }
-                if let Some(inner) = content.as_array() {
-                    if let Some(s) = inner.first().and_then(|v| v.as_str()) {
-                        return Some(s.to_owned());
-                    }
+                if let Some(inner) = content.as_array()
+                    && let Some(s) = inner.first().and_then(|v| v.as_str())
+                {
+                    return Some(s.to_owned());
                 }
                 return None;
             }
@@ -621,17 +620,11 @@ fn resolve_choices(
     }
 }
 
-/// Builds the fully labelled [`SurveyInsights`] by joining a form definition,
-/// its aggregate report, and full submissions list.
-///
-/// This is the pure transformation layer. The handler fetches all resources
-/// and delegates here, keeping network I/O and business logic separate.
-pub fn build_survey_insights(
-    form: &Form,
-    report: &FormReport,
-    submissions: &[Submission],
-) -> SurveyInsights {
-    // Index form fields by ID so look-ups are O(1).
+/// Indexes a form's fields by ID, flattening `group` fields' subfields into
+/// the same map (each subfield tagged with its parent via
+/// `properties.parent`) so every question-bearing field, nested or not, is a
+/// single O(1) look-up away.
+fn build_fields_by_id(form: &Form) -> HashMap<String, FormField> {
     let mut fields_by_id: HashMap<String, FormField> = HashMap::new();
     for field in form.fields.as_deref().unwrap_or_default().iter() {
         if matches!(
@@ -679,6 +672,20 @@ pub fn build_survey_insights(
             }
         }
     }
+    fields_by_id
+}
+
+/// Builds the fully labelled [`SurveyInsights`] by joining a form definition,
+/// its aggregate report, and full submissions list.
+///
+/// This is the pure transformation layer. The handler fetches all resources
+/// and delegates here, keeping network I/O and business logic separate.
+pub fn build_survey_insights(
+    form: &Form,
+    report: &FormReport,
+    submissions: &[Submission],
+) -> SurveyInsights {
+    let fields_by_id = build_fields_by_id(form);
 
     let mut submissions_by_field: HashMap<String, Vec<InsightSubmission>> = HashMap::new();
     let mut seen_answers: std::collections::HashSet<(String, String)> =
@@ -693,21 +700,21 @@ pub fn build_survey_insights(
             None
         };
         for answer in &submission.answers {
-            if let Some(field_id) = answer.get("id").and_then(|v| v.as_str()) {
-                if let Some(val) = answer.get("value") {
-                    if !val.is_null() && !is_empty_value(val) {
-                        let key = (field_id.to_string(), sub_id.clone());
-                        if seen_answers.insert(key) {
-                            submissions_by_field
-                                .entry(field_id.to_string())
-                                .or_default()
-                                .push(InsightSubmission {
-                                    submission_id: sub_id.clone(),
-                                    value: val.clone(),
-                                    submitted_at,
-                                });
-                        }
-                    }
+            if let Some(field_id) = answer.get("id").and_then(|v| v.as_str())
+                && let Some(val) = answer.get("value")
+                && !val.is_null()
+                && !is_empty_value(val)
+            {
+                let key = (field_id.to_string(), sub_id.clone());
+                if seen_answers.insert(key) {
+                    submissions_by_field
+                        .entry(field_id.to_string())
+                        .or_default()
+                        .push(InsightSubmission {
+                            submission_id: sub_id.clone(),
+                            value: val.clone(),
+                            submitted_at,
+                        });
                 }
             }
         }
@@ -717,24 +724,25 @@ pub fn build_survey_insights(
     for report_sub in &report.submissions {
         let field_id = &report_sub.id;
         for answer in &report_sub.answers {
-            if let Some(val) = &answer.value {
-                if !val.is_null() && !is_empty_value(val) {
-                    let key = (field_id.clone(), answer.submission_id.clone());
-                    if seen_answers.insert(key) {
-                        let submitted_at = if answer.end_at != 0 {
-                            Some(answer.end_at)
-                        } else {
-                            None
-                        };
-                        submissions_by_field
-                            .entry(field_id.clone())
-                            .or_default()
-                            .push(InsightSubmission {
-                                submission_id: answer.submission_id.clone(),
-                                value: val.clone(),
-                                submitted_at,
-                            });
-                    }
+            if let Some(val) = &answer.value
+                && !val.is_null()
+                && !is_empty_value(val)
+            {
+                let key = (field_id.clone(), answer.submission_id.clone());
+                if seen_answers.insert(key) {
+                    let submitted_at = if answer.end_at != 0 {
+                        Some(answer.end_at)
+                    } else {
+                        None
+                    };
+                    submissions_by_field
+                        .entry(field_id.clone())
+                        .or_default()
+                        .push(InsightSubmission {
+                            submission_id: answer.submission_id.clone(),
+                            value: val.clone(),
+                            submitted_at,
+                        });
                 }
             }
         }
@@ -744,9 +752,7 @@ pub fn build_survey_insights(
         .responses
         .iter()
         .filter_map(|response| {
-            let Some(field) = fields_by_id.get(&response.id) else {
-                return None;
-            };
+            let field = fields_by_id.get(&response.id)?;
 
             // Resolve the question title from the form field, falling back to
             // the field ID when no plain-text title is available.
@@ -767,9 +773,8 @@ pub fn build_survey_insights(
                     choices
                         .iter()
                         .filter_map(|choice| {
-                            let Some(choice) = choice.as_object() else {
-                                return None;
-                            };
+                            let choice = choice.as_object()?;
+
                             let id = choice
                                 .get("id")
                                 .and_then(|id| id.as_str())
@@ -805,7 +810,7 @@ pub fn build_survey_insights(
 
             Some(InsightQuestion {
                 id: response.id.clone(),
-                kind: Some(String::from(field.kind.clone())),
+                kind: Some(field.kind.clone()),
                 title,
                 answered,
                 total: response.total,
@@ -851,13 +856,254 @@ pub async fn insights(
     Ok((StatusCode::OK, Json(survey_insights)))
 }
 
+/// Builds a choice-id-to-label map from a field's `properties.choices`, for
+/// rendering raw choice answers (which carry only ids) as readable text.
+fn choice_label_map(field: &FormField) -> HashMap<String, String> {
+    field
+        .properties
+        .as_ref()
+        .and_then(|p| p.get("choices"))
+        .and_then(|c| c.as_array())
+        .map(|choices| {
+            choices
+                .iter()
+                .filter_map(|choice| {
+                    let choice = choice.as_object()?;
+                    let id = choice.get("id")?.as_str()?.to_string();
+                    let label = choice
+                        .get("label")
+                        .and_then(|l| l.as_str())
+                        .unwrap_or(&id)
+                        .to_string();
+                    Some((id, label))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Renders a raw HeyForm answer value as a CSV cell. HeyForm's answer
+/// payloads vary in shape by field kind (plain scalar, `{ value: [ids] }`,
+/// a name/address/date-range/file object, or a choice-id-to-count map for
+/// matrix questions), so this reads the JSON shape directly rather than
+/// switching on the field's declared kind. Choice ids resolve to their
+/// label via `choices` wherever one is found.
+fn format_answer_value(value: &serde_json::Value, choices: &HashMap<String, String>) -> String {
+    match value {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => if *b { "Yes" } else { "No" }.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => choices.get(s).cloned().unwrap_or_else(|| s.clone()),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .map(|v| format_answer_value(v, choices))
+            .collect::<Vec<_>>()
+            .join("; "),
+        serde_json::Value::Object(obj) => {
+            if let Some(serde_json::Value::Array(ids)) = obj.get("value") {
+                return ids
+                    .iter()
+                    .map(|v| format_answer_value(v, choices))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+            }
+            if let (Some(first), Some(last)) = (obj.get("firstName"), obj.get("lastName")) {
+                return format!(
+                    "{} {}",
+                    first.as_str().unwrap_or_default(),
+                    last.as_str().unwrap_or_default()
+                )
+                .trim()
+                .to_string();
+            }
+            if let (Some(start), Some(end)) = (obj.get("start"), obj.get("end")) {
+                return format!(
+                    "{} - {}",
+                    start.as_str().unwrap_or_default(),
+                    end.as_str().unwrap_or_default()
+                );
+            }
+            if let (Some(filename), Some(url)) = (obj.get("filename"), obj.get("url")) {
+                return format!(
+                    "{} - {}",
+                    filename.as_str().unwrap_or_default(),
+                    url.as_str().unwrap_or_default()
+                );
+            }
+            if obj.contains_key("address1") {
+                return obj
+                    .values()
+                    .filter_map(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+            }
+            // Matrix answers: a choice-id-to-count map.
+            if !obj.is_empty() && obj.values().all(|v| v.is_number()) {
+                return obj
+                    .iter()
+                    .map(|(id, count)| {
+                        format!(
+                            "{}: {}",
+                            choices.get(id).cloned().unwrap_or_else(|| id.clone()),
+                            count
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+            }
+            value.to_string()
+        }
+    }
+}
+
+/// Builds a CSV with one row per submission and one column per question
+/// (in form order, including flattened `group` subfields), resolving choice
+/// ids to their labels via the form schema.
+fn build_submissions_csv(
+    form: &Form,
+    submissions: &[Submission],
+) -> Result<String, ComhairleError> {
+    let fields_by_id = build_fields_by_id(form);
+
+    // Walk the form in its declared order, flattening group subfields in
+    // place, so columns match the order respondents saw the questions in.
+    let mut ordered_fields: Vec<&FormField> = Vec::new();
+    for field in form.fields.as_deref().unwrap_or_default().iter() {
+        if field.kind == "group" {
+            let subfield_ids = field
+                .properties
+                .as_ref()
+                .and_then(|p| p.get("fields"))
+                .and_then(|p| p.as_array())
+                .map(|fields| {
+                    fields
+                        .iter()
+                        .filter_map(|f| f.get("id").and_then(|id| id.as_str()))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            for id in subfield_ids {
+                if let Some(subfield) = fields_by_id.get(id) {
+                    ordered_fields.push(subfield);
+                }
+            }
+        } else if let Some(resolved) = fields_by_id.get(&field.id) {
+            ordered_fields.push(resolved);
+        }
+    }
+
+    let titles: Vec<String> = ordered_fields
+        .iter()
+        .map(|field| {
+            field
+                .title
+                .as_ref()
+                .and_then(extract_field_title)
+                .unwrap_or_else(|| field.id.clone())
+        })
+        .collect();
+
+    let mut csv_output = Vec::new();
+    {
+        let mut writer = csv::Writer::from_writer(&mut csv_output);
+
+        let mut header = vec!["submission_id".to_string(), "submitted_at".to_string()];
+        header.extend(titles);
+        writer.write_record(&header)?;
+
+        for submission in submissions {
+            let mut answers_by_id: HashMap<&str, &serde_json::Value> = HashMap::new();
+            for answer in &submission.answers {
+                if let Some(id) = answer.get("id").and_then(|v| v.as_str())
+                    && let Some(value) = answer.get("value")
+                {
+                    answers_by_id.insert(id, value);
+                }
+            }
+
+            let submitted_at = if submission.end_at != 0 {
+                chrono::DateTime::from_timestamp(submission.end_at, 0)
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+
+            let mut row = vec![submission.id.clone(), submitted_at];
+            for field in &ordered_fields {
+                let cell = answers_by_id
+                    .get(field.id.as_str())
+                    .filter(|value| !is_empty_value(value))
+                    .map(|value| format_answer_value(value, &choice_label_map(field)))
+                    .unwrap_or_default();
+                row.push(cell);
+            }
+            writer.write_record(&row)?;
+        }
+
+        writer.flush()?;
+    }
+
+    Ok(String::from_utf8(csv_output)?)
+}
+
+/// Returns the raw survey submissions for a workflow step as a CSV download,
+/// one row per respondent and one column per question. Unlike `/insights`,
+/// values are not aggregated.
+pub async fn submissions_csv(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, workflow_step_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<CsvExportResponse, ComhairleError> {
+    let config = get_heyform_config_for_workflow_step(&state, workflow_step_id).await?;
+    let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
+
+    client
+        .login(LoginInput {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    let (form, submissions) = tokio::try_join!(
+        client.get_form(&config.survey_id),
+        fetch_all_submissions(&client, &config.survey_id, "inbox"),
+    )?;
+
+    let csv_string = build_submissions_csv(&form, &submissions)?;
+    let filename = format!(
+        "survey-submissions-{}.csv",
+        chrono::Utc::now().format("%Y-%m-%d")
+    );
+
+    Ok((
+        StatusCode::OK,
+        [
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
+        ],
+        csv_string,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
+    use std::error::Error;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use axum::{Router, extract::State, routing::post};
+    use axum::Router;
+    use axum::extract::State;
+    use axum::routing::post;
     use heyform_sdk::{
         Form, FormField, FormReport, FormReportAnswer, FormReportResponse, FormReportSubmission,
         HiddenFieldAnswer, Submission, SubmissionCategory, Submissions,
@@ -866,21 +1112,36 @@ mod tests {
     use sqlx::PgPool;
     use tokio::net::TcpListener;
 
-    use crate::{
-        models::model_test_helpers::{
-            get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::heyform_tool_config,
-    };
-
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+    };
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::heyform_tool_config;
 
     #[derive(Clone)]
     struct MockHeyFormState {
         submission_calls: Arc<AtomicUsize>,
+    }
+
+    #[test]
+    fn generate_password_is_12_ascii_alphanumeric_chars() {
+        for _ in 0..100 {
+            let password = generate_password();
+
+            assert_eq!(password.len(), 12, "unexpected length: {password}");
+            assert!(
+                password.chars().all(|c| c.is_ascii_alphanumeric()),
+                "non-alphanumeric char in: {password}"
+            );
+        }
+    }
+
+    #[test]
+    fn generate_password_produces_different_passwords() {
+        let passwords: HashSet<String> = (0..100).map(|_| generate_password()).collect();
+
+        assert_eq!(passwords.len(), 100);
     }
 
     fn create_form_report() -> FormReport {
@@ -1152,7 +1413,7 @@ mod tests {
     }
 
     async fn create_heyform_workflow_step(
-        app: &axum::Router,
+        app: &crate::App,
         session: &mut crate::test_helpers::UserSession,
         server_url: &str,
     ) -> Result<WorkflowStepDto, Box<dyn Error>> {

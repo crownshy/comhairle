@@ -1,28 +1,24 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
-use std::path::Path;
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
-
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 
 /// File type to handle the incoming File from the HTTP Request
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct File {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -30,7 +26,7 @@ pub struct File {
 }
 
 /// Incoming form type from the upload request
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct UploadMediaForm {
     pub file: File,
     pub name: String,
@@ -200,8 +196,8 @@ impl MediaContentType {
                 file.filename.clone(),
             ));
         };
-        let extension = MediaContentType::try_from_extension(extension);
-        extension
+
+        MediaContentType::try_from_extension(extension)
     }
 }
 
@@ -544,14 +540,12 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{model_test_helpers::setup_default_app_and_session, users},
-        test_helpers::TEST_PASSWORD,
-    };
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::users;
+    use crate::test_helpers::TEST_PASSWORD;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {

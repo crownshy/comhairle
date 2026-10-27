@@ -1,26 +1,21 @@
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
-
-use crate::{
-    error::ComhairleError,
-    models::{
-        SqlxResultExt,
-        pagination::{Order, PageOptions, PaginatedResults},
-        translations::{TextContentId, TextFormat, new_translation_in_connection},
-        users,
-    },
-};
+use crate::error::ComhairleError;
+use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::models::translations::{TextContentId, TextFormat, new_translation_in_connection};
+use crate::models::{SqlxResultExt, users};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "organization")]
@@ -30,6 +25,8 @@ pub struct Organization {
     pub id: Uuid,
     #[partially(omit)]
     pub user_group_id: Uuid,
+    #[partially(omit)]
+    pub admin_group_id: Uuid,
     pub name: String,
     #[partially(omit)]
     pub description: TextContentId,
@@ -79,7 +76,7 @@ impl std::fmt::Display for OrganizationType {
     }
 }
 
-const DEFAULT_COLUMNS: [OrganizationIden; 12] = [
+const DEFAULT_COLUMNS: [OrganizationIden; 13] = [
     OrganizationIden::Id,
     OrganizationIden::Name,
     OrganizationIden::Description,
@@ -92,6 +89,7 @@ const DEFAULT_COLUMNS: [OrganizationIden; 12] = [
     OrganizationIden::CreatedAt,
     OrganizationIden::UpdatedAt,
     OrganizationIden::UserGroupId,
+    OrganizationIden::AdminGroupId,
 ];
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
@@ -181,14 +179,12 @@ pub async fn create_with_administrator(
     let organization: Organization = sqlx::query_as_with(&sql, values)
         .fetch_one(&mut *transaction)
         .await?;
-    sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $3), ($2, $3)")
         .bind(organization.user_group_id)
+        .bind(organization.admin_group_id)
         .bind(administrator_id)
         .execute(&mut *transaction)
         .await?;
-    sqlx::query("INSERT INTO organization_user_permissions (user_id, resource_id, role_name, granted_by, grant_reason)
-                 VALUES ($1, $2, 'organization_admin', $1, 'Organization creation')")
-        .bind(administrator_id).bind(organization.id).execute(&mut *transaction).await?;
     transaction.commit().await?;
 
     Ok(organization)
@@ -487,10 +483,18 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let organization = sqlx::query_as_with(&sql, values)
+    let organization: Organization = sqlx::query_as_with(&sql, values)
         .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Organization")?;
+
+    sqlx::query("DELETE FROM user_group WHERE id = ANY($1)")
+        .bind(vec![
+            organization.user_group_id,
+            organization.admin_group_id,
+        ])
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
 
@@ -499,16 +503,13 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            users::{self, create_user},
-        },
-        routes::{auth::SignupRequest, regions::dto::RegionDto},
-    };
+    use std::error::Error;
 
     use super::*;
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::users::{self, create_user};
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::regions::dto::RegionDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -1,6 +1,8 @@
 use std::fmt;
 use std::time::Duration;
 
+use aws_sdk_s3::Client;
+use aws_sdk_s3::presigning::PresigningConfig;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -10,9 +12,6 @@ use sqlx::PgPool;
 use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
-
-use aws_sdk_s3::Client;
-use aws_sdk_s3::presigning::PresigningConfig;
 
 use crate::error::ComhairleError;
 
@@ -132,14 +131,19 @@ pub async fn get_presigned_url(
     client: &Client,
     bucket: &str,
 ) -> Result<String, ComhairleError> {
-    let expires_in = Duration::from_secs(GET_EXPIRES);
+    let to_error =
+        |e: &dyn std::error::Error| ComhairleError::FailedToGetDownloadPresign(e.to_string());
+
+    let presign_config =
+        PresigningConfig::expires_in(Duration::from_secs(GET_EXPIRES)).map_err(|e| to_error(&e))?;
+
     let url = client
         .get_object()
         .bucket(bucket)
         .key(target)
-        .presigned(PresigningConfig::expires_in(expires_in).unwrap())
+        .presigned(presign_config)
         .await
-        .map_err(|e| ComhairleError::FailedToGetDownloadPresign(e.to_string()))?;
+        .map_err(|e| to_error(&e))?;
 
     Ok(url.uri().into())
 }
@@ -150,18 +154,19 @@ pub async fn get_signed_upload_url(
     client: &Client,
     bucket: &str,
 ) -> Result<String, ComhairleError> {
-    let expires_in: Duration = std::time::Duration::from_secs(PUT_EXPIRES);
+    let to_error =
+        |e: &dyn std::error::Error| ComhairleError::FailedToGetDownloadPresign(e.to_string());
 
-    let expires_in: aws_sdk_s3::presigning::PresigningConfig =
-        PresigningConfig::expires_in(expires_in).unwrap();
+    let presign_config =
+        PresigningConfig::expires_in(Duration::from_secs(PUT_EXPIRES)).map_err(|e| to_error(&e))?;
 
     let presigned_request = client
         .put_object()
         .bucket(bucket)
         .key(target_dest)
-        .presigned(expires_in)
+        .presigned(presign_config)
         .await
-        .map_err(|e| ComhairleError::FailedToGetUploadPresign(e.to_string()))?;
+        .map_err(|e| to_error(&e))?;
 
     Ok(presigned_request.uri().into())
 }
@@ -195,8 +200,7 @@ pub async fn create_resource(
             new_resource.media_type.to_string().into(),
             new_resource.url.into(),
             owner_id.to_string().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

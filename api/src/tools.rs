@@ -5,14 +5,16 @@ use async_trait::async_trait;
 use comhairle_macros::{DbJsonBEnum, TranslatableJson};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::models::translations::TextContentId;
 use crate::tools::thinking_space::{
     ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
 };
-use crate::{ComhairleState, error::ComhairleError};
 
 pub mod elicitation_bot;
 pub mod heyform;
@@ -80,9 +82,8 @@ pub trait ToolImpl: Send + Sync + 'static {
     }
 
     /// Register HTTP routes for this tool
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         // Default: no routes
-        let _ = state;
         ApiRouter::new()
     }
 
@@ -97,6 +98,7 @@ pub trait ToolImpl: Send + Sync + 'static {
     }
 
     /// Sanitize config by removing sensitive data
+    #[expect(dead_code, reason = "For future use")]
     fn sanitize(config: Self::Config) -> Self::Config;
 }
 
@@ -282,15 +284,15 @@ impl ToolSetup {
 }
 
 /// Register all tool routes
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-        .merge(polis::PolisTool::routes(&state))
-        .merge(learn::LearnTool::routes(&state))
-        .merge(heyform::HeyFormTool::routes(&state))
-        .merge(stories::StoriesTool::routes(&state))
-        .merge(elicitation_bot::ElicitationBotTool::routes(&state))
-        .merge(prioritization::PrioritizationTool::routes(&state))
-        .merge(thinking_space::ThinkingSpaceTool::routes(&state))
+        .merge(polis::PolisTool::routes())
+        .merge(learn::LearnTool::routes())
+        .merge(heyform::HeyFormTool::routes())
+        .merge(stories::StoriesTool::routes())
+        .merge(elicitation_bot::ElicitationBotTool::routes())
+        .merge(prioritization::PrioritizationTool::routes())
+        .merge(thinking_space::ThinkingSpaceTool::routes())
 }
 
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]

@@ -1,18 +1,12 @@
 use std::sync::Arc;
 
-use aide::{
-    OperationIo,
-    axum::{
-        ApiRouter,
-        routing::{get_with, post_with},
-    },
-};
-use axum::{
-    body::Body,
-    extract::{Json, Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
+use axum::body::Body;
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -110,7 +104,7 @@ async fn converse(
     Ok(StreamBody(body))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -131,26 +125,25 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Streamed LLM response.\n\n⚠️ This endpoint returns a streaming response on success.\nGenerated API clients are NOT suitable for consuming this endpoint.\nUse a raw HTTP request and process the response body incrementally.")
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::{
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
     use std::collections::HashMap;
     use std::error::Error;
-    use std::{pin::Pin, sync::Arc};
+    use std::pin::Pin;
+    use std::sync::Arc;
 
     use axum::body::{Body, Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_single_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {

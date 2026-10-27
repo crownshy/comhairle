@@ -5,9 +5,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use redis::AsyncCommands;
-use redis::RedisError;
 use redis::aio::ConnectionManager;
+use redis::{AsyncCommands, RedisError};
 #[cfg(test)]
 use tokio::sync::Mutex;
 
@@ -98,6 +97,7 @@ impl RedisConnection for RedisImpl {
 
 /// In-memory Redis mock backed by a `HashMap<String, String>`.
 #[cfg(test)]
+#[derive(Default)]
 pub struct MockRedis(Arc<Mutex<HashMap<String, String>>>);
 
 #[cfg(test)]

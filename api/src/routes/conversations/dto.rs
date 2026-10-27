@@ -2,15 +2,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{
-    models::{
-        conversation::{Conversation, LocalizedConversation},
-        media::{FromWithMedia, MediaResolver},
-        pagination::PaginatedResults,
-        translations::TextContentId,
-    },
-    schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
-};
+use crate::models::conversation::{Conversation, LocalizedConversation};
+use crate::models::media::{FromWithMedia, MediaResolver};
+use crate::models::pagination::PaginatedResults;
+use crate::models::translations::TextContentId;
+use crate::schema_helpers::{example_bot_service_id, example_localized_text, example_uuid};
 
 /// Data transfer object (public API representation) for a Conversation.
 ///
@@ -132,6 +128,16 @@ pub struct LocalizedConversationDto {
     pub show_thankyou_page_feedback_button: bool,
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
+}
+
+/// A conversation from the signed-in user's permitted list. `is_shared` is true when
+/// someone else owns it, so the owner id never has to leave the server.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PermittedConversationDto {
+    #[serde(flatten)]
+    pub conversation: LocalizedConversationDto,
+    pub is_shared: bool,
 }
 
 impl From<Conversation> for ConversationDto {

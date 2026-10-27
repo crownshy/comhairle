@@ -1,33 +1,26 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, patch_with, post_with},
-};
-use axum::{
-    Extension, Json,
-    extract::{Path, State},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, patch_with, post_with};
+use axum::extract::{Path, State};
+use axum::{Extension, Json};
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
+use tower::util::option_layer;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    middleware::request_logging::{ClientIp, ClientUserAgent},
-    models::{
-        self, breakout_plan, conversation, event,
-        event_attendance::{self, CreateEventAttendance},
-        invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
-        users::{self, get_or_create_user_by_email},
-        workflow,
-    },
-    routes::{auth::create_session_cookie, invites::dto::InviteDto},
-};
-
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::middleware::rate_limit::RateLimitLayers;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
+use crate::models::event_attendance::{self, CreateEventAttendance};
+use crate::models::invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite};
+use crate::models::users::{self, get_or_create_user_by_email};
+use crate::models::{self, breakout_plan, conversation, event, workflow};
+use crate::routes::auth::create_session_cookie;
+use crate::routes::invites::dto::InviteDto;
 
 pub mod dto;
 
@@ -336,7 +329,7 @@ async fn auto_register_event_attendance(
 
     let invite = invite.accept(&state.db, &user).await?;
 
-    let cookie = create_session_cookie(&user, &state);
+    let cookie = create_session_cookie(&user, &state)?;
 
     event
         .schedule_event_reminders(
@@ -363,7 +356,9 @@ async fn auto_register_event_attendance(
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let auth_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
+
     ApiRouter::new()
         .api_route(
             "/",
@@ -468,9 +463,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Auto register event attendance")
                     .tag("Invites")
                     .response::<200, Json<InviteDto>>()
-            }),
+            })
+            .layer(auth_limit),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
@@ -482,19 +477,15 @@ mod tests {
     use sqlx::PgPool;
     use tracing_test::traced_test;
 
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            invites::{InviteStatus, LoginBehaviour},
-            model_test_helpers::get_random_conversation_id,
-            users::UserAuthType,
-        },
-        routes::{events::dto::EventDto, user::dto::UserDto},
-        setup_server,
-        test_helpers::{UserSession, extract, test_state},
-    };
-
     use super::*;
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::invites::{InviteStatus, LoginBehaviour};
+    use crate::models::model_test_helpers::get_random_conversation_id;
+    use crate::models::users::UserAuthType;
+    use crate::routes::events::dto::EventDto;
+    use crate::routes::user::dto::UserDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, extract, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn admin_should_be_able_to_create_invitation(pool: PgPool) -> Result<(), Box<dyn Error>> {

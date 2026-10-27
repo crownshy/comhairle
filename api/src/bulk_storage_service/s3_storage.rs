@@ -1,15 +1,15 @@
-use async_trait::async_trait;
-use aws_config::SdkConfig;
-use aws_sdk_s3::{
-    Client,
-    config::{RequestChecksumCalculation, ResponseChecksumValidation},
-    presigning::PresigningConfig,
-    primitives::ByteStream,
-    types::ObjectCannedAcl,
-};
 use std::time::Duration;
 
-use crate::bulk_storage_service::{BulkStorageService, FileMetadata, error::BulkStorageError};
+use async_trait::async_trait;
+use aws_config::SdkConfig;
+use aws_sdk_s3::Client;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
+use aws_sdk_s3::presigning::PresigningConfig;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::ObjectCannedAcl;
+
+use crate::bulk_storage_service::error::BulkStorageError;
+use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
 /// Presigned URL expiration time for PUT operations (in seconds)
 const PUT_EXPIRES: u64 = 600;
 /// Presigned URL expiration time for GET operations (in seconds)
@@ -136,7 +136,8 @@ impl BulkStorageService for S3StorageService {
     ) -> Result<String, super::BulkStorageError> {
         let expires_in: Duration = Duration::from_secs(PUT_EXPIRES);
 
-        let expires_in: PresigningConfig = PresigningConfig::expires_in(expires_in).unwrap();
+        let expires_in: PresigningConfig = PresigningConfig::expires_in(expires_in)
+            .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;
 
         let presigned_request = self
             .s3_client
@@ -155,12 +156,16 @@ impl BulkStorageService for S3StorageService {
     /// The URL will be valid for 10 minutes (600 seconds).
     async fn get_read_file_url(&self, path: &str) -> Result<String, super::BulkStorageError> {
         let expires_in = Duration::from_secs(GET_EXPIRES);
+
+        let expires_in: PresigningConfig = PresigningConfig::expires_in(expires_in)
+            .map_err(|e| BulkStorageError::FailedToGetDownloadPresign(e.to_string()))?;
+
         let url = self
             .s3_client
             .get_object()
             .bucket(&self.bucket)
             .key(path)
-            .presigned(PresigningConfig::expires_in(expires_in).unwrap())
+            .presigned(expires_in)
             .await
             .map_err(|e| BulkStorageError::FailedToGetDownloadPresign(e.to_string()))?;
 

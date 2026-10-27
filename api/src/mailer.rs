@@ -1,34 +1,41 @@
-use crate::models::conversation;
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::{Arc, LazyLock};
+
+use async_trait::async_trait;
+use chrono::{DateTime, Datelike, Utc};
+use icalendar::{self as ical, Component, EventLike};
+use lettre::message::header::ContentType;
+use lettre::message::{Attachment, Body, Mailbox, MultiPart, SinglePart};
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+use minijinja::{Environment, Value, context};
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+use tracing::{instrument, warn};
+use uuid::Uuid;
+
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
-use crate::models::otp;
+use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
+use crate::models::workflow_step::LocalizedWorkflowStep;
+use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
-use crate::{ComhairleState, error::ComhairleError};
-
-use async_trait::async_trait;
-use chrono::{DateTime, Datelike, Utc};
-use icalendar::{self as ical, Component, EventLike};
-use lettre::message::Mailbox;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{
-    Message, SmtpTransport, Transport,
-    message::{Attachment, Body, MultiPart, SinglePart, header::ContentType},
-};
-use minijinja::{Environment, Value, context};
-use std::{collections::HashMap, sync::LazyLock};
-use std::{str::FromStr, sync::Arc};
-use tracing::{instrument, warn};
-use uuid::Uuid;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
+use crate::routes::conversations::dto::LocalizedConversationDto;
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
+
+const DEFAULT_HEADER_LOGO_URL: &str =
+    "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo_lg.png";
+const DEFAULT_FOOTER_LOGO_URL: &str =
+    "https://comhairle-media.s3.amazonaws.com/images/comhairle_logo.png";
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -126,6 +133,13 @@ pub trait ComhairleMailer: Send + Sync {
         action: &str,
     ) -> Result<(), ComhairleError>;
 
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError>;
+
     fn preview_email(
         &self,
         template: &str,
@@ -176,6 +190,9 @@ impl MockComhairleMailer {
             .expect_send_conversation_broadcast_email()
             .returning(|_, _, _| Ok(()));
         mailer
+            .expect_send_moderation_notification_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
             .expect_send_permission_notification_email()
             .returning(|_, _, _| Ok(()));
         mailer
@@ -186,12 +203,28 @@ impl MockComhairleMailer {
     }
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "minijinja_embed's generated code panics at startup if an embedded template is invalid"
+)]
+fn load_email_templates(mut env: &mut minijinja::Environment<'static>) {
+    minijinja_embed::load_templates!(env);
+}
+
 impl Mailer {
-    pub fn new(host: &str, user: &str, password: &str) -> Self {
+    pub fn new(host: &str, user: &str, password: &str, logo_url: Option<&str>) -> Self {
         let creds = Credentials::new(user.to_string(), password.to_string());
         let mut env = minijinja::Environment::new();
         env.add_global("year", minijinja::Value::from(*MAILER_YEAR));
-        minijinja_embed::load_templates!(&mut env);
+        env.add_global(
+            "header_logo_url",
+            minijinja::Value::from(logo_url.unwrap_or(DEFAULT_HEADER_LOGO_URL)),
+        );
+        env.add_global(
+            "footer_logo_url",
+            minijinja::Value::from(DEFAULT_FOOTER_LOGO_URL),
+        );
+        load_email_templates(&mut env);
         Self {
             host: host.into(),
             creds,
@@ -247,20 +280,15 @@ impl ComhairleMailer for Mailer {
         context: Value,
         attachment: Option<SinglePart>,
     ) -> Result<(), ComhairleError> {
-        let template = self
-            .template_engine
-            .get_template(template)
-            .expect("template to exist");
+        let template = self.template_engine.get_template(template)?;
 
-        let html = template
-            .render(context)
-            .expect("Template to render properly");
+        let html = template.render(context)?;
         let html_inline_styles = css_inline::inline(&html)?;
 
         let to = Mailbox::from_str(to)?;
         let message_builder = Message::builder()
-            .from("noreply@comhairle.scot".parse().unwrap())
-            .reply_to("invites@comhairle.scot".parse().unwrap())
+            .from("noreply@comhairle.scot".parse()?)
+            .reply_to("invites@comhairle.scot".parse()?)
             .to(to)
             .subject(subject);
 
@@ -300,6 +328,26 @@ impl ComhairleMailer for Mailer {
         let conversation =
             conversation::get_localised_by_id(&state.db, &conversation_id, locale).await?;
 
+        let organization = match conversation.organization_id {
+            Some(org_id) => {
+                organization::get_localized_by_id(&state.db, &org_id, &conversation.primary_locale)
+                    .await
+                    .ok()
+            }
+            None => None,
+        };
+
+        let media = MediaResolver::load(
+            &state.db,
+            &conversation.image.map(|image| [image]).unwrap_or_default(),
+        )
+        .await?;
+        let conversation = LocalizedConversationDto::from_with_media(
+            conversation,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -312,10 +360,11 @@ impl ComhairleMailer for Mailer {
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_CONVERSATION_INVITE.email_type,
+            Some(conversation.id),
         )
         .await?;
 
@@ -334,7 +383,13 @@ impl ComhairleMailer for Mailer {
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
-        let context = context! { invite_link, domain => state.config.domain, ..rendered_map };
+        let context = context! {
+            invite_link,
+            domain => state.config.domain,
+            banner_image => conversation.image_url,
+            organization_name => organization.map(|org| org.name),
+            ..rendered_map
+        };
 
         self.send_email(
             to,
@@ -460,10 +515,11 @@ impl ComhairleMailer for Mailer {
             invite_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_INVITE.email_type,
+            None,
         )
         .await?;
 
@@ -523,10 +579,11 @@ impl ComhairleMailer for Mailer {
             event_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_CONFIRMATION.email_type,
+            None,
         )
         .await?;
 
@@ -599,7 +656,7 @@ impl ComhairleMailer for Mailer {
             .secret(&state.config.jwt_secret)
             .custom_claims(claims)
             .duration(event_jwt_duration)
-            .call();
+            .call()?;
 
         let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
         let otp_link = format!(
@@ -620,10 +677,11 @@ impl ComhairleMailer for Mailer {
             event_link => otp_link,
         };
 
-        let email_config = email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_effective(
             &state.db,
             sender_id,
             &SCHEMA_EVENT_REMINDER.email_type,
+            None,
         )
         .await?;
 
@@ -686,6 +744,42 @@ impl ComhairleMailer for Mailer {
                 resource_type => permission.resource_type,
                 resource_id => permission.resource_id,
                 action,
+            },
+            None,
+        )
+    }
+
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError> {
+        let mut list_items = String::new();
+        for (step, count, mod_url) in steps_with_pending {
+            list_items.push_str(&format!(
+                r#"
+                <li><a href="{}">{}</a> ({} pending comments)</a>
+            "#,
+                mod_url, step.name, count
+            ))
+        }
+        let body = format!(
+            r#"
+            <p style="font-weight: bold">Steps that require your attention</p>
+            <ul>
+                {list_items}
+            </ul>
+        "#
+        );
+
+        self.send_email(
+            email,
+            "A conversation needs your attention",
+            "moderation_notification_email.html",
+            context! {
+                conversation_title,
+                body,
             },
             None,
         )
@@ -777,7 +871,7 @@ mod tests {
 
     #[test]
     fn should_load_email_template() {
-        let mailer = Mailer::new("test_host", "test_user", "test_password");
+        let mailer = Mailer::new("test_host", "test_user", "test_password", None);
 
         let template = mailer.template_engine.get_template("welcome.html");
         assert!(template.is_ok(), "error retrieving welcome template");

@@ -5,7 +5,8 @@ use sea_query::extension::postgres::PgExpr;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, ReturningClause, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -213,21 +214,18 @@ pub async fn create_many(
         .to_owned();
 
     for request in create_requests.drain(..) {
-        query
-            .values([
-                request.zip_prefix.into(),
-                request.tags.into(),
-                match request.area_geometry {
-                    Some(geom) => Expr::cust_with_values(
-                        "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1)), 3))",
-                        [geom.to_string()],
-                    )
-                    .into(),
-                    None => Expr::cust("NULL").into(),
-                },
-                request.name.into(),
-            ])
-            .expect("columns match values length");
+        query.values([
+            request.zip_prefix.into(),
+            request.tags.into(),
+            match request.area_geometry {
+                Some(geom) => Expr::cust_with_values(
+                    "ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1)), 3))",
+                    [geom.to_string()],
+                ),
+                None => Expr::cust("NULL"),
+            },
+            request.name.into(),
+        ])?;
     }
 
     let (sql, values) = query
@@ -476,15 +474,15 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError
 }
 
 fn geometry_error(error: sqlx::Error) -> ComhairleError {
-    if let sqlx::Error::Database(ref database_error) = error {
-        if matches!(
+    if let sqlx::Error::Database(ref database_error) = error
+        && matches!(
             database_error.code().as_deref(),
             Some("22023" | "XX000" | "23514")
-        ) {
-            return ComhairleError::BadRequest(
-                "Invalid boundary. Use valid WGS84 Polygon or MultiPolygon geometry.".into(),
-            );
-        }
+        )
+    {
+        return ComhairleError::BadRequest(
+            "Invalid boundary. Use valid WGS84 Polygon or MultiPolygon geometry.".into(),
+        );
     }
     match error {
         sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Region Area".into()),
@@ -494,8 +492,9 @@ fn geometry_error(error: sqlx::Error) -> ComhairleError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn rejects_invalid_area_locations() {

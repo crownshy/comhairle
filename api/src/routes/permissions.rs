@@ -1,18 +1,14 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-    middleware::{from_fn, from_fn_with_state},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
+use axum::middleware::{from_fn, from_fn_with_state};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::ComhairleState;
@@ -21,11 +17,10 @@ use crate::middleware::permissions::{
     PermissionRequirement, PermissionUserFilter, authenticate, authorize, authorize_or_self,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::system;
 use crate::models::permissions::{
     self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionManagementAction,
     PermissionTargetResource, PermissionTriplet, RevokeRoleRequest, SystemResource,
-    UserWithPermissionDto, grant_role, list_permissions, revoke_role,
+    UserWithPermissionDto, grant_role, list_permissions, revoke_role, system,
 };
 use crate::models::users;
 use crate::routes::auth::RequiredUser;
@@ -81,6 +76,9 @@ impl PermissionUserFilter for Query<ListPermissionsByActionQuery> {
 
 /// Resolves the actor from the optional user_id / organization_id fields.
 ///
+/// Returns `None` if none of the fields are provided, leaving callers to decide
+/// whether an actor is required.
+///
 /// # Errors
 ///
 /// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
@@ -90,7 +88,6 @@ async fn resolve_actor(
     user_id: Option<Uuid>,
     organization_id: Option<Uuid>,
     user_email: Option<String>,
-    allow_none: bool,
 ) -> Result<Option<ActorId>, ComhairleError> {
     match (user_id, organization_id, user_email) {
         (Some(uid), None, None) => Ok(Some(ActorId::User(uid))),
@@ -102,7 +99,7 @@ async fn resolve_actor(
 
             Ok(Some(ActorId::User(user.id)))
         }
-        (None, None, None) if allow_none => Ok(None),
+        (None, None, None) => Ok(None),
         _ => Err(ComhairleError::BadRequest(
             "Only one of user_id, organization_id or user_email can be provided".into(),
         )),
@@ -128,10 +125,13 @@ async fn grant(
         body.user_id,
         body.organization_id,
         body.user_email,
-        false,
     )
     .await?
-    .unwrap();
+    .ok_or_else(|| {
+        ComhairleError::BadRequest(
+            "One of user_id, organization_id or user_email is required".into(),
+        )
+    })?;
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &body.role_name);
@@ -150,10 +150,14 @@ async fn grant(
         ActorId::User(uid) => {
             let user = users::get_user_by_id(&uid, &state.db).await?;
 
-            if let Some(email) = user.email {
-                state
-                    .mailer
-                    .send_permission_notification_email(&email, &permission, "granted")?;
+            // The role is already granted, so a failed notification shouldn't fail the request.
+            if let Some(email) = user.email
+                && let Err(error) =
+                    state
+                        .mailer
+                        .send_permission_notification_email(&email, &permission, "granted")
+            {
+                warn!("Granted {permission:?} but could not email {email}: {error}");
             }
         }
         ActorId::Group(_) => {}
@@ -175,9 +179,13 @@ async fn revoke(
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
-    let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
+    let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None)
         .await?
-        .unwrap();
+        .ok_or_else(|| {
+            ComhairleError::BadRequest(
+                "One of user_id, organization_id or user_email is required".into(),
+            )
+        })?;
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &query.role_name);
@@ -210,7 +218,7 @@ async fn list(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -269,7 +277,7 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -371,7 +379,7 @@ async fn save_assignments(
     ))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/{resource_type}/roles",
@@ -535,27 +543,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 authorize::<PermissionTargetResource>,
             )),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::get_random_conversation_id;
-    use crate::models::pagination::PaginatedResults;
-    use crate::models::permissions::{
-        self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
-        ResourcePermission, grant_role, has_resource_permission, list_permissions, system::Role,
-    };
-    use crate::routes::permissions::{
-        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
-    };
-    use crate::test_helpers::{test_config, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
+    use std::sync::Arc;
 
     use axum::body::Body;
     use hyper::StatusCode;
     use sqlx::PgPool;
-    use std::sync::Arc;
+
+    use crate::models::model_test_helpers::get_random_conversation_id;
+    use crate::models::pagination::PaginatedResults;
+    use crate::models::permissions::system::Role;
+    use crate::models::permissions::{
+        self, ActorId, GrantRoleRequest, ListPermissionsFilters, PermissionRole, PermissionTriplet,
+        ResourcePermission, grant_role, has_resource_permission, list_permissions,
+    };
+    use crate::routes::permissions::{
+        GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery,
+    };
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_config, test_state};
 
     // Role definitions for testing
     const RESOURCE_TYPE: &str = "conversation";
@@ -797,6 +806,71 @@ mod tests {
         Ok(())
     }
 
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn grant_succeeds_when_the_notification_email_fails(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::error::ComhairleError;
+        use crate::mailer::MockComhairleMailer;
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer
+            .expect_send_permission_notification_email()
+            .once()
+            .returning(|_, _, _| Err(ComhairleError::BadRequest("SMTP is down".into())));
+        let state = Arc::new(test_state().db(pool).mailer(Arc::new(mailer)).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let signed_up_id = |user: &std::collections::HashMap<String, Option<serde_json::Value>>| {
+            user.get("id")
+                .and_then(|value| value.as_ref())
+                .and_then(|value| value.as_str())
+                .map(uuid::Uuid::parse_str)
+                .ok_or("missing signup user id")
+        };
+
+        let mut owner = UserSession::new_admin();
+        let (_, owner_user, _) = owner.signup(&app).await?;
+        let owner_id = signed_up_id(&owner_user)??;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(owner_id),
+                permission_triplet: Role::SuperAdmin.system_triplet()?,
+                granted_by: &owner_id,
+                grant_reason: "Test setup",
+            },
+        )
+        .await?;
+        let conversation_id = get_random_conversation_id(&app, &mut owner).await?;
+
+        let mut target = UserSession::new(
+            "notified_user",
+            crate::test_helpers::TEST_PASSWORD,
+            "notified@example.com",
+        );
+        let (_, target_user, _) = target.signup(&app).await?;
+        let user_id = signed_up_id(&target_user)??;
+
+        let body = GrantPermissionBody {
+            user_id: Some(user_id),
+            organization_id: None,
+            user_email: None,
+            role_name: "content_editor".into(),
+            grant_reason: "Test a failed notification email".into(),
+        };
+        let (status, response, _) = owner
+            .post(
+                &app,
+                &format!("/permissions/conversation/{conversation_id}"),
+                serde_json::to_vec(&body)?.into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "{response}");
+        Ok(())
+    }
+
     // Grant permission
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn middleware_rejects_unauthenticated_requests(
@@ -930,7 +1004,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -995,7 +1069,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1010,7 +1084,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1056,7 +1130,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1067,14 +1141,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1139,7 +1213,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1151,14 +1225,14 @@ mod tests {
         // Grant additional permissions
         for i in 0..5 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id, &format!("Role{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1166,14 +1240,14 @@ mod tests {
 
         for i in 0..3 {
             let permission_triplet =
-                PermissionTriplet(&RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
+                PermissionTriplet(RESOURCE_TYPE, &resource_id_2, &format!("OtherRole{}", i));
             grant_role(
                 &state,
                 GrantRoleRequest {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1246,7 +1320,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1265,7 +1339,7 @@ mod tests {
                     actor_id: ActorId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
-                    grant_reason: "Testing".into(),
+                    grant_reason: "Testing",
                 },
             )
             .await?;
@@ -1278,7 +1352,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1330,7 +1404,7 @@ mod tests {
                 actor_id: ActorId::User(user.id),
                 permission_triplet: Role::SuperAdmin.system_triplet()?,
                 granted_by: &user.id,
-                grant_reason: "Testing".into(),
+                grant_reason: "Testing",
             },
         )
         .await?;
@@ -1374,7 +1448,7 @@ mod tests {
         )
         .await?;
 
-        assert!(permissions.records.len() > 0);
+        assert!(!permissions.records.is_empty());
 
         let permission = &permissions.records[0];
         assert_eq!(

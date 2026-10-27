@@ -1,25 +1,19 @@
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
 use std::sync::Arc;
+
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::ComhairleState;
-use crate::{
-    error::ComhairleError,
-    models::user_progress::{self, UpdateUserProgress},
-    models::workflow_step,
-    routes::user_progress::dto::UserProgressDto,
-};
-
 use super::auth::RequiredUser;
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::user_progress::{self, UpdateUserProgress};
+use crate::models::workflow_step;
+use crate::routes::user_progress::dto::UserProgressDto;
 
 pub mod dto;
 
@@ -84,7 +78,7 @@ pub async fn update_user_progress(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -102,21 +96,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserProgressDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{error::Error, sync::Arc};
+    use std::error::Error;
+    use std::sync::Arc;
 
-    use axum::{body::Body, http::StatusCode};
+    use axum::body::Body;
+    use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        setup_server,
-        test_helpers::{UserSession, extract, test_state},
-    };
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, extract, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_register_a_user_for_a_workflow(

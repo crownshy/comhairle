@@ -1,35 +1,24 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, patch_with, post_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        event::{
-            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
-            PartialEvent,
-        },
-        event_attendance,
-        pagination::{PageOptions, PaginatedResults},
-    },
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin},
-        events::dto::{EventDto, LocalizedEventDto},
-        translations::LocaleExtractor,
-    },
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::event::{
+    self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations, PartialEvent,
 };
+use crate::models::event_attendance;
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::routes::auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin};
+use crate::routes::events::dto::{EventDto, LocalizedEventDto};
+use crate::routes::translations::LocaleExtractor;
 
 pub mod breakout;
 pub mod dto;
@@ -126,13 +115,11 @@ async fn update(
     let event: EventDto = event::update(&state.db, &event_id, &event).await?.into();
 
     // If the agenda changed, push it to anyone currently on the call for this event.
-    if agenda_updated {
-        if let Ok(agenda) = serde_json::to_value(&event.agenda) {
-            let _ = state
-                .video_call_handler
-                .broadcast_agenda_update(&event_id, agenda, &state)
-                .await;
-        }
+    if agenda_updated && let Ok(agenda) = serde_json::to_value(&event.agenda) {
+        let _ = state
+            .video_call_handler
+            .broadcast_agenda_update(&event_id, agenda, &state)
+            .await;
     }
 
     Ok((StatusCode::OK, Json(event)))
@@ -242,12 +229,12 @@ async fn get_jwt(
         .custom_claims(claims)
         .duration(chrono::Duration::hours(1))
         .sub(video_call_config.jwt_sub.to_owned())
-        .call();
+        .call()?;
 
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
             op.id("ListEvents")
@@ -353,22 +340,21 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<breakout::BreakoutPlanDto>>()
         }))
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use chrono::Utc;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-
-    use crate::models::{
-        event::SignupMode,
-        model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-    };
 
     use super::*;
+    use crate::models::event::SignupMode;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

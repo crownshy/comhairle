@@ -159,3 +159,35 @@ export function roleRecipients(
 		first.name.localeCompare(second.name)
 	);
 }
+
+const roleDescriptions: Record<RoleResourceType, Record<string, string>> = {
+	system: {
+		super_admin: 'Full control of the entire platform.',
+		admin: 'Create organizations and conversations, and translate content.',
+		translator: 'Translate content across the platform.'
+	},
+	organization: {
+		organization_admin: 'Manage the organization, its members and their roles.'
+	},
+	conversation: {
+		admin: 'Full control, including the team, launching and deleting.',
+		content_editor: 'Edit the conversation details and content.',
+		moderator: 'Review and moderate what participants contribute.',
+		translator: 'Translate the conversation content.',
+		data_access: 'Export conversation data.',
+		observer: 'View everything in admin without making changes.'
+	}
+};
+
+/** Plain-language summary of what a role lets someone do, mirroring the API's role actions. */
+export function roleDescription(resourceType: RoleResourceType, role: string): string | undefined {
+	return roleDescriptions[resourceType]?.[role];
+}
+
+/** Number of recipients holding each role, in the order the roles are listed. */
+export function roleCounts(roles: string[], recipients: Pick<RoleRecipient, 'roles'>[]) {
+	return roles.map((role) => ({
+		role,
+		count: recipients.filter((recipient) => recipient.roles.includes(role)).length
+	}));
+}

@@ -1,24 +1,18 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::Json;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState, error::ComhairleError,
-    routes::user_conversation_preferences::dto::UserConversationPreferencesDto,
-};
-
 use super::auth::RequiredUser;
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::routes::user_conversation_preferences::dto::UserConversationPreferencesDto;
 
 pub mod dto;
 
@@ -80,7 +74,7 @@ pub async fn update_user_conversation_preferences(
     Ok((StatusCode::OK, Json(preferences)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -112,5 +106,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserConversationPreferencesDto>>()
             }),
         )
-        .with_state(state)
 }

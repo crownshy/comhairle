@@ -32,7 +32,7 @@ use heyform_sdk::{
 #[tokio::main]
 async fn main() -> Result<()> {
     // Create a client
-    let client = HeyFormClient::default()?;
+    let client = HeyFormClient::with_default_url()?;
     
     // Sign up a new account
     let signup = SignUpInput {
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
 
 ```rust
 // Use default HeyForm URL (https://app.heyform.net)
-let client = HeyFormClient::default()?;
+let client = HeyFormClient::with_default_url()?;
 
 // Or specify a custom URL
 let client = HeyFormClient::new("https://your-heyform-instance.com")?;

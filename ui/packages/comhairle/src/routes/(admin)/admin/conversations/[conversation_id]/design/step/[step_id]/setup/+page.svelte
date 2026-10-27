@@ -6,6 +6,8 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { stepSetupTour } from './tour';
 
 	let { data } = $props();
 
@@ -13,6 +15,8 @@
 	let step = $derived(data.step);
 	let workflow = $derived(data.workflows[0]);
 	let toolConfig = $derived(data.toolConfig);
+
+	useTour(() => stepSetupTour(toolConfig?.type));
 </script>
 
 {#if step && toolConfig?.type === 'learn'}
@@ -25,12 +29,18 @@
 {/if}
 
 {#if step && toolConfig?.type === 'polis'}
+	{#if data.statementsFailed}
+		<p class="text-destructive mb-4">
+			Seed statements could not be loaded. Try reloading the page.
+		</p>
+	{/if}
 	<PolisManage
 		{toolConfig}
 		conversationId={conversation.id}
 		workflowId={workflow.id}
 		workflowStepId={step.id}
 		isLive={conversation.isLive}
+		statements={data.statements}
 	/>
 {/if}
 

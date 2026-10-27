@@ -8,6 +8,7 @@ import {
 	type Icon
 } from 'lucide-svelte';
 import { m } from '$lib/paraglide/messages';
+import type { ResolvedPathname } from '$app/types';
 
 /**
  * The discriminant used on a step's `toolConfig.type` / `previewToolConfig.type`.
@@ -289,7 +290,7 @@ export function toolMeta(type: string | undefined | null): ToolMeta | undefined 
 	return TOOL_META[type as ToolType];
 }
 
-export function toolInfoUrl(type: string | undefined | null): string {
+export function toolInfoUrl(type: string | undefined | null): ResolvedPathname {
 	const meta = toolMeta(type);
 	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
 }

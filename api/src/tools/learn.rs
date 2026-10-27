@@ -5,10 +5,10 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::models::translations::TextContentId;
-use crate::{ComhairleState, error::ComhairleError};
-
 use super::{ToolConfigSanitize, ToolImpl};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::translations::TextContentId;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct LearnPage {
@@ -68,11 +68,6 @@ async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, C
     })
 }
 
-// Keep public function for backwards compatibility
-pub async fn setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
-    learn_setup(setup_config).await
-}
-
 /// Zero-sized marker type for Learn tool implementation
 pub struct LearnTool;
 
@@ -102,7 +97,7 @@ impl ToolImpl for LearnTool {
         config.sanitize()
     }
 
-    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         // Learn tool has no routes
         ApiRouter::new()
     }

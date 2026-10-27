@@ -23,7 +23,8 @@ const props = {
 		required_votes: 10,
 		show_remaining_statements: true,
 		strict_moderation: true
-	}
+	},
+	statements: []
 };
 
 function renderControls(actions: string[]) {

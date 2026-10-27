@@ -3,17 +3,18 @@ use core::fmt;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
+use sea_query::{Expr, Func, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, PgPool, prelude::FromRow};
+use sqlx::prelude::FromRow;
+use sqlx::{PgConnection, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
 use super::user_participation::UserParticipationIden;
+use super::workflow::WorkflowIden;
 use super::workflow_step::WorkflowStepIden;
+use crate::error::ComhairleError;
 
 /// Defines the type of authentication has been used to create
 /// The user
@@ -94,8 +95,7 @@ pub async fn create(
             user_id.to_owned().into(),
             workflow_step_id.to_owned().into(),
             status.to_owned().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -341,27 +341,64 @@ pub async fn is_sealed(
     has_finished(db, user_id, workflow_id).await
 }
 
+/// How many distinct people have taken part: they have a `done` progress row for at least
+/// one step in any workflow of this conversation. Registering alone does not count. See
+/// ADR-0057.
+#[instrument(err(Debug), skip(db))]
+pub async fn count_people_who_have_taken_part(
+    db: &PgPool,
+    conversation_id: &Uuid,
+) -> Result<u64, ComhairleError> {
+    let (sql, values) = Query::select()
+        .expr(Func::count_distinct(Expr::col((
+            UserProgressIden::Table,
+            UserProgressIden::UserId,
+        ))))
+        .from(UserProgressIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            WorkflowStepIden::Table,
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+                .equals((UserProgressIden::Table, UserProgressIden::WorkflowStepId)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            WorkflowIden::Table,
+            Expr::col((WorkflowIden::Table, WorkflowIden::Id))
+                .equals((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)),
+        )
+        .and_where(
+            Expr::col((WorkflowIden::Table, WorkflowIden::ConversationId)).eq(*conversation_id),
+        )
+        .and_where(
+            Expr::col((UserProgressIden::Table, UserProgressIden::Status)).eq(ProgressStatus::Done),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    // Postgres has no unsigned integers, so COUNT comes back as a signed BIGINT.
+    let count: i64 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
+
+    Ok(u64::try_from(count).unwrap_or(0))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
-        },
-        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
-    };
+    use std::error::Error;
 
     use super::*;
-
     use crate::models::conversation::{self, PartialConversation};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::users;
     use crate::models::users::User;
-    use axum::Router;
-    use std::error::Error;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     /// A conversation with one workflow of `step_count` steps and one participant. The app and
     /// session are kept so a test can add more steps afterwards.
     struct Fixture {
-        app: Router,
+        app: crate::App,
         session: crate::test_helpers::UserSession,
         conversation_id: Uuid,
         workflow: WorkflowDto,
@@ -425,7 +462,7 @@ mod tests {
     }
 
     async fn add_steps(
-        app: &Router,
+        app: &crate::App,
         session: &mut crate::test_helpers::UserSession,
         conversation_id: &Uuid,
         workflow: &WorkflowDto,

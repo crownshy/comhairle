@@ -1,37 +1,26 @@
 use std::sync::Arc;
 
-use aide::{
-    OperationIo,
-    axum::{
-        ApiRouter,
-        routing::{get_with, post_with},
-    },
-};
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
 use async_trait::async_trait;
-use axum::{
-    body::Body,
-    extract::{Json, Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::body::Body;
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::{AgentConversationRequest, ComhairleAgentSession},
-    error::ComhairleError,
-    models::{
-        bot_service_user_session::{self, BotServiceSessionContext},
-        workflow_step,
-    },
-    routes::auth::RequiredUser,
-    tools::ToolConfig,
-};
-
 use super::{ToolConfigSanitize, ToolImpl};
+use crate::ComhairleState;
+use crate::bot_service::{AgentConversationRequest, ComhairleAgentSession};
+use crate::error::ComhairleError;
+use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
+use crate::models::workflow_step;
+use crate::routes::auth::RequiredUser;
+use crate::tools::ToolConfig;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ElicitationBotToolConfig {
@@ -58,13 +47,6 @@ async fn elicitation_bot_setup(
     Ok(ElicitationBotToolConfig {
         topic: config.topic.clone(),
     })
-}
-
-// Keep public function for backwards compatibility
-pub async fn setup(
-    config: &ElicitationBotToolSetup,
-) -> Result<ElicitationBotToolConfig, ComhairleError> {
-    elicitation_bot_setup(config).await
 }
 
 /// Zero-sized marker type for ElicitationBot tool implementation
@@ -134,7 +116,7 @@ impl ToolImpl for ElicitationBotTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/elicitation_bot/workflow_step/{workflow_step_id}",
@@ -163,7 +145,6 @@ Use a raw HTTP request and process the response body incrementally.
                         )
                 }),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -271,23 +252,19 @@ async fn converse(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+    use std::pin::Pin;
 
-    use crate::{
-        bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService},
-        setup_server,
-        test_helpers::{UserSession, elicitation_bot_tool_config, test_state},
-    };
-
-    use axum::{
-        Router,
-        body::{Bytes, to_bytes},
-    };
+    use axum::body::{Bytes, to_bytes};
     use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{error::Error, pin::Pin};
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, elicitation_bot_tool_config, test_state};
 
     fn mock_bot_service_for_workflow_step() -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();
@@ -331,7 +308,7 @@ mod tests {
     async fn setup_test_app_with_workflow_step<F>(
         pool: PgPool,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(crate::App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {

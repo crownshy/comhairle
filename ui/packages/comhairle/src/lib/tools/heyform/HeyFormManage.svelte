@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { Maximize2, Minimize2 } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 	import HeyFormBuilderSkeleton from './HeyFormBuilderSkeleton.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { Form, FormField } from '@crownshy/api-client/api';
@@ -106,6 +108,22 @@
 		return () => observer.disconnect();
 	});
 
+	// Full screen uses the browser's Fullscreen API on the wrapper, so the iframe is never
+	// remounted (it keeps its HeyForm login) and Esc exits even while focus is inside the frame.
+	let isFullscreen = $state(false);
+
+	function toggleFullscreen() {
+		if (document.fullscreenElement) {
+			void document.exitFullscreen();
+		} else {
+			void viewport?.requestFullscreen();
+		}
+	}
+
+	function syncFullscreen() {
+		isFullscreen = document.fullscreenElement === viewport;
+	}
+
 	const base_url = $derived.by(() =>
 		survey_url.startsWith('https://') ? survey_url : `https://${survey_url}`
 	);
@@ -141,8 +159,34 @@
 	}
 </script>
 
+<svelte:document onfullscreenchange={syncFullscreen} />
+
 {#if canEdit}
-	<div bind:this={viewport} class="bg-muted relative h-full w-full overflow-hidden">
+	<div
+		bind:this={viewport}
+		data-tour="heyform-builder"
+		class="bg-muted relative h-full w-full overflow-hidden"
+	>
+		{#if ready}
+			<button
+				type="button"
+				onclick={toggleFullscreen}
+				aria-label={isFullscreen ? 'Exit full screen' : 'Edit survey in full screen'}
+				title={isFullscreen ? 'Exit full screen (Esc)' : 'Edit survey in full screen'}
+				class={cn(
+					'bg-background border-border text-foreground hover:bg-accent absolute right-4 z-20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition-colors',
+					isFullscreen ? 'bottom-4' : 'bottom-24'
+				)}
+			>
+				{#if isFullscreen}
+					<Minimize2 class="size-4" />
+					Exit full screen
+				{:else}
+					<Maximize2 class="size-4" />
+					Full screen
+				{/if}
+			</button>
+		{/if}
 		{#if !ready}
 			<!-- Covers the login + redirect hop (the iframe renders at opacity 0 behind this), so the
 			operator sees the builder skeleton rather than a blank frame or the bare login page. -->

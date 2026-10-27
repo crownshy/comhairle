@@ -1,22 +1,22 @@
-use super::notification::{Notification, NotificationIden};
-use super::pagination::{Order, PageOptions, PaginatedResults};
-use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
-use crate::{
-    error::ComhairleError,
-    models::{SqlxResultExt, notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS},
-};
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
+use super::notification::{Notification, NotificationIden};
+use super::pagination::{Order, PageOptions, PaginatedResults};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::models::notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS;
+use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
@@ -226,8 +226,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(NotificationDeliveryIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -257,7 +256,7 @@ pub async fn create_bulk(
         .to_owned();
 
     for delivery in deliveries {
-        query = query.values(delivery.values()).unwrap().to_owned();
+        query = query.values(delivery.values())?.to_owned();
     }
 
     let (sql, values) = query
@@ -432,6 +431,7 @@ pub async fn list(
 }
 
 #[instrument(err(Debug), skip(db))]
+#[expect(deprecated, reason = "Requires sea_query version upgrade")]
 pub async fn get_unread_count_for_user(db: &PgPool, user_id: &Uuid) -> Result<i64, ComhairleError> {
     let (sql, values) = Query::select()
         .expr(Expr::count(Expr::asterisk()))

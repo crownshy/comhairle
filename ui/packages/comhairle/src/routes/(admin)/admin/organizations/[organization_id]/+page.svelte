@@ -7,11 +7,34 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
-	import { Trash2, SquarePen } from 'lucide-svelte';
+	import { Trash2, SquarePen, Plus } from 'lucide-svelte';
 	import type { PageData } from './$types';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
+	import { key } from '$lib/utils/invalidationKey';
+	import { cn } from '$lib/utils';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { organizationTour } from './tour';
+
+	useTour(() => organizationTour);
 
 	let { data }: { data: PageData } = $props();
+	let roleAssignments = $state<ReturnType<typeof RoleAssignments>>();
+
+	const organizationTypeLabels: Record<string, string> = {
+		non_profit: 'Non-profit',
+		governmental: 'Governmental',
+		other: 'Other'
+	};
+	const tabs = [
+		{ value: 'details', label: 'Details' },
+		{ value: 'team', label: 'Team' }
+	] as const;
+	const regionNames = $derived(
+		(data.organization?.regions ?? []).map(
+			(regionId) => data.regions.find((region) => region.id === regionId)?.name ?? regionId
+		)
+	);
 
 	let isEditing = $state(false);
 	let isDeleting = $state(false);
@@ -126,251 +149,242 @@
 	<title>{data.organization?.name ?? 'Organization'} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="flex flex-col gap-6 p-8">
-	{#if data.organization}
-		<div class="flex flex-col gap-2">
-			<div class="flex items-center justify-between">
-				<div class="flex-1">
-					<h1 class="text-3xl font-semibold">{data.organization.name}</h1>
-					{#if data.organization.description}
-						<p class="text-muted-foreground">{data.organization.description}</p>
-					{/if}
-				</div>
+{#snippet detailRow(label: string, value: string)}
+	<div class="grid gap-1 py-3 sm:grid-cols-[12rem_1fr] sm:gap-6">
+		<dt class="text-muted-foreground text-base">{label}</dt>
+		<dd class="text-base break-words">{value}</dd>
+	</div>
+{/snippet}
 
-				{#if data.canEdit || data.canDelete}
+<section class="pt-page-top px-gutter max-w-300 grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+	{#if data.organization}
+		<PageHeader
+			title={data.organization.name}
+			description={data.organization.description ?? undefined}
+		>
+			{#snippet actions()}
+				{#if activeTab === 'team'}
+					{#if data.roleManagement?.err === null}
+						<Button onclick={() => roleAssignments?.addRecipient()}>
+							<Plus class="size-4" /> Add people
+						</Button>
+					{/if}
+				{:else if !isEditing && (data.canEdit || data.canDelete)}
 					<div class="flex gap-2">
 						{#if data.canEdit}
-							<Button
-								variant="outline"
-								size="icon"
-								onclick={startEditing}
-								title="Edit organization"
-							>
-								<SquarePen class="h-4 w-4" />
-								<span class="sr-only">Edit organization</span>
+							<Button variant="outline" onclick={startEditing}>
+								<SquarePen class="size-4" /> Edit
 							</Button>
 						{/if}
 						{#if data.canDelete}
 							<Button
-								variant="destructive"
-								size="icon"
+								variant="outline"
+								class="text-destructive hover:text-destructive"
 								onclick={() => (isDeleting = true)}
-								title="Delete organization"
 							>
-								<Trash2 class="h-4 w-4" />
-								<span class="sr-only">Delete organization</span>
+								<Trash2 class="size-4" /> Delete
 							</Button>
 						{/if}
 					</div>
 				{/if}
-			</div>
-		</div>
+			{/snippet}
+		</PageHeader>
 
-		<div class="border-b">
-			<div class="flex gap-4">
-				<button
-					type="button"
-					onclick={() => setTab('details')}
-					class={`border-b-2 px-3 py-2 text-sm font-medium ${
-						activeTab === 'details'
-							? 'border-foreground text-foreground'
-							: 'text-muted-foreground hover:text-foreground border-transparent'
-					}`}
-				>
-					Details
-				</button>
-				{#if data.canManageTeam}
+		{#if data.canManageTeam}
+			<div
+				data-tour="organization-tabs"
+				role="tablist"
+				aria-label="Organization sections"
+				class="border-border mb-8 flex gap-1 border-b"
+			>
+				{#each tabs as tab (tab.value)}
 					<button
 						type="button"
-						onclick={() => setTab('team')}
-						class={`border-b-2 px-3 py-2 text-sm font-medium ${
-							activeTab === 'team'
-								? 'border-foreground text-foreground'
+						role="tab"
+						aria-selected={activeTab === tab.value}
+						onclick={() => setTab(tab.value)}
+						class={cn(
+							'-mb-px border-b-2 px-3.5 py-2 text-base font-medium transition-colors',
+							activeTab === tab.value
+								? 'border-primary text-primary'
 								: 'text-muted-foreground hover:text-foreground border-transparent'
-						}`}
+						)}
 					>
-						Team
+						{tab.label}
 					</button>
-				{/if}
+				{/each}
 			</div>
-		</div>
+		{/if}
 
 		{#if activeTab === 'details'}
 			{#if isEditing}
-				<div class="rounded-lg border p-4">
-					<h2 class="mb-4 text-lg font-semibold">Edit Organization</h2>
-					<div class="flex flex-col gap-4">
-						<div class="flex flex-col gap-2">
-							<Label for="edit-name">Name</Label>
-							<Input
-								id="edit-name"
-								bind:value={editName}
-								placeholder="Organization name"
-								required
-							/>
-						</div>
+				<form
+					class="border-border bg-card flex max-w-2xl flex-col gap-5 rounded-lg border p-6"
+					onsubmit={(event) => {
+						event.preventDefault();
+						saveOrganization();
+					}}
+				>
+					<h2 class="text-lg font-semibold">Edit details</h2>
+					<div class="flex flex-col gap-2">
+						<Label for="edit-name" class="text-base">Name</Label>
+						<Input
+							id="edit-name"
+							bind:value={editName}
+							placeholder="Organization name"
+							required
+						/>
+					</div>
 
-						<div class="flex flex-col gap-2">
-							<Label for="edit-description">Description</Label>
-							<textarea
-								id="edit-description"
-								bind:value={editDescription}
-								class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
-								placeholder="Organization description"
-							></textarea>
-						</div>
+					<div class="flex flex-col gap-2">
+						<Label for="edit-description" class="text-base">Description</Label>
+						<textarea
+							id="edit-description"
+							bind:value={editDescription}
+							class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-base"
+							placeholder="What the organization does"
+						></textarea>
+					</div>
 
-						<div class="flex flex-col gap-2">
-							<Label for="edit-mission">Mission</Label>
-							<textarea
-								id="edit-mission"
-								bind:value={editMission}
-								class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm"
-								placeholder="Organization mission"
-							></textarea>
-						</div>
+					<div class="flex flex-col gap-2">
+						<Label for="edit-mission" class="text-base">Mission</Label>
+						<textarea
+							id="edit-mission"
+							bind:value={editMission}
+							class="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-base"
+							placeholder="Organization mission"
+						></textarea>
+					</div>
 
-						<div class="flex flex-col gap-2">
-							<Label for="edit-org-type">Type</Label>
-							<select
-								id="edit-org-type"
-								bind:value={editOrgType}
-								class="border-input bg-background h-10 rounded-md border px-3 py-2 text-sm"
+					<div class="flex flex-col gap-2">
+						<Label for="edit-org-type" class="text-base">Type</Label>
+						<select
+							id="edit-org-type"
+							bind:value={editOrgType}
+							class="border-input bg-background h-10 rounded-md border px-3 text-base"
+						>
+							{#each Object.entries(organizationTypeLabels) as [value, label] (value)}
+								<option {value}>{label}</option>
+							{/each}
+						</select>
+					</div>
+
+					<div class="flex flex-col gap-2">
+						<Label for="edit-contact" class="text-base">Contact email</Label>
+						<Input
+							id="edit-contact"
+							type="email"
+							bind:value={editContactEmail}
+							placeholder="contact@example.com"
+						/>
+					</div>
+
+					<div class="flex flex-col gap-2">
+						<Label for="edit-url" class="text-base">Website</Label>
+						<Input
+							id="edit-url"
+							type="url"
+							bind:value={editExternalUrl}
+							placeholder="https://example.com"
+						/>
+					</div>
+
+					<fieldset class="flex flex-col gap-2">
+						<legend class="mb-2 text-base font-medium">Regions</legend>
+						{#if data.regions.length === 0}
+							<p class="text-muted-foreground text-base">No regions available.</p>
+						{:else}
+							<div
+								class="border-border grid gap-2 rounded-md border p-3 md:grid-cols-2"
 							>
-								<option value="non_profit">Non-profit</option>
-								<option value="governmental">Governmental</option>
-								<option value="other">Other</option>
-							</select>
-						</div>
-
-						<div class="flex flex-col gap-2">
-							<Label for="edit-contact">Contact Email</Label>
-							<Input
-								id="edit-contact"
-								type="email"
-								bind:value={editContactEmail}
-								placeholder="contact@example.com"
-							/>
-						</div>
-
-						<div class="flex flex-col gap-2">
-							<Label for="edit-url">External URL</Label>
-							<Input
-								id="edit-url"
-								type="url"
-								bind:value={editExternalUrl}
-								placeholder="https://example.com"
-							/>
-						</div>
-
-						<div class="flex flex-col gap-2">
-							<Label>Regions</Label>
-							<div class="grid gap-2 rounded-md border p-3 md:grid-cols-2">
-								{#if data.regions.length === 0}
-									<p class="text-muted-foreground text-sm">
-										No regions available.
-									</p>
-								{:else}
-									{#each data.regions as region}
-										<label class="flex items-center gap-2 text-sm">
-											<input
-												type="checkbox"
-												checked={editRegionIds.includes(region.id)}
-												onchange={(event) =>
-													toggleRegion(
-														region.id,
-														(event.currentTarget as HTMLInputElement)
-															.checked
-													)}
-											/>
-											{region.name}
-										</label>
-									{/each}
-								{/if}
+								{#each data.regions as region (region.id)}
+									<label class="flex items-center gap-2 text-base">
+										<input
+											type="checkbox"
+											checked={editRegionIds.includes(region.id)}
+											onchange={(event) =>
+												toggleRegion(
+													region.id,
+													event.currentTarget.checked
+												)}
+										/>
+										{region.name}
+									</label>
+								{/each}
 							</div>
-						</div>
+						{/if}
+					</fieldset>
 
-						<div class="flex justify-end gap-2">
-							<Button variant="outline" onclick={cancelEditing} disabled={isSaving}
-								>Cancel</Button
-							>
-							<Button onclick={saveOrganization} disabled={isSaving}>
-								{isSaving ? 'Saving...' : 'Save'}
-							</Button>
-						</div>
+					<div class="border-border flex justify-end gap-2 border-t pt-5">
+						<Button
+							type="button"
+							variant="outline"
+							onclick={cancelEditing}
+							disabled={isSaving}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={isSaving}>
+							{isSaving ? 'Saving...' : 'Save changes'}
+						</Button>
 					</div>
-				</div>
+				</form>
 			{:else}
-				<div class="grid gap-4 md:grid-cols-2">
-					<div class="rounded-lg border p-4">
-						<h2 class="text-lg font-semibold">Details</h2>
-						<div class="mt-3 flex flex-col gap-2 text-sm">
-							<p>
-								<span class="font-medium">Organization ID:</span>
-								{data.organization.id}
-							</p>
-							<p>
-								<span class="font-medium">Type:</span>
-								{data.organization.orgType}
-							</p>
-							{#if data.organization.mission}
-								<p>
-									<span class="font-medium">Mission:</span>
-									{data.organization.mission}
-								</p>
-							{/if}
-							{#if data.organization.regions.length > 0}
-								<p>
-									<span class="font-medium">Regions:</span>
-									{data.organization.regions
-										.map(
-											(regionId) =>
-												data.regions.find(
-													(region) => region.id === regionId
-												)?.name ?? regionId
-										)
-										.join(', ')}
-								</p>
-							{/if}
-							{#if data.organization.contactEmail}
-								<p>
-									<span class="font-medium">Contact email:</span>
-									<a
-										href="mailto:{data.organization.contactEmail}"
-										class="text-blue-600 hover:underline"
-									>
-										{data.organization.contactEmail}
-									</a>
-								</p>
-							{/if}
-							{#if data.organization.externalUrl}
-								<p>
-									<span class="font-medium">External URL:</span>
-									<a
-										href={data.organization.externalUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="text-blue-600 hover:underline"
-									>
-										{data.organization.externalUrl}
-									</a>
-								</p>
-							{/if}
+				<dl class="border-border divide-border max-w-3xl divide-y rounded-lg border px-6">
+					{@render detailRow(
+						'Type',
+						organizationTypeLabels[data.organization.orgType ?? 'other'] ??
+							data.organization.orgType ??
+							'Other'
+					)}
+					{#if data.organization.mission}
+						{@render detailRow('Mission', data.organization.mission)}
+					{/if}
+					{#if regionNames.length > 0}
+						{@render detailRow('Regions', regionNames.join(', '))}
+					{/if}
+					{#if data.organization.contactEmail}
+						<div class="grid gap-1 py-3 sm:grid-cols-[12rem_1fr] sm:gap-6">
+							<dt class="text-muted-foreground text-base">Contact email</dt>
+							<dd class="text-base break-words">
+								<a
+									href="mailto:{data.organization.contactEmail}"
+									class="text-primary underline-offset-4 hover:underline"
+									>{data.organization.contactEmail}</a
+								>
+							</dd>
 						</div>
-					</div>
-				</div>
+					{/if}
+					{#if data.organization.externalUrl}
+						<div class="grid gap-1 py-3 sm:grid-cols-[12rem_1fr] sm:gap-6">
+							<dt class="text-muted-foreground text-base">Website</dt>
+							<dd class="text-base break-words">
+								<a
+									href={data.organization.externalUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-primary underline-offset-4 hover:underline"
+									>{data.organization.externalUrl}</a
+								>
+							</dd>
+						</div>
+					{/if}
+					{@render detailRow('Organization ID', data.organization.id)}
+				</dl>
 			{/if}
 		{:else if activeTab === 'team'}
 			<RoleAssignments
+				bind:this={roleAssignments}
 				resourceType="organization"
 				resourceId={data.organization.id}
 				roleManagement={data.roleManagement}
+				standalone
 			/>
 		{/if}
 	{:else}
-		<p class="text-muted-foreground">Organization not found.</p>
+		<p class="text-muted-foreground text-base">Organization not found.</p>
 	{/if}
-</div>
+</section>
 
 <AlertDialog.Root open={isDeleting}>
 	<AlertDialog.Content>

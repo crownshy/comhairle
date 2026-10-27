@@ -1,21 +1,18 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    Extension,
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::Extension;
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use tower::util::option_layer;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::middleware::rate_limit::standard_rate_limiter;
+use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::event::{self, SignupMode};
 use crate::models::event_attendance::{
@@ -277,8 +274,8 @@ pub async fn delete(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    let rate_limit_layer = standard_rate_limiter();
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let auth_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
 
     ApiRouter::new()
         .api_route(
@@ -316,7 +313,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Create a new attendance for a conversation event")
                     .response::<201, Json<EventAttendanceDto>>()
             })
-            .layer(rate_limit_layer),
+            .layer(auth_limit),
         )
         .api_route(
             "/facilitator",
@@ -353,29 +350,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<EventAttendanceDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
+    use std::error::Error;
+
     use chrono::{DateTime, Utc};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-
-    use crate::{
-        mailer::MockComhairleMailer,
-        models::{
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            scheduled_email::{self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions},
-        },
-        routes::{auth::SignupRequest, events::dto::EventDto},
-        setup_server,
-        test_helpers::{UserSession, test_state},
-    };
 
     use super::*;
+    use crate::mailer::MockComhairleMailer;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::scheduled_email::{
+        self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions,
+    };
+    use crate::routes::auth::SignupRequest;
+    use crate::routes::events::dto::EventDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -482,7 +478,7 @@ mod tests {
     }
 
     async fn create_random_open_event(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: &str,
     ) -> Result<serde_json::Value, Box<dyn Error>> {

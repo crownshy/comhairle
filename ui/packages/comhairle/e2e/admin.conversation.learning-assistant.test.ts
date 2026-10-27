@@ -1,7 +1,7 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { Textboxes, Switches } from './utils/components';
+import { Textbox, Switch } from './utils/components';
 import { eventually, test } from './utils/testing';
 import { exists, sleep, testWithRefresh } from './utils';
 
@@ -9,71 +9,77 @@ test.beforeEach(async ({ page }) => {
 	await login(page);
 	await Conversation.open(page);
 	await Conversation.openTab(page, 'Learning Assistant', undefined);
+	await sleep(1);
 });
 
 test('Learning Assistant page', async ({ page, cleanup }) => {
-	// Show Learning Assistant
-	const switches = await Switches([['show_learning_assistant', 'Show Learning Assistant']], {
-		page,
-		cleanup
-	});
+	test.skip(
+		!!process.env.CI && !process.env.BOT_SERVICE__HOST,
+		'Syncing learn content needs a bot service, and CI runs without one'
+	);
 
-	await switches.toggle('show_learning_assistant');
+	// Show Learning Assistant
+	const ShowLearningAssistant = await Switch('Show Learning Assistant', { page, cleanup });
+	await ShowLearningAssistant.toggle();
 
 	await testWithRefresh(page, async () => {
-		await switches.expect();
+		await ShowLearningAssistant.expect();
 	});
 
 	// Learn Content
 	await page.getByRole('button', { name: 'Sync learn content' }).click();
-	await sleep(1.5);
-	await expect(page.getByText('Processing synced learn')).toBeVisible();
-	await eventually(async () => {
-		await expect(page.getByText('Learn content synced and ready')).toBeVisible();
-	});
+	await eventually(() => expect(page.getByText('Processing synced learn')).toBeVisible());
+	await eventually(() => expect(page.getByText('Learn content synced and ready')).toBeVisible());
 
 	// Documents
+	// Can't do it, because can't upload documents?
 
 	// Cross-language Search
-	await page.getByRole('textbox', { name: 'Supported languages' }).click();
+	const SupportedLanguages = page.getByRole('textbox', { name: 'Supported languages' });
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'English' }).click();
+	await sleep(0.5);
+	await SupportedLanguages.click();
 	await page.getByRole('button', { name: 'Gaelic' }).click();
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(true);
-		expect(await exists(page.getByText('Gaelic'))).toBe(true);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(true);
+			expect(await exists(page.getByText('Gaelic'))).toBe(true);
+		})
+	);
 
 	await page.getByRole('button', { name: 'Remove' }).first().click();
 	await page.getByRole('button', { name: 'Remove' }).first().click();
-	await testWithRefresh(page, async () => {
-		expect(await exists(page.getByText('English'))).toBe(false);
-		expect(await exists(page.getByText('Gaelic'))).toBe(false);
-	});
+	await testWithRefresh(page, () =>
+		eventually(async () => {
+			expect(await exists(page.getByText('English'))).toBe(false);
+			expect(await exists(page.getByText('Gaelic'))).toBe(false);
+		})
+	);
 
 	// Target reading age
-	const TargetReadingAge = page.getByRole('spinbutton');
+	const TargetReadingAge = await Textbox(
+		undefined,
+		{ page, cleanup },
+		{ resetTo: '9', overrideRole: 'spinbutton' }
+	);
 
-	await TargetReadingAge.click();
-	await TargetReadingAge.fill('18');
+	await TargetReadingAge.write('18');
 
-	cleanup(async () => {
-		await TargetReadingAge.fill('9');
-	});
-
-	await TargetReadingAge.fill('19');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(false);
+	await TargetReadingAge.write('19');
+	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.fill('10');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(true);
+	await TargetReadingAge.write('10');
+	expect(await TargetReadingAge.isValid()).toBe(true);
 
-	await TargetReadingAge.fill('4');
-	expect(await Textboxes.isValid(TargetReadingAge)).toBe(false);
+	await TargetReadingAge.write('4');
+	expect(await TargetReadingAge.isValid()).toBe(false);
 	await expect(page.getByText('Something went wrong updating').first()).toBeVisible();
 
-	await TargetReadingAge.fill('9');
+	await TargetReadingAge.write('8');
 
 	await testWithRefresh(page, async () => {
-		expect(TargetReadingAge).toHaveValue('9');
+		await TargetReadingAge.expect();
 	});
 });

@@ -4,7 +4,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -330,12 +331,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::{get_random_user_id, setup_default_app_and_session};
-
-    use super::*;
+    use std::error::Error;
 
     use sqlx::PgPool;
-    use std::error::Error;
+
+    use super::*;
+    use crate::models::model_test_helpers::{get_random_user_id, setup_default_app_and_session};
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_refresh_token(pool: PgPool) -> Result<(), Box<dyn Error>> {

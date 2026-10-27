@@ -1,4 +1,3 @@
-use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
@@ -6,11 +5,15 @@ use schemars::JsonSchema;
 use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::{invite_response, users::User};
+use super::invite_response;
+use super::users::User;
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]
@@ -346,8 +349,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(InviteIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -390,22 +392,22 @@ pub async fn get_stats_for_invite(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        bot_service::{ComhairleBotService, MockComhairleBotService},
-        models::{
-            conversation::{self, CreateConversation, PartialConversation},
-            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-            users,
-            workflow::{self, CreateWorkflow},
-        },
-        routes::events::dto::EventDto,
-        test_helpers::test_config,
-    };
+    use std::error::Error;
+    use std::sync::Arc;
 
-    use super::*;
     use fake::{Fake, Faker};
     use sqlx::PgPool;
-    use std::{error::Error, sync::Arc};
+
+    use super::*;
+    use crate::bot_service::{ComhairleBotService, MockComhairleBotService};
+    use crate::models::conversation::{self, CreateConversation, PartialConversation};
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
+    };
+    use crate::models::users;
+    use crate::models::workflow::{self, CreateWorkflow};
+    use crate::routes::events::dto::EventDto;
+    use crate::test_helpers::test_config;
 
     #[test]
     fn invite_check_for_user_should_be_case_insensitive() -> Result<(), Box<dyn Error>> {

@@ -1,3 +1,17 @@
+use aide::OperationIo;
+use axum::Json;
+use axum::extract::multipart::MultipartError;
+use axum::extract::rejection::PathRejection;
+use axum::http::StatusCode;
+use axum::response::IntoResponse;
+use heyform_sdk::HeyFormError;
+use ragflow::RagflowError;
+use schemars::JsonSchema;
+use serde::Serialize;
+use serde_json::json;
+use thiserror::Error;
+use uuid::Uuid;
+
 use crate::bulk_storage_service::error::BulkStorageError;
 use crate::models::refresh_token::RefreshFailure;
 use crate::tools::polis::PolisError;
@@ -6,21 +20,6 @@ use crate::translation_service::error::TranslationError;
 use crate::websockets::error::WebsocketError;
 use crate::wiki_poll_service::error::WikiPollServiceError;
 use crate::worker_service::error::WorkerServiceError;
-
-use aide::OperationIo;
-use axum::{
-    Json,
-    extract::{multipart::MultipartError, rejection::PathRejection},
-    http::StatusCode,
-    response::IntoResponse,
-};
-use heyform_sdk::HeyFormError;
-use ragflow::RagflowError;
-use schemars::JsonSchema;
-use serde::Serialize;
-use serde_json::json;
-use thiserror::Error;
-use uuid::Uuid;
 
 #[derive(Error, Debug, OperationIo)]
 #[aide(output)]
@@ -72,6 +71,9 @@ pub enum ComhairleError {
 
     #[error("No bulk storage service configured")]
     NoBulkStorageServiceConfigured,
+
+    #[error("No redis service configured")]
+    NoRedisServiceConfigured,
 
     #[error("No video service configured")]
     NoVideoServiceConfigured,
@@ -186,6 +188,14 @@ pub enum ComhairleError {
 
     #[error("No user logged in")]
     NoLoggedInUser,
+
+    /// A draft conversation that has a preview password, asked for by someone who has not
+    /// unlocked it. Distinct from `NoLoggedInUser` so the frontend can show the password form.
+    #[error("Preview password required")]
+    PreviewPasswordRequired,
+
+    #[error("Wrong preview password")]
+    WrongPreviewPassword,
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
@@ -403,6 +413,8 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
+            | ComhairleError::PreviewPasswordRequired
+            | ComhairleError::WrongPreviewPassword
             | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast

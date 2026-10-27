@@ -1,28 +1,19 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with, put_with};
+use axum::Json;
+use axum::extract::{Path, State};
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        feedback::{CreateFeedbackDTO, PartialFeedback},
-    },
-    routes::feedback::dto::FeedbackDto,
-};
-
 use super::auth::{RequiredAdminUser, RequiredUser};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::feedback::{CreateFeedbackDTO, PartialFeedback};
+use crate::models::{self};
+use crate::routes::feedback::dto::FeedbackDto;
 
 pub mod dto;
 
@@ -71,7 +62,7 @@ async fn list_feedback_for_conversation(
     Ok((StatusCode::OK, Json(feedback)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -97,5 +88,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<FeedbackDto>>()
             }),
         )
-        .with_state(state)
 }

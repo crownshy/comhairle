@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import type { ResolvedPathname } from '$app/types';
+	import type { Snippet } from 'svelte';
+	import { sectionTabClass } from './sectionTabClass';
 
 	interface Props {
-		tab: string;
 		href: ResolvedPathname;
-		label: string;
+		isActive: (pathname: string) => boolean;
+		children: Snippet;
 	}
 
-	const { tab, href, label }: Props = $props();
+	const { href, isActive, children }: Props = $props();
 
-	const active = $derived(page.route.id?.endsWith(tab));
+	const active = $derived(isActive(page.url.pathname));
 </script>
 
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
@@ -19,12 +21,9 @@
 		role="tab"
 		{href}
 		data-sveltekit-noscroll
-		class="text-foreground inline-flex h-9 items-center px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-		class:text-primary={active}
-		class:opacity-70={!active}
-		class:hover:opacity-100={!active}
+		class={sectionTabClass(active)}
 		aria-selected={active}
 	>
-		{label}
+		{@render children()}
 	</a>
 </li>

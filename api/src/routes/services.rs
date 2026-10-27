@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use aide::axum::{ApiRouter, routing::get_with};
-use axum::{
-    extract::{Json, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::get_with;
+use axum::extract::{Json, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 
-use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredUser};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::routes::auth::RequiredUser;
 
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -39,19 +40,15 @@ async fn list(
     Ok((StatusCode::OK, Json(services)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .api_route(
-            "/",
-            get_with(list, |op| {
-                op.id("ListSupportedServices")
-                    .summary("List of supported services")
-                    .description(
-                        "List of services supported (configured) by current Comhairle server",
-                    )
-                    .security_requirement("JWT")
-                    .response::<200, Json<ComhairleServices>>()
-            }),
-        )
-        .with_state(state)
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
+    ApiRouter::new().api_route(
+        "/",
+        get_with(list, |op| {
+            op.id("ListSupportedServices")
+                .summary("List of supported services")
+                .description("List of services supported (configured) by current Comhairle server")
+                .security_requirement("JWT")
+                .response::<200, Json<ComhairleServices>>()
+        }),
+    )
 }

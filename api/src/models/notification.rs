@@ -1,17 +1,19 @@
-use super::pagination::{Order, PageOptions, PaginatedResults};
-use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-#[cfg(test)]
-use fake::Dummy;
+use super::pagination::{Order, PageOptions, PaginatedResults};
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
@@ -238,8 +240,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(NotificationIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

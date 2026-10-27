@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
@@ -11,20 +11,20 @@
 	import { useDebounce } from 'runed';
 	import type { InstancedToolConfig } from '$lib/tools/types';
 	import { permissions } from '$lib/permissions.svelte';
+	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import SeedStatements from './SeedStatements.svelte';
 
-	let {
-		toolConfig,
-		conversationId,
-		workflowId,
-		workflowStepId,
-		isLive
-	}: {
+	type Props = {
 		toolConfig: InstancedToolConfig<'polis'>;
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
 		isLive: boolean;
-	} = $props();
+		statements: PolisStatementAux[];
+	};
+
+	let { toolConfig, conversationId, workflowId, workflowStepId, isLive, statements }: Props =
+		$props();
 
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversationId)
@@ -35,7 +35,8 @@
 		show_remaining_statements: showRemaining = true,
 		topic = '',
 		description = '',
-		strict_moderation: strictModeration = false
+		strict_moderation: strictModeration = false,
+		notify_moderators: notifyModerators
 	} = $derived(toolConfig);
 
 	// Local copies for the text inputs. Writable `$derived`: the user's keystrokes
@@ -47,7 +48,13 @@
 
 	// Config keys that must be proxied to Polis (the rest are comhairle-only
 	// display flags that live in tool_config).
-	const POLIS_KEYS = new Set(['topic', 'description', 'is_active', 'strict_moderation']);
+	const POLIS_KEYS = new Set([
+		'topic',
+		'description',
+		'is_active',
+		'strict_moderation',
+		'notify_moderators'
+	]);
 
 	/**
 	 * Persist a single Setup field. Polis-owned fields (see POLIS_KEYS) are
@@ -95,20 +102,13 @@
 		if (raw.trim() === '' || !Number.isFinite(value) || value < 1) return;
 		saveField('required_votes', value);
 	}, 500);
-
-	// Link back to the Moderation subtab on this same step, preserving the path.
-	const moderationHref = $derived.by(() => {
-		const url = new URL(page.url);
-		url.searchParams.set('subtab', 'moderation');
-		return url.pathname + url.search;
-	});
 </script>
 
 <div class="mb-8 flex max-w-2xl flex-col gap-8">
 	<h2 class="text-2xl font-bold">Setup</h2>
 
 	<!-- Content -->
-	<div class="flex flex-col gap-4">
+	<div data-tour="polis-content" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-base font-bold">Content</h3>
 			<span class="text-muted-foreground text-sm"
@@ -145,7 +145,7 @@
 	</div>
 
 	<!-- Settings -->
-	<div class="flex flex-col gap-4">
+	<div data-tour="polis-settings" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h3 class="text-base font-bold">Settings</h3>
 			<span class="text-muted-foreground text-sm">Customise what participants will see.</span>
@@ -193,12 +193,13 @@
 				</Label>
 				<span class="text-muted-foreground text-xs">
 					When on, every statement must be accepted or rejected at
-					<!-- eslint-disable svelte/no-navigation-without-resolve -->
 					<a
-						href={moderationHref}
-						class="text-primary font-medium underline underline-offset-2">Moderation</a
+						href={resolve(
+							'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+							{ conversation_id: conversationId, step_id: workflowStepId }
+						)}
+						class="text-primary font-medium underline underline-offset-2">Moderate</a
 					>
-					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					before participants see it.
 				</span>
 			</div>
@@ -209,5 +210,32 @@
 				onCheckedChange={(checked) => saveField('strict_moderation', checked)}
 			/>
 		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="notifyModerators" class="text-sm font-medium">
+					Send notification email to moderators
+				</Label>
+				<span class="text-muted-foreground text-xs">
+					When on, a daily notication email will be sent to moderators of this
+					conversation if there are pending comments awaiting approval or rejection at
+					<a
+						href={resolve(
+							'/(admin)/admin/conversations/[conversation_id]/moderate/step/[step_id]',
+							{ conversation_id: conversationId, step_id: workflowStepId }
+						)}
+						class="text-primary font-medium underline underline-offset-2">Moderation</a
+					>
+				</span>
+			</div>
+			<Switch
+				id="notifyModerators"
+				disabled={!canEdit}
+				checked={notifyModerators}
+				onCheckedChange={(checked) => saveField('notify_moderators', checked)}
+			/>
+		</div>
 	</div>
+
+	<SeedStatements {conversationId} {workflowStepId} {statements} {canEdit} />
 </div>

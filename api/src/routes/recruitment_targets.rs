@@ -1,29 +1,20 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use axum::Json;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        recruitment_target::{CreateRecruitmentTarget, PartialRecruitmentTarget},
-    },
-    routes::{
-        auth::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
-        workflows::WorkflowPathCtx,
-    },
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::recruitment_target::{CreateRecruitmentTarget, PartialRecruitmentTarget};
+use crate::models::{self};
+use crate::routes::auth::RequiredAdminUser;
+use crate::routes::recruitment_targets::dto::RecruitmentTargetDto;
+use crate::routes::workflows::WorkflowPathCtx;
 
 pub mod dto;
 
@@ -91,7 +82,7 @@ async fn delete_recruitment_target(
     Ok((StatusCode::OK, Json(target)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -148,31 +139,24 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<RecruitmentTargetDto>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        routes::{conversations::dto::ConversationDto, workflows::dto::WorkflowDto},
-    };
+    use std::error::Error;
+
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+
+    use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     async fn setup(
         pool: &PgPool,
-    ) -> Result<
-        (
-            axum::Router,
-            crate::test_helpers::UserSession,
-            String,
-            String,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(crate::App, crate::test_helpers::UserSession, String, String), Box<dyn Error>>
+    {
         let (app, mut session) = setup_default_app_and_session(pool).await?;
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation)?;

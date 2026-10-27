@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::extract::{Json, Path, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
@@ -14,7 +12,8 @@ use crate::middleware::permissions::{PermissionRequirement, authorize};
 use crate::models::moderation_policy::{
     self, CreateModerationPolicy, DEFAULT_REASONS, UpdateModerationPolicy,
 };
-use crate::models::permissions::{ConversationResource, conversation::Action};
+use crate::models::permissions::ConversationResource;
+use crate::models::permissions::conversation::Action;
 use crate::routes::moderation_policies::dto::{
     DefaultModerationPolicyReasonDto, ModerationPolicyDto,
 };
@@ -94,7 +93,7 @@ async fn delete_policy(
     Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -184,19 +183,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             PermissionRequirement::<ConversationResource>::new(Action::Read),
             authorize::<ConversationResource>,
         ))
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
+    use std::error::Error;
+    use std::time::Duration;
+
     use serde_json::{Value, json};
     use sqlx::PgPool;
 
     use super::*;
-
-    use std::{error::Error, time::Duration};
-
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
@@ -204,7 +201,7 @@ mod tests {
     use crate::test_helpers::{UserSession, polis_tool_config};
 
     async fn create_policy(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<ModerationPolicyDto, Box<dyn Error>> {
@@ -222,7 +219,7 @@ mod tests {
 
     /// Creates a Polis step and returns its url and preview tool config.
     async fn create_polis_step(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
         conversation_id: Uuid,
     ) -> Result<(String, Value), Box<dyn Error>> {
@@ -429,6 +426,62 @@ mod tests {
         );
         let (status, _, _) = session.delete(&app, &policy_url).await?;
         assert_eq!(status, StatusCode::CONFLICT, "policy in use was deleted");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_publish_step_policy_to_participants(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (status, policy, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/moderation_policies"),
+                json!({
+                    "name": "Policy",
+                    "reasons": [{ "label": "Spam", "description": "Repeated adverts." }]
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "policy not created: {policy}");
+        let (step_url, mut preview_tool_config) =
+            create_polis_step(&app, &mut session, conversation_id).await?;
+        preview_tool_config["moderation_policy_id"] = policy["id"].clone();
+        let (status, res, _) = session
+            .put(
+                &app,
+                &step_url,
+                json!({ "preview_tool_config": preview_tool_config })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "step update failed: {res}");
+
+        let step_id = step_url.rsplit('/').next().ok_or("step url has no id")?;
+        let mut participant = UserSession::new_guest();
+        participant.signup_guest(&app).await?;
+        let (status, reasons, _) = participant
+            .get(
+                &app,
+                &format!("/tools/polis/moderation_policy?workflow_step_id={step_id}&preview=true"),
+            )
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "participant couldn't read policy: {reasons}"
+        );
+        assert_eq!(
+            reasons,
+            json!([{ "label": "Spam", "description": "Repeated adverts." }])
+        );
 
         Ok(())
     }

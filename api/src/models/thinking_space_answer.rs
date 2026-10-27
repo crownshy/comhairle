@@ -1,16 +1,17 @@
 use chrono::{DateTime, Utc};
+#[cfg(test)]
+use fake::Dummy;
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::SqlxResultExt};
-
-#[cfg(test)]
-use fake::Dummy;
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_answer")]
@@ -293,23 +294,22 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Comha
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::needless_update,
+    reason = "test fixtures use ..Default::default() so adding struct fields doesn't break every test)"
+)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
 
-    use crate::{
-        models::{
-            model_test_helpers::{
-                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-            },
-            users,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::thinking_space_tool_config,
-    };
-
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+    };
+    use crate::models::users;
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::thinking_space_tool_config;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {

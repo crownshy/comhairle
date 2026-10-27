@@ -12,17 +12,13 @@ pub mod conversation;
 pub mod organization;
 pub mod system;
 
-use crate::models::organization::OrganizationIden;
-use crate::models::users::UserIden;
-use crate::redis_connection::RedisConnection;
 use aide::OperationIo;
 use axum::extract::{FromRequestParts, Path};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::JoinType;
 use sea_query::{
-    Alias, DynIden, Expr, IntoIden, OnConflict, PostgresQueryBuilder, Query, SelectStatement,
-    UnionType,
+    Alias, DynIden, Expr, IntoIden, JoinType, OnConflict, PostgresQueryBuilder, Query,
+    SelectStatement, UnionType,
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -35,10 +31,11 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{
-    self,
-    pagination::{PageOptions, PaginatedResults},
-};
+use crate::models::organization::OrganizationIden;
+use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::users::UserIden;
+use crate::models::{self};
+use crate::redis_connection::RedisConnection;
 
 // ---------- //
 // * MACROS * //
@@ -712,12 +709,11 @@ async fn get_actor_roles_for_resource(
     let cache_key = role_list_cache_key(resource_type, resource_id, &actor_id);
     let version = actor_permission_version(&state.db, resource_type, resource_id, actor_id).await?;
 
-    if let Some(conn) = &state.redis_conn {
-        if let Some(cached_roles) = cache_get_role_list(conn.as_ref(), &cache_key).await
-            && cached_roles.version == version
-        {
-            return Ok(cached_roles.roles);
-        }
+    if let Some(conn) = &state.redis_conn
+        && let Some(cached_roles) = cache_get_role_list(conn.as_ref(), &cache_key).await
+        && cached_roles.version == version
+    {
+        return Ok(cached_roles.roles);
     }
 
     let mut transaction = state.db.begin().await?;
@@ -1112,13 +1108,6 @@ pub async fn can_perform_action<Action: PermissionAction>(
 
     let resource_type = Action::RESOURCE_TYPE;
 
-    if resource_type == ResourceType::Organization
-        && action.as_ref() == organization::Action::Read.as_ref()
-        && models::user_group::is_organization_member(&state.db, *resource_id, *user_id).await?
-    {
-        return Ok(true);
-    }
-
     let mut roles = get_actor_roles_for_resource(
         state,
         resource_type.as_ref(),
@@ -1320,6 +1309,8 @@ pub fn roles_for_action<A: PermissionAction>(action: A) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+    const ADMINISTRATOR_GROUP_MIGRATION: i64 = 20261015161308;
+
     async fn create_legacy_permission_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
         for migration in crate::SQLX_MIGRATOR
             .iter()
@@ -1382,10 +1373,9 @@ mod tests {
                 expected.push((actor, resource_type, resource_id, role_name, grant_id));
             }
         }
-        for migration in crate::SQLX_MIGRATOR
-            .iter()
-            .filter(|migration| migration.version >= 20261001120000)
-        {
+        for migration in crate::SQLX_MIGRATOR.iter().filter(|migration| {
+            (20261001120000..ADMINISTRATOR_GROUP_MIGRATION).contains(&migration.version)
+        }) {
             sqlx::raw_sql(&migration.sql).execute(&pool).await?;
         }
         for (actor, resource_type, resource_id, role_name, grant_id) in expected {
@@ -1449,6 +1439,92 @@ mod tests {
                 .fetch_one(&pool)
                 .await?;
         assert!(unified_absent);
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = false)]
+    async fn administrator_group_migration_moves_administrators_into_the_group(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for migration in crate::SQLX_MIGRATOR
+            .iter()
+            .filter(|migration| migration.version < ADMINISTRATOR_GROUP_MIGRATION)
+        {
+            sqlx::raw_sql(&migration.sql).execute(&pool).await?;
+        }
+        let administrator_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO comhairle_user (auth_type) VALUES ('guest') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await?;
+        let member_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO comhairle_user (auth_type) VALUES ('guest') RETURNING id",
+        )
+        .fetch_one(&pool)
+        .await?;
+        let description = models::translations::new_translation(
+            &pool,
+            "en",
+            "Existing Organization",
+            models::translations::TextFormat::Plain,
+        )
+        .await?;
+        let mut tx = pool.begin().await?;
+        let (organization_id, members_group): (Uuid, Uuid) = sqlx::query_as("INSERT INTO organization (name, description, mission, org_type) VALUES ('Existing Organization', $1, $1, 'other') RETURNING id, user_group_id")
+            .bind(description.id).fetch_one(&mut *tx).await?;
+        for user_id in [administrator_id, member_id] {
+            sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
+                .bind(members_group)
+                .bind(user_id)
+                .execute(&mut *tx)
+                .await?;
+        }
+        sqlx::query("INSERT INTO organization_user_permissions (user_id, resource_id, role_name, grant_reason) VALUES ($1, $2, 'organization_admin', 'Existing')")
+            .bind(administrator_id).bind(organization_id).execute(&mut *tx).await?;
+        tx.commit().await?;
+
+        let migration = crate::SQLX_MIGRATOR
+            .iter()
+            .find(|migration| migration.version == ADMINISTRATOR_GROUP_MIGRATION)
+            .unwrap();
+        sqlx::raw_sql(&migration.sql).execute(&pool).await?;
+
+        let admins_group: Uuid =
+            sqlx::query_scalar("SELECT admin_group_id FROM organization WHERE id = $1")
+                .bind(organization_id)
+                .fetch_one(&pool)
+                .await?;
+        let admins: Vec<Uuid> =
+            sqlx::query_scalar("SELECT user_id FROM user_group_member WHERE group_id = $1")
+                .bind(admins_group)
+                .fetch_all(&pool)
+                .await?;
+        assert_eq!(admins, vec![administrator_id]);
+        let members: Vec<Uuid> = sqlx::query_scalar(
+            "SELECT user_id FROM user_group_member WHERE group_id = $1 ORDER BY user_id",
+        )
+        .bind(members_group)
+        .fetch_all(&pool)
+        .await?;
+        let mut expected_members = vec![administrator_id, member_id];
+        expected_members.sort();
+        assert_eq!(members, expected_members);
+        let direct_grants: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM organization_user_permissions WHERE resource_id = $1",
+        )
+        .bind(organization_id)
+        .fetch_one(&pool)
+        .await?;
+        assert_eq!(direct_grants, 0);
+        let group_grants: Vec<(Uuid, String)> = sqlx::query_as("SELECT group_id, role_name FROM organization_group_permissions WHERE resource_id = $1 ORDER BY role_name")
+            .bind(organization_id).fetch_all(&pool).await?;
+        assert_eq!(
+            group_grants,
+            vec![
+                (admins_group, "organization_admin".to_string()),
+                (members_group, "organization_member".to_string()),
+            ]
+        );
         Ok(())
     }
 
@@ -1615,9 +1691,11 @@ mod tests {
     async fn admin_portal_roles_include_direct_and_current_inherited_assignments(
         pool: PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        use axum::Json;
+        use axum::extract::State;
+
         use crate::routes::auth::RequiredUser;
         use crate::routes::user::{ResourceType as UserResourceType, get_user_roles};
-        use axum::{Json, extract::State};
 
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let grantor = session.id.unwrap();
@@ -1680,9 +1758,8 @@ mod tests {
             (UserResourceType::Site, "translator"),
         ] {
             assert!(
-                roles
-                    .iter()
-                    .any(|entry| entry.resource == resource && entry.roles == [role])
+                roles.iter().any(|entry| entry.resource == resource
+                    && entry.roles.iter().any(|name| name == role))
             );
         }
 
@@ -2117,9 +2194,16 @@ mod tests {
             ..Default::default()
         };
         let org_permissions = list_permissions(&state, request).await?;
-        assert_eq!(org_permissions.records.len(), 1);
-        assert_eq!(org_permissions.records[0].resource_id, resource_1_id);
-        assert_eq!(org_permissions.records[0].role_name, OTHER_ROLE_NAME);
+        assert_eq!(org_permissions.records.len(), 2);
+        assert!(
+            org_permissions
+                .records
+                .iter()
+                .any(|p| p.resource_id == resource_1_id && p.role_name == OTHER_ROLE_NAME)
+        );
+        assert!(org_permissions.records.iter().any(|p| {
+            p.resource_id == org_id && p.role_name == organization::Role::Member.as_ref()
+        }));
 
         // Filter by role_name: only the two OtherRole assignments granted above.
         let request = ListPermissionsFilters {

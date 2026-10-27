@@ -1,6 +1,7 @@
+import { expect } from '@playwright/test';
 import { test } from './utils/testing';
 import Conversation from './utils/navigation/Conversation';
-import { Textboxes, CollapsibleRichFields } from './utils/components';
+import { Textbox, CollapsibleRichField } from './utils/components';
 import { login } from './utils/auth';
 import { testWithRefresh } from './utils';
 
@@ -11,28 +12,55 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Content page', async ({ page, cleanup }) => {
-	const collapsibleRichFields = CollapsibleRichFields(
-		[
-			['privacy_policy', 'Add privacy policy'],
-			['short_privacy_policy', 'Add short privacy policy'],
-			['faqs', 'Add faqs'],
-			['thank_you', 'Add thank you message']
-		],
-		{
-			page,
-			cleanup
-		}
-	);
-	await collapsibleRichFields.write('privacy_policy', ' ');
-	await collapsibleRichFields.write('short_privacy_policy', ' ');
-	await collapsibleRichFields.write('faqs', ' ');
-	await collapsibleRichFields.write('thank_you', ' ');
+	const PrivacyPolicy = await CollapsibleRichField('privacy policy', { page, cleanup });
+	const ShortPrivacyPolicy = await CollapsibleRichField('short privacy policy', {
+		page,
+		cleanup
+	});
+	const Faqs = await CollapsibleRichField('faqs', { page, cleanup });
+	const ThankYou = await CollapsibleRichField('thank you message', { page, cleanup });
+	const CTA = await Textbox('Call to action', { page, cleanup });
 
-	const textboxes = Textboxes.new([['cta', 'Call to action']], { page, cleanup });
-	await textboxes.write('cta', '');
+	await PrivacyPolicy.write();
+	await ShortPrivacyPolicy.write();
+	await Faqs.write();
+	await ThankYou.write();
+	await CTA.write();
 
 	await testWithRefresh(page, async () => {
-		await collapsibleRichFields.expect();
-		await textboxes.expect();
+		await PrivacyPolicy.expect();
+		await ShortPrivacyPolicy.expect();
+		await Faqs.expect();
+		await ThankYou.expect();
+		await CTA.expect();
 	});
+});
+
+test('Configure/Content glossary', async ({ page }) => {
+	const GlossaryEditorTerm = await Textbox('Term and synonyms in English', { page });
+	await GlossaryEditorTerm.write();
+	await GlossaryEditorTerm.locator().press('Tab');
+
+	const GlossaryEditorExplanation = await Textbox('Explanation in English', { page });
+	await GlossaryEditorExplanation.write();
+
+	await testWithRefresh(page, async () => {
+		await GlossaryEditorTerm.expect();
+		await GlossaryEditorExplanation.expect();
+	});
+
+	await page.getByRole('button', { name: 'Add term' }).click();
+	await page.locator('#glossary-terms-1').click();
+	await expect(page.getByRole('main')).toContainText('1 term');
+	await page.getByRole('button', { name: 'Remove term' }).nth(1).click();
+	await page.getByRole('textbox', { name: 'Search terms' }).click();
+
+	const incorrectSearchTerm = GlossaryEditorTerm.currentValue() + 'a';
+	await page.getByRole('textbox', { name: 'Search terms' }).fill(incorrectSearchTerm);
+	await expect(page.getByText(`No terms match "${incorrectSearchTerm}"`)).toBeVisible();
+	await page.getByRole('textbox', { name: 'Search terms' }).click();
+	await page
+		.getByRole('textbox', { name: 'Search terms' })
+		.fill(GlossaryEditorTerm.currentValue());
+	await expect(GlossaryEditorTerm.locator()).toBeVisible();
 });

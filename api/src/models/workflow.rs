@@ -1,28 +1,26 @@
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-
 #[cfg(test)]
 use fake::Dummy;
-
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Expr, Order, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Cond, Expr, Order, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
-
-use super::{
-    user_conversation_preferences,
-    user_participation::{self, UserParticipation, UserParticipationIden},
-    user_progress::{self, UserProgressIden},
-    users::User,
-    workflow_step::{self, WorkflowStepIden},
-};
+use super::event::EventIden;
+use super::user_participation::{self, UserParticipation, UserParticipationIden};
+use super::user_progress::{self, UserProgressIden};
+use super::users::User;
+use super::workflow_step::{self, WorkflowStepIden};
+use super::{SqlxResultExt, user_conversation_preferences};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
@@ -219,9 +217,14 @@ pub async fn register_user(
     Ok(user_participation)
 }
 
-// TODO ensure this deletes all workflow steps on deletion
-#[instrument(err(Debug), skip(db))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
+#[instrument(err(Debug), skip(state))]
+pub async fn delete(state: &Arc<ComhairleState>, id: &Uuid) -> Result<Workflow, ComhairleError> {
+    let workflow_steps = workflow_step::list(&state.db, id).await?;
+
+    for step in workflow_steps {
+        workflow_step::delete(state, &step.id).await?;
+    }
+
     let (sql, values) = Query::delete()
         .from_table(WorkflowIden::Table)
         .and_where(Expr::col(WorkflowIden::Id).eq(id.to_owned()))
@@ -229,9 +232,9 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> 
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&state.db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Workflow")?;
 
     Ok(workflow)
 }
@@ -260,6 +263,36 @@ pub async fn update(
         .await?;
 
     Ok(workflow)
+}
+
+/// Lists every workflow belonging to a conversation, including workflows attached only to
+/// one of its events (those have no `conversation_id`).
+#[instrument(err(Debug), skip(db))]
+pub async fn list_for_conversation(
+    db: &PgPool,
+    conversation_id: Uuid,
+) -> Result<Vec<Workflow>, ComhairleError> {
+    let event_ids = Query::select()
+        .column(EventIden::Id)
+        .from(EventIden::Table)
+        .and_where(Expr::col(EventIden::ConversationId).eq(conversation_id))
+        .to_owned();
+
+    let (sql, values) = Query::select()
+        .from(WorkflowIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .cond_where(
+            Cond::any()
+                .add(Expr::col(WorkflowIden::ConversationId).eq(conversation_id))
+                .add(Expr::col(WorkflowIden::EventId).in_subquery(event_ids)),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let workflows = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(workflows)
 }
 
 /// Retrieves a list of workflows for a conversation or an event.
@@ -413,8 +446,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(WorkflowIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -455,17 +487,13 @@ pub async fn get_workflow_signup_stats(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        routes::{
-            conversations::dto::ConversationDto, regions::dto::RegionDto,
-            workflows::dto::WorkflowDto,
-        },
-    };
+    use std::error::Error;
 
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::regions::dto::RegionDto;
+    use crate::routes::workflows::dto::WorkflowDto;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_workflow_with_region_id(pool: PgPool) -> Result<(), Box<dyn Error>> {

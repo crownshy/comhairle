@@ -13,11 +13,15 @@
 		rejectReasonsFromPolicy,
 		withSavedReasonIds
 	} from '$lib/moderation/moderationPolicy';
-	import { Autosave } from './autosave.svelte';
-	import SaveStatusPill from './SaveStatusPill.svelte';
+	import { Autosave } from '../autosave.svelte';
+	import SaveStatusPill from '../SaveStatusPill.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { moderationPolicyConfigTour } from './tour';
+
+	useTour(() => moderationPolicyConfigTour);
 
 	let { data, params } = $props();
 	const canEdit = $derived(
@@ -185,7 +189,7 @@
 	const gridClass = 'grid-cols-[minmax(10rem,16rem)_minmax(12rem,1fr)_auto]';
 </script>
 
-<div class="flex flex-col gap-6">
+<div data-tour="moderation-policy" class="flex flex-col gap-6">
 	<div class="flex flex-wrap items-center gap-2">
 		<Button variant="outline" onclick={addRow} disabled={!canEdit}>
 			<Plus class="mr-1.5 size-4" /> Add reason

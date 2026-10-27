@@ -1,19 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use aide::{
-    OperationIo,
-    axum::{
-        ApiRouter,
-        routing::{get_with, post_with, put_with},
-    },
-};
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with, put_with};
 use async_trait::async_trait;
-use axum::{
-    body::Body,
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::body::Body;
+use axum::extract::{Json, Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,6 +16,13 @@ use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
+use crate::bot_service::AgentConversationRequest;
+use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
+use crate::models::thinking_space_answer::{
+    self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer, ThinkingSpaceAnswerFilterOptions,
+    UpdateAnswer,
+};
 use crate::models::thinking_space_follow_up_question::{
     self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
     ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
@@ -28,55 +30,13 @@ use crate::models::thinking_space_follow_up_question::{
 use crate::models::thinking_space_summary::{
     self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions, UpdateSummary,
 };
-use crate::models::translations::{BuildTextTranslation, TextContentId};
+use crate::models::translations::{
+    BuildTextTranslation, TextContentId, TextFormat, localize_translations,
+};
 use crate::models::workflow_step;
-use crate::models::{
-    thinking_space_answer::{
-        self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer, ThinkingSpaceAnswerFilterOptions,
-        UpdateAnswer,
-    },
-    translations::localize_translations,
-};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
+use crate::routes::translations::LocaleExtractor;
 use crate::{ComhairleError, ComhairleState};
-use crate::{bot_service::AgentConversationRequest, models::translations::TextFormat};
-use crate::{
-    models::bot_service_user_session::{self, BotServiceSessionContext},
-    routes::translations::LocaleExtractor,
-};
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
-
-// ======================
-//
-// LEGACY TYPES
-//
-// Keep for migration binary
-//
-// ======================
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceQuestion {
-    pub id: Uuid,
-    pub text: String,
-    /// Admin-authored description of *why* this question is being asked — fed to
-    /// the AI as `question_intent` so it can generate sharper follow-ups. Never
-    /// shown to participants.
-    pub intent: String,
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LegacyThinkingSpaceToolConfig {
-    pub topic: String,
-    pub root_questions: Vec<LegacyThinkingSpaceQuestion>,
-    pub follow_up_rounds_count: u8,
-}
-
-// ======================
-//
-// END LEGACY TYPES
-//
-// ======================
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
@@ -234,7 +194,7 @@ impl ToolImpl for ThinkingSpaceTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/thinking_space",
@@ -363,7 +323,6 @@ Use a raw HTTP request and process the response body incrementally.
                         .response::<200, Json<ThinkingSpaceInsightsResponse>>()
                 }),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -950,20 +909,17 @@ async fn get_thinking_space_insights(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::model_test_helpers::{
-            get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
-        },
-        routes::workflow_steps::dto::WorkflowStepDto,
-        test_helpers::thinking_space_tool_config,
-    };
-
     use super::*;
-
-    use std::error::Error;
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+    };
+    use crate::routes::workflow_steps::dto::WorkflowStepDto;
+    use crate::test_helpers::thinking_space_tool_config;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_thinking_space_answer_via_api(

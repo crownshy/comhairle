@@ -1,47 +1,28 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
-	import TabContent from './TabContent.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import { sectionHeader } from './sectionHeader';
+	import { SCROLL_REGION_CLASS, STEP_PAGE_CLASS } from './styles';
+	import { cn } from '$lib/utils';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ArrowUpRight, MoreHorizontal, Eye, ExternalLink, Check, CircleX } from 'lucide-svelte';
-	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
-	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
-	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
-	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
 	import EventStrip from '$lib/components/EventStrip.svelte';
 	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
-	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
-	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 	import { permissions } from '$lib/permissions.svelte';
+	import { isFullBleedStepPage, stepIdFromPath } from './fullBleedStep';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
-	let canLaunch = $derived(
-		permissions.can('conversation', 'conversation_launch', conversation.id)
-	);
-	let canUpdate = $derived(
-		permissions.can('conversation', 'conversation_update', conversation.id)
-	);
-	let displayTitle = $derived(
-		getTextInLocale(
-			conversation.translations?.title,
-			conversation.primaryLocale ?? 'en',
-			conversation.title
-		) || conversation.title
-	);
-	let endModalOpen = $state(false);
-	let launchModalOpen = $state(false);
 
 	// Only the design board itself is full-bleed (it renders its own white card + palette
-	// + scroll region). Every other tab — including the design step config pages under
-	// /design/step/* — keeps the padded, max-width reading column.
+	// + scroll region). Every other tab, including the design step config pages under
+	// /design/step/*, keeps the padded, max-width reading column.
 	let isDesignBoard = $derived(
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
 	);
@@ -83,23 +64,14 @@
 		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
 	});
 
-	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
-	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
-	// server-rendered, rather than injected by the design layout's client `$effect`.
-	let isDesignSection = $derived.by(() => {
-		const base = `/admin/conversations/${conversation.id}/design`;
-		const path = page.url.pathname.replace(/\/+$/, '');
-		return path === base || path.startsWith(`${base}/`);
-	});
-
-	// A workflow step's sub-tabs (Configure/Setup/Moderation/Insights) are real routes, so
+	// A workflow step's sub-tabs (Configure/Setup/Insights) are real routes, so
 	// navigating between them changes the pathname. That's *not* a section switch: Row 3, Row 4
 	// and the content shell all stay mounted while only the inner page swaps. Collapsing the
 	// sub-tab segment off a step path lets `switchingSection` tell the two apart.
 	function sectionKey(pathname: string): string {
 		return pathname
 			.replace(/\/+$/, '')
-			.replace(/(\/design\/step\/[^/]+)\/(configure|setup|moderation|insights)$/, '$1');
+			.replace(/(\/design\/step\/[^/]+)\/(configure|setup|insights)$/, '$1');
 	}
 
 	// A pending navigation to a *different* section or step (its `sectionKey` changes, unlike
@@ -125,172 +97,37 @@
 	let primaryStripSkeleton = $derived(
 		conversationPrimaryStripSkeleton(effectivePathname, conversation.id)
 	);
+
+	// Follows the navigation target so the header changes together with the skeleton below it.
+	let headerSteps = $derived(
+		(data.workflowSteps ?? []).map((step) => ({
+			id: step.id,
+			name: step.name,
+			toolType: (conversation.isLive ? step.toolConfig : step.previewToolConfig)?.type
+		}))
+	);
+	let header = $derived(sectionHeader(effectivePathname, conversation, headerSteps));
+
+	let headerFullBleed = $derived.by(() => {
+		const stepId = stepIdFromPath(effectivePathname);
+		const toolType = headerSteps.find((step) => step.id === stepId)?.toolType;
+		const canEdit = permissions.can('conversation', 'conversation_update', conversation.id);
+		return isFullBleedStepPage(effectivePathname, toolType, canEdit);
+	});
 </script>
 
-<!-- Row 1: conversation title + launch controls -->
-<div
-	class="border-border bg-background md:pl-gutter flex w-full shrink-0 items-center justify-between border-b py-2 pr-3 pl-14 md:pr-6"
->
-	<h1
-		class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]"
-		title={displayTitle}
-	>
-		{displayTitle}
-	</h1>
-
-	<!-- Mobile actions: single more-menu -->
-	<div class="flex shrink-0 items-center lg:hidden">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger
-				class="bg-primary/20 hover:bg-primary/30 inline-flex size-9 items-center justify-center rounded-full"
-				aria-label="Actions"
-			>
-				<MoreHorizontal class="size-4" />
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end" class="w-56">
-				<DropdownMenu.Item>
-					<a
-						href={`/conversations/${conversation.id}/preview`}
-						target="_blank"
-						class="flex w-full items-center gap-2"
-					>
-						<Eye class="size-4" />
-						Preview
-					</a>
-				</DropdownMenu.Item>
-				{#if conversation.isLive}
-					<DropdownMenu.Item>
-						<a
-							href={`/conversations/${conversation.id}`}
-							class="flex w-full items-center gap-2"
-						>
-							<ExternalLink class="size-4" />
-							Live Conversation Link
-						</a>
-					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					{#if !conversation.isComplete}
-						<DropdownMenu.Item
-							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
-							disabled={!canLaunch}
-							onclick={() => (endModalOpen = true)}
-						>
-							<CircleX class="text-destructive size-4" />
-							End Conversation
-						</DropdownMenu.Item>
-					{:else}
-						<DropdownMenu.Item
-							disabled={!canLaunch}
-							onclick={() => (endModalOpen = true)}
-						>
-							<Check class="size-4" />
-							Re-open Conversation
-						</DropdownMenu.Item>
-					{/if}
-				{:else}
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item
-						disabled={!canLaunch}
-						onclick={() => (launchModalOpen = true)}
-					>
-						<ArrowUpRight class="size-4" />
-						Launch Conversation
-					</DropdownMenu.Item>
-				{/if}
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
-
-	<!-- Desktop actions -->
-	<div class="hidden shrink-0 items-center gap-4 md:flex">
-		<Button
-			href={`/conversations/${conversation.id}/preview`}
-			target="_blank"
-			variant="secondary"
-			class="bg-primary/20 text-foreground hover:bg-primary/30 inline-flex h-10 rounded-full px-4 text-sm"
-		>
-			Preview
-			<ArrowUpRight class="size-4" />
-		</Button>
-
-		{#if conversation.isLive}
-			{#if !conversation.isComplete}
-				<span
-					class="bg-primary text-primary-foreground inline-flex h-10 items-center gap-2 rounded-full py-1 pr-1 pl-5 text-sm font-medium"
-				>
-					Launched
-					<span
-						class="bg-primary-foreground text-primary inline-flex size-8 items-center justify-center rounded-full"
-					>
-						<Check class="size-4" strokeWidth={3} />
-					</span>
-				</span>
-			{/if}
-
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class="bg-primary/20 hover:bg-primary/30 inline-flex size-10 items-center justify-center rounded-full"
-					aria-label="More actions"
-				>
-					<MoreHorizontal class="size-4" />
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end" class="w-56">
-					<DropdownMenu.Item>
-						<a
-							href={`/conversations/${conversation.id}`}
-							class="flex w-full items-center gap-2"
-						>
-							<ExternalLink class="size-4" />
-							Live Conversation Link
-						</a>
-					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					{#if !conversation.isComplete}
-						<DropdownMenu.Item
-							class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
-							disabled={!canLaunch}
-							onclick={() => (endModalOpen = true)}
-						>
-							<CircleX class="text-destructive size-4" />
-							End Conversation
-						</DropdownMenu.Item>
-					{:else}
-						<DropdownMenu.Item
-							disabled={!canLaunch}
-							onclick={() => (endModalOpen = true)}
-						>
-							<Check class="size-4" />
-							Re-open Conversation
-						</DropdownMenu.Item>
-					{/if}
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
-		{:else}
-			<Button
-				variant="default"
-				class="h-10"
-				disabled={!canLaunch}
-				onclick={() => (launchModalOpen = true)}
-			>
-				Launch Conversation
-			</Button>
-		{/if}
-	</div>
-</div>
-
-<!-- Modals (triggered programmatically from mobile dropdown or desktop UI) -->
-<EndConversationModal {conversation} bind:open={endModalOpen} hideTrigger />
-<LaunchConversationModal
-	conversation_id={conversation.id}
-	bind:open={launchModalOpen}
-	hideTrigger
-/>
-
-<!-- Rows 2–4: section tabs + injected sub-strips. shrink-0 so these fixed headers keep
-	 their height inside the viewport-capped `main` (otherwise flexbox compresses them). -->
+<!-- The sidebar picks the section (ADR-0052); the header names it and the strips below pick
+	 within it. shrink-0 keeps their height inside the viewport-capped `main`. -->
 <div class="flex shrink-0 flex-col">
-	<!-- Row 2: section tabs -->
-	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
+	{#if conversation.isComplete}
+		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
+			<p class="text-destructive text-sm">This conversation has closed</p>
+		</div>
+	{/if}
+
+	{#if header}
+		<SectionHeader {...header} fullBleed={headerFullBleed} />
+	{/if}
 
 	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
 		 (keyed off the pathname), never injected from a child `$effect`. Once a switch has run long
@@ -302,14 +139,10 @@
 				widths={primaryStripSkeleton.widths}
 			/>
 		{/if}
-	{:else if isDesignSection}
-		<WorkflowStepStrip
-			conversationId={conversation.id}
-			steps={data.workflowSteps}
-			onAddStep={canUpdate ? () => (addStepDialog.open = true) : undefined}
-		/>
 	{:else if isInvitesSection}
-		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
+		<div data-tour="invite-subtabs">
+			<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
+		</div>
 	{:else if isEventsSection}
 		<EventStrip conversationId={conversation.id} events={data.events} />
 	{/if}
@@ -317,19 +150,13 @@
 	{#if isEventDetailPage && !showSwitchingSkeleton.current}
 		<SubTabStrip items={EVENT_SUBTABS} defaultValue="details" />
 	{/if}
-
-	{#if conversation.isComplete}
-		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
-			<p class="text-destructive text-sm">This conversation has closed</p>
-		</div>
-	{/if}
 </div>
 
 {#if isDesignBoard}
-	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
+	<div class="bg-admin-background flex min-h-0 grow flex-col overflow-hidden">
 		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
-				<div class="w-full max-w-300">
+				<div class="max-w-admin mx-auto w-full">
 					<TabContentSkeleton />
 				</div>
 			</div>
@@ -341,24 +168,27 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
-			<div class="h-full w-full max-w-300">
+		<div class={cn(STEP_PAGE_CLASS, SCROLL_REGION_CLASS)}>
+			<div class="max-w-admin mx-auto min-h-full w-full">
 				<TabContentSkeleton />
 			</div>
 		</div>
 	{:else}
 		{@render children()}
 	{/if}
+{:else if isConfigureSection && !showSwitchingSkeleton.current}
+	<!-- Configure renders its own tab strip, so it scrolls the region under that strip itself. -->
+	<div class="bg-admin-background flex grow flex-col md:min-h-0">
+		{@render children()}
+	</div>
 {:else}
-	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
-		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-admin-background grow">
+	<!-- From md up only this region scrolls, so the header and strips above stay put. On a
+		 phone they would take too much of the screen, so `main` scrolls everything. -->
+	<div class={cn('bg-admin-background', SCROLL_REGION_CLASS)}>
 		{#if showSwitchingSkeleton.current}
 			<TabContent>
 				<TabContentSkeleton />
 			</TabContent>
-		{:else if isConfigureSection}
-			{@render children()}
 		{:else}
 			<TabContent>
 				{@render children()}

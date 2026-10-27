@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use aide::axum::ApiRouter;
@@ -10,28 +11,32 @@ use axum::http::StatusCode;
 use axum::middleware::{Next, from_fn_with_state};
 use axum::response::Response;
 use schemars::JsonSchema;
+use sensemakar_jobs::WikiPollSummaryJob;
+use sensemakar_types::{WikiPollData, WikiPollStatement, WikiPollVoteSummary};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::job::CreateJob;
+use crate::models::moderation_policy::{self, PublishedReason};
+use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::conversation::Action;
-use crate::models::polis_statement_aux;
 use crate::models::polis_statement_aux::{
     CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
     PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
 };
 use crate::models::polis_statement_translation::PolisStatementTranslation;
-use crate::models::{self};
-use crate::routes::auth::RequiredUser;
+use crate::models::wikipoll_conversation_summary::WikiPollConversationSummary;
+use crate::models::{self, polis_statement_aux};
+use crate::routes::auth::{RequiredAdminUser, RequiredUser};
+use crate::wiki_poll_service::polis_service::WikiPollReport;
 use crate::wiki_poll_service::{
     ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
-    polis_service::WikiPollReport,
 };
-
-use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 #[derive(Deserialize)]
 struct PolisWorkflowStepPermissionBody {
@@ -164,7 +169,7 @@ pub struct PolisToolConfig {
     pub admin_user: String,
     pub admin_password: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
@@ -182,9 +187,11 @@ pub struct PolisToolConfig {
     // defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
+    #[serde(default = "default_true")]
+    pub notify_moderators: bool,
 }
 
-fn default_show_remaining_statements() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -202,6 +209,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             moderation_policy_id: self.moderation_policy_id,
+            notify_moderators: self.notify_moderators,
         }
     }
 }
@@ -210,7 +218,7 @@ impl ToolConfigSanitize for PolisToolConfig {
 pub struct PolisToolSetup {
     pub topic: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
 }
 
@@ -274,7 +282,7 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
                 "/polis/report_data",
@@ -299,6 +307,21 @@ impl ToolImpl for PolisTool {
                              required-votes progress from server data.",
                         )
                         .response::<200, Json<VoteCountResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/moderation_policy",
+                get_with(get_published_moderation_policy, |op| {
+                    op.id("PolisGetPublishedModerationPolicy")
+                        .tag("Tools")
+                        .summary("Get the moderation policy participants can read for a step")
+                        .description(
+                            "Lists the reject reasons (label and description) the step's \
+                             moderators pick from, so participants can read the rules before \
+                             they write a statement. Reads the draft config when preview is \
+                             set or the step isn't launched.",
+                        )
+                        .response::<200, Json<Vec<PublishedReason>>>()
                 }),
             )
             .api_route(
@@ -541,6 +564,47 @@ impl ToolImpl for PolisTool {
                 )),
             )
             .api_route(
+                "/polis/summary",
+                post_with(request_summary, |op| {
+                    op.id("PolisRequestSummary")
+                        .tag("Tools")
+                        .summary("Kick off a Polis conversation summary")
+                        .description(
+                            "Fetches the current Polis report data for a workflow step and \
+                             queues a background job that generates a group/consensus/ \
+                             disagreement summary with the sensemaking worker. Returns the \
+                             id of the job used to track progress (GET /jobs/{job_id}).",
+                        )
+                        .response::<202, Json<RequestSummaryResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/summary/latest",
+                get_with(get_latest_summary, |op| {
+                    op.id("PolisGetLatestSummary")
+                        .tag("Tools")
+                        .summary("Get the most recent Polis summary for a step")
+                        .description(
+                            "Returns the most recently generated wiki_poll_conversation_summary \
+                             row for the given workflow step, or 404 if none exists yet.",
+                        )
+                        .response::<200, Json<WikiPollConversationSummary>>()
+                }),
+            )
+            .api_route(
+                "/polis/summary/history",
+                get_with(list_summaries, |op| {
+                    op.id("PolisListSummaries")
+                        .tag("Tools")
+                        .summary("List previous Polis summaries for a step")
+                        .description(
+                            "Returns past wiki_poll_conversation_summary rows for the given \
+                             workflow step, newest first, paginated.",
+                        )
+                        .response::<200, Json<PaginatedResults<WikiPollConversationSummary>>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_aux/{id}/split",
                 post_with(split_statement, |op| {
                     op.id("PolisSplitStatement")
@@ -561,7 +625,6 @@ impl ToolImpl for PolisTool {
                     authorize_polis_statement,
                 )),
             )
-            .with_state(state.clone())
     }
 }
 
@@ -607,9 +670,9 @@ pub enum PolisError {
     ProxyError { from: String, to: String },
 }
 
-impl Into<StatusCode> for &PolisError {
-    fn into(self) -> StatusCode {
-        match self {
+impl From<&PolisError> for StatusCode {
+    fn from(val: &PolisError) -> Self {
+        match val {
             PolisError::Http(err) => {
                 if let Some(status) = err.status() {
                     status
@@ -638,7 +701,8 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    pub gatekeeperTosPrivacy: bool,
+    #[serde(rename = "gatekeeperTosPrivacy")]
+    pub gatekeeper_tos_privacy: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -790,6 +854,45 @@ async fn get_user_vote_count(
     };
 
     Ok((StatusCode::OK, Json(VoteCountResponse { vote_count })))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct PublishedModerationPolicyQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(default)]
+    pub preview: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_published_moderation_policy(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<PublishedModerationPolicyQuery>,
+) -> Result<(StatusCode, Json<Vec<PublishedReason>>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &query.workflow_step_id).await?;
+
+    let config = match (query.preview, workflow_step.tool_config) {
+        (false, Some(live)) => live,
+        _ => workflow_step.preview_tool_config,
+    };
+    let ToolConfig::Polis(config) = config else {
+        return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()));
+    };
+
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+
+    let reasons = moderation_policy::published_reasons_for_step(
+        &state.db,
+        conversation_id,
+        config.moderation_policy_id,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(reasons)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -975,6 +1078,165 @@ fn spawn_statement_translations(
             tracing::warn!(?err, %aux_id, "background statement translation failed");
         }
     });
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct RequestSummaryRequest {
+    pub workflow_step_id: Uuid,
+    pub context: Option<String>,
+    pub additional_instructions: Option<String>,
+    pub reading_age_target: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct RequestSummaryResponse {
+    pub job_id: Uuid,
+}
+
+/// Maps the live Polis report data into the shape the sensemaking describer
+/// expects, so the worker gets an exact, reproducible snapshot of what was
+/// summarized.
+fn wiki_poll_data_from_report(title: String, report: WikiPollReport) -> WikiPollData {
+    let statements = report
+        .comments
+        .into_iter()
+        .map(|comment| WikiPollStatement {
+            statement: comment.text,
+            total_votes: WikiPollVoteSummary {
+                agree: comment.overall_votes.agrees,
+                disagree: comment.overall_votes.disagrees,
+                pass: comment.overall_votes.passes,
+            },
+            group_votes: comment
+                .group_votes
+                .into_iter()
+                .map(|group| {
+                    (
+                        group.group_id.to_string(),
+                        WikiPollVoteSummary {
+                            agree: group.agrees,
+                            disagree: group.disagrees,
+                            pass: group.passes,
+                        },
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
+        })
+        .collect();
+
+    WikiPollData { title, statements }
+}
+
+/// Fetches the current Polis report for a step and queues a background job
+/// that generates a summary with the sensemaking worker. Progress is tracked
+/// through the returned job id via the existing `GET /jobs/{job_id}`.
+#[instrument(err(Debug), skip(state))]
+async fn request_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Json(request): Json<RequestSummaryRequest>,
+) -> Result<(StatusCode, Json<RequestSummaryResponse>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
+    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let scope = if config.strict_moderation.unwrap_or(false) {
+        ReportScope::AcceptedOnly
+    } else {
+        ReportScope::AcceptedAndPending
+    };
+
+    let report = state
+        .wiki_poll_service
+        .get_report_data(&config.poll_id, scope)
+        .await?;
+
+    let title = config.topic.clone().unwrap_or_default();
+    let poll_data = wiki_poll_data_from_report(title, report);
+
+    let created_job = models::job::create(
+        &state.db,
+        CreateJob {
+            step: Some("wiki_poll_summary".to_string()),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let worker_service = state.required_worker_service()?;
+    worker_service
+        .push_wiki_poll_summary_job(WikiPollSummaryJob {
+            job_id: created_job.id,
+            workflow_step_id: request.workflow_step_id,
+            context: request.context,
+            additional_instructions: request.additional_instructions,
+            reading_age_target: request.reading_age_target,
+            poll_data,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(RequestSummaryResponse {
+            job_id: created_job.id,
+        }),
+    ))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SummaryQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_latest_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(SummaryQuery { workflow_step_id }): Query<SummaryQuery>,
+) -> Result<(StatusCode, Json<WikiPollConversationSummary>), ComhairleError> {
+    let summary = models::wikipoll_conversation_summary::get_latest_by_workflow_step_id(
+        &state.db,
+        workflow_step_id,
+    )
+    .await?
+    .ok_or_else(|| ComhairleError::ResourceNotFound("Polis summary".into()))?;
+
+    Ok((StatusCode::OK, Json(summary)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SummaryHistoryQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(flatten)]
+    pub page: PageOptions,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_summaries(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<SummaryHistoryQuery>,
+) -> Result<
+    (
+        StatusCode,
+        Json<PaginatedResults<WikiPollConversationSummary>>,
+    ),
+    ComhairleError,
+> {
+    let summaries = models::wikipoll_conversation_summary::list_by_workflow_step_id(
+        &state.db,
+        query.workflow_step_id,
+        query.page,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(summaries)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1258,7 +1520,7 @@ pub async fn sync_statement_aux_inner(
 
         // Polis carries no source-language metadata, so detect it (no client
         // hint is available on this path).
-        let source_locale = resolve_source_locale(&state, None, &comment.txt, primary_locale).await;
+        let source_locale = resolve_source_locale(state, None, &comment.txt, primary_locale).await;
 
         let aux = models::polis_statement_aux::upsert_from_polis(
             &state.db,
@@ -1276,7 +1538,7 @@ pub async fn sync_statement_aux_inner(
         )
         .await?;
 
-        spawn_statement_translations(&state, &aux, &source_locale, &supported_languages);
+        spawn_statement_translations(state, &aux, &source_locale, supported_languages);
 
         statements.push(aux);
     }
@@ -1681,6 +1943,7 @@ pub async fn launch(
             // None is a preview created before the mirror existed, so its real
             // Polis value is unknown. Go live moderated rather than guess.
             strict_moderation: preview_config.strict_moderation.unwrap_or(true),
+            notify_moderators: preview_config.notify_moderators,
         },
         &preview_config.server_url,
         client,
@@ -1716,6 +1979,7 @@ struct PolisPollSettings {
     topic: Option<String>,
     description: Option<String>,
     strict_moderation: bool,
+    notify_moderators: bool,
 }
 
 impl Default for PolisPollSettings {
@@ -1724,6 +1988,7 @@ impl Default for PolisPollSettings {
             topic: None,
             description: None,
             strict_moderation: true,
+            notify_moderators: true,
         }
     }
 }
@@ -1769,6 +2034,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(settings.strict_moderation),
         moderation_policy_id: None,
+        notify_moderators: settings.notify_moderators,
     })
 }
 
@@ -1777,24 +2043,19 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    use axum::Router;
     use serde_json::json;
     use sqlx::PgPool;
 
-    use crate::{
-        models::{
-            model_test_helpers::setup_default_app_and_session,
-            polis_statement_aux::{self, CreatePolisStatementAux},
-        },
-        setup_server,
-        test_helpers::{UserSession, extract, polis_tool_config, test_state},
-        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
-    };
-
     use super::*;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::models::polis_statement_aux::{self, CreatePolisStatementAux};
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
+    use crate::wiki_poll_service::error::WikiPollServiceError;
+    use crate::wiki_poll_service::{MockWikiPollService, WikiPollService};
 
     async fn setup_polis_aux(
-        app: &Router,
+        app: &crate::App,
         pool: &PgPool,
         session: &mut UserSession,
         themes: Vec<String>,
@@ -1851,8 +2112,9 @@ mod tests {
     async fn moderation_middleware_enforces_conversation_roles(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        use crate::models::permissions::conversation::Role;
         use crate::models::permissions::{
-            self, ActorId, GrantRoleRequest, PermissionRole, RevokeRoleRequest, conversation::Role,
+            self, ActorId, GrantRoleRequest, PermissionRole, RevokeRoleRequest,
         };
 
         let state = Arc::new(test_state().db(pool.clone()).call()?);
@@ -2091,7 +2353,7 @@ mod tests {
 
     /// Create a conversation + workflow + Polis workflow step, returning the step id.
     async fn setup_polis_step(
-        app: &Router,
+        app: &crate::App,
         session: &mut UserSession,
     ) -> Result<Uuid, Box<dyn Error>> {
         let (_, conversation, _) = session.create_random_conversation(app).await?;
@@ -2319,6 +2581,132 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn request_summary_queues_job_and_fetches_report_data(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::wiki_poll_service::polis_service::{
+            CommentReportData, VoteCounts, WikiPollReport,
+        };
+
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("test_poll_id".to_string()) }));
+        service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
+        service.expect_get_report_data().returning(|_, _| {
+            Box::pin(async {
+                Ok(WikiPollReport {
+                    comments: vec![CommentReportData {
+                        tid: 1,
+                        text: "a statement".into(),
+                        overall_votes: VoteCounts {
+                            agrees: 3,
+                            disagrees: 1,
+                            passes: 0,
+                        },
+                        group_votes: vec![],
+                        group_informed_consensus: None,
+                        divisiveness: None,
+                        is_seed: false,
+                    }],
+                    groups: vec![],
+                    participants: vec![],
+                })
+            })
+        });
+
+        let state = test_state()
+            .db(pool.clone())
+            .wiki_poll_service(Arc::new(service) as Arc<dyn WikiPollService>)
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                "/tools/polis/summary",
+                json!({ "workflow_step_id": workflow_step_id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::ACCEPTED);
+        let response: RequestSummaryResponse = serde_json::from_value(value)?;
+
+        let job = models::job::get_id_id(&pool, &response.job_id).await?;
+        assert_eq!(job.step.as_deref(), Some("wiki_poll_summary"));
+        assert_eq!(job.status.as_deref(), Some("pending"));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn latest_summary_404s_until_one_exists_then_history_lists_it(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::wikipoll_conversation_summary::{
+            CreateWikiPollConversationSummary, create,
+        };
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+
+        let (status, _, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/latest?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::NOT_FOUND, "no summary exists yet");
+
+        create(
+            &pool,
+            &CreateWikiPollConversationSummary {
+                workflow_step_id,
+                job_id: None,
+                poll_data: json!({ "title": "t", "statements": [] }),
+                result: json!({ "consensus_description": "agreed on things" }),
+            },
+        )
+        .await?;
+
+        let (status, value, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/latest?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let latest: WikiPollConversationSummary = serde_json::from_value(value)?;
+        assert_eq!(latest.workflow_step_id, workflow_step_id);
+
+        let (status, value, _) = session
+            .get(
+                &app,
+                &format!("/tools/polis/summary/history?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let history: PaginatedResults<WikiPollConversationSummary> = serde_json::from_value(value)?;
+        assert_eq!(history.total, 1);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn batch_moderate_rejects_ids_from_different_steps(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2355,6 +2743,7 @@ mod tests {
     }
 
     /// A Polis mock that records every config update it is sent.
+    #[allow(clippy::type_complexity, reason = "Only features in test helper")]
     fn poll_service_recording_updates() -> (
         Arc<dyn WikiPollService>,
         Arc<std::sync::Mutex<Vec<(String, WikiPollConfigUpdate)>>>,
@@ -2404,6 +2793,7 @@ mod tests {
             is_active: Some(true),
             strict_moderation: Some(false),
             moderation_policy_id: Some(Uuid::new_v4()),
+            notify_moderators: true,
         }
     }
 

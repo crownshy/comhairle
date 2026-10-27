@@ -107,7 +107,7 @@
 
 	--nav-text: #f2f5ed;
 	--nav-background: #f2f5ed;
-	--admin-background: #f7f9f4;
+	--admin-background: #fafaf8;
 	--mutted: #171f0f;
 	--sidebar-radius: 10px;
 
@@ -131,6 +131,11 @@
 	--vote-not-voted-border: #e5e7eb;
 
 	--beeswarm-dot: #030712;
+
+	/* One value in every theme, like --beeswarm-dot, and not in the Figma Themes collection.
+	   Kept apart from primary, which the Proceed button under it uses (ADR-0064). */
+	--step-complete: #2a9d90;
+	--step-complete-foreground: #ffffff;
 }
 
 .dark {
@@ -170,6 +175,7 @@
 	--sidebar-secondary: #6b9b3a;
 	--sidebar-active-bg: #070b04;
 	--nav-background: var(--background);
+	--admin-background: #0e0e0d;
 
 	--chat-primary: #7cb342;
 	--chat-neutral: #99a88a;
@@ -209,7 +215,7 @@
 	--secondary: #f3f4f6;
 	--secondary-foreground: #252622;
 	--muted: #f3f4f6;
-	--muted-foreground: #6b7280;
+	--muted-foreground: #4b5563;
 	--subtle-foreground: #9ca3af;
 	--accent: #ebf1ff;
 	--accent-foreground: #111827;
@@ -543,6 +549,10 @@
 	/* Breathing room above admin page content (below the fixed tab header). `pt-page-top`. */
 	--spacing-page-top: 2rem; /* 32px */
 
+	/* Width of the admin reading column. On wide screens the header, tabs and page content
+	   all centre on this one column; narrower screens just keep the gutter. `max-w-admin`. */
+	--container-admin: 72rem; /* 1152px */
+
 	--radius: 0.5rem;
 	--radius-xs: calc(0.5rem - 6px);
 	--radius-sm: calc(0.5rem - 4px);
@@ -625,6 +635,8 @@
 
 	--color-seed-highlight: var(--seed-highlight);
 	--color-seed-highlight-bg: var(--seed-highlight-bg);
+	--color-step-complete: var(--step-complete);
+	--color-step-complete-foreground: var(--step-complete-foreground);
 	--color-participant-highlight: var(--participant-highlight);
 	--color-participant-highlight-bg: var(--participant-highlight-bg);
 
@@ -640,4 +652,12 @@
 	--shadow-lg: var(--shadow-lg);
 	--shadow-xl: var(--shadow-xl);
 	--shadow-2xl: var(--shadow-2xl);
+}
+
+/* Focus indicator: a light inner band and a dark outer band, so one of them clears 3:1 against
+   any surface in any theme. Declared for .dark too, so a dark-mode override can't miss it. */
+:root,
+.dark {
+	--focus-ring-inner: #f9f9f9;
+	--focus-ring-outer: #193146;
 }

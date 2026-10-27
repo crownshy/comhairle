@@ -1,28 +1,19 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with, put_with},
-};
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with, put_with};
+use axum::Json;
+use axum::extract::{Path, State};
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    error::ComhairleError,
-    models::{
-        self,
-        report_impact::{CreateImpactDTO, PartialReportImpact},
-    },
-    routes::report_impacts::dto::ReportImpactDto,
-};
-
 use super::auth::RequiredAdminUser;
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::report_impact::{CreateImpactDTO, PartialReportImpact};
+use crate::models::{self};
+use crate::routes::report_impacts::dto::ReportImpactDto;
 
 pub mod dto;
 
@@ -77,7 +68,7 @@ async fn list_impacts_for_conversation(
     Ok((StatusCode::OK, Json(impacts)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -103,5 +94,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<Vec<ReportImpactDto>>>()
             }),
         )
-        .with_state(state)
 }

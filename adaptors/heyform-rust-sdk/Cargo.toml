@@ -9,6 +9,9 @@ keywords = ["graphql", "forms", "api", "heyform"]
 categories = ["api-bindings", "web-programming"]
 rust-version = { "workspace" = true }
 
+[lints]
+workspace = true
+
 [dependencies]
 chrono = "0.4.42"
 graphql_client = { version = "0.14", features = ["reqwest"] }

@@ -1,24 +1,26 @@
+use std::error::Error;
+use std::sync::Arc;
+
 use aws_config::BehaviorVersion;
+use comhairle::bot_service::{ComhairleBotService, ComhairleRagBotService};
+use comhairle::bulk_storage_service::BulkStorageService;
+use comhairle::bulk_storage_service::s3_storage::S3StorageService;
+use comhairle::categorization_service::CategorizationService;
+use comhairle::categorization_service::tttc_categorizer::TttcCategorizer;
+use comhairle::config::{TranscriptionServiceConfig, TranslatorConfig};
+use comhairle::db::setup_db;
+use comhairle::mailer::Mailer;
 use comhairle::redis_connection::RedisImpl;
-use comhairle::{
-    ComhairleState,
-    bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage_service::{BulkStorageService, s3_storage::S3StorageService},
-    categorization_service::{CategorizationService, tttc_categorizer::TttcCategorizer},
-    config::{TranscriptionServiceConfig, TranslatorConfig},
-    db::setup_db,
-    mailer::Mailer,
-    setup_server,
-    transcription_service::amazon_transcriber::AmazonTranscriber,
-    translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService,
-    websockets::handlers::video_call::VideoCallMessageHandler,
-    wiki_poll_service::polis_service::PolisClient,
-    worker_service::{init_monitor, init_worker_service},
-};
+use comhairle::transcription_service::amazon_transcriber::AmazonTranscriber;
+use comhairle::translation_service::GoogleTranslateService;
+use comhairle::websockets::ComhairleWebSocketService;
+use comhairle::websockets::handlers::video_call::VideoCallMessageHandler;
+use comhairle::wiki_poll_service::polis_service::PolisClient;
+use comhairle::worker_service::{init_monitor, init_worker_service};
+use comhairle::{ComhairleState, setup_server};
 use redis::aio::ConnectionManagerConfig;
-use std::{error::Error, sync::Arc};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() {
@@ -75,6 +77,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         &config.mailer.host,
         &config.mailer.user,
         &config.mailer.password,
+        config.logo_url.as_deref(),
     ));
 
     // Setup Websocket service
@@ -121,9 +124,12 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
-    let (worker_service, storage) = match init_worker_service(&config.worker_service).await {
-        Some((worker_service, storage)) => (Some(worker_service), Some(storage)),
-        _ => (None, None),
+    let workers = match &config.worker_service {
+        Some(ws_config) => {
+            let (worker_service, storage) = init_worker_service(ws_config).await?;
+            Some((worker_service, storage))
+        }
+        _ => None,
     };
 
     let categorization_service = config.categorization_service.as_ref().map(|config| {
@@ -171,7 +177,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
         transcription_service,
         bot_service,
         wiki_poll_service,
-        worker_service,
+        worker_service: workers.as_ref().map(|w| w.0.clone()),
         bulk_storage_service,
         categorization_service,
         redis_conn,
@@ -184,22 +190,25 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
     let server_future = async move {
         // run our app with hyper
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+        tracing::info!("listening on {}", listener.local_addr()?);
+        // `App` wraps the router in `NormalizePath`, so the method comes from
+        // `axum::ServiceExt` rather than `Router`
         axum::serve(
             listener,
-            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            axum::ServiceExt::<axum::extract::Request>::into_make_service_with_connect_info::<
+                std::net::SocketAddr,
+            >(app),
         )
         .await
-        .unwrap();
     };
 
-    let worker_future = init_monitor(storage, &state);
+    let worker_future = init_monitor(workers.map(|w| w.1), &state);
 
     if let Some(worker_future) = worker_future {
-        let _ = tokio::join!(server_future, worker_future);
+        let _ = tokio::try_join!(server_future, worker_future)?;
     } else {
-        server_future.await;
+        server_future.await?;
     }
 
     Ok(())

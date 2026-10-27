@@ -1,8 +1,11 @@
-use std::{error::Error, sync::Arc};
+use std::error::Error;
+use std::sync::Arc;
 
-use crate::models::permissions::{
-    ActorId, GrantRoleRequest, PermissionRole, grant_role, system::Role,
-};
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use crate::models::permissions::system::Role;
+use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
 use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
@@ -11,14 +14,10 @@ use crate::routes::workflows::dto::WorkflowDto;
 use crate::setup_server;
 use crate::test_helpers::{UserSession, test_state};
 
-use axum::Router;
-use sqlx::PgPool;
-use uuid::Uuid;
-
-/// Sets up a default app `Router` and `UserSession` for testing.
+/// Sets up a default `App` and `UserSession` for testing.
 pub async fn setup_default_app_and_session(
     pool: &PgPool,
-) -> Result<(Router, UserSession), Box<dyn Error>> {
+) -> Result<(crate::App, UserSession), Box<dyn Error>> {
     let state = Arc::new(test_state().db(pool.clone()).call()?);
     let app = setup_server(state.clone()).await?;
 
@@ -47,7 +46,7 @@ pub async fn setup_default_app_and_session(
 
 /// Creates a new workflow with a random name and returns the ID.
 pub async fn get_random_workflow_id(
-    app: &Router,
+    app: &crate::App,
     session: &mut UserSession,
     conversation_id: &Uuid,
 ) -> Result<Uuid, Box<dyn Error>> {
@@ -64,7 +63,7 @@ pub async fn get_random_workflow_id(
 
 /// Creates a new conversation with a random name and returns the ID.
 pub async fn get_random_conversation_id(
-    app: &Router,
+    app: &crate::App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (_, response, _) = session.create_random_conversation(app).await?;
@@ -75,7 +74,7 @@ pub async fn get_random_conversation_id(
 
 /// Creates a new anonymous user and returns the ID.
 pub async fn get_random_user_id(
-    app: &Router,
+    app: &crate::App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (_, response, _) = session.signup_guest(app).await?;
@@ -86,7 +85,7 @@ pub async fn get_random_user_id(
 
 /// Creates a new organization and returns the ID.
 pub async fn get_random_organization_id(
-    app: &Router,
+    app: &crate::App,
     session: &mut UserSession,
 ) -> Result<Uuid, Box<dyn Error>> {
     let (status, response, _) = session.create_random_organization(app).await?;

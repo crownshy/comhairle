@@ -18,7 +18,8 @@ use crate::models::demographics::{
     DemographicsResponsesFilterOptions, PartialDemographicsQuestion, PartialDemographicsResponse,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::permissions::{can_perform_action, conversation::Action};
+use crate::models::permissions::can_perform_action;
+use crate::models::permissions::conversation::Action;
 use crate::models::users::User;
 use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 
@@ -243,9 +244,9 @@ pub async fn delete_demographics_response(
 // Routes for demographics
 // ============================================================================
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-    .nest_api_service(
+    .nest(
         "/conversations_questions",
         ApiRouter::new()
             .api_route("/", get_with(get_conversation_demographics, |op| {
@@ -264,7 +265,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<201, Json<ConversationDemographics>>()
             }))
-            .api_route("/{conversation_id}/{question_slug}/", delete_with(delete_conversation_demographics, |op| {
+            .api_route("/{conversation_id}/{question_slug}", delete_with(delete_conversation_demographics, |op| {
                 op.id("DeleteConversationDemographicsByQuestion")
                     .tag("Demographics")
                     .summary("Delete conversation demographics by question")
@@ -272,9 +273,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<Option<ConversationDemographics>>>()
             }))
-            .with_state(state.clone())
     )
-    .nest_api_service(
+    .nest(
         "/questions",
         ApiRouter::new()
             .api_route("/", get_with(get_demographics_questions, |op| {
@@ -309,9 +309,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<Option<DemographicsQuestion>>>()
             }))
-            .with_state(state.clone())
         )
-        .nest_api_service(
+        .nest(
             "/responses",
             ApiRouter::new()
                 .api_route("/", get_with(get_demographics_responses, |op| {
@@ -346,7 +345,5 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         .security_requirement("JWT")
                         .response::<200, Json<Option<DemographicsResponse>>>()
                 }))
-                .with_state(state.clone())
         )
-        .with_state(state.clone())
 }

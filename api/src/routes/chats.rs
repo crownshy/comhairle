@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, put_with},
-};
-use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, put_with};
+use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -63,7 +59,7 @@ async fn update(
     Ok((StatusCode::OK, Json(chat)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -87,5 +83,4 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<ComhairleChat>>()
             }),
         )
-        .with_state(state)
 }

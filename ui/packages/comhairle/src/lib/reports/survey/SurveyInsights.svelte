@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
-	import Responses from './Responses.svelte';
 	import SurveyBarChart from './SurveyBarChart.svelte';
+	import SurveyFreeTextQuestion from './SurveyFreeTextQuestion.svelte';
 	import type { ChoiceQuestion, NonChoiceQuestion, SurveyQuestion } from './insights-loader';
 	import {
 		isHeyFormChoiceFieldKind,
@@ -10,12 +10,28 @@
 		isHeyFormOtherFieldKind
 	} from '$lib/tools/heyform/guards';
 	import { handleNested } from './attachments';
+	import { Button } from '$lib/components/ui/button';
+	import { Download } from '@lucide/svelte';
+	import { permissions } from '$lib/permissions.svelte';
 
 	interface Props {
 		data: SurveyQuestion[];
+		conversationId: string;
+		workflowId: string;
+		workflowStepId: string;
 	}
 
-	let { data }: Props = $props();
+	let { data, conversationId, workflowId, workflowStepId }: Props = $props();
+
+	const canExport = $derived(
+		permissions.can('conversation', 'conversation_export', conversationId)
+	);
+
+	// Browser-navigated download: cookie auth covers it, and the backend sets
+	// Content-Disposition, so no fetch/Blob plumbing is needed here.
+	const csvExportUrl = $derived(
+		`/api/tools/survey_tool/conversation/${conversationId}/workflow_step/${workflowStepId}/submissions/csv`
+	);
 
 	const isValidQuestion = (section: SurveyQuestion): boolean =>
 		section.kind && !isHeyFormOtherFieldKind(section.kind);
@@ -36,6 +52,12 @@
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
+	<div class="flex justify-end pb-4">
+		<Button href={csvExportUrl} download size="sm" disabled={!canExport}>
+			<Download class="size-4" />
+			Download CSV
+		</Button>
+	</div>
 	{#each data as section (section.id)}
 		{#if isValidQuestion(section)}
 			<div class="py-10" {@attach handleNested(section.properties?.parent)}>
@@ -74,7 +96,14 @@
 						/>
 					{/if}
 					{#if isStringArray(section.answers)}
-						<Responses data={section.answers} />
+						<SurveyFreeTextQuestion
+							{conversationId}
+							{workflowId}
+							{workflowStepId}
+							questionId={section.id}
+							questionTitle={section.title}
+							answers={section.answers}
+						/>
 					{/if}
 				{/if}
 			</div>

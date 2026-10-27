@@ -3,7 +3,8 @@ use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -79,16 +80,17 @@ pub enum AudioRecordingStatus {
     CategorizationFailed,
 }
 
-impl ToString for AudioRecordingStatus {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for AudioRecordingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
             AudioRecordingStatus::AwaitingUpload => "awaiting_upload".to_string(),
             AudioRecordingStatus::Transcribing => "transcribing".to_string(),
             AudioRecordingStatus::Categorizing => "categorizing".to_string(),
             AudioRecordingStatus::Complete => "complete".to_string(),
             AudioRecordingStatus::TranscriptionFailed => "transcription_failed".to_string(),
             AudioRecordingStatus::CategorizationFailed => "categorization_failed".to_string(),
-        }
+        };
+        write!(f, "{}", value)
     }
 }
 
@@ -212,8 +214,7 @@ pub async fn create(
             create_recording.s3_key_prefix.clone().into(),
             create_recording.file_extension.extension().into(),
             AudioRecordingStatus::AwaitingUpload.to_string().into(),
-        ])
-        .unwrap()
+        ])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -352,10 +353,9 @@ pub async fn update_status(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     use std::sync::Arc;
 
+    use super::*;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
@@ -363,7 +363,7 @@ mod tests {
 
     async fn create_random_event(
         session: &mut UserSession,
-        app: &axum::Router,
+        app: &crate::App,
     ) -> Result<EventDto, Box<dyn std::error::Error>> {
         let conversation_response = session.create_random_conversation(app).await?;
         let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;

@@ -8,6 +8,9 @@ repository = "https://github.com/crownshy/comhairle"
 keywords = [ "api", "polis"]
 rust-version = { "workspace" = true }
 
+[lints]
+workspace = true
+
 [dependencies]
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde = { version = "1.0", features = ["derive"] }

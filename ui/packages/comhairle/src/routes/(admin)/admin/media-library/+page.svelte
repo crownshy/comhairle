@@ -13,6 +13,12 @@
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { mediaLibraryTour } from './tour';
+
+	useTour(() => mediaLibraryTour);
 
 	const { data } = $props();
 
@@ -58,10 +64,14 @@
 		>
 	</label>
 {/snippet}
-
-<div class="mx-auto w-11/12 p-10">
-	<header class="flex flex-row items-baseline justify-between lg:w-10/12">
-		<h1 class="text-4xl font-bold">Media library</h1>
+<SectionHeader
+	content={{
+		eyebrow: 'Library',
+		title: 'Media library',
+		description: 'Images, audio and video you can use across your conversations.'
+	}}
+>
+	{#snippet actions()}
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
 				<MediaUpload />
@@ -79,8 +89,11 @@
 				</Button>
 			{/if}
 		</div>
-	</header>
-	<div class="mt-5 flex flex-row gap-4">
+	{/snippet}
+</SectionHeader>
+
+<TabContent>
+	<div data-tour="media-filters" class="flex flex-row gap-4">
 		{@render filterButton('audio')}
 		{@render filterButton('image')}
 		{@render filterButton('video')}
@@ -105,13 +118,13 @@
 									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
 									bind:group={selected}
 								/>
-								<span>
+								<span class="block w-full">
 									<MediaItem {type} {...media} />
 								</span>
 							</label>
 						{:else}
 							<Dialog.Trigger
-								class="inline aspect-video h-full"
+								class="block aspect-video h-full w-full"
 								onclick={() => (details = media)}
 							>
 								<MediaItem {type} {...media} alt="" />
@@ -129,7 +142,7 @@
 			{/if}
 		</Dialog.Root>
 	</div>
-</div>
+</TabContent>
 
 <style>
 	input:checked + * {

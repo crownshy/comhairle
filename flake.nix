@@ -81,6 +81,9 @@
           ];
 
           shellHook = ''
+            if repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+              "$repo_root/.githooks/install-hooks.sh"
+            fi
             echo ""
             echo "Comhairle dev shell ready"
             echo "  rust:    $(rustc --version 2>/dev/null)"

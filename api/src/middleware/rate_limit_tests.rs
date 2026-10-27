@@ -1,14 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use crate::test_helpers::{TEST_PASSWORD, test_state};
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{error::Error, sync::Arc};
     use tower::ServiceExt;
+
+    use crate::test_helpers::{TEST_PASSWORD, test_state};
 
     /// Helper to create test state with rate limiting enabled
     fn test_state_with_rate_limiting(
@@ -23,14 +24,14 @@ mod tests {
     /// Helper to create an app with rate limiting enabled for testing
     async fn setup_rate_limited_server(
         state: Arc<crate::ComhairleState>,
-    ) -> Result<axum::Router, Box<dyn Error>> {
+    ) -> Result<crate::App, Box<dyn Error>> {
         // With config.enable_rate_limiting = true, setup_server will apply rate limiting
         Ok(crate::setup_server(state).await?)
     }
 
     /// Helper to make a signup request with a custom IP address
     async fn signup_request_with_ip(
-        app: &axum::Router,
+        app: &crate::App,
         ip: &str,
         username: &str,
         email: &str,
@@ -55,7 +56,7 @@ mod tests {
 
     /// Helper to make a login request with a custom IP address
     async fn login_request_with_ip(
-        app: &axum::Router,
+        app: &crate::App,
         ip: &str,
         email: &str,
         password: &str,
@@ -331,7 +332,7 @@ mod tests {
 
     /// Helper to read the current user with a custom IP address
     async fn current_user_request_with_ip(
-        app: &axum::Router,
+        app: &crate::App,
         ip: &str,
     ) -> Result<axum::response::Response, Box<dyn Error>> {
         let request = Request::builder()

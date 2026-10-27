@@ -197,7 +197,7 @@
 		</p>
 	</header>
 
-	<Card>
+	<Card data-tour="thinkingspace-topic">
 		<CardHeader>
 			<CardTitle>Topic</CardTitle>
 			<CardDescription>
@@ -214,7 +214,7 @@
 		</CardContent>
 	</Card>
 
-	<Card>
+	<Card data-tour="thinkingspace-followups">
 		<CardHeader class="flex flex-row items-start justify-between gap-4 space-y-0">
 			<div>
 				<CardTitle>Minimum follow-ups per main question</CardTitle>
@@ -250,7 +250,7 @@
 		</CardHeader>
 	</Card>
 
-	<section class="space-y-4">
+	<section data-tour="thinkingspace-questions" class="space-y-4">
 		<header class="flex items-start justify-between gap-4">
 			<div>
 				<h2 class="text-xl font-semibold">Main questions</h2>

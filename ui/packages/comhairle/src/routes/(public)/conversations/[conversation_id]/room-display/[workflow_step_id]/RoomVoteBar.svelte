@@ -16,15 +16,15 @@
 	const segments = $derived(
 		[
 			{ key: 'agreed', pct: agreed, color: 'var(--vote-agreed)', outlined: false },
-			{ key: 'disagreed', pct: disagreed, color: 'var(--vote-disagreed)', outlined: false },
 			{ key: 'passed', pct: passed, color: 'var(--vote-passed)', outlined: false },
-			{ key: 'notVoted', pct: notVoted, color: 'var(--vote-not-voted)', outlined: true }
+			{ key: 'notVoted', pct: notVoted, color: 'var(--vote-not-voted)', outlined: true },
+			{ key: 'disagreed', pct: disagreed, color: 'var(--vote-disagreed)', outlined: false }
 		].filter((s) => s.pct > 0)
 	);
 
 	const summary = $derived(
-		`${label}: ${Math.round(agreed)}% agreed, ${Math.round(disagreed)}% disagreed, ` +
-			`${Math.round(passed)}% passed, ${Math.round(notVoted)}% not voted`
+		`${label}: ${Math.round(agreed)}% agreed, ${Math.round(passed)}% passed, ` +
+			`${Math.round(notVoted)}% not voted, ${Math.round(disagreed)}% disagreed`
 	);
 </script>
 

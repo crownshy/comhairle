@@ -15,7 +15,9 @@ export enum HttpStatus {
 	NotFound = 404,
 	Conflict = 409,
 	UnprocessableContent = 422,
-	InternalServerError = 500
+	TooManyRequests = 429,
+	InternalServerError = 500,
+	BadGateway = 502
 }
 
 export const DEFAULT_LOCALE = 'en';

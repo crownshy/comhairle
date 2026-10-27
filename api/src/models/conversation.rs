@@ -1,11 +1,25 @@
 use std::sync::Arc;
 
-use super::{
-    pagination::{Order, PageOptions, PaginatedResults},
-    translations::{TextContentId, TextFormat, new_translation},
-    user_participation::UserParticipationIden,
-    workflow::WorkflowIden,
-};
+use chrono::{DateTime, Utc};
+use comhairle_macros::Translatable;
+#[cfg(test)]
+use fake::Dummy;
+use partially::Partial;
+use schemars::JsonSchema;
+use sea_query::extension::postgres::PgExpr;
+use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def};
+use sea_query_binder::SqlxBinder;
+use serde::{Deserialize, Serialize};
+use slugify::slugify;
+use sqlx::PgPool;
+use sqlx::prelude::FromRow;
+use tracing::instrument;
+use uuid::Uuid;
+
+use super::pagination::{Order, PageOptions, PaginatedResults};
+use super::translations::{TextContentId, TextFormat, new_translation};
+use super::user_participation::UserParticipationIden;
+use super::workflow::WorkflowIden;
 use crate::ComhairleState;
 use crate::bot_service::{
     ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
@@ -16,21 +30,8 @@ use crate::error::ComhairleError;
 use crate::models::permissions::{
     ResourcePermissionIden, conversation as conversation_permissions, roles_for_action,
 };
+use crate::models::workflow::{self};
 use crate::models::{self, SqlxResultExt};
-use chrono::{DateTime, Utc};
-use comhairle_macros::Translatable;
-use partially::Partial;
-use schemars::JsonSchema;
-use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
-use sea_query_binder::SqlxBinder;
-use serde::{Deserialize, Serialize};
-use slugify::slugify;
-use sqlx::{PgPool, prelude::FromRow};
-use tracing::instrument;
-use uuid::Uuid;
-
-#[cfg(test)]
-use fake::Dummy;
 
 /// For extracting an id or slug from Path
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -244,15 +245,17 @@ impl PartialConversation {
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ConversationFilterOptions {
-    keyword: Option<String>,
-    is_public: Option<bool>,
-    is_live: Option<bool>,
-    is_complete: Option<bool>,
-    is_invite_only: Option<bool>,
-    owner_id: Option<Uuid>,
-    organization_id: Option<Uuid>,
-    created_before: Option<DateTime<Utc>>,
-    created_after: Option<DateTime<Utc>>,
+    pub keyword: Option<String>,
+    pub is_public: Option<bool>,
+    pub is_live: Option<bool>,
+    pub is_complete: Option<bool>,
+    pub is_invite_only: Option<bool>,
+    pub owner_id: Option<Uuid>,
+    /// Lets the admin list show conversations shared with you without the ones you own.
+    pub exclude_owner_id: Option<Uuid>,
+    pub organization_id: Option<Uuid>,
+    pub created_before: Option<DateTime<Utc>>,
+    pub created_after: Option<DateTime<Utc>>,
 }
 
 impl ConversationFilterOptions {
@@ -295,6 +298,13 @@ impl ConversationFilterOptions {
                 )
                 .to_owned();
         }
+        if let Some(value) = &self.exclude_owner_id {
+            query = query
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).ne(*value),
+                )
+                .to_owned();
+        }
         if let Some(value) = &self.organization_id {
             query = query
                 .and_where(
@@ -334,8 +344,9 @@ impl ConversationFilterOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(value) = &self.keyword {
             // Filter on the actual translation table column, not the alias
@@ -362,8 +373,8 @@ impl ConversationFilterOptions {
 
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConversationOrderOptions {
-    title: Option<Order>,
-    created_at: Option<Order>,
+    pub title: Option<Order>,
+    pub created_at: Option<Order>,
 }
 
 impl Default for ConversationOrderOptions {
@@ -394,8 +405,9 @@ impl ConversationOrderOptions {
         &self,
         mut query: sea_query::SelectStatement,
     ) -> sea_query::SelectStatement {
-        use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
+
+        use crate::models::translations::TextTranslationIden;
 
         if let Some(order) = &self.title {
             // Order by the actual translation table column, not the alias
@@ -408,12 +420,31 @@ impl ConversationOrderOptions {
     }
 }
 
-#[instrument(err(Debug), skip(db, bot_service))]
+#[instrument(err(Debug), skip(state, bot_service))]
 pub async fn delete(
-    db: &PgPool,
+    state: &Arc<ComhairleState>,
     bot_service: &Option<Arc<dyn ComhairleBotService>>,
     id: &Uuid,
 ) -> Result<Conversation, ComhairleError> {
+    // default_workflow_id references workflow without ON DELETE, so it must be
+    // cleared before the workflows can be removed.
+    let (clear_sql, clear_values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::DefaultWorkflowId, Option::<Uuid>::None)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&clear_sql, clear_values)
+        .execute(&state.db)
+        .await
+        .resolve_db_err("Conversation")?;
+
+    let workflows = workflow::list_for_conversation(&state.db, *id).await?;
+
+    for workflow in &workflows {
+        workflow::delete(state, &workflow.id).await?;
+    }
+
     let (sql, values) = Query::delete()
         .from_table(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
@@ -421,7 +452,7 @@ pub async fn delete(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&state.db)
         .await
         .resolve_db_err("Conversation")?;
 
@@ -568,7 +599,8 @@ pub async fn update(
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -989,22 +1021,21 @@ pub async fn list_for_permitted_user(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use fake::{Fake, Faker};
     use serde_json::json;
 
+    use super::*;
     use crate::models::model_test_helpers::setup_default_app_and_session;
-    use crate::models::permissions::{
-        ActorId, GrantRoleRequest, PermissionRole, conversation::Role, grant_role,
-    };
+    use crate::models::permissions::conversation::Role;
+    use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
     use crate::models::users::{self, UpdateUserRequest, create_user, update_user};
     use crate::routes::auth::SignupRequest;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::organizations::dto::OrganizationDto;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
-
-    use super::*;
-    use std::error::Error;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_conversation_with_oranganization_id(
@@ -1380,6 +1411,42 @@ mod tests {
         assert_eq!(
             results_user_b_b.total, 0,
             "incorrect permitted conversation total for user_b"
+        );
+
+        let results_owner_excluding_own = list_for_permitted_user(
+            &state.db,
+            session.id.unwrap(),
+            false,
+            page_options.clone(),
+            ConversationOrderOptions::default(),
+            ConversationFilterOptions {
+                exclude_owner_id: session.id,
+                ..Default::default()
+            },
+            Some("en".to_string()),
+        )
+        .await?;
+        assert_eq!(
+            results_owner_excluding_own.total, 0,
+            "excluding the owner should drop their own conversation"
+        );
+
+        let results_user_a_excluding_own = list_for_permitted_user(
+            &state.db,
+            user_a.id,
+            false,
+            page_options.clone(),
+            ConversationOrderOptions::default(),
+            ConversationFilterOptions {
+                exclude_owner_id: Some(user_a.id),
+                ..Default::default()
+            },
+            Some("en".to_string()),
+        )
+        .await?;
+        assert_eq!(
+            results_user_a_excluding_own.total, 1,
+            "a conversation shared with user_a should stay when excluding user_a's own"
         );
 
         Ok(())

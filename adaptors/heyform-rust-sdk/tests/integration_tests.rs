@@ -11,7 +11,7 @@ mod tests {
     #[tokio::test]
     #[ignore] // Ignore by default since it requires real API
     async fn test_signup_flow() {
-        let client = HeyFormClient::default().unwrap();
+        let client = HeyFormClient::with_default_url().unwrap();
 
         let signup_input = SignUpInput {
             name: "Test User".to_string(),
@@ -28,7 +28,7 @@ mod tests {
     #[tokio::test]
     #[ignore] // Ignore by default since it requires real API
     async fn test_login_flow() {
-        let client = HeyFormClient::default().unwrap();
+        let client = HeyFormClient::with_default_url().unwrap();
 
         let login_input = LoginInput {
             email: "test@example.com".to_string(),
@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let client = HeyFormClient::default();
+        let client = HeyFormClient::with_default_url();
         assert!(client.is_ok());
 
         let client = HeyFormClient::new("https://custom.heyform.net");

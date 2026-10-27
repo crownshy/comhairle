@@ -13,20 +13,24 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
+	import { pendingWork } from '$lib/stores/pendingWork.svelte';
 
 	let { data } = $props();
-	let { conversation, workflows, participation, preview } = data;
+	let conversation = $derived(data.conversation);
+	let workflows = $derived(data.workflows);
+	let participation = $derived(data.participation);
+	let preview = $derived(data.preview);
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
-	let privacyAccepted = $state(false);
 
 	let emailStep = $state<'closed' | 'email' | 'code'>('closed');
 	let emailValue = $state('');
 	let codeValue = $state('');
 	let emailError = $state<string | null>(null);
+	let codeResent = $state(false);
 
 	let guestStep = $state<'closed' | 'choice' | 'code'>('closed');
 	let guestCodeValue = $state('');
@@ -36,33 +40,49 @@
 		if (isSubmitting) return;
 		isSubmitting = true;
 		if (conversation.shortPrivacyPolicy) {
-			privacyAccepted = false;
 			privacyPolicyOpen = true;
 		} else {
 			doJoin();
 		}
 	}
 
-	function doJoin() {
-		if (!user && firstWorkflow.autoLogin) {
-			registerGuestUserSignupAndRedirect();
-		} else {
-			registerUser();
-		}
-	}
+	// Joining is API calls and then a page load. Both are awaited so the progress bar stays
+	// up until the step page has loaded.
+	async function doJoin() {
+		pendingWork.start();
+		const joined = await tryCatchAsync<void, ApiError>(() =>
+			!user && joinsAnonymously ? registerGuestUserSignupAndRedirect() : registerUser()
+		);
+		pendingWork.stop();
 
-	function handlePrivacyPolicyAccept() {
-		privacyAccepted = true;
-		doJoin();
-	}
-
-	$effect(() => {
-		if (!privacyPolicyOpen && !privacyAccepted && isSubmitting) {
+		if (joined.err !== null) {
+			notifications.send({
+				message: 'Failed to sign you up for the conversation, try again later',
+				priority: 'ERROR'
+			});
 			isSubmitting = false;
 		}
-	});
+	}
+
+	// Someone signing back in may already be part of this conversation, so send them back
+	// into it rather than registering them a second time.
+	function joinOrReturn() {
+		if (participation) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+			goto(returnPath);
+		} else {
+			handleJoin();
+		}
+	}
+
+	function handlePrivacyPolicyDismiss() {
+		isSubmitting = false;
+	}
 
 	let firstWorkflow = $derived(workflows[0]);
+	// Someone sent a preview link has no account and no reason to make one, so a preview
+	// always offers the one-click anonymous join, whatever the conversation's own setting.
+	let joinsAnonymously = $derived(firstWorkflow.autoLogin || preview);
 
 	let firstWorkflowPath = $derived(
 		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/next`
@@ -80,7 +100,8 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+		await goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
 	function openGuestChoice() {
@@ -135,7 +156,7 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		guestStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	function openEmailStep() {
@@ -158,7 +179,10 @@
 					apiClient.SignupOtp({ email: emailValue })
 				);
 				if (signup.err !== null) {
-					emailError = 'Failed to sign up with this email';
+					emailError =
+						signup.err.status === HttpStatus.TooManyRequests
+							? 'Too many attempts, please wait a moment and try again'
+							: 'Failed to sign up with this email';
 					isSubmitting = false;
 					return;
 				}
@@ -169,13 +193,44 @@
 				return;
 			}
 
-			emailError = 'Failed to send one-time-passcode';
+			emailError =
+				createOtp.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
 			isSubmitting = false;
 			return;
 		}
 
 		isSubmitting = false;
 		emailStep = 'code';
+	}
+
+	async function resendCode() {
+		if (isSubmitting) return;
+		isSubmitting = true;
+		emailError = null;
+		codeResent = false;
+
+		const result = await tryCatchAsync<void, ApiError>(() =>
+			apiClient.CreateOtp({ email: emailValue })
+		);
+
+		isSubmitting = false;
+		if (result.err !== null) {
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Failed to send one-time-passcode';
+			return;
+		}
+		codeResent = true;
+	}
+
+	function changeEmail() {
+		codeValue = '';
+		emailError = null;
+		codeResent = false;
+		emailStep = 'email';
 	}
 
 	async function submitCode() {
@@ -188,7 +243,10 @@
 		);
 
 		if (result.err !== null) {
-			emailError = 'Invalid or expired code';
+			emailError =
+				result.err.status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: 'Invalid or expired code';
 			isSubmitting = false;
 			return;
 		}
@@ -196,34 +254,20 @@
 		await invalidate(key('user'));
 		isSubmitting = false;
 		emailStep = 'closed';
-		handleJoin();
+		joinOrReturn();
 	}
 
 	async function registerUser() {
-		try {
-			await apiClient.RegisterUserForConversationWorkflow(undefined, {
-				params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
-			});
+		await apiClient.RegisterUserForConversationWorkflow(undefined, {
+			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
+		});
 
-			notifications.addFlash({
-				message: `You are part of the "${conversation.title}" conversation!`
-			});
+		notifications.addFlash({
+			message: `You are part of the "${conversation.title}" conversation!`
+		});
 
-			goto(firstWorkflowPath);
-		} catch (e) {
-			let message;
-
-			if (e instanceof Error) message = e.message;
-			else message = String(e);
-
-			console.warn(`Failed to register user for workflow ${message}`);
-
-			notifications.send({
-				message: 'Failed to sign you up for the conversation, try again later',
-				priority: 'ERROR'
-			});
-			isSubmitting = false;
-		}
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+		await goto(firstWorkflowPath);
 	}
 </script>
 
@@ -261,7 +305,7 @@
 							{conversation.callToAction || m.join_the_conversation()}
 						</Button>
 					{/if}
-				{:else if firstWorkflow.autoLogin}
+				{:else if joinsAnonymously}
 					<Button
 						class="mt-5 w-full md:w-fit"
 						onclick={handleJoin}
@@ -305,15 +349,21 @@
 							submitCode();
 						}}
 					>
-						<span class="inline-block">{emailValue}</span>
+						<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
+						<p class="text-muted-foreground max-w-prose text-base">
+							{m.otp_sent_to_email({ email: emailValue })}
+						</p>
 						<Input
 							placeholder={m.otp_placeholder()}
 							bind:value={codeValue}
+							autocomplete="one-time-code"
 							required
 							disabled={isSubmitting}
 						/>
 						{#if emailError}
 							<p class="text-destructive text-sm">{emailError}</p>
+						{:else if codeResent}
+							<p class="text-base">{m.otp_resent()}</p>
 						{/if}
 						<Button type="submit" disabled={isSubmitting}>
 							{#if isSubmitting}
@@ -321,6 +371,25 @@
 							{/if}
 							{m.verify_code()}
 						</Button>
+						<p class="text-muted-foreground text-base">
+							{m.resend_otp()}
+							<button
+								type="button"
+								class="text-primary underline"
+								onclick={resendCode}
+								disabled={isSubmitting}
+							>
+								{m.send_again()}
+							</button>
+						</p>
+						<button
+							type="button"
+							class="text-primary self-start text-base underline"
+							onclick={changeEmail}
+							disabled={isSubmitting}
+						>
+							{m.use_a_different_email()}
+						</button>
 					</form>
 				{:else if guestStep === 'choice'}
 					<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">
@@ -385,7 +454,8 @@
 				{conversation}
 				availableDocuments={data.availableDocuments}
 				bind:open={privacyPolicyOpen}
-				onAccept={handlePrivacyPolicyAccept}
+				onAccept={doJoin}
+				onDismiss={handlePrivacyPolicyDismiss}
 			/>
 		{/if}
 	{:else}

@@ -1,9 +1,11 @@
-import { eventually, test } from './utils/testing';
+import { test } from './utils/testing';
 import Conversation from './utils/navigation/Conversation';
 import { login } from './utils/auth';
 import { expect } from '@playwright/test';
-import { exists, sleep, testWithRefresh } from './utils';
-import { Textboxes } from './utils/components';
+import { testWithRefresh } from './utils';
+import { Textbox } from './utils/components';
+
+const DEFAULT_REASON_COUNT = 5;
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -12,48 +14,54 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/Moderation-Policy page', async ({ page }) => {
-	const Info = page.getByText('This conversation uses the');
+	const main = page.getByRole('main');
+	const usingDefaults = main.getByText('This conversation uses the default reasons');
+	const resetToDefault = main.getByRole('button', { name: 'Reset to default' });
+	const reasons = main.getByRole('textbox', { name: 'Reason', exact: true });
 
-	expect(await exists(Info)).toBe(true);
+	// A failed earlier run can leave this conversation on its own list.
+	if (await resetToDefault.isVisible()) {
+		await resetToDefault.click();
+	}
+	await expect(usingDefaults).toBeVisible();
+	await expect(reasons).toHaveCount(DEFAULT_REASON_COUNT);
 
-	const AddReason = page.getByRole('button', { name: 'Add reason' });
-	await AddReason.click();
+	const addReason = main.getByRole('button', { name: 'Add reason' });
+	await addReason.click();
+	await expect(reasons).toHaveCount(DEFAULT_REASON_COUNT + 1);
 
-	const NewReason = page.getByRole('textbox', { name: 'Reason' }).nth(10);
-	let newReason = await Textboxes.write(NewReason);
-	await NewReason.press('Tab');
-
-	const NewDescription = page
-		.getByRole('textbox', { name: 'What counts under this reason' })
-		.nth(5);
-	let newDescription = await Textboxes.write(NewDescription);
-
-	await eventually(async () => {
-		await expect(page.getByText('Saved')).toBeVisible();
-	});
+	const NewReason = await Textbox(
+		'Reason',
+		{ page },
+		{ index: DEFAULT_REASON_COUNT, exact: true }
+	);
+	const NewDescription = await Textbox(
+		'What counts under this reason',
+		{ page },
+		{ index: DEFAULT_REASON_COUNT }
+	);
+	await NewReason.write();
+	await NewDescription.write();
+	await expect(main.getByText('Saved')).toBeVisible();
 
 	await testWithRefresh(page, async () => {
-		await expect(NewReason).toHaveValue(newReason);
-		await expect(NewDescription).toHaveValue(newDescription);
+		await NewReason.expect();
+		await NewDescription.expect();
 	});
 
-	const RemoveNewReason = page.getByRole('button', { name: 'Remove reason' }).nth(5);
-	await RemoveNewReason.click();
+	await main.getByRole('button', { name: 'Remove reason' }).last().click();
 
 	await testWithRefresh(page, async () => {
-		expect(await exists(NewReason)).toBe(false);
-		expect(await exists(NewDescription)).toBe(false);
+		await expect(reasons).toHaveCount(DEFAULT_REASON_COUNT);
+		await expect(reasons.last()).not.toHaveValue(NewReason.currentValue());
 	});
 
-	await AddReason.click();
+	await addReason.click();
+	await NewReason.write();
+	await NewDescription.write();
+	await expect(main.getByText('Saved')).toBeVisible();
 
-	newReason = await Textboxes.write(NewReason);
-	newDescription = await Textboxes.write(NewDescription);
-
-	await sleep(1.5);
-
-	const ResetToDefault = page.getByRole('button', { name: 'Reset to default' });
-	await ResetToDefault.click();
-
-	expect(await exists(Info)).toBe(true);
+	await resetToDefault.click();
+	await expect(usingDefaults).toBeVisible();
+	await expect(reasons).toHaveCount(DEFAULT_REASON_COUNT);
 });

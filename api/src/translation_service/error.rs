@@ -7,8 +7,8 @@ pub enum TranslationError {
 }
 pub type Result<T> = std::result::Result<T, TranslationError>;
 
-impl Into<StatusCode> for &TranslationError {
-    fn into(self) -> StatusCode {
+impl From<&TranslationError> for StatusCode {
+    fn from(_val: &TranslationError) -> Self {
         StatusCode::INTERNAL_SERVER_ERROR
     }
 }

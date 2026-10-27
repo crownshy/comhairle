@@ -1,19 +1,22 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::str::FromStr;
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
-use crate::{
-    error::ComhairleError, models::SqlxResultExt, translation_service::TranslationService,
-};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow, query_as_with};
+use sqlx::prelude::FromRow;
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
+
+use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
+use crate::translation_service::TranslationService;
 
 /// A type-safe wrapper around Uuid for referencing text content.
 ///
@@ -840,8 +843,7 @@ pub async fn create_text_content<'connection>(
     let (sql, values) = Query::insert()
         .into_table(TextContentIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(TEXT_CONTENT_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -995,8 +997,7 @@ pub async fn create_text_translation<'connection>(
     let (sql, values) = Query::insert()
         .into_table(TextTranslationIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(TEXT_TRANSLATION_DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -1407,11 +1408,11 @@ pub async fn get_text_content_with_translations(
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+
     use comhairle_macros::TranslatableJson;
 
     use super::*;
-
-    use std::error::Error;
 
     struct TestWithTranslations {
         title: TextContentId,

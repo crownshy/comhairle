@@ -1,22 +1,18 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{get_with, post_with},
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
 use async_trait::async_trait;
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::Json;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ComhairleState, error::ComhairleError};
-
 use super::{ToolConfigSanitize, ToolImpl};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
 
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
 pub struct StoriesToolConfig {
@@ -38,11 +34,6 @@ async fn stories_setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, C
         max_time: config.max_time,
         to_see: config.to_see,
     })
-}
-
-// Keep public function for backwards compatibility
-pub async fn setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, ComhairleError> {
-    stories_setup(config).await
 }
 
 impl ToolConfigSanitize for StoriesToolConfig {
@@ -80,14 +71,14 @@ impl ToolImpl for StoriesTool {
         config.sanitize()
     }
 
-    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
-        routes(state.clone())
+    fn routes() -> ApiRouter<Arc<ComhairleState>> {
+        routes()
     }
 }
 
 /// Helper function to create routes (kept for backwards compatibility)
-pub fn routes(state: Arc<ComhairleState>) -> ApiRouter {
-    stories_routes(state)
+pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
+    stories_routes()
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -120,7 +111,7 @@ async fn get_story(
     Ok((StatusCode::OK, Json(vec![])))
 }
 
-fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
+fn stories_routes() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/stories/workflow_step/{workflow_step_id}",
@@ -155,5 +146,4 @@ fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<Story>>()
             }),
         )
-        .with_state(state)
 }

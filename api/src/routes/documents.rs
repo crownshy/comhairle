@@ -1,36 +1,27 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    ApiRouter,
-    routing::{delete_with, get_with, post_with},
-};
-use axum::{
-    body::Body,
-    extract::{Json, Multipart, Path, Query, State},
-    http::StatusCode,
-    response::Response,
-};
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with};
+use axum::body::Body;
+use axum::extract::{Json, Multipart, Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::Response;
+use axum_extra::extract::cookie::CookieJar;
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    ComhairleState,
-    bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest},
-    error::ComhairleError,
-    models::{
-        conversation,
-        job::{self, CreateJob},
-        translations, user_participation, workflow, workflow_step,
-    },
-    routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
-    tools::{
-        ToolConfig,
-        learn::{LearnPageEntry, PageContent},
-    },
-    worker_service::process_documents::DocumentJob,
-};
+use crate::ComhairleState;
+use crate::bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest};
+use crate::error::ComhairleError;
+use crate::models::job::{self, CreateJob};
+use crate::models::{conversation, translations, user_participation, workflow, workflow_step};
+use crate::routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
+use crate::routes::preview_access::has_preview_grant;
+use crate::tools::ToolConfig;
+use crate::tools::learn::{LearnPageEntry, PageContent};
+use crate::worker_service::process_documents::DocumentJob;
 
 /// Reserved knowledge-base document name for the auto-synced learn-step content.
 ///
@@ -45,10 +36,11 @@ pub const LEARN_CONTENT_DOCUMENT_NAME: &str = "comhairle_learning_step_material.
 /// - The user owns the conversation
 /// - The user is a participant in any workflow of the conversation
 /// - No user is logged in but the conversation is public and live
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn require_conversation_document_access(
     state: &Arc<ComhairleState>,
     user: &OptionalUser,
+    jar: &CookieJar,
     conversation_id: &Uuid,
 ) -> Result<(), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
@@ -57,11 +49,15 @@ async fn require_conversation_document_access(
         return Ok(());
     }
 
+    if has_preview_grant(state, jar, *conversation_id).await? {
+        return Ok(());
+    }
+
     let Some(ref user) = user.0 else {
         return Err(ComhairleError::UserNotAuthorized);
     };
 
-    if is_user_admin(&state, user).await {
+    if is_user_admin(state, user).await {
         return Ok(());
     }
 
@@ -80,14 +76,15 @@ async fn require_conversation_document_access(
     Err(ComhairleError::UserNotAuthorized)
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     Query(params): Query<GetQueryParams>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -167,13 +164,14 @@ async fn stop_parsing_document(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn download_document(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<Response<Body>, ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -443,13 +441,14 @@ pub struct LearnContentResponse {
 ///
 /// Reads the draft (`preview_tool_config`), matching what sync ingests, so the viewer
 /// shows the same content the assistant answers from.
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn learn_content(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     user: OptionalUser,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<LearnContentResponse>), ComhairleError> {
-    require_conversation_document_access(&state, &user, &conversation_id).await?;
+    require_conversation_document_access(&state, &user, &jar, &conversation_id).await?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let locale = &conversation.primary_locale;
@@ -473,10 +472,10 @@ async fn learn_content(
 
             let mut pages: Vec<LearnContentPage> = Vec::new();
             for entry in &config.pages {
-                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await? {
-                    if !page.content.trim().is_empty() {
-                        pages.push(page);
-                    }
+                if let Some(page) = resolve_page_raw(&state.db, entry, locale).await?
+                    && !page.content.trim().is_empty()
+                {
+                    pages.push(page);
                 }
             }
 
@@ -489,7 +488,7 @@ async fn learn_content(
     Ok((StatusCode::OK, Json(LearnContentResponse { sections })))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
             "/",
@@ -598,22 +597,23 @@ curl -X POST \\
                     .response::<200, Json<UploadFileResponse>>()
             }),
         )
-        .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::error::Error;
+    use std::sync::Arc;
 
-    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::{MultipartBodyBuilder, test_state};
-    use crate::{setup_server, test_helpers::UserSession};
-    use axum::{Router, body::Body, http::StatusCode};
+    use axum::body::Body;
+    use axum::http::StatusCode;
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::setup_server;
+    use crate::test_helpers::{MultipartBodyBuilder, UserSession, test_state};
 
     fn mock_bot_service_for_conversation(kb_id: String) -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();
@@ -659,7 +659,7 @@ mod tests {
         pool: PgPool,
         kb_id: String,
         configure_bot_service: F,
-    ) -> Result<(Router, UserSession, String), Box<dyn Error>>
+    ) -> Result<(crate::App, UserSession, String), Box<dyn Error>>
     where
         F: FnOnce(&mut MockComhairleBotService),
     {

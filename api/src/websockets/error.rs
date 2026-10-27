@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-use crate::websockets::handlers::{
-    notifications::NotificationWSError, video_call::VideoCallWSError, workflow::WorkflowWSError,
-};
+use crate::websockets::handlers::notifications::NotificationWSError;
+use crate::websockets::handlers::video_call::VideoCallWSError;
+use crate::websockets::handlers::workflow::WorkflowWSError;
 
 #[derive(Error, Debug)]
 pub enum WebsocketError {
