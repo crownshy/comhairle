@@ -12,6 +12,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Download } from '@lucide/svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import MetricOverviewCard from '../MetricOverviewCard.svelte';
 
 	interface Props {
 		data: SurveyQuestion[];
@@ -49,6 +50,15 @@
 			}
 		}
 		return result;
+	});
+
+	const validQuestions = $derived(data.filter(isValidQuestion));
+	// Every question shares the same submission count, so the largest total is the number of responses.
+	const responseCount = $derived(Math.max(0, ...validQuestions.map((q) => q.total)));
+	const completion = $derived.by(() => {
+		const asked = validQuestions.reduce((sum, q) => sum + q.total, 0);
+		const answered = validQuestions.reduce((sum, q) => sum + q.answered, 0);
+		return asked === 0 ? 0 : Math.round((answered / asked) * 100);
 	});
 
 	// Groups and free-text questions need the full row; single charts sit two to a row.
@@ -126,12 +136,24 @@
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
 	<div class="flex max-w-6xl flex-col gap-6">
-		<div class="flex justify-end">
-			<Button href={csvExportUrl} download size="sm" disabled={!canExport}>
+		<section aria-label="Summary" class="flex flex-wrap items-end justify-between gap-4">
+			<div class="flex flex-wrap gap-4">
+				<MetricOverviewCard
+					superText="Responses"
+					metric={responseCount}
+					subText="submitted"
+				/>
+				<MetricOverviewCard
+					superText="Completion"
+					metric={completion}
+					subText="% of questions answered"
+				/>
+			</div>
+			<Button href={csvExportUrl} download disabled={!canExport}>
 				<Download class="size-4" />
 				Download CSV
 			</Button>
-		</div>
+		</section>
 		<div class="grid gap-6 lg:grid-cols-2">
 			{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
 				{#if block.kind === 'question'}
