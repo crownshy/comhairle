@@ -234,6 +234,36 @@
 		handleCommit(next);
 	}
 
+	// --- Required / revisitable ---
+	type StepFlag = 'required' | 'canRevisit';
+	const FLAG_FIELD: Record<StepFlag, string> = {
+		required: 'required',
+		canRevisit: 'can_revisit'
+	};
+
+	async function setStepFlag(
+		step: WorkflowStepWithTranslationsDto,
+		flag: StepFlag,
+		value: boolean
+	) {
+		if (!canUpdate || !reorderedSteps) return;
+		const previous = reorderedSteps;
+		// Show the change straight away, and put it back if the save fails.
+		reorderedSteps = reorderedSteps.map((candidate) =>
+			candidate.id === step.id ? { ...candidate, [flag]: value } : candidate
+		);
+		const result = await tryCatchAsync(() => patchStep(step, { [FLAG_FIELD[flag]]: value }));
+		if (result.err !== null) {
+			reorderedSteps = previous;
+			notifications.send({
+				priority: 'ERROR',
+				message: 'Could not update the step. Please try again.'
+			});
+			return;
+		}
+		await invalidate(key('admin/conversation/design/workflow'));
+	}
+
 	// --- Inline name edit ---
 	function startEdit(step: WorkflowStepWithTranslationsDto) {
 		if (!canTranslate) return;
@@ -501,6 +531,23 @@
 													>
 														<Pencil class="size-4" /> Rename
 													</DropdownMenu.Item>
+													<DropdownMenu.Separator />
+													<DropdownMenu.CheckboxItem
+														checked={step.required}
+														disabled={!canUpdate}
+														onCheckedChange={(value) =>
+															setStepFlag(step, 'required', value)}
+													>
+														Required
+													</DropdownMenu.CheckboxItem>
+													<DropdownMenu.CheckboxItem
+														checked={step.canRevisit}
+														disabled={!canUpdate}
+														onCheckedChange={(value) =>
+															setStepFlag(step, 'canRevisit', value)}
+													>
+														Revisitable
+													</DropdownMenu.CheckboxItem>
 													<DropdownMenu.Separator />
 													<DropdownMenu.Item>
 														<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
