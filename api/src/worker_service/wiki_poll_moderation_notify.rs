@@ -144,7 +144,7 @@ pub async fn send_wiki_poll_moderation_notify_emails(
 
         if pending_count > 0 {
             let moderation_url = format!(
-                "{}/admin/conversations/{}/design/step/{}/moderation",
+                "{}/admin/conversations/{}/moderate/step/{}",
                 state.config.domain, req.conversation.id, step.id
             );
             steps_with_pending.push((step, pending_count, moderation_url));
