@@ -37,6 +37,7 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { processDesignTour } from './tour';
+	import { Badge } from '$lib/components/ui/badge';
 
 	useTour(() => processDesignTour);
 
@@ -413,6 +414,12 @@
 						</div>
 					{:else}
 						{#if reorderedSteps !== undefined}
+							<p class="text-muted-foreground text-sm">
+								<span class="text-destructive" aria-hidden="true">*</span> Required:
+								participants can't skip it.
+								<span class="font-medium">Revisitable:</span> participants can go back
+								to it
+							</p>
 							<DraggableList
 								items={reorderedSteps}
 								onReorder={handleReorder}
@@ -460,22 +467,35 @@
 													class="border-input relative z-10 rounded border px-1 text-base outline-none"
 												/>
 											{:else}
-												<a
-													href={resolve(
-														'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
-														{
-															conversation_id: conversation.id,
-															step_id: step.id
-														}
-													)}
-													class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
-												>
-													{step.name}
-												</a>
+												<div class="flex min-w-0 items-baseline gap-1">
+													<a
+														href={resolve(
+															'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+															{
+																conversation_id: conversation.id,
+																step_id: step.id
+															}
+														)}
+														class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
+													>
+														{step.name}
+													</a>{#if step.required}
+														<span
+															class="text-destructive shrink-0 text-lg font-medium"
+															aria-hidden="true">*</span
+														>
+													{/if}
+												</div>
 											{/if}
-											<span class="text-primary text-sm font-medium">
-												{meta?.displayName ?? type}
-											</span>
+											<div class="flex flex-wrap items-center gap-2">
+												<span class="text-primary text-sm font-medium">
+													{meta?.displayName ?? type}
+												</span>{#if step.canRevisit}
+													<Badge variant="secondary" class="text-sm"
+														>Revisitable</Badge
+													>
+												{/if}
+											</div>
 										</div>
 
 										<!-- Inline reorder arrows: a desktop-only quick path that reveals on card hover / keyboard focus. Duplicates the Move up/down menu items (kept for touch and the menu-driven flow). -->
