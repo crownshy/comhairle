@@ -17,6 +17,13 @@ use crate::tools::ToolConfig;
 /// Returns `ResourceNotFound` when the step hasn't opted in, the same as for a step that doesn't
 /// exist, so an anonymous caller can't tell the two apart. Falls back to the preview config
 /// before launch, so a facilitator can build the report ahead of time.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "first caller is the Polis public endpoints (#1253)"
+    )
+)]
 pub async fn public_report_tool_config(
     db: &PgPool,
     workflow_step_id: &Uuid,
