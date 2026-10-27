@@ -128,13 +128,14 @@
 	<Tabs.Content value="glance" class="flex flex-col gap-12">
 		<section aria-label="Overview" class="flex flex-col gap-6">
 			<FirstVisitHint tourHref="/admin/info/tools" />
+			<!-- TODO: removed from ParticipationFlow component below as closing date not currently supported -->
+			<!-- caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS} · closes {closingLabel}" -->
 			<ParticipationFlow
 				recruited={sample.SAMPLE_RECRUITED}
 				joined={sample.SAMPLE_JOINED}
 				completed={sample.SAMPLE_FINISHED}
-				caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS} · closes {closingLabel}"
 			/>
-			<div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+			<div class="grid grid-cols-1 gap-5 lg:flex">
 				<QuestionCard
 					eyebrow="Working"
 					question="Are people completing?"
@@ -157,59 +158,62 @@
 					onShowDetails={() => showTab('journey')}
 					detailsTab="Journey"
 				/>
-				<QuestionCard
-					eyebrow="Recruitment"
-					question="Are enough people joining?"
-					value={String(sample.SAMPLE_JOINED)}
-					unit="of {target} target"
-					trendLabel="Running total of signups against the target"
-					actionLabel="Open Recruit"
-					actionHref="{base}/invites"
-					onShowDetails={() => showTab('recruitment')}
-					detailsTab="Recruitment"
-				>
-					{#snippet visual()}
-						<TargetSparkline
-							signups={sample.SAMPLE_SIGNUPS}
-							{target}
-							launchDate={sample.SAMPLE_LAUNCH_DATE}
-							closingDate={sample.SAMPLE_CLOSING_DATE}
-						/>
-					{/snippet}
-				</QuestionCard>
-				<QuestionCard
-					eyebrow="Reach"
-					question="Are we hearing from everyone?"
-					value="{reachDimension.rows.length - underRepresentedCount} of {reachDimension
-						.rows.length}"
-					unit="{reachDimension.groupNoun} well covered"
-					trendLabel="Share of participants compared with the local population"
-					actionLabel="Open Recruit"
-					actionHref="{base}/invites"
-					onShowDetails={() => showTab('recruitment')}
-					detailsTab="Recruitment"
-				>
-					{#snippet visual()}
-						<ReachMini
-							dimensions={sample.SAMPLE_REPRESENTATION}
-							bind:selected={reachDimensionName}
-						/>
-					{/snippet}
-				</QuestionCard>
+				<!-- TODO: commented out as dependent on recruitment target and closing date -->
+				<!-- <QuestionCard -->
+				<!-- 	eyebrow="Recruitment" -->
+				<!-- 	question="Are enough people joining?" -->
+				<!-- 	value={String(sample.SAMPLE_JOINED)} -->
+				<!-- 	unit="of {target} target" -->
+				<!-- 	trendLabel="Running total of signups against the target" -->
+				<!-- 	actionLabel="Open Recruit" -->
+				<!-- 	actionHref="{base}/invites" -->
+				<!-- 	onShowDetails={() => showTab('recruitment')} -->
+				<!-- 	detailsTab="Recruitment" -->
+				<!-- > -->
+				<!-- 	{#snippet visual()} -->
+				<!-- 		<TargetSparkline -->
+				<!-- 			signups={sample.SAMPLE_SIGNUPS} -->
+				<!-- 			{target} -->
+				<!-- 			launchDate={sample.SAMPLE_LAUNCH_DATE} -->
+				<!-- 			closingDate={sample.SAMPLE_CLOSING_DATE} -->
+				<!-- 		/> -->
+				<!-- 	{/snippet} -->
+				<!-- </QuestionCard> -->
+				<!-- TODO: commented out as dependent demographics baseline figures -->
+				<!-- <QuestionCard -->
+				<!-- 	eyebrow="Reach" -->
+				<!-- 	question="Are we hearing from everyone?" -->
+				<!-- 	value="{reachDimension.rows.length - underRepresentedCount} of {reachDimension -->
+				<!-- 		.rows.length}" -->
+				<!-- 	unit="{reachDimension.groupNoun} well covered" -->
+				<!-- 	trendLabel="Share of participants compared with the local population" -->
+				<!-- 	actionLabel="Open Recruit" -->
+				<!-- 	actionHref="{base}/invites" -->
+				<!-- 	onShowDetails={() => showTab('recruitment')} -->
+				<!-- 	detailsTab="Recruitment" -->
+				<!-- > -->
+				<!-- 	{#snippet visual()} -->
+				<!-- 		<ReachMini -->
+				<!-- 			dimensions={sample.SAMPLE_REPRESENTATION} -->
+				<!-- 			bind:selected={reachDimensionName} -->
+				<!-- 		/> -->
+				<!-- 	{/snippet} -->
+				<!-- </QuestionCard> -->
 			</div>
 		</section>
 		<FollowUpActions
 			exports={[
-				{
-					count: sample.USED_THINKING_SPACE,
-					title: 'Thinking space summaries',
-					description: 'Get a sense of how people think.',
-					label: 'Download summaries',
-					// TODO(backend): no summaries export yet; this points at the demographics export.
-					href: `/api/conversation/${data.conversation.id}/demographics/export`,
-					disabled: !canExport,
-					primary: true
-				},
+				// TODO: commented out as dependent on data export for each tool type
+				// {
+				// 	count: sample.USED_THINKING_SPACE,
+				// 	title: 'Thinking space summaries',
+				// 	description: 'Get a sense of how people think.',
+				// 	label: 'Download summaries',
+				// 	// TODO(backend): no summaries export yet; this points at the demographics export.
+				// 	href: `/api/conversation/${data.conversation.id}/demographics/export`,
+				// 	disabled: !canExport,
+				// 	primary: true
+				// },
 				{
 					title: 'Contacts',
 					description:
@@ -278,13 +282,14 @@
 
 	<!-- Journey -->
 	<Tabs.Content value="journey" class="flex flex-col gap-6">
-		<ActionHint tone="info">
-			{worstStep.inactiveThreeDays} people started <strong>{worstStep.name}</strong> but
-			haven't been back for 3 days or more. A short reminder can bring them back.
-			{#snippet actions()}
-				<Button href="{base}/notifications" class="rounded-full">Message them</Button>
-			{/snippet}
-		</ActionHint>
+		<!-- TODO: commented out as dependent on solution to notify only drop off users -->
+		<!-- <ActionHint tone="info"> -->
+		<!-- 	{worstStep.inactiveThreeDays} people started <strong>{worstStep.name}</strong> but -->
+		<!-- 	haven't been back for 3 days or more. A short reminder can bring them back. -->
+		<!-- 	{#snippet actions()} -->
+		<!-- 		<Button href="{base}/notifications" class="rounded-full">Message them</Button> -->
+		<!-- 	{/snippet} -->
+		<!-- </ActionHint> -->
 		<StepFunnel
 			steps={sample.SAMPLE_STEPS}
 			joined={sample.SAMPLE_JOINED}
@@ -296,32 +301,36 @@
 	<!-- Recruitment -->
 	<Tabs.Content value="recruitment" class="flex flex-col gap-12">
 		<section aria-labelledby="recruitment-heading" class="flex flex-col gap-6">
-			<RepresentationHint
-				dimensions={sample.SAMPLE_REPRESENTATION}
-				onView={viewRepresentation}
-			/>
-			<RecruitmentTarget
-				joined={sample.SAMPLE_JOINED}
-				completed={sample.SAMPLE_FINISHED}
-				{target}
-				{evenPaceToday}
-				closingDate={sample.SAMPLE_CLOSING_DATE}
-				daysLeft={sample.SAMPLE_CONVERSATION_LENGTH_DAYS -
-					sample.SAMPLE_DAY_OF_CONVERSATION}
-				onTargetChange={(value) => (target = value)}
-			/>
-			<RepresentationBars
-				bind:selected={representationTab}
-				dimensions={sample.SAMPLE_REPRESENTATION}
-			/>
-			<SignupsOverTimeChart
-				signups={sample.SAMPLE_SIGNUPS}
-				completions={sample.SAMPLE_COMPLETIONS}
-				{targetPace}
-				projection={sample.SAMPLE_PROJECTION}
-				actions={sample.SAMPLE_ACTIVITY_LOG}
-				{target}
-			/>
+			<!-- TODO: commented out as dependent on demographics baseline figures -->
+			<!-- <RepresentationHint -->
+			<!-- 	dimensions={sample.SAMPLE_REPRESENTATION} -->
+			<!-- 	onView={viewRepresentation} -->
+			<!-- /> -->
+			<!-- TODO: commented out as dependent on recruitment targets -->
+			<!-- <RecruitmentTarget -->
+			<!-- 	joined={sample.SAMPLE_JOINED} -->
+			<!-- 	completed={sample.SAMPLE_FINISHED} -->
+			<!-- 	{target} -->
+			<!-- 	{evenPaceToday} -->
+			<!-- 	closingDate={sample.SAMPLE_CLOSING_DATE} -->
+			<!-- 	daysLeft={sample.SAMPLE_CONVERSATION_LENGTH_DAYS - -->
+			<!-- 		sample.SAMPLE_DAY_OF_CONVERSATION} -->
+			<!-- 	onTargetChange={(value) => (target = value)} -->
+			<!-- /> -->
+			<!-- TODO: commented out as dependent on demographics baseline figures -->
+			<!-- <RepresentationBars -->
+			<!-- 	bind:selected={representationTab} -->
+			<!-- 	dimensions={sample.SAMPLE_REPRESENTATION} -->
+			<!-- /> -->
+			<!-- TODO: commented out as dependent on closing date -->
+			<!-- <SignupsOverTimeChart -->
+			<!-- 	signups={sample.SAMPLE_SIGNUPS} -->
+			<!-- 	completions={sample.SAMPLE_COMPLETIONS} -->
+			<!-- 	{targetPace} -->
+			<!-- 	projection={sample.SAMPLE_PROJECTION} -->
+			<!-- 	actions={sample.SAMPLE_ACTIVITY_LOG} -->
+			<!-- 	{target} -->
+			<!-- /> -->
 			<RecruitmentChannels
 				channels={sample.SAMPLE_CHANNELS}
 				conversationId={data.conversation.id}

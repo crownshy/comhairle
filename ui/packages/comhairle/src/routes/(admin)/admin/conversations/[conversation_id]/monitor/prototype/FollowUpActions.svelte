@@ -28,11 +28,11 @@
 			Export data about people in this conversation.
 		</p>
 	</div>
-	<ul class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+	<ul class="grid grid-cols-1 gap-4 md:flex">
 		{#each exports as item (item.href + item.label)}
 			<li
 				class={cn(
-					'flex flex-col justify-between gap-4 rounded-2xl border p-5',
+					'flex flex-1 flex-col justify-between gap-4 rounded-2xl border p-5',
 					item.primary ? 'bg-accent border-transparent' : 'bg-card'
 				)}
 			>

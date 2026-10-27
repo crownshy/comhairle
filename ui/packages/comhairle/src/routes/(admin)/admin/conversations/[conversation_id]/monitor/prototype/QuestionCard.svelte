@@ -59,7 +59,7 @@
 	let trendData = $derived((trend ?? []).map((point, index) => ({ index, point })));
 </script>
 
-<Card.Root class="flex flex-col gap-4">
+<Card.Root class="flex flex-1 flex-col gap-4">
 	<Card.Header class="gap-3">
 		<div class="flex items-center justify-between gap-2">
 			<span class="text-primary text-sm font-semibold tracking-wide uppercase">{eyebrow}</span
