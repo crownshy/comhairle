@@ -51,6 +51,10 @@
 		return result;
 	});
 
+	// Choice charts are compact enough to pair up; scales, groups and free text need the full row.
+	const isHalfWidth = (block: Block): boolean =>
+		block.kind === 'question' && isChoiceQuestion(block.question);
+
 	const validQuestions = $derived(data.filter(isValidQuestion));
 	// Every question shares the same submission count, so the largest total is the number of responses.
 	const responseCount = $derived(Math.max(0, ...validQuestions.map((q) => q.total)));
@@ -142,17 +146,26 @@
 		<div class="grid gap-6 lg:grid-cols-2">
 			{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
 				{#if block.kind === 'question'}
-					<section class="bg-card flex flex-col gap-4 rounded-xl border p-6">
+					<section
+						class={[
+							'bg-card flex flex-col gap-4 rounded-xl border p-6',
+							!isHalfWidth(block) && 'lg:col-span-2'
+						]}
+					>
 						{@render questionBody(block.question)}
 					</section>
 				{:else}
-					<section class="bg-card flex flex-col gap-6 rounded-xl border p-6">
+					<section
+						class="bg-card flex flex-col gap-6 rounded-xl border p-6 lg:col-span-2"
+					>
 						<h2 class="text-xl font-semibold">{block.title}</h2>
-						{#each block.questions as question (question.id)}
-							<div class="flex flex-col gap-4 border-t pt-6">
-								{@render questionBody(question, 'h3')}
-							</div>
-						{/each}
+						<div class="grid gap-x-10 gap-y-8 lg:grid-cols-2">
+							{#each block.questions as question (question.id)}
+								<div class="flex flex-col gap-4">
+									{@render questionBody(question, 'h3')}
+								</div>
+							{/each}
+						</div>
 					</section>
 				{/if}
 			{/each}
