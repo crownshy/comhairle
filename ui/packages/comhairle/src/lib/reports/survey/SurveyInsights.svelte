@@ -23,7 +23,8 @@
 	let { data, conversationId, workflowId, workflowStepId }: Props = $props();
 	const isValidQuestion = (section: SurveyQuestion): boolean =>
 		section.kind && !isHeyFormOtherFieldKind(section.kind);
-
+	const isStringArray = (arr: unknown[]): arr is string[] =>
+		!!arr[0] && typeof arr[0] === 'string';
 	type Block =
 		| { kind: 'question'; question: SurveyQuestion }
 		| { kind: 'group'; id: string; title: string; questions: SurveyQuestion[] };
@@ -50,6 +51,10 @@
 		return result;
 	});
 
+	// Groups and free-text questions need the full row; single charts sit two to a row.
+	const isWide = (block: Block): boolean =>
+		block.kind === 'group' || isStringArray(block.question.answers);
+
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
 	);
@@ -68,9 +73,6 @@
 
 	const isNumericArray = (arr: unknown[]): arr is number[] =>
 		!!arr[0] && typeof arr[0] === 'number';
-
-	const isStringArray = (arr: unknown[]): arr is string[] =>
-		!!arr[0] && typeof arr[0] === 'string';
 </script>
 
 {#snippet questionBody(section: SurveyQuestion, level: 'h2' | 'h3' = 'h2')}
@@ -123,28 +125,30 @@
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
-	<div class="flex max-w-3xl flex-col gap-6">
+	<div class="flex max-w-6xl flex-col gap-6">
 		<div class="flex justify-end">
 			<Button href={csvExportUrl} download size="sm" disabled={!canExport}>
 				<Download class="size-4" />
 				Download CSV
 			</Button>
 		</div>
-		{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
-			{#if block.kind === 'question'}
-				<section class="bg-card flex flex-col gap-4 rounded-xl border p-6">
-					{@render questionBody(block.question)}
-				</section>
-			{:else}
-				<section class="bg-card flex flex-col gap-8 rounded-xl border p-6">
-					<h2 class="text-xl font-semibold">{block.title}</h2>
-					{#each block.questions as question (question.id)}
-						<div class="flex flex-col gap-4 border-t pt-6">
-							{@render questionBody(question, 'h3')}
-						</div>
-					{/each}
-				</section>
-			{/if}
-		{/each}
+		<div class="grid gap-6 lg:grid-cols-2">
+			{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
+				{#if block.kind === 'question'}
+					<section class="bg-card flex flex-col gap-4 rounded-xl border p-6">
+						{@render questionBody(block.question)}
+					</section>
+				{:else}
+					<section class="bg-card flex flex-col gap-6 rounded-xl border p-6">
+						<h2 class="text-xl font-semibold">{block.title}</h2>
+						{#each block.questions as question (question.id)}
+							<div class="flex flex-col gap-4 border-t pt-6">
+								{@render questionBody(question, 'h3')}
+							</div>
+						{/each}
+					</section>
+				{/if}
+			{/each}
+		</div>
 	</div>
 {/if}
