@@ -19,7 +19,6 @@
 	import PolisSummaryPanel from './PolisSummaryPanel.svelte';
 	import ThemeExplorer from '$lib/components/report/ThemeExplorer.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
@@ -261,7 +260,7 @@
 				<TriangleAlert />
 				<Alert.Description>
 					The AI summary was generated with a different number of opinion groups than the
-					current report has. It's probably out of date — regenerate it below for an
+					current report has. It's probably out of date, so regenerate it below for an
 					accurate summary.
 				</Alert.Description>
 			</Alert.Root>
