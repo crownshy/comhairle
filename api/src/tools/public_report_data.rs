@@ -24,13 +24,6 @@ use crate::tools::ToolConfig;
 /// Returns `ResourceNotFound` when the step doesn't exist, its conversation's report isn't
 /// published, the report doesn't embed this section block for this step, or the step runs a
 /// different tool, so an anonymous caller can't tell these apart.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "first caller is the Polis public endpoints (#1253)"
-    )
-)]
 pub async fn serve_public_report_data<Config, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,

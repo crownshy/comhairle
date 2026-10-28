@@ -18,6 +18,8 @@ use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+mod public_report;
+
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
@@ -284,6 +286,7 @@ impl ToolImpl for PolisTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/polis/report_data",
                 get_with(get_report_data, |op| {
