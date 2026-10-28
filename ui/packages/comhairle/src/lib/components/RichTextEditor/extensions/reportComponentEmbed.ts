@@ -114,10 +114,16 @@ export const ReportComponentEmbed = Node.create({
 					.run();
 			});
 
+			// Embedding is what makes a step's results public (ADR-0061), so say so on every embed.
+			const publicNote = document.createElement('p');
+			publicNote.classList.add('report-embed__public-note');
+			publicNote.textContent = 'Public when published';
+
 			const body = document.createElement('div');
 			body.classList.add('report-embed__body');
 
 			dom.appendChild(remove);
+			dom.appendChild(publicNote);
 			dom.appendChild(body);
 
 			const component = mount(ReportEmbedLive, {
