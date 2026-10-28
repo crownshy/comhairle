@@ -14,10 +14,6 @@
 	}
 	let { user }: Props = $props();
 	const sidebar = useSidebar();
-
-	// Same soft hover as the other sidebar rows, instead of the menu button's white accent.
-	const SOFT_STATES =
-		'hover:text-sidebar-foreground active:bg-sidebar-foreground/10 active:text-sidebar-foreground data-[state=open]:bg-sidebar-foreground/10 data-[state=open]:hover:bg-sidebar-foreground/10 data-[state=open]:hover:text-sidebar-foreground';
 </script>
 
 <SideBar.Menu>
@@ -25,7 +21,14 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<SideBar.MenuButton size="lg" class={cn(ROW_HOVER, SOFT_STATES)} {...props}>
+					<SideBar.MenuButton
+						size="lg"
+						class={cn(
+							ROW_HOVER,
+							'hover:text-sidebar-foreground active:bg-sidebar-foreground/10 active:text-sidebar-foreground data-[state=open]:bg-sidebar-foreground/10 data-[state=open]:hover:bg-sidebar-foreground/10 data-[state=open]:hover:text-sidebar-foreground'
+						)}
+						{...props}
+					>
 						<UserAvatar
 							username={user.username}
 							avatarUrl={user.avatarUrl}
