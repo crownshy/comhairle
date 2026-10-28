@@ -1,4 +1,4 @@
-# ADR-0061: Public report data comes from per-section-block endpoints behind a step opt-in
+# ADR-0061: Public report data comes from per-section-block endpoints once the report is published
 
 **Status:** proposed
 **Date:** 2026-09-28
@@ -29,11 +29,10 @@ component reads, and representative comments that may carry unmoderated text.
 - **Anonymised and moderated only.** No user ids, pids or per-person rows. No rejected or
   pending content, whatever a tool's own moderation setting shows participants. A future
   moderation report is the one expected exception, and it gets its own ADR.
-- **A step opts in explicitly.** `workflow_step.report_data_public` defaults to off. Every
-  public endpoint goes through `tools::public_report_data::public_report_tool_config`, which
-  returns 404 when the flag is off or the step runs another tool, the same as for a missing
-  step. Admins turn it on from the step's settings or from the embed dialog. Embedding a
-  section block never turns it on by itself.
+- **Publishing the report is the switch.** Every public endpoint goes through
+  `tools::public_report_data::public_report_tool_config`, which returns 404 unless the step's
+  conversation has a published report (`report.is_public`), and 404 when the step runs another
+  tool. Both look the same as a missing step. Unpublishing the report turns the data off again.
 - **Frontend registry.** `lib/reports/embeds.ts` lists each tool's section blocks (metadata
   only) and `lib/reports/ReportEmbedLive.svelte` maps a tool to the component that loads and
   renders them. A tool PR adds one entry to each.
@@ -43,10 +42,17 @@ component reads, and representative comments that may carry unmoderated text.
 - Each tool's embeds ship as their own PR with their endpoints: Polis #1253, HeyForm #1259,
   Prioritization #1260, Thinking Space #1261.
 - Until #1253 lands, the existing Polis embeds keep reading `PolisGetReportData` and ignore
-  the flag. The room display reads it too (#1254). Locking it down to admins (#1255) waits on
-  both moving.
-- Public readers see a placeholder for a section block whose step hasn't opted in. An admin
-  can turn the flag off after publishing, which blanks those section blocks on the live
-  report.
+  the published state. The room display reads it too (#1254). Locking it down to admins
+  (#1255) waits on both moving.
+- Once the report is published, every step in the conversation serves its anonymised totals,
+  including steps the report doesn't embed. If that turns out to matter, the guard can check
+  the step is embedded in the published report instead.
 - More endpoints to maintain, each small. Several section blocks from one step can repeat an
   upstream fetch; the per-step cache from #1243 absorbs that for Polis.
+
+## Considered options
+
+- **A per-step opt-in flag** (`workflow_step.report_data_public`), switched on from the step's
+  settings or the embed dialog. It let a facilitator publish one step's results and not
+  another's, but it added a second "is this public?" decision next to publishing the report,
+  in a place facilitators don't think about reporting. Dropped before merge.

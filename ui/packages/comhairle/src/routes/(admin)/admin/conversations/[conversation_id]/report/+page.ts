@@ -35,11 +35,8 @@ export const load: PageLoad = async ({ parent, depends }) => {
 		.filter((step) => hasSectionBlocks(step.toolConfig?.type))
 		.map((step) => ({
 			id: step.id,
-			conversationId: conversation.id,
-			workflowId: step.workflowId,
 			name: step.name,
-			toolType: step.toolConfig!.type,
-			reportDataPublic: step.reportDataPublic
+			toolType: step.toolConfig!.type
 		}));
 
 	return { report, conversation, reportEmbedSteps };
