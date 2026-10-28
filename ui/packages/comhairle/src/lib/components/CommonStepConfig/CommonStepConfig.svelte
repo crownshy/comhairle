@@ -356,15 +356,18 @@
 	<div class="flex flex-col gap-6">
 		{@render fields()}
 		{#if toolType === 'thinkingspace'}
-			<div data-tour="step-switches" class="border-border flex flex-col gap-4 border-t pt-6">
+			<div class="border-border flex flex-col gap-4 border-t pt-6">
 				<div class="flex items-center gap-2">
 					<Switch
+						id="ask-before-sharing"
 						checked={requestUserSharePermission}
 						disabled={!canEdit}
 						onCheckedChange={(value) =>
 							handleSwitchChange(value, 'requestUserSharePermission')}
 					/>
-					<Label class="text-base">Ask before sharing summaries</Label>
+					<Label for="ask-before-sharing" class="text-base"
+						>Ask before sharing summaries</Label
+					>
 					<span class="text-muted-foreground ml-2 text-sm">
 						(Participants choose whether organisers see their summary)
 					</span>
@@ -421,22 +424,6 @@
 					{@render fields()}
 				</div>
 			</ScrollArea.Root>
-			{#if toolType === 'thinkingspace'}
-				<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
-					<div class="flex items-center gap-2">
-						<Switch
-							checked={requestUserSharePermission}
-							disabled={!canEdit}
-							onCheckedChange={(value) =>
-								handleSwitchChange(value, 'requestUserSharePermission')}
-						/>
-						<Label class="text-base">Ask before sharing summaries</Label>
-						<span class="text-muted-foreground ml-2 text-sm">
-							(Participants choose whether organisers see their summary)
-						</span>
-					</div>
-				</div>
-			{/if}
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}
