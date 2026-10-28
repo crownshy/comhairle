@@ -2,18 +2,18 @@
 	import { resolve } from '$app/paths';
 	import ArrowRight from 'lucide-svelte/icons/arrow-right';
 	import { Button } from '$lib/components/ui/button';
-	import type { SectionBlockMeta } from '$lib/reports/embeds';
+	import { embeddedSectionBlockLabel, type EmbeddedSectionBlockMeta } from '$lib/reports/embeds';
 
 	type Props = {
 		conversationId: string;
 		/** This step's section blocks that the report embeds. */
-		embedded: SectionBlockMeta[];
+		embedded: EmbeddedSectionBlockMeta[];
 		reportIsPublic: boolean;
 	};
 
 	let { conversationId, embedded, reportIsPublic }: Props = $props();
 
-	const labels = $derived(embedded.map((block) => block.label).join(', '));
+	const labels = $derived(embedded.map(embeddedSectionBlockLabel).join(', '));
 	const reportHref = $derived(
 		resolve('/(admin)/admin/conversations/[conversation_id]/report', {
 			conversation_id: conversationId

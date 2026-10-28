@@ -1,15 +1,23 @@
 import type { EmbeddedSectionBlock } from '@crownshy/api-client/api';
+import { HEYFORM_EMBEDDABLE_COMPONENTS } from './heyform/embeddableComponents';
 import { POLIS_EMBEDDABLE_COMPONENTS } from './polis/embeddableComponents';
 
 export type SectionBlockMeta<T extends string = string> = {
 	type: T;
 	label: string;
 	description: string;
+	/**
+	 * Set for a block embedded once per item, such as a HeyForm question. The embed stores the
+	 * item in `config.item`, and only embedded items are public.
+	 */
+	itemName?: { one: string; other: string };
 };
 
 export type ReportEmbedProps = {
 	toolStepId: string;
 	componentType: string;
+	/** Which item a per-item block shows, from the embed's `config.item`. */
+	item?: string;
 	/**
 	 * A facilitator is looking before the report is published: the editor, the add-chart
 	 * dialog or the report preview. Loads what readers will get from the preview endpoints,
@@ -25,7 +33,8 @@ export type ReportEmbedProps = {
  * `ReportEmbedLive.svelte`.
  */
 const SECTION_BLOCKS_BY_TOOL: Record<string, SectionBlockMeta[]> = {
-	polis: POLIS_EMBEDDABLE_COMPONENTS
+	polis: POLIS_EMBEDDABLE_COMPONENTS,
+	heyform: HEYFORM_EMBEDDABLE_COMPONENTS
 };
 
 export function sectionBlocksForTool(toolType: string | null | undefined): SectionBlockMeta[] {
@@ -44,26 +53,47 @@ export function toolTypeForSectionBlock(componentType: string): string | null {
 	return null;
 }
 
+/** A section block the report embeds, with how many of its items for a per-item block. */
+export type EmbeddedSectionBlockMeta = SectionBlockMeta & { itemCount: number };
+
 /**
- * The section blocks of one step that the report embeds, in registry order. Only these are
- * public once the report is published (ADR-0061).
+ * The section blocks of one step that the report embeds, in registry order. Only these, and
+ * for a per-item block only its embedded items, are public once the report is published
+ * (ADR-0061).
  */
 export function embeddedSectionBlocksForStep(
 	embedded: EmbeddedSectionBlock[],
 	stepId: string,
 	toolType: string | null | undefined
-): SectionBlockMeta[] {
-	const embeddedTypes = new Set(
-		embedded
-			.filter((sectionBlock) => sectionBlock.workflowStepId === stepId)
-			.map((sectionBlock) => sectionBlock.sectionBlock)
+): EmbeddedSectionBlockMeta[] {
+	const ofStep = embedded.filter((sectionBlock) => sectionBlock.workflowStepId === stepId);
+	return sectionBlocksForTool(toolType).flatMap((block) => {
+		const embeds = ofStep.filter((sectionBlock) => sectionBlock.sectionBlock === block.type);
+		if (embeds.length === 0) return [];
+		const itemCount = block.itemName
+			? new Set(embeds.map((sectionBlock) => sectionBlock.item).filter(Boolean)).size
+			: 1;
+		return itemCount > 0 ? [{ ...block, itemCount }] : [];
+	});
+}
+
+/** How a block reads in a list of what's public, such as "Key stats" or "3 questions". */
+export function embeddedSectionBlockLabel(block: EmbeddedSectionBlockMeta): string {
+	if (!block.itemName) return block.label;
+	const noun = block.itemCount === 1 ? block.itemName.one : block.itemName.other;
+	return `${block.itemCount} ${noun}`;
+}
+
+/** Identifies one embed: step, block and, for a per-item block, the item. */
+export function embedKey(sectionBlock: EmbeddedSectionBlock): string {
+	return [sectionBlock.workflowStepId, sectionBlock.sectionBlock, sectionBlock.item ?? ''].join(
+		':'
 	);
-	return sectionBlocksForTool(toolType).filter((block) => embeddedTypes.has(block.type));
 }
 
 type DocumentNode = {
 	type?: string;
-	attrs?: { toolStepId?: unknown; componentType?: unknown };
+	attrs?: { toolStepId?: unknown; componentType?: unknown; config?: { item?: unknown } };
 	content?: DocumentNode[];
 };
 
@@ -82,13 +112,17 @@ export function sectionBlocksInDocument(document: string): EmbeddedSectionBlock[
 	const found: EmbeddedSectionBlock[] = [];
 	const visit = (node: DocumentNode | null | undefined) => {
 		if (!node || typeof node !== 'object') return;
-		const { toolStepId, componentType } = node.attrs ?? {};
+		const { toolStepId, componentType, config } = node.attrs ?? {};
 		if (
 			node.type === 'reportComponentEmbed' &&
 			typeof toolStepId === 'string' &&
 			typeof componentType === 'string'
 		) {
-			found.push({ workflowStepId: toolStepId, sectionBlock: componentType });
+			found.push({
+				workflowStepId: toolStepId,
+				sectionBlock: componentType,
+				...(typeof config?.item === 'string' && { item: config.item })
+			});
 		}
 		node.content?.forEach(visit);
 	};
@@ -99,7 +133,7 @@ export function sectionBlocksInDocument(document: string): EmbeddedSectionBlock[
 export type PublicStepResults = {
 	stepId: string;
 	stepName: string;
-	sectionBlocks: SectionBlockMeta[];
+	sectionBlocks: EmbeddedSectionBlockMeta[];
 };
 
 /** Per step, the section blocks the given report documents embed. Steps with none are left out. */

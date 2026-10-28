@@ -34,7 +34,13 @@
 		onUnpublish
 	}: Props = $props();
 
-	const chartCount = $derived(results.reduce((sum, step) => sum + step.sectionBlocks.length, 0));
+	const chartCount = $derived(
+		results.reduce(
+			(sum, step) =>
+				sum + step.sectionBlocks.reduce((blocks, block) => blocks + block.itemCount, 0),
+			0
+		)
+	);
 	const stepNames = $derived(results.map((step) => step.stepName));
 
 	function listNames(names: string[]) {

@@ -5,7 +5,11 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/loading-button.svelte';
-	import { sectionBlocksForTool, type PublicStepResults } from '$lib/reports/embeds';
+	import {
+		embeddedSectionBlockLabel,
+		sectionBlocksForTool,
+		type PublicStepResults
+	} from '$lib/reports/embeds';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 
 	type Props = {
@@ -35,12 +39,18 @@
 	const privateItems = $derived([
 		'who took part and how each person voted',
 		...results.flatMap((step) => {
+			const blocks = sectionBlocksForTool(steps.find((s) => s.id === step.stepId)?.toolType);
+			const perItem = blocks.filter((block) => block.itemName);
 			const others =
-				sectionBlocksForTool(steps.find((s) => s.id === step.stepId)?.toolType).length -
-				step.sectionBlocks.length;
-			return others > 0
-				? [`${others} other ${others === 1 ? 'chart' : 'charts'} from ${step.stepName}`]
-				: [];
+				blocks.length -
+				perItem.length -
+				step.sectionBlocks.filter((block) => !block.itemName).length;
+			return [
+				...(others > 0
+					? [`${others} other ${others === 1 ? 'chart' : 'charts'} from ${step.stepName}`]
+					: []),
+				...perItem.map((block) => `other ${block.itemName?.other} from ${step.stepName}`)
+			];
 		}),
 		...steps
 			.filter((step) => !results.some((r) => r.stepId === step.id))
@@ -74,7 +84,7 @@
 				{#each results as step (step.stepId)}
 					{#each step.sectionBlocks as block (block.type)}
 						<li>
-							{block.label}
+							{embeddedSectionBlockLabel(block)}
 							<span class="text-muted-foreground">from {step.stepName}</span>
 						</li>
 					{/each}
