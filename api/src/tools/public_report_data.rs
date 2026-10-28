@@ -8,16 +8,23 @@
 pub mod anonymous;
 pub mod embeds;
 
+use std::sync::Arc;
+
 use anonymous::PublicReportData;
 use embeds::{EmbeddedSectionBlock, embedded_section_blocks};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{event, report, workflow, workflow_step};
+use crate::models::permissions::conversation::Action;
+use crate::models::permissions::{self};
+use crate::models::users::User;
+use crate::models::{conversation, event, report, workflow, workflow_step};
 use crate::tools::ToolConfig;
 
-/// Serve one section block's public data. `for_tool` narrows the step's config to the endpoint's
+/// Serve one section block's public data. `item` says which one the block shows, for blocks
+/// like a HeyForm question, and must match the embed's. `for_tool` narrows the step's config to the endpoint's
 /// own tool, for example `|config| match config { ToolConfig::Polis(polis) => Some(polis), _ =>
 /// None }`, and `build` turns that config into the response.
 ///
@@ -28,17 +35,63 @@ pub async fn serve_public_report_data<Config, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
+    item: Option<&str>,
     for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
     build: impl AsyncFnOnce(Config) -> Result<Data, ComhairleError>,
 ) -> Result<Data, ComhairleError> {
-    let config = public_tool_config(db, workflow_step_id, section_block, for_tool).await?;
+    let config = public_tool_config(db, workflow_step_id, section_block, item, for_tool).await?;
     build(config).await
+}
+
+/// Serve a section block's data to a facilitator before it is public, so the report editor and
+/// preview show what readers will get. Skips the published and embedded checks, and needs
+/// permission to update the step's conversation instead.
+pub async fn serve_report_data_preview<Config, Data: PublicReportData>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: &Uuid,
+    for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
+    build: impl AsyncFnOnce(Config) -> Result<Data, ComhairleError>,
+) -> Result<Data, ComhairleError> {
+    let step = check_can_update_step(state, user, workflow_step_id).await?;
+    let config =
+        for_tool(step.tool_config.unwrap_or(step.preview_tool_config)).ok_or_else(|| {
+            ComhairleError::ResourceNotFound(format!(
+                "Report data for workflow step {workflow_step_id}"
+            ))
+        })?;
+    build(config).await
+}
+
+/// The step, when the user can update its conversation. For report editing tools that only
+/// facilitators use, such as listing what a step could embed.
+pub async fn check_can_update_step(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: &Uuid,
+) -> Result<workflow_step::WorkflowStep, ComhairleError> {
+    let step = workflow_step::get_by_id(&state.db, workflow_step_id).await?;
+    let conversation_id = conversation_of_workflow(&state.db, &step.workflow_id).await?;
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let can_update = permissions::can_perform_action(
+        state,
+        &conversation.id,
+        Action::Update,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?;
+    if !can_update {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+    Ok(step)
 }
 
 async fn public_tool_config<Config>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
+    item: Option<&str>,
     for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
 ) -> Result<Config, ComhairleError> {
     let not_found = || {
@@ -70,6 +123,7 @@ async fn public_tool_config<Config>(
     let requested = EmbeddedSectionBlock {
         workflow_step_id: *workflow_step_id,
         section_block: section_block.to_owned(),
+        item: item.map(str::to_owned),
     };
     if !embedded_section_blocks(db, &report)
         .await?
@@ -143,25 +197,25 @@ mod tests {
         let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
 
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, None, learn).await,
             "step was served with no report",
         );
 
         report::create_for_conversation(&pool, conversation_id, "en").await?;
         embed_in_summary(&pool, conversation_id, &step.id, EMBEDDED).await?;
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, None, learn).await,
             "step was served from an unpublished report",
         );
 
         set_published(&pool, conversation_id, true).await?;
-        let config = public_tool_config(&pool, &step.id, EMBEDDED, learn).await?;
+        let config = public_tool_config(&pool, &step.id, EMBEDDED, None, learn).await?;
         assert_eq!(
             Some(ToolConfig::Learn(config)),
             step.tool_config.or(Some(step.preview_tool_config)),
             "wrong tool config served"
         );
-        let served = serve_public_report_data(&pool, &step.id, EMBEDDED, learn, async |_| {
+        let served = serve_public_report_data(&pool, &step.id, EMBEDDED, None, learn, async |_| {
             Ok(ExampleSectionBlock {
                 participants: Count(3),
             })
@@ -170,17 +224,21 @@ mod tests {
         assert_eq!(served.participants, Count(3), "built data not returned");
 
         assert_not_found(
-            public_tool_config(&pool, &step.id, NOT_EMBEDDED, learn).await,
+            public_tool_config(&pool, &step.id, NOT_EMBEDDED, None, learn).await,
             "a section block the report doesn't embed was served",
         );
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, polis).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, Some("question-1"), learn).await,
+            "an item the report doesn't embed was served",
+        );
+        assert_not_found(
+            public_tool_config(&pool, &step.id, EMBEDDED, None, polis).await,
             "step was served to another tool's endpoint",
         );
 
         set_published(&pool, conversation_id, false).await?;
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, None, learn).await,
             "step was still served after the report was unpublished",
         );
 
