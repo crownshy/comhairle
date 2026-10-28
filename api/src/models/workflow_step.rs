@@ -47,7 +47,6 @@ pub struct WorkflowStep {
     pub request_user_share_permission: bool,
     #[partially(transparent)]
     pub data_protocol: Option<TextContentId>,
-    pub report_data_public: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -97,7 +96,7 @@ impl WithToolConfig for LocalizedWorkflowStepWithProgress {
     }
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 16] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 15] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -111,7 +110,6 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 16] = [
     WorkflowStepIden::Required,
     WorkflowStepIden::RequestUserSharePermission,
     WorkflowStepIden::DataProtocol,
-    WorkflowStepIden::ReportDataPublic,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -284,9 +282,6 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = &self.data_protocol {
             values.push((WorkflowStepIden::DataProtocol, (*value).into()))
-        };
-        if let Some(value) = self.report_data_public {
-            values.push((WorkflowStepIden::ReportDataPublic, value.into()))
         };
         values
     }
@@ -461,14 +456,12 @@ pub async fn update(
         .table(WorkflowStepIden::Table)
         .values(values)
         .and_where(Expr::col(WorkflowStepIden::Id).eq(workflow_step_id.to_owned()))
-        .and_where(Expr::col(WorkflowStepIden::WorkflowId).eq(workflow_id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
         .fetch_one(&mut *transaction)
-        .await
-        .resolve_db_err("Workflow Step")?;
+        .await?;
 
     // Reset the orders to plug the gap if needed
 
