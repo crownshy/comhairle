@@ -32,7 +32,7 @@
 	});
 
 	// Theme name is always determined by the PUBLIC_THEME env var
-	if (browser && themeName) {
+	if (themeName) {
 		themeStore.initFromServer(themeName);
 	}
 
