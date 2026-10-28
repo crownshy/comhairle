@@ -8,7 +8,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { reportWidgetsForTool, type ReportWidgetMeta } from '$lib/reports/embeds';
+	import { sectionBlocksForTool, type SectionBlockMeta } from '$lib/reports/embeds';
 
 	/** A report-capable Step offered in stage 1 of the picker. */
 	export type EmbeddableStep = {
@@ -25,8 +25,8 @@
 	let open = $state(false);
 	let selectedStep = $state<EmbeddableStep | null>(null);
 
-	const componentsForStep = $derived<ReportWidgetMeta[]>(
-		reportWidgetsForTool(selectedStep?.toolType)
+	const componentsForStep = $derived<SectionBlockMeta[]>(
+		sectionBlocksForTool(selectedStep?.toolType)
 	);
 
 	// Steps made public from this dialog. Tracked locally rather than invalidating the workflow
@@ -75,7 +75,7 @@
 
 	// Insert stores only the reference (ADR-0012); the embedded component loads its own data
 	// live, so this is instant — no freeze step.
-	function pickComponent(meta: ReportWidgetMeta) {
+	function pickComponent(meta: SectionBlockMeta) {
 		if (!editor || !selectedStep) return;
 		editor
 			.chain()

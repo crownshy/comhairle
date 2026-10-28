@@ -1,9 +1,9 @@
-# ADR-0061: Public report data comes from per-widget endpoints behind a step opt-in
+# ADR-0061: Public report data comes from per-section-block endpoints behind a step opt-in
 
-**Status:** Proposal - to be discussed with the team
+**Status:** proposed
 **Date:** 2026-09-28
-**Amends:** ADR-0012 (live embeds now fetch from dedicated public endpoints, not the Insights
-endpoints)
+**Amends:** [ADR-0012](0012-report-component-embeds-store-reference-plus-frozen-html.md)
+(live embeds now fetch from dedicated public endpoints, not the Insights endpoints)
 
 ## Context
 
@@ -22,20 +22,21 @@ component reads, and representative comments that may carry unmoderated text.
 
 - **Public report data only comes from dedicated report-data endpoints.** The Insights
   endpoints stay admin-only and are never called by a public surface.
-- **One endpoint per widget, to start.** Each embeddable widget gets its own endpoint that
-  returns only the fields it draws. What goes public is then easy to review one widget at a
-  time, and each response caches on its own. If the count gets out of hand, or several widgets
-  keep fetching the same thing, we revisit and merge them.
+- **One endpoint per section block, to start.** Each embeddable section block gets its own
+  endpoint that returns only the fields it draws. What goes public is then easy to review one
+  section block at a time, and each response caches on its own. If the count gets out of
+  hand, or several section blocks keep fetching the same thing, we revisit and merge them.
 - **Anonymised and moderated only.** No user ids, pids or per-person rows. No rejected or
   pending content, whatever a tool's own moderation setting shows participants. A future
   moderation report is the one expected exception, and it gets its own ADR.
 - **A step opts in explicitly.** `workflow_step.report_data_public` defaults to off. Every
   public endpoint goes through `tools::public_report_data::public_report_tool_config`, which
-  returns 404 when the flag is off, the same as for a missing step. Admins turn it on from the
-  step's settings or from the embed dialog. Embedding a widget never turns it on by itself.
-- **Frontend registry.** `lib/reports/embeds.ts` lists each tool's widgets (metadata only) and
-  `lib/reports/ReportEmbedLive.svelte` maps a tool to the component that loads and renders
-  them. A tool PR adds one entry to each.
+  returns 404 when the flag is off or the step runs another tool, the same as for a missing
+  step. Admins turn it on from the step's settings or from the embed dialog. Embedding a
+  section block never turns it on by itself.
+- **Frontend registry.** `lib/reports/embeds.ts` lists each tool's section blocks (metadata
+  only) and `lib/reports/ReportEmbedLive.svelte` maps a tool to the component that loads and
+  renders them. A tool PR adds one entry to each.
 
 ## Consequences
 
@@ -44,7 +45,8 @@ component reads, and representative comments that may carry unmoderated text.
 - Until #1253 lands, the existing Polis embeds keep reading `PolisGetReportData` and ignore
   the flag. The room display reads it too (#1254). Locking it down to admins (#1255) waits on
   both moving.
-- Public readers see a placeholder for a widget whose step hasn't opted in. An admin can turn
-  the flag off after publishing, which blanks those widgets on the live report.
-- More endpoints to maintain, each small. Several widgets from one step can repeat an
+- Public readers see a placeholder for a section block whose step hasn't opted in. An admin
+  can turn the flag off after publishing, which blanks those section blocks on the live
+  report.
+- More endpoints to maintain, each small. Several section blocks from one step can repeat an
   upstream fetch; the per-step cache from #1243 absorbs that for Polis.

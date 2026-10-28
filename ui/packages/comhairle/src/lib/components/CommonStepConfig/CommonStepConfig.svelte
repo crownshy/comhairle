@@ -29,7 +29,7 @@
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { permissions } from '$lib/permissions.svelte';
-	import { hasReportWidgets } from '$lib/reports/embeds';
+	import { hasSectionBlocks } from '$lib/reports/embeds';
 
 	type Props = {
 		conversation_id: string;
@@ -326,7 +326,7 @@
 			</span>
 		</div>
 	{/if}
-	{#if hasReportWidgets(toolType)}
+	{#if hasSectionBlocks(toolType)}
 		<div class="flex items-center gap-2">
 			<Switch
 				id="report-data-public"
