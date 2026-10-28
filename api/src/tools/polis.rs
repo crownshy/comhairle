@@ -171,6 +171,10 @@ pub struct PolisToolConfig {
     pub required_votes: Option<i32>,
     #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
+    // Off by default so steps set up before first-timer onboarding (ADR-0062)
+    // keep their voting flow unchanged.
+    #[serde(default)]
+    pub show_onboarding: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
     // them (Polis exposes no read path for topic/description/is_active/
@@ -204,6 +208,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             poll_id: self.poll_id.clone(),
             required_votes: self.required_votes,
             show_remaining_statements: self.show_remaining_statements,
+            show_onboarding: self.show_onboarding,
             topic: self.topic.clone(),
             description: self.description.clone(),
             is_active: self.is_active,
@@ -1968,6 +1973,7 @@ pub async fn launch(
 
     Ok(PolisToolConfig {
         moderation_policy_id: preview_config.moderation_policy_id,
+        show_onboarding: preview_config.show_onboarding,
         ..live_poll_config
     })
 }
@@ -2027,6 +2033,7 @@ async fn polis_setup(
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
         show_remaining_statements: setup.show_remaining_statements,
+        show_onboarding: false,
         // Mirror what the poll now holds so the Setup tab reflects reality
         // before the admin edits anything.
         topic: settings.topic.clone(),
@@ -2788,6 +2795,7 @@ mod tests {
             admin_password: "pw".into(),
             required_votes: Some(5),
             show_remaining_statements: false,
+            show_onboarding: true,
             topic: Some("Transport".into()),
             description: Some("Buses and trains".into()),
             is_active: Some(true),
@@ -2813,6 +2821,7 @@ mod tests {
         .await?;
 
         assert_eq!(config.strict_moderation, Some(true));
+        assert!(!config.show_onboarding);
         let updates = updates.lock().unwrap();
         assert_eq!(updates.len(), 1);
         assert_eq!(updates[0].0, "live_poll");
@@ -2832,6 +2841,7 @@ mod tests {
         assert_eq!(live.description, preview.description);
         assert_eq!(live.required_votes, preview.required_votes);
         assert!(!live.show_remaining_statements);
+        assert!(live.show_onboarding);
         assert_eq!(live.moderation_policy_id, preview.moderation_policy_id);
 
         let updates = updates.lock().unwrap();
@@ -2853,6 +2863,20 @@ mod tests {
 
         assert_eq!(live.strict_moderation, Some(true));
         assert_eq!(updates.lock().unwrap()[0].1.strict_moderation, Some(true));
+        Ok(())
+    }
+
+    #[test]
+    fn config_saved_before_onboarding_flag_has_onboarding_off() -> Result<(), Box<dyn Error>> {
+        let config: PolisToolConfig = serde_json::from_value(serde_json::json!({
+            "server_url": "polis.test",
+            "poll_id": "poll",
+            "admin_user": "u@mock.com",
+            "admin_password": "pw",
+            "required_votes": 10
+        }))?;
+
+        assert!(!config.show_onboarding);
         Ok(())
     }
 }

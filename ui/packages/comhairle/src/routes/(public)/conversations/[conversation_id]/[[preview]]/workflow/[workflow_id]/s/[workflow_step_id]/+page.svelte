@@ -357,6 +357,7 @@
 							onDone={showCompletionScreen}
 							topic={toolConfig.topic}
 							strictModeration={toolConfig.strict_moderation}
+							showOnboarding={toolConfig.show_onboarding}
 						/>
 					{:else if toolConfig?.type === HeyForm.TOOL_NAME}
 						<HeyForm.UserUI
