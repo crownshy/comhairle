@@ -3,7 +3,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
-	import { REPORT_COLUMN_CLASS } from './styles';
+	import { REPORT_COLUMN_CLASS } from '$lib/reports/styles';
 
 	type Props = {
 		backHref: string;
