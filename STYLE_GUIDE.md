@@ -317,8 +317,8 @@ If you copy a block a second time, stop and extract it.
 - **Tailwind v4 utilities, inline.** No custom classes in `<style>` blocks: if you need
   CSS, it's a utility. (Complex keyframe/`@container` work is the rare exception and must
   be justified in a comment.)
-- **Never smaller than `text-base` for content.** `text-sm` only for small labels;
-  nothing below `text-sm`, ever. This is enforced on desktop.
+- **Never smaller than `text-base` for content.** `text-sm` and `text-xs` are for small
+  labels, metadata, and dense chrome like the admin sidebar.
 - Use the **flat shadcn design tokens** (`bg-card`, `text-muted-foreground`, …). When
   translating from Figma, map its doubled token names to the flat token in markup.
 
