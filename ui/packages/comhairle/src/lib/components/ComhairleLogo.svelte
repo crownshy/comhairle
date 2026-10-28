@@ -3,8 +3,8 @@
 	import IconLogo from '$lib/assets/comhairle_logo.svg';
 	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import WavesLogo from '$lib/assets/waves-logo-lg.png';
-	import ScotGovLogo from '$lib/assets/Scottish_Government_Logo_White_text.svg';
-	import ScotGovLogoDark from '$lib/assets/Scottish_Government_Logo_Dark_text.svg.webp';
+	import ScotGovLogo from '$lib/assets/scot-gov-logo-white-text.svg';
+	import ScotGovLogoDark from '$lib/assets/scot-gov-logo-dark-text.webp';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 
