@@ -13,7 +13,8 @@ export const reportTour: Tour = {
 		{
 			element: '[data-tour="report-publish"]',
 			title: 'Publish when ready',
-			description: 'View shows the report as others will see it. Publish makes it public.',
+			description:
+				'This bar always says what publishing shares. Preview shows the report as readers see it, and Review and publish lists exactly what becomes public.',
 			side: 'bottom'
 		}
 	]
