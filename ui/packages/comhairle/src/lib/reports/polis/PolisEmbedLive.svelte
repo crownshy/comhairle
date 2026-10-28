@@ -7,12 +7,11 @@
 	import type { ReportEmbedProps } from '../embeds';
 
 	/**
-	 * A live, interactive report component embedded in the report (ADR-0012). Given only a
-	 * reference (`toolStepId` + `componentType`) it loads the data itself and renders the real
-	 * section component (the same code the Insights tab uses), so expand/hover/filter all work.
-	 * Shared by the editor node view and the published report page.
+	 * A live Polis section block in the report (ADR-0012). Loads its data from the block's
+	 * public or preview endpoint (ADR-0061) and renders the same section component the Insights
+	 * tab uses. Shared by the editor node view and the published report page.
 	 */
-	let { toolStepId, componentType }: ReportEmbedProps = $props();
+	let { toolStepId, componentType, preview = false }: ReportEmbedProps = $props();
 
 	let data = $state<PolisEmbedData | null>(null);
 	let loading = $state(true);
@@ -22,13 +21,17 @@
 	// SSR'd public page this runs on hydration and the component pops in.
 	$effect(() => {
 		const stepId = toolStepId;
+		const blockType = componentType as PolisEmbeddableComponentType;
+		const fromPreview = preview;
 		let cancelled = false;
 		loading = true;
 		failed = false;
 		data = null;
 
 		(async () => {
-			const result = await tryCatchAsync(() => loadPolisEmbedData(stepId));
+			const result = await tryCatchAsync(() =>
+				loadPolisEmbedData(stepId, blockType, fromPreview)
+			);
 			if (cancelled) return;
 			if (result.err !== null) {
 				failed = true;
@@ -49,10 +52,5 @@
 {:else if failed || !data}
 	<EmbedState state="unavailable" />
 {:else}
-	<PolisReportSection
-		componentType={componentType as PolisEmbeddableComponentType}
-		reportData={data.reportData}
-		statementAux={data.statementAux}
-		frozen={false}
-	/>
+	<PolisReportSection {data} />
 {/if}

@@ -4,16 +4,6 @@
 //! field isn't [`PublicReportData`]. Ids, pids, emails and raw strings never are, so they can't
 //! reach a public endpoint by accident. Adding a new building block here needs a reviewer to
 //! agree it can't identify a person.
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        unused_macros,
-        unused_imports,
-        reason = "first users are the Polis public endpoints (#1253)"
-    )
-)]
-
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -51,6 +41,29 @@ impl ModeratedText {
     }
 }
 
+/// Polis's number for a statement, used to match a statement to its vote bars and groups. Polis
+/// numbers statements in the order they were written, so it says nothing about who wrote one.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct StatementId(pub u32);
+
+/// Polis's number for an opinion group, counting from 0 within one conversation.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct OpinionGroupId(pub u32);
+
+/// A theme label a facilitator tagged statements with, such as "Transport". Facilitators write
+/// these, not participants, so build it only from facilitator-set themes.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct ThemeLabel(String);
+
+impl ThemeLabel {
+    pub fn from_facilitator_theme(theme: String) -> Self {
+        Self(theme)
+    }
+}
+
 macro_rules! building_blocks {
     ($($building_block:ty),*) => {
         $(
@@ -60,7 +73,16 @@ macro_rules! building_blocks {
     };
 }
 
-building_blocks!(Count, Share, ModeratedText, bool, &'static str);
+building_blocks!(
+    Count,
+    Share,
+    ModeratedText,
+    StatementId,
+    OpinionGroupId,
+    ThemeLabel,
+    bool,
+    &'static str
+);
 
 impl<T: PublicReportData> sealed::Sealed for Option<T> {}
 impl<T: PublicReportData> PublicReportData for Option<T> {}

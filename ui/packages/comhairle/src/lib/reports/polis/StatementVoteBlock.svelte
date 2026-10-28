@@ -6,14 +6,14 @@
 	bars (`computeMemberVoteBars`). N group bars, not a fixed pair.
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { GroupSize, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { computeMemberVoteBars } from '$lib/tools/polis/report';
 	import ThemeTag from '$lib/components/report/ThemeTag.svelte';
 	import VoteBar from './VoteBar.svelte';
 
 	type Props = {
-		comment: ReportComment;
-		groups: ReportGroup[];
+		comment: VotedStatement;
+		groups: GroupSize[];
 	};
 
 	let { comment, groups }: Props = $props();

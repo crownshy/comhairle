@@ -476,6 +476,113 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
+export const PolisPublicKeyStats = z
+  .object({
+    participants: z.number().int().gte(0),
+    statements: z.number().int().gte(0),
+    votes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicKeyStats = z.infer<typeof PolisPublicKeyStats>;
+export const PolisPublicGroup = z
+  .object({
+    groupId: z.number().int().gte(0),
+    totalMembers: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicGroup = z.infer<typeof PolisPublicGroup>;
+export const PolisPublicGroupVotes = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    groupId: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicGroupVotes = z.infer<typeof PolisPublicGroupVotes>;
+export const PolisPublicVotes = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicVotes = z.infer<typeof PolisPublicVotes>;
+export const PolisPublicRankedStatement = z
+  .object({
+    groupVotes: z.array(PolisPublicGroupVotes),
+    isSeed: z.boolean(),
+    overallVotes: PolisPublicVotes,
+    text: z.string(),
+    themes: z.array(z.string()),
+    tid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicRankedStatement = z.infer<
+  typeof PolisPublicRankedStatement
+>;
+export const PolisPublicRankedStatements = z
+  .object({
+    groups: z.array(PolisPublicGroup),
+    statements: z.array(PolisPublicRankedStatement),
+  })
+  .passthrough();
+export type PolisPublicRankedStatements = z.infer<
+  typeof PolisPublicRankedStatements
+>;
+export const PolisPublicPlacedStatement = z
+  .object({
+    divisiveness: z.number(),
+    groupVotes: z.array(PolisPublicGroupVotes),
+    overallVotes: PolisPublicVotes,
+    text: z.string(),
+    themes: z.array(z.string()),
+    tid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicPlacedStatement = z.infer<
+  typeof PolisPublicPlacedStatement
+>;
+export const PolisPublicConsensusContinuum = z
+  .object({
+    groups: z.array(PolisPublicGroup),
+    statements: z.array(PolisPublicPlacedStatement),
+  })
+  .passthrough();
+export type PolisPublicConsensusContinuum = z.infer<
+  typeof PolisPublicConsensusContinuum
+>;
+export const PolisPublicRepresentativeStatement = z
+  .object({ tid: z.number().int().gte(0) })
+  .passthrough();
+export type PolisPublicRepresentativeStatement = z.infer<
+  typeof PolisPublicRepresentativeStatement
+>;
+export const PolisPublicOpinionGroup = z
+  .object({
+    groupId: z.number().int().gte(0),
+    representativeComments: z.array(PolisPublicRepresentativeStatement),
+    totalMembers: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicOpinionGroup = z.infer<typeof PolisPublicOpinionGroup>;
+export const PolisPublicStatement = z
+  .object({
+    groupVotes: z.array(PolisPublicGroupVotes),
+    overallVotes: PolisPublicVotes,
+    text: z.string(),
+    themes: z.array(z.string()),
+    tid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PolisPublicStatement = z.infer<typeof PolisPublicStatement>;
+export const PolisPublicOpinionGroups = z
+  .object({
+    groups: z.array(PolisPublicOpinionGroup),
+    statements: z.array(PolisPublicStatement),
+  })
+  .passthrough();
+export type PolisPublicOpinionGroups = z.infer<typeof PolisPublicOpinionGroups>;
 export const GroupVoteCounts = z
   .object({
     agrees: z.number().int().gte(0),
@@ -3702,6 +3809,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
+  PolisPublicKeyStats,
+  PolisPublicGroup,
+  PolisPublicGroupVotes,
+  PolisPublicVotes,
+  PolisPublicRankedStatement,
+  PolisPublicRankedStatements,
+  PolisPublicPlacedStatement,
+  PolisPublicConsensusContinuum,
+  PolisPublicRepresentativeStatement,
+  PolisPublicOpinionGroup,
+  PolisPublicStatement,
+  PolisPublicOpinionGroups,
   GroupVoteCounts,
   VoteCounts,
   CommentReportData,
@@ -7188,6 +7307,81 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/polis/public_report/consensus",
+    alias: "PolisGetPublicConsensus",
+    description: `Accepted statements ranked by group informed consensus, highest first. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/public_report/consensus_continuum",
+    alias: "PolisGetPublicConsensusContinuum",
+    description: `Accepted statements Polis has given a divisiveness score. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicConsensusContinuum,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/public_report/disagreement",
+    alias: "PolisGetPublicDisagreement",
+    description: `Accepted statements ranked by divisiveness, highest first. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/public_report/key_stats",
+    alias: "PolisGetPublicKeyStats",
+    description: `Participant, accepted statement and vote counts for a Polis step. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/public_report/opinion_groups",
+    alias: "PolisGetPublicOpinionGroups",
+    description: `Each opinion group&#x27;s size and accepted representative statements. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicOpinionGroups,
+  },
+  {
+    method: "get",
     path: "/tools/polis/report_data",
     alias: "PolisGetReportData",
     description: `Fetches the polis data export for a given workflow step`,
@@ -7200,6 +7394,81 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: WikiPollReport,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/consensus",
+    alias: "PolisPreviewConsensus",
+    description: `The same data as PolisGetPublicConsensus, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/consensus_continuum",
+    alias: "PolisPreviewConsensusContinuum",
+    description: `The same data as PolisGetPublicConsensusContinuum, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicConsensusContinuum,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/disagreement",
+    alias: "PolisPreviewDisagreement",
+    description: `The same data as PolisGetPublicDisagreement, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/key_stats",
+    alias: "PolisPreviewKeyStats",
+    description: `The same data as PolisGetPublicKeyStats, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/opinion_groups",
+    alias: "PolisPreviewOpinionGroups",
+    description: `The same data as PolisGetPublicOpinionGroups, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicOpinionGroups,
   },
   {
     method: "post",

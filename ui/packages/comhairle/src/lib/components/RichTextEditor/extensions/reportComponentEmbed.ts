@@ -141,7 +141,8 @@ export const ReportComponentEmbed = Node.create({
 				target: body,
 				props: {
 					toolStepId: (node.attrs.toolStepId as string) ?? '',
-					componentType: (node.attrs.componentType as string) ?? ''
+					componentType: (node.attrs.componentType as string) ?? '',
+					preview: true
 				}
 			});
 

@@ -10,7 +10,7 @@
 	comments + groups; the focused statement is local view state (hover/focus a dot).
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { GroupSize, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { scoredComments, mostDivisiveTid } from '$lib/tools/polis/beeswarm';
 	import { scaleSqrt } from 'd3-scale';
 	import {
@@ -26,11 +26,11 @@
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
 	type Props = {
-		comments: ReportComment[];
-		groups: ReportGroup[];
+		comments: (VotedStatement & { divisiveness?: number | null })[];
+		groups: GroupSize[];
 		/**
 		 * Frozen-snapshot render (ADR-0012). The live plot needs a measured width and an
-		 * animated d3-force layout — neither survives being baked to static HTML. In frozen
+		 * animated d3-force layout, and neither survives being baked to static HTML. In frozen
 		 * mode we run the simulation to completion synchronously at a fixed viewBox width and
 		 * emit plain, settled `<circle>`s, so the snapshot is a finished swarm, not a blank box.
 		 */

@@ -46,10 +46,17 @@ Thinking Space summary, another may have told participants it stays with the org
   `serve_public_report_data`, which only returns types declared with the `public_report_data!`
   macro. A field that isn't one of the approved building blocks (`Count`, `Share`,
   `ModeratedText`, booleans, fixed labels, and lists or options of them) fails to compile, so
-  ids, pids, emails and raw strings can't reach a public response. Participant text can only
+  ids, pids, emails and raw strings can't reach a public response. Polis added three:
+  `StatementId` and `OpinionGroupId` (Polis's own numbering for statements and groups, which
+  says nothing about who wrote or joined them) and `ThemeLabel` (themes facilitators tag
+  statements with). Participant text can only
   go out as `ModeratedText`, which is built from accepted content only. Adding a building block
   needs a reviewer to agree it can't identify a person. A future moderation report is the one
   expected exception, and it gets its own ADR.
+- **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
+  skip the published and embedded checks but need permission to update the conversation.
+  They run the same builders and return the same types, so the report editor, the add-chart
+  dialog and the report preview show what readers will get before the report is published.
 - **Frontend registry.** `lib/reports/embeds.ts` lists each tool's section blocks (metadata
   only) and `lib/reports/ReportEmbedLive.svelte` maps a tool to the component that loads and
   renders them. A tool PR adds one entry to each.
@@ -59,9 +66,11 @@ Thinking Space summary, another may have told participants it stays with the org
 - Each tool's embeds ship as their own PR with their endpoints: Polis #1253, HeyForm #1259,
   Prioritization #1260, Thinking Space #1261. Each declares its responses with
   `public_report_data!` and calls `serve_public_report_data` with its section block type.
-- Until #1253 lands, the existing Polis embeds keep reading `PolisGetReportData` and ignore
-  both the published state and the embed check. The room display reads it too (#1254).
-  Locking it down to admins (#1255) waits on both moving.
+- The Polis embeds read `/tools/polis/public_report/` and `/tools/polis/report_preview/`
+  (#1253), accepted statements only, whatever `strict_moderation` says. Divisiveness goes out
+  as a share of the most divisive statement's, since the continuum only needs it relative. The
+  room display still reads `PolisGetReportData` (#1254). Locking that down to admins (#1255)
+  waits on the display moving.
 - Types stop identifiers and unmoderated text, but they can't stop small numbers from pointing
   at a person, such as an opinion group of one. Whether to round or hide small counts is open
   and belongs with the first tool that shows group sizes.

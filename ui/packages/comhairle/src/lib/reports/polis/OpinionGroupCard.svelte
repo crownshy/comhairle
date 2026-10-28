@@ -5,7 +5,7 @@
 	expand.
 
 	Size line = this group's `total_members` and its share of all group members.
-	Representative comments carry only `{ text, tid }`, so each tid is resolved back
+	Representative comments are referenced by `tid`, so each is resolved back
 	to the full report comment (from `comments`) to render the vote bars; any that
 	don't resolve are skipped.
 
@@ -19,18 +19,18 @@
 	Collapse is local view state.
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { GroupSize, RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import * as Card from '$lib/components/ui/card';
 	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
 	type Props = {
-		group: ReportGroup;
+		group: RepresentedGroup;
 		/** All report comments, used to resolve representative-comment tids to bars. */
-		comments: ReportComment[];
+		comments: VotedStatement[];
 		/** All opinion groups, so each statement block draws OVERALL + one bar per group. */
-		groups: ReportGroup[];
+		groups: GroupSize[];
 		/**
 		 * AI-generated name + summary for this group. Omitted in the live report today
 		 * (the block is hidden); Storybook passes it to demo the generated version.
@@ -58,7 +58,7 @@
 	const repComments = $derived(
 		group.representative_comments
 			.map((r) => byTid.get(r.tid))
-			.filter((c): c is ReportComment => c !== undefined)
+			.filter((c): c is VotedStatement => c !== undefined)
 	);
 	const visible = $derived(
 		frozen || expanded ? repComments : repComments.slice(0, COLLAPSED_ROWS)
