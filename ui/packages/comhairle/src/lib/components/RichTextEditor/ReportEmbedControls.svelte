@@ -2,6 +2,7 @@
 	import type { Editor } from '@tiptap/core';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
+	import LoadingButton from '$lib/components/ui/button/loading-button.svelte';
 	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
 	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import Globe from 'lucide-svelte/icons/globe';
@@ -74,7 +75,7 @@
 	}
 
 	// Insert stores only the reference (ADR-0012); the embedded component loads its own data
-	// live, so this is instant — no freeze step.
+	// live, so this is instant, with no freeze step.
 	function pickComponent(meta: SectionBlockMeta) {
 		if (!editor || !selectedStep) return;
 		editor
@@ -147,20 +148,20 @@
 						Only admins can see these results. People reading the published report will
 						see a placeholder until you make this step's results public.
 					</p>
-					<p class="text-muted-foreground text-sm">
+					<p class="text-muted-foreground text-base">
 						Public results are anonymised totals and moderated content only. You can
 						turn this off again in the step's settings.
 					</p>
 					<div>
-						<Button
+						<LoadingButton
 							variant="outline"
 							size="sm"
-							disabled={makingPublic}
+							loading={makingPublic}
 							onclick={makeSelectedStepPublic}
 						>
 							<Globe class="size-4" />
 							Make results public
-						</Button>
+						</LoadingButton>
 					</div>
 				</div>
 			{/if}
