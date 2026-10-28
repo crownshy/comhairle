@@ -1,9 +1,10 @@
 import type {
+	GroupSize,
 	MemberVotePercent,
 	PolisReportData,
 	ReportComment,
-	ReportGroup,
-	VoteCounts
+	VoteCounts,
+	VotedStatement
 } from './reportTypes';
 
 /** A-Z label for a group_id (0 -> "A"). */
@@ -18,8 +19,8 @@ export function groupLabel(groupId: number): string {
  * if it cast nothing on this statement) and N is variable, not a fixed pair.
  */
 export function computeMemberVoteBars(
-	comment: ReportComment,
-	groups: ReportGroup[]
+	comment: VotedStatement,
+	groups: GroupSize[]
 ): { overall: MemberVotePercent; groups: MemberVotePercent[] } {
 	const bar = (
 		label: string,

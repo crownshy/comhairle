@@ -10,7 +10,7 @@
 	Filtering and collapse are local view state, not data fetching.
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { GroupSize, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import * as Card from '$lib/components/ui/card';
 	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
@@ -20,8 +20,8 @@
 	type Props = {
 		/** Section heading, e.g. "Area of consensus" or "Area of disagreement". */
 		title: string;
-		comments: ReportComment[];
-		groups: ReportGroup[];
+		comments: (VotedStatement & { is_seed: boolean })[];
+		groups: GroupSize[];
 		/**
 		 * Frozen-snapshot render (ADR-0012): the embed bakes this to static HTML, so the
 		 * interactive controls (filter chips, expand toggle) would be dead. In frozen mode we

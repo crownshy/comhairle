@@ -11,17 +11,18 @@
  * high = strongly separates the opinion groups (divisive). A comment only has a
  * score once Polis has enough votes to place it, so unscored comments are dropped.
  */
-import type { ReportComment } from './reportTypes';
+/** A statement that may carry a divisiveness score. */
+type Placeable = { tid: number; divisiveness?: number | null };
 
-/** A report comment Polis has scored — safe to place on the continuum. */
-export type ScoredComment = ReportComment & { divisiveness: number };
+/** A statement Polis has scored, so it is safe to place on the continuum. */
+export type ScoredComment<T extends Placeable = Placeable> = T & { divisiveness: number };
 
-function hasScore(c: ReportComment): c is ScoredComment {
+function hasScore<T extends Placeable>(c: T): c is ScoredComment<T> {
 	return typeof c.divisiveness === 'number' && Number.isFinite(c.divisiveness);
 }
 
 /** Only the comments Polis gave a numeric divisiveness (extremity) score. */
-export function scoredComments(comments: ReportComment[]): ScoredComment[] {
+export function scoredComments<T extends Placeable>(comments: T[]): ScoredComment<T>[] {
 	return comments.filter(hasScore);
 }
 
@@ -30,7 +31,7 @@ export function scoredComments(comments: ReportComment[]): ScoredComment[] {
  * none are scored. Used as the continuum's default focus so the vote breakdown
  * below the plot is always populated with a meaningful (divisive) statement.
  */
-export function mostDivisiveTid(comments: ReportComment[]): number | null {
+export function mostDivisiveTid(comments: Placeable[]): number | null {
 	const scored = scoredComments(comments);
 	if (scored.length === 0) return null;
 	return scored.reduce((a, b) => (b.divisiveness > a.divisiveness ? b : a)).tid;
