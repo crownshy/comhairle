@@ -29,6 +29,7 @@
 	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import { permissions } from '$lib/permissions.svelte';
+	import type { Snippet } from 'svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -37,6 +38,8 @@
 		headerless?: boolean;
 		open?: boolean;
 		inline?: boolean;
+		/** Step-specific sections rendered after the shared fields. */
+		extraFields?: Snippet;
 	};
 
 	let {
@@ -45,7 +48,8 @@
 		conversation,
 		headerless = false,
 		open = $bindable(false),
-		inline = false
+		inline = false,
+		extraFields
 	}: Props = $props();
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation_id)
@@ -287,6 +291,8 @@
 			{/if}
 		</div>
 	</div>
+
+	{@render extraFields?.()}
 {/snippet}
 
 {#snippet switches()}

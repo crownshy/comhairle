@@ -94,6 +94,9 @@
 			</div>
 		{:else}
 			<!-- Stage 2: pick the component -->
+			<p class="text-muted-foreground text-base">
+				Results you embed become public when the report is published.
+			</p>
 			<div class="flex flex-col gap-2">
 				{#each componentsForStep as meta (meta.type)}
 					<button
