@@ -6,6 +6,7 @@
 	import type { UserDto } from '@crownshy/api-client/api';
 	import UserMenuItems from '../account/UserMenuItems.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
+	import { MENU_BUTTON_HOVER } from './sidebarRows';
 
 	interface Props {
 		user: UserDto;
@@ -19,7 +20,7 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger>
 				{#snippet child({ props })}
-					<SideBar.MenuButton size="lg" {...props}>
+					<SideBar.MenuButton size="lg" class={MENU_BUTTON_HOVER} {...props}>
 						<UserAvatar
 							username={user.username}
 							avatarUrl={user.avatarUrl}
@@ -28,9 +29,9 @@
 						<span
 							class="flex min-w-0 flex-1 flex-col text-left leading-tight group-data-[collapsible=icon]:hidden"
 						>
-							<span class="truncate text-base font-semibold">{user?.username}</span>
+							<span class="truncate text-sm font-semibold">{user?.username}</span>
 							{#if user?.email}
-								<span class="text-sidebar-foreground/70 truncate text-sm">
+								<span class="text-sidebar-foreground/70 truncate text-xs">
 									{user.email}
 								</span>
 							{/if}
