@@ -1,68 +1,12 @@
 <script lang="ts">
-	import { invalidate } from '$app/navigation';
-	import type { PageProps } from './$types';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import { key } from '$lib/utils/invalidationKey';
-	import { Label } from '$lib/components/ui/label';
-	import { notifications } from '$lib/notifications.svelte';
-	import { Form, Input, SelectList, Submit, validate } from '$lib/components/EasyForm';
-	import Demographics from '$lib/interfaces/Demographics';
-	import { Second } from '$lib/utils/units';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
-	let { data }: PageProps = $props();
-	let { user, demographicQuestions, demographicResponses } = $derived(data);
-
-	function getInitialValue(questionSlug: string): string {
-		return (
-			demographicResponses.find((r) => r.questionSlug === questionSlug)?.value?.toString() ??
-			''
-		);
-	}
-
-	async function handleDemographics(formData: FormData) {
-		const updateQuestions = [];
-		let failed = false;
-
-		for (const question of demographicQuestions) {
-			const update = Demographics.updateResponse({
-				questionSlug: question.slug,
-				userId: user.id,
-				newValue: (formData.get(question.slug) as string) ?? undefined,
-				currentResponse: demographicResponses.find((r) => r.questionSlug === question.slug)
-			}).then((result) => {
-				if (result !== undefined && result.err !== null) {
-					failed = true;
-					notifications.send({
-						message: `Failed to update: ${question.slug}`,
-						priority: 'ERROR',
-						duration: 5 * Second
-					});
-				}
-			});
-
-			if (update === undefined) {
-				continue;
-			}
-
-			updateQuestions.push(update);
-		}
-
-		await Promise.all(updateQuestions);
-
-		if (failed) {
-			return;
-		}
-
-		notifications.send({
-			message: 'Demographics updated successfully',
-			priority: 'INFO',
-			duration: 5 * Second
-		});
-
-		await invalidate(key('public/settings/profile'));
-	}
+	let { data } = $props();
+	let { user } = $derived(data);
 </script>
 
 <PageHeader title="Your profile" description="Update account details and demographic data here" />
@@ -103,57 +47,28 @@
 					conversation results.
 				</p>
 			</div>
-
-			{#if demographicQuestions.length === 0}
-				<SelectList
-					title="Ethnicity"
-					name="hello"
-					options={[
-						{ label: 'hello', value: 'world' },
-						{ label: 'a', value: 'b' },
-						{ label: 'c', value: 'd' }
-					]}
-					onselect={console.log}
-				/>
-				<span class="text-muted-foreground mt-4 text-sm italic">
-					No demographic questions are currently available.
-				</span>
-			{:else}
-				<Form class="grid gap-4 md:grid-cols-2" handleSubmission={handleDemographics}>
-					{#snippet children(isSubmitting)}
-						{#each demographicQuestions as question (question.slug)}
-							<div class="space-y-2">
-								<!-- Use question.label or question.text if your backend provides it, otherwise format the slug -->
-								<Label for={question.slug}>{question.displayName}</Label>
-								{#if question.bucketConfig?.type === 'string' && question.bucketConfig?.options?.length > 0}
-									<SelectList
-										title="Ethnicity"
-										name={question.slug}
-										options={[
-											{ label: 'hello', value: 'world' },
-											{ label: 'a', value: 'b' },
-											{ label: 'c', value: 'd' }
-										]}
-										onselect={console.log}
-									/>
-								{:else}
-									<Input
-										id={question.slug}
-										name={question.slug}
-										defaultValue={getInitialValue(question.slug)}
-									/>
-								{/if}
-							</div>
-						{/each}
-
-						<Submit
-							text="Make changes"
-							class="self-end justify-self-end"
-							{isSubmitting}
-						/>
-					{/snippet}
-				</Form>
-			{/if}
+			{#await data.streamedMyResponses}
+				<div class="flex flex-row items-center gap-x-2">
+					<Spinner />
+					<span>Loading responses</span>
+				</div>
+			{:then myResponses}
+				{#if myResponses.err !== null}
+					{console.error(myResponses.err)}
+					<ErrorMessage>Could not load responses, please try again</ErrorMessage>
+				{:else}
+					{#each myResponses.ok as response (response.question)}
+						<div class="mb-5 flex flex-col gap-y-1">
+							<span class="text-muted-foreground text-sm font-medium">
+								{response.question}
+							</span>
+							{response.answer}
+						</div>
+					{:else}
+						<span class="text-muted-foreground italic">No responses yet</span>
+					{/each}
+				{/if}
+			{/await}
 		</div>
 	{/if}
 </section>

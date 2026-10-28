@@ -4,6 +4,8 @@
 </script>
 
 <script lang="ts">
+	import Callout from '$lib/components/Callout.svelte';
+
 	import { Input, SelectList, type Option } from '$lib/components/EasyForm';
 	import type { QuestionDto } from '@crownshy/api-client/api';
 
@@ -32,6 +34,15 @@
 
 {#if q}
 	{#key q.id}
+		{#if q.special_category}
+			<Callout variant="primary">
+				<input id="special-consent" type="checkbox" />
+				<label for="special-consent" class="pl-3">
+					{q.consent_text ??
+						'This question requires additional content as it contains sensitive information'}
+				</label>
+			</Callout>
+		{/if}
 		{#if q.question_type === 'number'}
 			<Input
 				label={q.text}
