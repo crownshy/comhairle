@@ -55,11 +55,12 @@
 
 	const viewOf = (question: ChoiceQuestion): View =>
 		views[question.id] ?? defaultView(question.kind, question.answers.length);
-	// Choice charts are compact enough to pair up; scales, groups and free text need the full row.
+
+	// Only columns are compact enough to pair up; bars, donuts, scales, groups and free text take the full row.
 	const isHalfWidth = (block: Block): boolean =>
 		block.kind === 'question' &&
 		isChoiceQuestion(block.question) &&
-		viewOf(block.question) !== 'horizontal';
+		viewOf(block.question) === 'vertical';
 
 	const validQuestions = $derived(data.filter(isValidQuestion));
 	// Every question shares the same submission count, so the largest total is the number of responses.

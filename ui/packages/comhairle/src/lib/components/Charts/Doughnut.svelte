@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PieChart, Text } from 'layerchart';
+	import { PieChart } from 'layerchart';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import type { OneAxisChartValues } from './types';
 
@@ -7,7 +7,7 @@
 		data,
 		key = 'label',
 		value = 'value',
-		height = 300,
+		height = 250,
 		...props
 	}: OneAxisChartValues = $props();
 
@@ -23,18 +23,6 @@
 		desktop: { label: 'Desktop', color: 'var(--chart-2)' },
 		mobile: { label: 'Mobile', color: 'var(--chart-3)' }
 	} satisfies Chart.ChartConfig;
-
-	let majority = $derived.by(() => {
-		let majority = data?.[0];
-
-		for (let i = 1; i < (data?.length ?? 1); i++) {
-			if (Number(data?.[i][value]) > Number(majority?.[value])) {
-				majority = data?.[i];
-			}
-		}
-
-		return majority;
-	});
 </script>
 
 <Chart.Container config={chartConfig}>
@@ -53,22 +41,6 @@
 			{#if tooltip !== undefined}
 				<Chart.Tooltip />
 			{/if}
-		{/snippet}
-		{#snippet aboveMarks()}
-			<Text
-				value={String(majority?.[value] ?? '')}
-				textAnchor="middle"
-				verticalAnchor="middle"
-				class="text-4xl! font-bold"
-				dy={-15}
-			/>
-			<Text
-				value={String(majority?.[key] ?? '')}
-				textAnchor="middle"
-				verticalAnchor="middle"
-				class="text-xl!"
-				dy={15}
-			/>
 		{/snippet}
 	</PieChart>
 </Chart.Container>

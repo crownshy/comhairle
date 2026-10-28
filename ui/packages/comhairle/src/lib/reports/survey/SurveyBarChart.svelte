@@ -11,11 +11,11 @@
 </script>
 
 <script lang="ts">
-	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
 	import ChoiceBars from './ChoiceBars.svelte';
 	import ChoiceColumns from './ChoiceColumns.svelte';
+	import ChoiceDonut from './ChoiceDonut.svelte';
 	import { type Icon } from 'lucide-svelte';
 	import { ArrowDownWideNarrow, ChartNoAxesColumn, ChartPie } from 'lucide-svelte';
 	import { type ComponentProps, type ComponentType, type Snippet } from 'svelte';
@@ -92,15 +92,7 @@
 	</div>
 </div>
 {#if currentView === 'donut'}
-	<div class="flex flex-1 flex-col justify-center">
-		<Doughnut
-			{data}
-			key={x}
-			value={y}
-			height={200}
-			legend={{ placement: 'right', orientation: 'vertical' }}
-		/>
-	</div>
+	<ChoiceDonut data={data ?? []} x={String(x)} y={String(y)} />
 {:else if currentView === 'horizontal'}
 	<ChoiceBars data={sortedData ?? data ?? []} x={String(x)} y={String(y)} showShare={!isScored} />
 {:else}
