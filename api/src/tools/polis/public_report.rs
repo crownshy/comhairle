@@ -21,7 +21,7 @@ use crate::error::ComhairleError;
 use crate::models::polis_statement_aux::{self, PolisStatementAuxFilterOptions};
 use crate::routes::auth::RequiredUser;
 use crate::tools::public_report_data::anonymous::{
-    Count, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId, ThemeLabel,
+    Count, FacilitatorText, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId,
     public_report_data,
 };
 use crate::tools::public_report_data::{serve_public_report_data, serve_report_preview_data};
@@ -73,7 +73,7 @@ public_report_data! {
     pub struct PolisPublicStatement {
         pub statement_id: StatementId,
         pub text: ModeratedText,
-        pub themes: Vec<ThemeLabel>,
+        pub themes: Vec<FacilitatorText>,
         pub overall_votes: PolisPublicVotes,
         pub group_votes: Vec<PolisPublicGroupVotes>,
     }
@@ -295,6 +295,7 @@ async fn get_public<Block: SectionBlock>(
         &state.db,
         &workflow_step_id,
         Block::TYPE,
+        None,
         async |config| Block::build(&ReportSource::new(&state, workflow_step_id, config)).await,
     )
     .await?;
@@ -325,7 +326,7 @@ struct ReportSource<'a> {
 }
 
 /// Facilitator-set theme tags per statement.
-type Themes = HashMap<StatementId, Vec<ThemeLabel>>;
+type Themes = HashMap<StatementId, Vec<FacilitatorText>>;
 
 impl<'a> ReportSource<'a> {
     fn new(state: &'a ComhairleState, workflow_step_id: Uuid, config: PolisToolConfig) -> Self {
@@ -362,7 +363,7 @@ impl<'a> ReportSource<'a> {
                 let labels = row
                     .themes
                     .into_iter()
-                    .map(ThemeLabel::from_facilitator_theme)
+                    .map(FacilitatorText::from_facilitator)
                     .collect();
                 Some((statement_id, labels))
             })
@@ -913,7 +914,7 @@ mod tests {
         };
         let themes = HashMap::from([(
             StatementId(1),
-            vec![ThemeLabel::from_facilitator_theme("Transport".into())],
+            vec![FacilitatorText::from_facilitator("Transport".into())],
         )]);
         let groups = opinion_groups(&report, &themes);
 
@@ -927,7 +928,7 @@ mod tests {
         assert_eq!(tids, vec![1]);
         assert_eq!(
             groups.statements[0].themes,
-            vec![ThemeLabel::from_facilitator_theme("Transport".into())]
+            vec![FacilitatorText::from_facilitator("Transport".into())]
         );
     }
 }
