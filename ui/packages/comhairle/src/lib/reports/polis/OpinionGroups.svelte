@@ -15,13 +15,13 @@
 	view state.
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionGroupCard from './OpinionGroupCard.svelte';
 
 	type Props = {
-		comments: ReportComment[];
-		groups: ReportGroup[];
+		comments: VotedStatement[];
+		groups: RepresentedGroup[];
 		/** AI-generated name + summary per group, keyed by `group_id`. */
 		groupSummaries?: Record<number, { name: string; summary: string }>;
 		/**
