@@ -5,16 +5,6 @@
 //! request never are, so they can't reach a public endpoint by accident. Fixed text from our own
 //! code goes in a [`Label`]. Adding a new building block here needs a reviewer to agree it can't
 //! identify a person.
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        unused_macros,
-        unused_imports,
-        reason = "first users are the Polis public endpoints (#1253)"
-    )
-)]
-
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -36,6 +26,13 @@ pub struct Count(pub u64);
 
 /// Fixed text written in our code, such as a group's letter. It holds a `&'static str` so it
 /// can't be filled from the database or a request.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "first user is the HeyForm public endpoints (#1259)"
+    )
+)]
 #[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(transparent)]
 pub struct Label(pub &'static str);
@@ -58,6 +55,29 @@ impl ModeratedText {
     }
 }
 
+/// Polis's number for a statement, used to match a statement to its vote bars and groups. Polis
+/// numbers statements in the order they were written, so it says nothing about who wrote one.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct StatementId(pub u32);
+
+/// Polis's number for an opinion group, counting from 0 within one conversation.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct OpinionGroupId(pub u32);
+
+/// A theme label a facilitator tagged statements with, such as "Transport". Facilitators write
+/// these, not participants, so build it only from facilitator-set themes.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct ThemeLabel(String);
+
+impl ThemeLabel {
+    pub fn from_facilitator_theme(theme: String) -> Self {
+        Self(theme)
+    }
+}
+
 macro_rules! building_blocks {
     ($($building_block:ty),*) => {
         $(
@@ -67,7 +87,16 @@ macro_rules! building_blocks {
     };
 }
 
-building_blocks!(Count, Label, Share, ModeratedText, bool);
+building_blocks!(
+    Count,
+    Label,
+    Share,
+    ModeratedText,
+    StatementId,
+    OpinionGroupId,
+    ThemeLabel,
+    bool
+);
 
 impl<T: PublicReportData> sealed::Sealed for Option<T> {}
 impl<T: PublicReportData> PublicReportData for Option<T> {}
