@@ -26,13 +26,6 @@ pub struct Count(pub u64);
 
 /// Fixed text written in our code, such as a group's letter. It holds a `&'static str` so it
 /// can't be filled from the database or a request.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "first user is the HeyForm public endpoints (#1259)"
-    )
-)]
 #[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(transparent)]
 pub struct Label(pub &'static str);
@@ -66,17 +59,23 @@ pub struct StatementId(pub u32);
 #[serde(transparent)]
 pub struct OpinionGroupId(pub u32);
 
-/// A theme label a facilitator tagged statements with, such as "Transport". Facilitators write
-/// these, not participants, so build it only from facilitator-set themes.
+/// Text a facilitator wrote, such as a theme they tagged statements with, a survey question or
+/// one of its choices. Build it only from what facilitators set up, never from anything a
+/// participant typed.
 #[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct ThemeLabel(String);
+pub struct FacilitatorText(String);
 
-impl ThemeLabel {
-    pub fn from_facilitator_theme(theme: String) -> Self {
-        Self(theme)
+impl FacilitatorText {
+    pub fn from_facilitator(text: String) -> Self {
+        Self(text)
     }
 }
+
+/// A point on a rating or opinion scale, such as 4 on a 1 to 5 rating.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(transparent)]
+pub struct ScalePoint(pub u32);
 
 macro_rules! building_blocks {
     ($($building_block:ty),*) => {
@@ -94,7 +93,8 @@ building_blocks!(
     ModeratedText,
     StatementId,
     OpinionGroupId,
-    ThemeLabel,
+    FacilitatorText,
+    ScalePoint,
     bool
 );
 
