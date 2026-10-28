@@ -3,7 +3,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
-	import { REPORT_COLUMN_CLASS } from './styles';
+	import { REPORT_COLUMN_CLASS, REPORT_PILL_CLASS } from '$lib/reports/styles';
 
 	type Props = {
 		title: string;
@@ -15,9 +15,6 @@
 	};
 
 	let { title, startHref, sections = [], activeSectionIndex }: Props = $props();
-
-	const PILL_CLASS =
-		'shrink-0 rounded-full px-3 py-1.5 text-sm font-medium shadow-xs transition-colors';
 
 	// The pill row scrolls sideways on a phone, so keep the current section's pill in view.
 	const revealActivePill: Attachment<HTMLElement> = (pill) => {
@@ -58,7 +55,7 @@
 							href={section.href}
 							aria-current={active ? 'location' : undefined}
 							class={cn(
-								PILL_CLASS,
+								REPORT_PILL_CLASS,
 								'block',
 								active
 									? 'bg-secondary-foreground text-primary-foreground'

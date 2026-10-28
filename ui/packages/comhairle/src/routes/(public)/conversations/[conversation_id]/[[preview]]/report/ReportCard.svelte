@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ReportBody from '$lib/reports/ReportBody.svelte';
 	import ExpandableContent from './ExpandableContent.svelte';
-	import { REPORT_TEXT_CLASS } from './styles';
+	import { REPORT_TEXT_CLASS } from '$lib/reports/styles';
 
 	type Props = {
 		title: string;
