@@ -2,6 +2,7 @@ import { apiClient } from '@crownshy/api-client/client';
 import { notifications } from '$lib/notifications.svelte';
 import { fetchFollowUps } from './converse';
 import type { QuestionConfig, QuestionAnswers, FollowUpAnswer } from './types';
+import { countWords, MAX_ANSWER_WORDS } from './wordLimit';
 
 export type Phase = 'root' | 'picking' | 'answering';
 
@@ -49,13 +50,6 @@ type Init = {
 	onComplete: (answers: QuestionAnswers[]) => void;
 	mode?: FlowMode;
 };
-
-export const MAX_ANSWER_WORDS = 300;
-
-function countWords(text: string): number {
-	const trimmed = text.trim();
-	return trimmed ? trimmed.split(/\s+/).length : 0;
-}
 
 /**
  * Reactive state container for the Thinking Space participant flow. Owns all

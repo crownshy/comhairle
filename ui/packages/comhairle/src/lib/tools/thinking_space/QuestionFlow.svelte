@@ -12,10 +12,11 @@
 		ChevronRight
 	} from 'lucide-svelte';
 	import type { QuestionConfig, QuestionAnswers } from './types';
-	import { MAX_ANSWER_WORDS, QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
+	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { cn } from '$lib/utils';
+	import { MAX_ANSWER_WORDS } from './wordLimit';
 
 	type Props = {
 		workflowStepId: string;
