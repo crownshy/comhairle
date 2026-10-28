@@ -869,6 +869,40 @@ export const SplitStatementResponse = z
   })
   .passthrough();
 export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
+export const HeyFormPublicChoice = z
+  .object({ count: z.number().int().gte(0), label: z.string() })
+  .passthrough();
+export type HeyFormPublicChoice = z.infer<typeof HeyFormPublicChoice>;
+export const HeyFormPublicScalePoint = z
+  .object({ count: z.number().int().gte(0), point: z.number().int().gte(0) })
+  .passthrough();
+export type HeyFormPublicScalePoint = z.infer<typeof HeyFormPublicScalePoint>;
+export const HeyFormPublicScale = z
+  .object({
+    centerLabel: z.union([z.string(), z.null()]).optional(),
+    leftLabel: z.union([z.string(), z.null()]).optional(),
+    max: z.number().int().gte(0),
+    points: z.array(HeyFormPublicScalePoint),
+    rightLabel: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type HeyFormPublicScale = z.infer<typeof HeyFormPublicScale>;
+export const HeyFormPublicQuestion = z
+  .object({
+    answered: z.number().int().gte(0),
+    choices: z.array(HeyFormPublicChoice),
+    kind: z.string(),
+    scale: z.union([HeyFormPublicScale, z.null()]).optional(),
+    title: z.string(),
+  })
+  .passthrough();
+export type HeyFormPublicQuestion = z.infer<typeof HeyFormPublicQuestion>;
+export const HeyFormEmbeddableQuestion = z
+  .object({ id: z.string(), kind: z.string(), title: z.string() })
+  .passthrough();
+export type HeyFormEmbeddableQuestion = z.infer<
+  typeof HeyFormEmbeddableQuestion
+>;
 export const FormField = z
   .object({
     description: z.unknown().optional(),
@@ -2582,7 +2616,11 @@ export const ReportDto = z
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
 export const EmbeddedSectionBlock = z
-  .object({ sectionBlock: z.string(), workflowStepId: z.string().uuid() })
+  .object({
+    item: z.union([z.string(), z.null()]).optional(),
+    sectionBlock: z.string(),
+    workflowStepId: z.string().uuid(),
+  })
   .passthrough();
 export type EmbeddedSectionBlock = z.infer<typeof EmbeddedSectionBlock>;
 export const ReportEmbedsDto = z
@@ -3857,6 +3895,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
+  HeyFormPublicChoice,
+  HeyFormPublicScalePoint,
+  HeyFormPublicScale,
+  HeyFormPublicQuestion,
+  HeyFormEmbeddableQuestion,
   FormField,
   FormSettings,
   FormTheme,
@@ -7910,6 +7953,61 @@ Create a response for prioritization tool proposal
     description: `Downloads one row per respondent and one column per question, with choice ids resolved to their labels. Unaggregated, unlike /insights.`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/public_report/question",
+    alias: "HeyFormGetPublicQuestion",
+    description: `Counts per choice or scale point for a choice, rating or opinion scale question. 404 unless the conversation&#x27;s published report embeds this question.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "question_id",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: HeyFormPublicQuestion,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/report_preview/question",
+    alias: "HeyFormPreviewQuestion",
+    description: `The same data as HeyFormGetPublicQuestion, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "question_id",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: HeyFormPublicQuestion,
+  },
+  {
+    method: "get",
+    path: "/tools/survey_tool/report_preview/questions",
+    alias: "HeyFormListEmbeddableQuestions",
+    description: `The step&#x27;s choice, rating and opinion scale questions, for facilitators who can update the conversation.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(HeyFormEmbeddableQuestion),
   },
   {
     method: "get",

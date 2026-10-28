@@ -46,13 +46,16 @@ Thinking Space summary, another may have told participants it stays with the org
   `serve_public_report_data`, which only returns types declared with the `public_report_data!`
   macro. A field that isn't one of the approved building blocks (`Count`, `Share`,
   `ModeratedText`, booleans, fixed labels, and lists or options of them) fails to compile, so
-  ids, pids, emails and raw strings can't reach a public response. Polis added three:
+  ids, pids, emails and raw strings can't reach a public response. Polis and HeyForm added:
   `StatementId` and `OpinionGroupId` (Polis's own numbering for statements and groups, which
-  says nothing about who wrote or joined them) and `ThemeLabel` (themes facilitators tag
-  statements with). Participant text can only
+  says nothing about who wrote or joined them), `FacilitatorText` (themes, survey questions
+  and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale). Participant text can only
   go out as `ModeratedText`, which is built from accepted content only. Adding a building block
   needs a reviewer to agree it can't identify a person. A future moderation report is the one
   expected exception, and it gets its own ADR.
+- **Some section blocks are embedded once per item.** A HeyForm question is one section
+  block, `heyform-question`, with the question id stored on the embed as `config.item`. The
+  gate matches the item too, so embedding one question doesn't publish the rest of the form.
 - **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
   skip the published and embedded checks but need permission to update the conversation.
   They run the same builders and return the same types, so the report editor, the add-chart

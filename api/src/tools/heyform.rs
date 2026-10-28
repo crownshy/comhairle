@@ -29,6 +29,8 @@ use crate::models::permissions::conversation::Action;
 use crate::routes::auth::RequiredAdminUser;
 use crate::{ComhairleState, models};
 
+mod public_report;
+
 /// `(status, headers, body)` for a CSV download response.
 type CsvExportResponse = (StatusCode, [(String, String); 2], String);
 
@@ -281,6 +283,7 @@ impl ToolImpl for HeyFormTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/survey_tool/workflow_step/{workflow_step_id}/form",
                 get_with(form, |op| {

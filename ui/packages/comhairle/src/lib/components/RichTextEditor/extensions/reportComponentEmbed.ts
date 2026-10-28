@@ -32,6 +32,12 @@ declare module '@tiptap/core' {
 	}
 }
 
+/** The item a per-item section block shows, such as a HeyForm question id. */
+function embedItem(config: unknown): string | undefined {
+	const item = (config as { item?: unknown } | null)?.item;
+	return typeof item === 'string' ? item : undefined;
+}
+
 export const ReportComponentEmbed = Node.create({
 	name: 'reportComponentEmbed',
 	group: 'block',
@@ -142,6 +148,7 @@ export const ReportComponentEmbed = Node.create({
 				props: {
 					toolStepId: (node.attrs.toolStepId as string) ?? '',
 					componentType: (node.attrs.componentType as string) ?? '',
+					item: embedItem(node.attrs.config),
 					preview: true
 				}
 			});

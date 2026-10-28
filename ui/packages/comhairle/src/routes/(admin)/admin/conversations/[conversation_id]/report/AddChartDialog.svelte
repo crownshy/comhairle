@@ -6,32 +6,61 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
-	import { sectionBlocksForTool, type SectionBlockMeta } from '$lib/reports/embeds';
+	import { embedKey, sectionBlocksForTool, type SectionBlockMeta } from '$lib/reports/embeds';
+	import { loadEmbedItems, type EmbedItem } from '$lib/reports/embedItems';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 	import { cn } from '$lib/utils';
 
 	type Props = {
 		open: boolean;
 		steps: EmbeddableStep[];
-		/** `stepId:sectionBlock` for every chart the report already embeds. */
+		/** `embedKey` of every chart the report already embeds. */
 		embeddedKeys: Set<string>;
 		published: boolean;
-		onPick: (step: EmbeddableStep, block: SectionBlockMeta) => void;
+		onPick: (step: EmbeddableStep, block: SectionBlockMeta, item?: string) => void;
 	};
 	let { open = $bindable(), steps, embeddedKeys, published, onPick }: Props = $props();
 
-	let selectedStep = $state<EmbeddableStep | null>(null);
-	const blocks = $derived(sectionBlocksForTool(selectedStep?.toolType));
+	/** One chart to pick: a section block, or one item of a per-item block. */
+	type Tile = { block: SectionBlockMeta; item?: EmbedItem };
 
-	function chartsInReport(step: EmbeddableStep) {
-		return sectionBlocksForTool(step.toolType).filter((block) =>
-			embeddedKeys.has(`${step.id}:${block.type}`)
-		).length;
+	let selectedStep = $state<EmbeddableStep | null>(null);
+	const tiles = $derived(selectedStep ? loadTiles(selectedStep) : null);
+
+	async function loadTiles(step: EmbeddableStep): Promise<Tile[]> {
+		const perBlock = await Promise.all(
+			sectionBlocksForTool(step.toolType).map(async (block) =>
+				block.itemName
+					? (await loadEmbedItems(block.type, step.id)).map((item) => ({ block, item }))
+					: [{ block }]
+			)
+		);
+		return perBlock.flat();
 	}
 
-	function pick(block: SectionBlockMeta) {
+	function stepSummary(step: EmbeddableStep) {
+		const blocks = sectionBlocksForTool(step.toolType);
+		const perItem = blocks.find((block) => block.itemName);
+		const offer = perItem
+			? `Pick from its ${perItem.itemName?.other}`
+			: `${blocks.length} charts`;
+		const inReport = [...embeddedKeys].filter((key) => key.startsWith(`${step.id}:`)).length;
+		return inReport > 0 ? `${offer}, ${inReport} in the report` : offer;
+	}
+
+	function isInReport(step: EmbeddableStep, tile: Tile) {
+		return embeddedKeys.has(
+			embedKey({
+				workflowStepId: step.id,
+				sectionBlock: tile.block.type,
+				item: tile.item?.id
+			})
+		);
+	}
+
+	function pick(tile: Tile) {
 		if (!selectedStep) return;
-		onPick(selectedStep, block);
+		onPick(selectedStep, tile.block, tile.item?.id);
 		open = false;
 		selectedStep = null;
 	}
@@ -58,7 +87,6 @@
 		{#if !selectedStep}
 			<div class="flex flex-col gap-2">
 				{#each steps as step (step.id)}
-					{@const inReport = chartsInReport(step)}
 					<button
 						type="button"
 						class="hover:bg-accent flex w-full items-center justify-between gap-3 rounded-xl border p-4 text-left"
@@ -66,11 +94,7 @@
 					>
 						<span class="flex flex-col">
 							<span class="text-base font-medium">{step.name}</span>
-							<span class="text-muted-foreground text-sm">
-								{sectionBlocksForTool(step.toolType).length} charts{inReport > 0
-									? `, ${inReport} in the report`
-									: ''}
-							</span>
+							<span class="text-muted-foreground text-sm">{stepSummary(step)}</span>
 						</span>
 						<ChevronRight class="text-muted-foreground size-5" />
 					</button>
@@ -82,46 +106,61 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2">
-				{#each blocks as block (block.type)}
-					{@const inReport = embeddedKeys.has(`${selectedStep.id}:${block.type}`)}
-					<button
-						type="button"
-						class={cn(
-							'hover:border-primary flex flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
-							inReport && 'border-primary/60'
-						)}
-						onclick={() => pick(block)}
-					>
-						<!-- A live preview at half size, so the chart is picked by sight. -->
-						<div
-							class="bg-background pointer-events-none relative h-40 overflow-hidden rounded-lg"
-							aria-hidden="true"
+			{#await tiles}
+				<p class="text-muted-foreground text-base">Loading charts…</p>
+			{:then loaded}
+				<div class="grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2">
+					{#each loaded ?? [] as tile (`${tile.block.type}:${tile.item?.id ?? ''}`)}
+						{@const inReport = isInReport(selectedStep, tile)}
+						<button
+							type="button"
+							class={cn(
+								'hover:border-primary flex flex-col gap-2 rounded-xl border p-2 text-left transition-colors',
+								inReport && 'border-primary/60'
+							)}
+							onclick={() => pick(tile)}
 						>
+							<!-- A live preview at half size, so the chart is picked by sight. -->
 							<div
-								class="absolute top-0 left-0 w-[200%] origin-top-left scale-50 p-4"
+								class="bg-background pointer-events-none relative h-40 overflow-hidden rounded-lg"
+								aria-hidden="true"
 							>
-								<ReportEmbedLive
-									toolStepId={selectedStep.id}
-									componentType={block.type}
-									preview
-								/>
+								<div
+									class="absolute top-0 left-0 w-[200%] origin-top-left scale-50 p-4"
+								>
+									<ReportEmbedLive
+										toolStepId={selectedStep.id}
+										componentType={tile.block.type}
+										item={tile.item?.id}
+										preview
+									/>
+								</div>
 							</div>
-						</div>
-						<span class="flex flex-col px-1">
-							<span class="text-base font-medium">{block.label}</span>
-							<span class="text-muted-foreground text-sm">{block.description}</span>
-						</span>
-						{#if inReport}
-							<span
-								class="text-primary flex items-center gap-1.5 px-1 text-sm font-medium"
-							>
-								<Check class="size-4" />Already in the report
+							<span class="flex flex-col px-1">
+								<span class="text-base font-medium"
+									>{tile.item?.label ?? tile.block.label}</span
+								>
+								<span class="text-muted-foreground text-sm"
+									>{tile.block.description}</span
+								>
 							</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
+							{#if inReport}
+								<span
+									class="text-primary flex items-center gap-1.5 px-1 text-sm font-medium"
+								>
+									<Check class="size-4" />Already in the report
+								</span>
+							{/if}
+						</button>
+					{:else}
+						<p class="text-muted-foreground text-base">
+							Nothing in this step can go in the report yet.
+						</p>
+					{/each}
+				</div>
+			{:catch}
+				<p class="text-muted-foreground text-base">Couldn't load this step's charts.</p>
+			{/await}
 		{/if}
 
 		<Dialog.Footer class="items-center sm:justify-between">

@@ -18,17 +18,15 @@ use uuid::Uuid;
 use super::PolisToolConfig;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::permissions::conversation::Action;
 use crate::models::polis_statement_aux::{self, PolisStatementAuxFilterOptions};
 use crate::models::users::User;
-use crate::models::workflow_step;
 use crate::routes::auth::RequiredUser;
 use crate::tools::ToolConfig;
 use crate::tools::public_report_data::anonymous::{
-    Count, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId, ThemeLabel,
+    Count, FacilitatorText, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId,
     public_report_data,
 };
-use crate::tools::public_report_data::serve_public_report_data;
+use crate::tools::public_report_data::{serve_public_report_data, serve_report_data_preview};
 use crate::wiki_poll_service::ReportScope;
 use crate::wiki_poll_service::polis_service::{
     CommentReportData, GroupVoteCounts, VoteCounts, WikiPollReport,
@@ -85,7 +83,7 @@ public_report_data! {
     pub struct PolisPublicStatement {
         pub tid: StatementId,
         pub text: ModeratedText,
-        pub themes: Vec<ThemeLabel>,
+        pub themes: Vec<FacilitatorText>,
         pub overall_votes: PolisPublicVotes,
         pub group_votes: Vec<PolisPublicGroupVotes>,
     }
@@ -96,7 +94,7 @@ public_report_data! {
     pub struct PolisPublicRankedStatement {
         pub tid: StatementId,
         pub text: ModeratedText,
-        pub themes: Vec<ThemeLabel>,
+        pub themes: Vec<FacilitatorText>,
         pub overall_votes: PolisPublicVotes,
         pub group_votes: Vec<PolisPublicGroupVotes>,
         pub is_seed: bool,
@@ -116,7 +114,7 @@ public_report_data! {
     pub struct PolisPublicPlacedStatement {
         pub tid: StatementId,
         pub text: ModeratedText,
-        pub themes: Vec<ThemeLabel>,
+        pub themes: Vec<FacilitatorText>,
         pub overall_votes: PolisPublicVotes,
         pub group_votes: Vec<PolisPublicGroupVotes>,
         /// Divisiveness as a share of the most divisive statement's, which is all the
@@ -402,6 +400,7 @@ async fn serve_public<Data: PublicReportData>(
         &state.db,
         &workflow_step_id,
         section_block,
+        None,
         polis_config,
         async |config| build(state, &workflow_step_id, config).await,
     )
@@ -409,19 +408,21 @@ async fn serve_public<Data: PublicReportData>(
     Ok(Json(data))
 }
 
-/// What readers will get once the report is published and embeds the section block, so the
-/// report editor can show it before then.
 async fn serve_preview<Data: PublicReportData>(
     state: &Arc<ComhairleState>,
     user: &User,
     workflow_step_id: Uuid,
     build: impl AsyncFnOnce(&ComhairleState, &Uuid, PolisToolConfig) -> Result<Data, ComhairleError>,
 ) -> Result<Json<Data>, ComhairleError> {
-    polis_statement_aux::check_can_perform(state, user, &workflow_step_id, Action::Update).await?;
-    let step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    let config = polis_config(step.tool_config.unwrap_or(step.preview_tool_config))
-        .ok_or_else(|| ComhairleError::WorkflowStepHasWrongType("Polis".into()))?;
-    Ok(Json(build(state, &workflow_step_id, config).await?))
+    let data = serve_report_data_preview(
+        state,
+        user,
+        &workflow_step_id,
+        polis_config,
+        async |config| build(state, &workflow_step_id, config).await,
+    )
+    .await?;
+    Ok(Json(data))
 }
 
 async fn build_key_stats(
@@ -671,13 +672,13 @@ fn group_sizes(report: &WikiPollReport) -> Vec<PolisPublicGroup> {
         .collect()
 }
 
-fn themes_of(themes: &Themes, tid: u32) -> Vec<ThemeLabel> {
+fn themes_of(themes: &Themes, tid: u32) -> Vec<FacilitatorText> {
     themes
         .get(&tid)
         .into_iter()
         .flatten()
         .cloned()
-        .map(ThemeLabel::from_facilitator_theme)
+        .map(FacilitatorText::from_facilitator)
         .collect()
 }
 
@@ -1021,7 +1022,7 @@ mod tests {
         assert_eq!(tids, vec![1]);
         assert_eq!(
             groups.statements[0].themes,
-            vec![ThemeLabel::from_facilitator_theme("Transport".into())]
+            vec![FacilitatorText::from_facilitator("Transport".into())]
         );
     }
 }
