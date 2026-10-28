@@ -7309,7 +7309,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/consensus",
     alias: "PolisGetPublicConsensus",
-    description: `Accepted statements ranked by group informed consensus, highest first. 404 until the step&#x27;s conversation report is published.`,
+    description: `Accepted statements ranked by group informed consensus, highest first. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7324,7 +7324,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/consensus_continuum",
     alias: "PolisGetPublicConsensusContinuum",
-    description: `Accepted statements Polis has given a divisiveness score. 404 until the step&#x27;s conversation report is published.`,
+    description: `Accepted statements Polis has given a divisiveness score. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7339,7 +7339,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/disagreement",
     alias: "PolisGetPublicDisagreement",
-    description: `Accepted statements ranked by divisiveness, highest first. 404 until the step&#x27;s conversation report is published.`,
+    description: `Accepted statements ranked by divisiveness, highest first. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7354,7 +7354,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/key_stats",
     alias: "PolisGetPublicKeyStats",
-    description: `Participant, accepted statement and vote counts for a Polis step. 404 until the step&#x27;s conversation report is published.`,
+    description: `Participant, accepted statement and vote counts for a Polis step. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7369,7 +7369,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/opinion_groups",
     alias: "PolisGetPublicOpinionGroups",
-    description: `Each opinion group&#x27;s size and accepted representative statements. 404 until the step&#x27;s conversation report is published.`,
+    description: `Each opinion group&#x27;s size and accepted representative statements. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -7394,6 +7394,81 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: WikiPollReport,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/consensus",
+    alias: "PolisPreviewConsensus",
+    description: `The same data as PolisGetPublicConsensus, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/consensus_continuum",
+    alias: "PolisPreviewConsensusContinuum",
+    description: `The same data as PolisGetPublicConsensusContinuum, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicConsensusContinuum,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/disagreement",
+    alias: "PolisPreviewDisagreement",
+    description: `The same data as PolisGetPublicDisagreement, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicRankedStatements,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/key_stats",
+    alias: "PolisPreviewKeyStats",
+    description: `The same data as PolisGetPublicKeyStats, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/opinion_groups",
+    alias: "PolisPreviewOpinionGroups",
+    description: `The same data as PolisGetPublicOpinionGroups, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicOpinionGroups,
   },
   {
     method: "post",

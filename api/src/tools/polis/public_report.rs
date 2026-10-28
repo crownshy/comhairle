@@ -18,10 +18,15 @@ use uuid::Uuid;
 use super::PolisToolConfig;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::permissions::conversation::Action;
 use crate::models::polis_statement_aux::{self, PolisStatementAuxFilterOptions};
+use crate::models::users::User;
+use crate::models::workflow_step;
+use crate::routes::auth::RequiredUser;
 use crate::tools::ToolConfig;
 use crate::tools::public_report_data::anonymous::{
-    Count, ModeratedText, OpinionGroupId, Share, StatementId, ThemeLabel, public_report_data,
+    Count, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId, ThemeLabel,
+    public_report_data,
 };
 use crate::tools::public_report_data::serve_public_report_data;
 use crate::wiki_poll_service::ReportScope;
@@ -165,8 +170,21 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Tools")
                     .summary("Key stats for a published report")
                     .description(
-                        "Participant, accepted statement and vote counts for a Polis step. \
-                         404 until the step's conversation report is published.",
+                        "Participant, accepted statement and vote counts for a Polis step. 404 unless the conversation's published report embeds this \
+                         section block for the step.",
+                    )
+                    .response::<200, Json<PolisPublicKeyStats>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/key_stats",
+            get_with(preview_key_stats, |op| {
+                op.id("PolisPreviewKeyStats")
+                    .tag("Tools")
+                    .summary("Key stats as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicKeyStats, for facilitators who can \
+                         update the conversation, before the report is published.",
                     )
                     .response::<200, Json<PolisPublicKeyStats>>()
             }),
@@ -178,8 +196,21 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Tools")
                     .summary("Areas of consensus for a published report")
                     .description(
-                        "Accepted statements ranked by group informed consensus, highest \
-                         first. 404 until the step's conversation report is published.",
+                        "Accepted statements ranked by group informed consensus, highest first. 404 unless the conversation's published report embeds this \
+                         section block for the step.",
+                    )
+                    .response::<200, Json<PolisPublicRankedStatements>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/consensus",
+            get_with(preview_consensus, |op| {
+                op.id("PolisPreviewConsensus")
+                    .tag("Tools")
+                    .summary("Areas of consensus as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicConsensus, for facilitators who can \
+                         update the conversation, before the report is published.",
                     )
                     .response::<200, Json<PolisPublicRankedStatements>>()
             }),
@@ -191,8 +222,21 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Tools")
                     .summary("Areas of disagreement for a published report")
                     .description(
-                        "Accepted statements ranked by divisiveness, highest first. 404 \
-                         until the step's conversation report is published.",
+                        "Accepted statements ranked by divisiveness, highest first. 404 unless the conversation's published report embeds this \
+                         section block for the step.",
+                    )
+                    .response::<200, Json<PolisPublicRankedStatements>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/disagreement",
+            get_with(preview_disagreement, |op| {
+                op.id("PolisPreviewDisagreement")
+                    .tag("Tools")
+                    .summary("Areas of disagreement as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicDisagreement, for facilitators who can \
+                         update the conversation, before the report is published.",
                     )
                     .response::<200, Json<PolisPublicRankedStatements>>()
             }),
@@ -204,8 +248,21 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Tools")
                     .summary("Consensus continuum for a published report")
                     .description(
-                        "Accepted statements Polis has given a divisiveness score. 404 until \
-                         the step's conversation report is published.",
+                        "Accepted statements Polis has given a divisiveness score. 404 unless the conversation's published report embeds this \
+                         section block for the step.",
+                    )
+                    .response::<200, Json<PolisPublicConsensusContinuum>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/consensus_continuum",
+            get_with(preview_consensus_continuum, |op| {
+                op.id("PolisPreviewConsensusContinuum")
+                    .tag("Tools")
+                    .summary("Consensus continuum as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicConsensusContinuum, for facilitators who can \
+                         update the conversation, before the report is published.",
                     )
                     .response::<200, Json<PolisPublicConsensusContinuum>>()
             }),
@@ -217,8 +274,21 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Tools")
                     .summary("Opinion groups for a published report")
                     .description(
-                        "Each opinion group's size and accepted representative statements. \
-                         404 until the step's conversation report is published.",
+                        "Each opinion group's size and accepted representative statements. 404 unless the conversation's published report embeds this \
+                         section block for the step.",
+                    )
+                    .response::<200, Json<PolisPublicOpinionGroups>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/opinion_groups",
+            get_with(preview_opinion_groups, |op| {
+                op.id("PolisPreviewOpinionGroups")
+                    .tag("Tools")
+                    .summary("Opinion groups as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicOpinionGroups, for facilitators who can \
+                         update the conversation, before the report is published.",
                     )
                     .response::<200, Json<PolisPublicOpinionGroups>>()
             }),
@@ -230,15 +300,16 @@ async fn get_key_stats(
     State(state): State<Arc<ComhairleState>>,
     Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
 ) -> Result<Json<PolisPublicKeyStats>, ComhairleError> {
-    let stats = serve_public_report_data(
-        &state.db,
-        &workflow_step_id,
-        KEY_STATS,
-        polis_config,
-        async |config| Ok(key_stats(&load_report(&state, &config).await?)),
-    )
-    .await?;
-    Ok(Json(stats))
+    serve_public(&state, workflow_step_id, KEY_STATS, build_key_stats).await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_key_stats(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicKeyStats>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_key_stats).await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -246,21 +317,16 @@ async fn get_consensus(
     State(state): State<Arc<ComhairleState>>,
     Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
 ) -> Result<Json<PolisPublicRankedStatements>, ComhairleError> {
-    let ranked = serve_public_report_data(
-        &state.db,
-        &workflow_step_id,
-        CONSENSUS,
-        polis_config,
-        async |config| {
-            let (report, themes) =
-                load_report_and_themes(&state, &workflow_step_id, &config).await?;
-            Ok(ranked_statements(&report, &themes, |c| {
-                c.group_informed_consensus
-            }))
-        },
-    )
-    .await?;
-    Ok(Json(ranked))
+    serve_public(&state, workflow_step_id, CONSENSUS, build_consensus).await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_consensus(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicRankedStatements>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_consensus).await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -268,19 +334,16 @@ async fn get_disagreement(
     State(state): State<Arc<ComhairleState>>,
     Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
 ) -> Result<Json<PolisPublicRankedStatements>, ComhairleError> {
-    let ranked = serve_public_report_data(
-        &state.db,
-        &workflow_step_id,
-        DISAGREEMENT,
-        polis_config,
-        async |config| {
-            let (report, themes) =
-                load_report_and_themes(&state, &workflow_step_id, &config).await?;
-            Ok(ranked_statements(&report, &themes, |c| c.divisiveness))
-        },
-    )
-    .await?;
-    Ok(Json(ranked))
+    serve_public(&state, workflow_step_id, DISAGREEMENT, build_disagreement).await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_disagreement(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicRankedStatements>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_disagreement).await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -288,19 +351,22 @@ async fn get_consensus_continuum(
     State(state): State<Arc<ComhairleState>>,
     Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
 ) -> Result<Json<PolisPublicConsensusContinuum>, ComhairleError> {
-    let continuum = serve_public_report_data(
-        &state.db,
-        &workflow_step_id,
+    serve_public(
+        &state,
+        workflow_step_id,
         CONSENSUS_CONTINUUM,
-        polis_config,
-        async |config| {
-            let (report, themes) =
-                load_report_and_themes(&state, &workflow_step_id, &config).await?;
-            Ok(consensus_continuum(&report, &themes))
-        },
+        build_consensus_continuum,
     )
-    .await?;
-    Ok(Json(continuum))
+    .await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_consensus_continuum(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicConsensusContinuum>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_consensus_continuum).await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -308,19 +374,100 @@ async fn get_opinion_groups(
     State(state): State<Arc<ComhairleState>>,
     Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
 ) -> Result<Json<PolisPublicOpinionGroups>, ComhairleError> {
-    let groups = serve_public_report_data(
+    serve_public(
+        &state,
+        workflow_step_id,
+        OPINION_GROUPS,
+        build_opinion_groups,
+    )
+    .await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_opinion_groups(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicOpinionGroups>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_opinion_groups).await
+}
+
+async fn serve_public<Data: PublicReportData>(
+    state: &ComhairleState,
+    workflow_step_id: Uuid,
+    section_block: &str,
+    build: impl AsyncFnOnce(&ComhairleState, &Uuid, PolisToolConfig) -> Result<Data, ComhairleError>,
+) -> Result<Json<Data>, ComhairleError> {
+    let data = serve_public_report_data(
         &state.db,
         &workflow_step_id,
-        OPINION_GROUPS,
+        section_block,
         polis_config,
-        async |config| {
-            let (report, themes) =
-                load_report_and_themes(&state, &workflow_step_id, &config).await?;
-            Ok(opinion_groups(&report, &themes))
-        },
+        async |config| build(state, &workflow_step_id, config).await,
     )
     .await?;
-    Ok(Json(groups))
+    Ok(Json(data))
+}
+
+/// What readers will get once the report is published and embeds the section block, so the
+/// report editor can show it before then.
+async fn serve_preview<Data: PublicReportData>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: Uuid,
+    build: impl AsyncFnOnce(&ComhairleState, &Uuid, PolisToolConfig) -> Result<Data, ComhairleError>,
+) -> Result<Json<Data>, ComhairleError> {
+    polis_statement_aux::check_can_perform(state, user, &workflow_step_id, Action::Update).await?;
+    let step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let config = polis_config(step.tool_config.unwrap_or(step.preview_tool_config))
+        .ok_or_else(|| ComhairleError::WorkflowStepHasWrongType("Polis".into()))?;
+    Ok(Json(build(state, &workflow_step_id, config).await?))
+}
+
+async fn build_key_stats(
+    state: &ComhairleState,
+    _workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicKeyStats, ComhairleError> {
+    Ok(key_stats(&load_report(state, &config).await?))
+}
+
+async fn build_consensus(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicRankedStatements, ComhairleError> {
+    let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
+    Ok(ranked_statements(&report, &themes, |c| {
+        c.group_informed_consensus
+    }))
+}
+
+async fn build_disagreement(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicRankedStatements, ComhairleError> {
+    let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
+    Ok(ranked_statements(&report, &themes, |c| c.divisiveness))
+}
+
+async fn build_consensus_continuum(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicConsensusContinuum, ComhairleError> {
+    let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
+    Ok(consensus_continuum(&report, &themes))
+}
+
+async fn build_opinion_groups(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicOpinionGroups, ComhairleError> {
+    let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
+    Ok(opinion_groups(&report, &themes))
 }
 
 fn polis_config(config: ToolConfig) -> Option<PolisToolConfig> {
@@ -695,6 +842,22 @@ mod tests {
 
         let (status, _, _) = reader.get(&app, &url("key_stats")).await?;
         assert_eq!(status, StatusCode::NOT_FOUND, "served before publishing");
+
+        let preview_url =
+            |block: &str| format!("/tools/polis/report_preview/{block}?workflow_step_id={step_id}");
+        for (block, _) in SECTION_BLOCKS {
+            let (status, body, _) = admin.get(&app, &preview_url(block)).await?;
+            assert_eq!(status, StatusCode::OK, "{block} preview failed");
+            assert!(
+                !body.to_string().contains(PENDING_TEXT),
+                "{block} preview showed a pending statement"
+            );
+        }
+        let (status, _, _) = reader.get(&app, &preview_url("key_stats")).await?;
+        assert!(
+            status.is_client_error(),
+            "a guest was shown the unpublished preview"
+        );
 
         report::create_for_conversation(&pool, conversation_id, "en").await?;
         report::update(

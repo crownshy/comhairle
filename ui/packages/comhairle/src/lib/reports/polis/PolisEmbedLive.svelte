@@ -8,10 +8,10 @@
 
 	/**
 	 * A live Polis section block in the report (ADR-0012). Loads its data from the block's
-	 * public endpoint (ADR-0061) and renders the same section component the Insights tab uses.
-	 * Shared by the editor node view and the published report page.
+	 * public or preview endpoint (ADR-0061) and renders the same section component the Insights
+	 * tab uses. Shared by the editor node view and the published report page.
 	 */
-	let { toolStepId, componentType }: ReportEmbedProps = $props();
+	let { toolStepId, componentType, preview = false }: ReportEmbedProps = $props();
 
 	let data = $state<PolisEmbedData | null>(null);
 	let loading = $state(true);
@@ -22,13 +22,16 @@
 	$effect(() => {
 		const stepId = toolStepId;
 		const blockType = componentType as PolisEmbeddableComponentType;
+		const fromPreview = preview;
 		let cancelled = false;
 		loading = true;
 		failed = false;
 		data = null;
 
 		(async () => {
-			const result = await tryCatchAsync(() => loadPolisEmbedData(stepId, blockType));
+			const result = await tryCatchAsync(() =>
+				loadPolisEmbedData(stepId, blockType, fromPreview)
+			);
 			if (cancelled) return;
 			if (result.err !== null) {
 				failed = true;

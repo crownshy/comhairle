@@ -104,6 +104,7 @@
 								<ReportEmbedLive
 									toolStepId={selectedStep.id}
 									componentType={block.type}
+									preview
 								/>
 							</div>
 						</div>
