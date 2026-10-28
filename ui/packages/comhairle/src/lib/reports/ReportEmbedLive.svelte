@@ -9,7 +9,7 @@
 	 * owning tool's embed component, which loads its own data. Shared by the editor node view
 	 * and the published report page.
 	 */
-	let { toolStepId, componentType }: ReportEmbedProps = $props();
+	let { toolStepId, componentType, preview = false }: ReportEmbedProps = $props();
 
 	const EMBED_BY_TOOL: Record<string, Component<ReportEmbedProps>> = {
 		polis: PolisEmbedLive
@@ -19,7 +19,7 @@
 </script>
 
 {#if ToolEmbed}
-	<ToolEmbed {toolStepId} {componentType} />
+	<ToolEmbed {toolStepId} {componentType} {preview} />
 {:else}
 	<EmbedState state="unavailable" />
 {/if}

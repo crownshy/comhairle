@@ -7,9 +7,10 @@
 		title: string;
 		content: string;
 		conversationId: string;
+		preview: boolean;
 	};
 
-	let { title, content, conversationId }: Props = $props();
+	let { title, content, conversationId, preview }: Props = $props();
 </script>
 
 <article class="bg-card border-accent rounded-t-lg rounded-b-3xl border px-4 py-6">
@@ -17,7 +18,7 @@
 	<div class="pt-2">
 		<ExpandableContent collapsedHeight={28}>
 			<div class={REPORT_TEXT_CLASS}>
-				<ReportBody {content} {conversationId} />
+				<ReportBody {content} {conversationId} {preview} />
 			</div>
 		</ExpandableContent>
 	</div>
