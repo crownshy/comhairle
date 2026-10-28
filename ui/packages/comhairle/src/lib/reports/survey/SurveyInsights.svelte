@@ -102,11 +102,6 @@
 			<svelte:element this={level} class="text-lg font-semibold"
 				>{section.title}</svelte:element
 			>
-			<p class="text-muted-foreground text-sm">
-				{section.answered}
-				{section.answered === 1 ? 'response' : 'responses'},
-				{Math.round((section.answered / section.total) * 100)}% Completion
-			</p>
 		</div>
 	{/snippet}
 	{#if isChoiceQuestion(section)}
