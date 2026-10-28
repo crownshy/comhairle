@@ -69,6 +69,7 @@
 		viewOf(block.question) === 'vertical';
 
 	const validQuestions = $derived(data.filter(isValidQuestion));
+	const questionNumber = $derived(new Map(validQuestions.map((q, i) => [q.id, i + 1])));
 	// Every question shares the same submission count, so the largest total is the number of responses.
 	const responseCount = $derived(Math.max(0, ...validQuestions.map((q) => q.total)));
 	const completion = $derived.by(() => {
@@ -101,6 +102,8 @@
 	{#snippet header()}
 		<div class="flex flex-col gap-1">
 			<svelte:element this={level} class="text-lg font-semibold"
+				><span class="text-muted-foreground mr-1 tabular-nums"
+					>Q{questionNumber.get(section.id)}.</span
 				>{section.title}</svelte:element
 			>
 		</div>
@@ -165,8 +168,8 @@
 				Download CSV
 			</Button>
 		</section>
-		<div class="flex items-start gap-8">
-			<div class="grid max-w-3xl min-w-0 flex-1 gap-6 lg:grid-cols-2">
+		<div class="flex justify-between gap-8">
+			<div class="grid max-w-4xl min-w-0 flex-1 gap-6 lg:grid-cols-2">
 				{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
 					{#if block.kind === 'question'}
 						<section
@@ -196,7 +199,7 @@
 					{/if}
 				{/each}
 			</div>
-			<aside class="hidden w-64 shrink-0 self-stretch xl:block">
+			<aside class="hidden w-64 shrink-0 items-end self-stretch xl:block">
 				<QuestionIndex questions={validQuestions} />
 			</aside>
 		</div>
