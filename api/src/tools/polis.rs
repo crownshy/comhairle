@@ -171,8 +171,8 @@ pub struct PolisToolConfig {
     pub required_votes: Option<i32>,
     #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
-    // Off by default so steps set up before first-timer onboarding (ADR-0062)
-    // keep their voting flow unchanged.
+    /// Off by default so steps set up before first-timer onboarding (ADR-0062)
+    /// keep their voting flow unchanged.
     #[serde(default)]
     pub show_onboarding: bool,
     // Mirror of the Polis conversation config. These are written through to
@@ -187,8 +187,8 @@ pub struct PolisToolConfig {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub strict_moderation: Option<bool>,
-    // Reasons offered when rejecting a statement. None means the built-in
-    // defaults in models::moderation_policy::DEFAULT_REASONS.
+    /// Reasons offered when rejecting a statement. None means the built-in
+    /// defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
     #[serde(default = "default_true")]
