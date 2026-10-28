@@ -21,9 +21,10 @@
 		summary?: string;
 		/** Where Read more goes, left out when the report has no body yet. */
 		readMoreHref?: string;
+		preview: boolean;
 	};
 
-	let { title, publishedOn, conversationId, summary, readMoreHref }: Props = $props();
+	let { title, publishedOn, conversationId, summary, readMoreHref, preview }: Props = $props();
 </script>
 
 <div class={cn(REPORT_COLUMN_CLASS, 'flex grow flex-col items-center gap-5 py-8')}>
@@ -48,6 +49,7 @@
 							content={summary}
 							{conversationId}
 							headingIdPrefix="summary-section"
+							{preview}
 						/>
 					</div>
 				</ExpandableContent>

@@ -16,13 +16,16 @@
 		content = '',
 		conversationId = '',
 		availableDocuments = [],
-		headingIdPrefix = 'section'
+		headingIdPrefix = 'section',
+		preview = false
 	}: {
 		content?: string;
 		conversationId?: string;
 		availableDocuments?: ComhairleDocument[];
 		/** Keeps heading ids unique when two documents render on one page. */
 		headingIdPrefix?: string;
+		/** Shown on the report preview, so embeds load before the report is published. */
+		preview?: boolean;
 	} = $props();
 	type SummaryNode = {
 		type?: string;
@@ -119,6 +122,7 @@
 				<ReportEmbedLive
 					toolStepId={segment.toolStepId}
 					componentType={segment.componentType}
+					{preview}
 				/>
 			</div>
 		{/if}

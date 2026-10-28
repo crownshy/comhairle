@@ -10,6 +10,12 @@ export type SectionBlockMeta<T extends string = string> = {
 export type ReportEmbedProps = {
 	toolStepId: string;
 	componentType: string;
+	/**
+	 * A facilitator is looking before the report is published: the editor, the add-chart
+	 * dialog or the report preview. Loads what readers will get from the preview endpoints,
+	 * which don't need the report to be published.
+	 */
+	preview?: boolean;
 };
 
 /**

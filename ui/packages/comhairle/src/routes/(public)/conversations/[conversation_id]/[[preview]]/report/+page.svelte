@@ -58,7 +58,11 @@
 		/>
 		<div class={cn(REPORT_COLUMN_CLASS, 'grow py-5')}>
 			{#key cardNumber}
-				<ReportCard content={currentPage.content} conversationId={conversation.id} />
+				<ReportCard
+					content={currentPage.content}
+					conversationId={conversation.id}
+					preview={data.preview}
+				/>
 			{/key}
 		</div>
 		<ReportPager
@@ -78,6 +82,7 @@
 			conversationId={conversation.id}
 			summary={summaryContent}
 			readMoreHref={pages.length > 0 ? cardHref(page.url, 1) : undefined}
+			preview={data.preview}
 		/>
 	{/if}
 </main>
