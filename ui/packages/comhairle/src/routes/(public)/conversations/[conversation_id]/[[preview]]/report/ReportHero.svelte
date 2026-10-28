@@ -6,7 +6,11 @@
 	import ReportBody from '$lib/reports/ReportBody.svelte';
 	import { cn } from '$lib/utils';
 	import ExpandableContent from './ExpandableContent.svelte';
-	import { REPORT_COLUMN_CLASS, REPORT_EYEBROW_CLASS, REPORT_TEXT_CLASS } from './styles';
+	import {
+		REPORT_COLUMN_CLASS,
+		REPORT_EYEBROW_CLASS,
+		REPORT_TEXT_CLASS
+	} from '$lib/reports/styles';
 
 	type Props = {
 		title: string;
