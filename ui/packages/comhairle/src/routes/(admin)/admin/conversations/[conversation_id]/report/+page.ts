@@ -4,7 +4,7 @@ import { FullReportDto } from '@crownshy/api-client/api';
 import { HttpStatus } from '$lib/utils/constants';
 import { key } from '$lib/utils/invalidationKey';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import { hasReportWidgets } from '$lib/reports/embeds';
+import { hasSectionBlocks } from '$lib/reports/embeds';
 import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 import type { PageLoad } from './$types';
 
@@ -32,7 +32,7 @@ export const load: PageLoad = async ({ parent, depends }) => {
 
 	// Steps offered by the "Embed report component" control, resolved to the shape it needs.
 	const reportEmbedSteps: EmbeddableStep[] = (workflowSteps ?? [])
-		.filter((step) => hasReportWidgets(step.toolConfig?.type))
+		.filter((step) => hasSectionBlocks(step.toolConfig?.type))
 		.map((step) => ({
 			id: step.id,
 			conversationId: conversation.id,
