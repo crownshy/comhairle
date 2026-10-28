@@ -9,7 +9,7 @@
 	/**
 	 * A live, interactive report component embedded in the report (ADR-0012). Given only a
 	 * reference (`toolStepId` + `componentType`) it loads the data itself and renders the real
-	 * section component — the same code the Insights tab uses — so expand/hover/filter all work.
+	 * section component (the same code the Insights tab uses), so expand/hover/filter all work.
 	 * Shared by the editor node view and the published report page.
 	 */
 	let { toolStepId, componentType }: ReportEmbedProps = $props();

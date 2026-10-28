@@ -36,13 +36,21 @@ pub async fn public_report_tool_config<T>(
         ))
     };
 
+    // Database failures pass through so an outage doesn't look like an unpublished report.
+    let hide_which_is_missing = |err: ComhairleError| match err {
+        ComhairleError::ResourceNotFound(_) => not_found(),
+        other => other,
+    };
+
     let step = workflow_step::get_by_id(db, workflow_step_id)
         .await
-        .map_err(|_| not_found())?;
-    let conversation_id = conversation_of_workflow(db, &step.workflow_id).await?;
+        .map_err(hide_which_is_missing)?;
+    let conversation_id = conversation_of_workflow(db, &step.workflow_id)
+        .await
+        .map_err(hide_which_is_missing)?;
     let report = report::get_for_conversation(db, conversation_id)
         .await
-        .map_err(|_| not_found())?;
+        .map_err(hide_which_is_missing)?;
 
     if !report.is_public {
         return Err(not_found());
@@ -130,6 +138,22 @@ mod tests {
         assert_not_found(
             public_report_tool_config(&pool, &step.id, polis).await,
             "step was served to another tool's endpoint",
+        );
+
+        report::update(
+            &pool,
+            conversation_id,
+            PartialReport {
+                is_public: Some(false),
+                conversation_id: None,
+                body: None,
+                section_configs: None,
+            },
+        )
+        .await?;
+        assert_not_found(
+            public_report_tool_config(&pool, &step.id, learn).await,
+            "step was still served after the report was unpublished",
         );
 
         Ok(())
