@@ -115,12 +115,23 @@ export const ReportComponentEmbed = Node.create({
 			});
 
 			// Embedding is what makes a step's results public (ADR-0061), so say so on every embed.
+			// Both labels are rendered and CSS shows one, keyed off `data-report-published` on the
+			// editor, so publishing doesn't have to touch each node view.
 			const publicNote = document.createElement('p');
 			publicNote.classList.add('report-embed__public-note');
-			publicNote.textContent = 'Public when published';
+			for (const [state, label] of [
+				['later', 'Public when published'],
+				['now', 'Public now']
+			]) {
+				const span = document.createElement('span');
+				span.dataset.when = state;
+				span.textContent = label;
+				publicNote.appendChild(span);
+			}
 
+			// not-prose keeps the editor's typography out of the chart, as on the published page.
 			const body = document.createElement('div');
-			body.classList.add('report-embed__body');
+			body.classList.add('report-embed__body', 'not-prose');
 
 			dom.appendChild(remove);
 			dom.appendChild(publicNote);
