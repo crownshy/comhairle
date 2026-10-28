@@ -6,7 +6,7 @@
 	import { cn } from '$lib/utils';
 	import { copyToClipboard } from '$lib/utils/copyToClipboard.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { REPORT_COLUMN_CLASS } from './styles';
+	import { REPORT_COLUMN_CLASS } from '$lib/reports/styles';
 
 	type Props = {
 		title: string;

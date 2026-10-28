@@ -292,10 +292,21 @@
 
 .report-embed--editor {
 	position: relative;
-	border: 1px solid var(--color-border);
+	/* The frame sits out in the margin so the chart lines up with the text, as on the published
+	   page, and only shows on hover or when the embed is selected. */
+	margin-inline: -1rem;
+	border: 1px solid transparent;
 	border-radius: 0.75rem;
 	padding: 1rem;
-	background: var(--color-card);
+	transition: border-color 150ms;
+}
+
+.report-embed--editor:hover {
+	border-color: var(--color-border);
+}
+
+.report-embed--editor.ProseMirror-selectednode {
+	border-color: var(--color-primary);
 }
 
 .report-embed__remove {
@@ -316,6 +327,14 @@
 	line-height: 1;
 	cursor: pointer;
 	z-index: 1;
+	opacity: 0;
+	transition: opacity 150ms;
+}
+
+.report-embed--editor:hover .report-embed__remove,
+.report-embed--editor.ProseMirror-selectednode .report-embed__remove,
+.report-embed__remove:focus-visible {
+	opacity: 1;
 }
 
 .report-embed__remove:hover {
@@ -323,10 +342,35 @@
 	color: white;
 }
 
-.report-embed__public-note {
+/* Always visible: embedding is what makes a step's results public (ADR-0061). */
+.tiptap .report-embed__public-note {
 	margin: 0 0 0.75rem;
-	color: var(--color-muted-foreground);
+	color: var(--color-primary);
 	font-size: 0.875rem;
+	font-weight: 500;
+}
+
+.report-embed__public-note [data-when='now'],
+.tiptap[data-report-published] .report-embed__public-note [data-when='later'] {
+	display: none;
+}
+
+.tiptap[data-report-published] .report-embed__public-note [data-when='now'] {
+	display: inline;
+}
+
+/* The published page renders charts outside `.tiptap`, so roll the rules above back inside a
+   chart and let it look the same in the editor as it does to readers. */
+.tiptap .report-embed__body :is(p, h1, h2, h3, ul, ol, li, blockquote) {
+	margin: revert-layer;
+	padding-left: revert-layer;
+	line-height: revert-layer;
+	font-size: revert-layer;
+	font-weight: revert-layer;
+	font-style: revert-layer;
+	list-style-type: revert-layer;
+	border-left: revert-layer;
+	color: revert-layer;
 }
 
 /* Shown only on no-JS surfaces (email/print), where the live component can't mount. */
