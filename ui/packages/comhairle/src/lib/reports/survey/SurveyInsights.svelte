@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { PersistedState } from 'runed';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import SurveyBarChart, { defaultView, type View } from './SurveyBarChart.svelte';
 	import SurveyFreeTextQuestion from './SurveyFreeTextQuestion.svelte';
@@ -50,11 +51,15 @@
 		}
 		return result;
 	});
-	// Which chart each choice question shows; empty until an admin switches view.
-	let views = $state<Record<string, View>>({});
+
+	// Each admin's chart choices, kept in their browser per step.
+	const views = new PersistedState<Record<string, View>>(
+		`survey-insights-views:${workflowStepId}`,
+		{}
+	);
 
 	const viewOf = (question: ChoiceQuestion): View =>
-		views[question.id] ?? defaultView(question.kind, question.answers.length);
+		views.current[question.id] ?? defaultView(question.kind, question.answers.length);
 
 	// Only columns are compact enough to pair up; bars, donuts, scales, groups and free text take the full row.
 	const isHalfWidth = (block: Block): boolean =>
@@ -110,7 +115,7 @@
 			x="label"
 			y="count"
 			kind={section.kind}
-			bind:view={views[section.id]}
+			bind:view={views.current[section.id]}
 			title={header}
 		/>
 	{:else}
