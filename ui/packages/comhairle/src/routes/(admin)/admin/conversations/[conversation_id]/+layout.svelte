@@ -20,11 +20,14 @@
 
 	let conversation = $derived(data.conversation);
 
-	// Only the design board itself is full-bleed (it renders its own white card + palette
-	// + scroll region). Every other tab, including the design step config pages under
-	// /design/step/*, keeps the padded, max-width reading column.
-	let isDesignBoard = $derived(
-		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
+	// The design board and the report editor are full-bleed: each renders its own scroll region
+	// and spends the whole width (ADR-0066). Every other tab, including the design step config
+	// pages under /design/step/*, keeps the padded, max-width reading column.
+	let isFullBleedPage = $derived(
+		[
+			`/admin/conversations/${conversation.id}/design`,
+			`/admin/conversations/${conversation.id}/report`
+		].includes(page.url.pathname.replace(/\/+$/, ''))
 	);
 
 	// A single workflow step (/design/step/*) owns its own content region: its layout renders
@@ -152,7 +155,7 @@
 	{/if}
 </div>
 
-{#if isDesignBoard}
+{#if isFullBleedPage}
 	<div class="bg-admin-background flex min-h-0 grow flex-col overflow-hidden">
 		{#if showSwitchingSkeleton.current}
 			<div class="pt-page-top px-gutter">
