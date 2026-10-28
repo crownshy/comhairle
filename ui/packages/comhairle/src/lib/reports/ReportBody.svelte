@@ -30,6 +30,7 @@
 			level?: number;
 			toolStepId?: unknown;
 			componentType?: unknown;
+			config?: { item?: unknown };
 		};
 		content?: SummaryNode[];
 		text?: string;
@@ -37,7 +38,7 @@
 	type Segment =
 		| { kind: 'text'; json: string }
 		| { kind: 'heading'; id: string; json: string }
-		| { kind: 'embed'; toolStepId: string; componentType: string };
+		| { kind: 'embed'; toolStepId: string; componentType: string; item?: string };
 
 	const segments = $derived.by<Segment[]>(() => {
 		let doc: unknown;
@@ -97,7 +98,11 @@
 				out.push({
 					kind: 'embed',
 					toolStepId: String(node.attrs?.toolStepId ?? ''),
-					componentType: String(node.attrs?.componentType ?? '')
+					componentType: String(node.attrs?.componentType ?? ''),
+					item:
+						typeof node.attrs?.config?.item === 'string'
+							? node.attrs.config.item
+							: undefined
 				});
 			} else {
 				run.push(node);
@@ -119,6 +124,7 @@
 				<ReportEmbedLive
 					toolStepId={segment.toolStepId}
 					componentType={segment.componentType}
+					item={segment.item}
 				/>
 			</div>
 		{/if}
