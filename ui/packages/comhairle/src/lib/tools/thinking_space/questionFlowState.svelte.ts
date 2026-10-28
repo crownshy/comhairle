@@ -50,6 +50,13 @@ type Init = {
 	mode?: FlowMode;
 };
 
+export const MAX_ANSWER_WORDS = 300;
+
+function countWords(text: string): number {
+	const trimmed = text.trim();
+	return trimmed ? trimmed.split(/\s+/).length : 0;
+}
+
 /**
  * Reactive state container for the Thinking Space participant flow. Owns all
  * per-question state, the current question pointer, and the network calls that
@@ -132,6 +139,20 @@ export class QuestionFlowState {
 			if (stored.followUps.length < this.followUpCount) return i;
 		}
 		return Math.max(0, this.questions.length - 1);
+	}
+
+	get activeDraft(): string {
+		return this.currentState.phase === 'answering'
+			? this.currentState.currentPickAnswer
+			: this.currentState.rootAnswer;
+	}
+
+	get draftWordCount() {
+		return countWords(this.activeDraft);
+	}
+
+	get draftOverLimit() {
+		return this.draftWordCount > MAX_ANSWER_WORDS;
 	}
 
 	get currentState(): LocalQuestionState {
@@ -284,7 +305,8 @@ export class QuestionFlowState {
 
 	async submitRootAnswer() {
 		const value = this.currentState.rootAnswer.trim();
-		if (!value || this.submitting) return;
+		if (!value || this.submitting || this.draftOverLimit) return;
+
 		this.submitting = true;
 		try {
 			const saved = await apiClient.CreateThinkingSpaceAnswer({
@@ -347,7 +369,7 @@ export class QuestionFlowState {
 
 	async submitFollowUp() {
 		const value = this.currentState.currentPickAnswer.trim();
-		if (!value || this.submitting) return;
+		if (!value || this.submitting || this.draftOverLimit) return;
 		this.submitting = true;
 		try {
 			const saved = await apiClient.CreateThinkingSpaceAnswer({
