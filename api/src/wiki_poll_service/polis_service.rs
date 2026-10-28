@@ -175,7 +175,7 @@ pub struct VoteCounts {
     pub passes: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct GroupVoteCounts {
     pub group_id: u32,
     pub agrees: u32,
@@ -443,8 +443,8 @@ impl PolisClient {
         };
 
         for comment in comments_data.iter() {
-            comment_texts.insert(comment.tid, comment.txt.clone());
             if is_visible(comment.moderation) {
+                comment_texts.insert(comment.tid, comment.txt.clone());
                 comment_is_seed.insert(comment.tid, comment.is_seed);
                 comment_votes.insert(
                     comment.tid,
@@ -510,19 +510,21 @@ impl PolisClient {
         for (idx, cluster) in math_pca.group_clusters.iter().enumerate() {
             let group_id = idx as u32;
 
-            // Get representative comments for this group
+            // Polis picks representative statements from every statement it has votes on,
+            // so drop the ones the scope leaves out of the main list.
             let representative_comments = math_pca
                 .repness
                 .get(&group_id.to_string())
                 .map(|rep_entries| {
                     rep_entries
                         .iter()
-                        .map(|entry| {
-                            let text = comment_texts.get(&entry.tid).cloned().unwrap_or_default();
-                            RepresentativeComment {
-                                tid: entry.tid,
-                                text,
-                            }
+                        .filter_map(|entry| {
+                            comment_texts
+                                .get(&entry.tid)
+                                .map(|text| RepresentativeComment {
+                                    tid: entry.tid,
+                                    text: text.clone(),
+                                })
                         })
                         .collect()
                 })
@@ -1160,6 +1162,41 @@ mod tests {
     #[test]
     fn open_moderation_reports_pending_statements_too() {
         assert_eq!(reported_tids(ReportScope::AcceptedAndPending), vec![1, 2]);
+    }
+
+    /// Group 0's representatives are one accepted, one pending and one rejected statement.
+    fn representative_tids(scope: ReportScope) -> Vec<u32> {
+        let mut math = math_for(vec![1, 2, 3]);
+        math.group_clusters = vec![GroupCluster { members: vec![] }];
+        math.repness = HashMap::from([(
+            "0".to_string(),
+            vec![
+                RepnessEntry { tid: 1 },
+                RepnessEntry { tid: 2 },
+                RepnessEntry { tid: 3 },
+            ],
+        )]);
+        let report = PolisClient::new("polis.comhairle.scot")
+            .transform_report_data(
+                &math,
+                &[comment(1, 1.0), comment(2, 0.0), comment(3, -1.0)],
+                scope,
+            )
+            .expect("transform should succeed");
+        report.groups[0]
+            .representative_comments
+            .iter()
+            .map(|c| c.tid)
+            .collect()
+    }
+
+    #[test]
+    fn representative_statements_follow_the_report_scope() {
+        assert_eq!(representative_tids(ReportScope::AcceptedOnly), vec![1]);
+        assert_eq!(
+            representative_tids(ReportScope::AcceptedAndPending),
+            vec![1, 2]
+        );
     }
 
     #[test]
