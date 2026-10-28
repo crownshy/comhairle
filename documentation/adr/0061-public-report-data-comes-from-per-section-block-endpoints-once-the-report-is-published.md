@@ -1,7 +1,7 @@
 # ADR-0061: Public report data comes from per-section-block endpoints once the report is published
 
 **Status:** proposed
-**Date:** 2026-09-28
+**Date:** 2026-10-28
 **Amends:** [ADR-0012](0012-report-component-embeds-store-reference-plus-frozen-html.md)
 (live embeds now fetch from dedicated public endpoints, not the Insights endpoints)
 
