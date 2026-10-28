@@ -292,7 +292,7 @@ _Avoid_: report piece (use "section block" for the embeddable unit).
 A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores **only a reference** (`toolStepId`, `componentType`, `config`); every surface (editor node view + published page) mounts the **live** component against current data (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), which reversed the frozen-snapshot direction of [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md) for these embeds). Interactive and always-fresh; if the Step/data no longer resolves the embed shows an inline "data unavailable" state. No-JS surfaces (email/print) get a placeholder, not the component.
 
 **Public report data**:
-The anonymised, moderated totals a published report's embeds load for public readers. Served by dedicated per-section-block endpoints, never by the admin **Insights** endpoints, and only once the conversation's report is published (see [ADR-0061](documentation/adr/0061-public-report-data-comes-from-per-section-block-endpoints-once-the-report-is-published.md)). Unpublishing the report turns it off again.
+The anonymised, moderated totals a published report's embeds load for public readers. Served by dedicated per-section-block endpoints, never by the admin **Insights** endpoints, and only for section blocks the published report embeds (see [ADR-0061](documentation/adr/0061-public-report-data-is-served-only-for-section-blocks-the-published-report-embeds.md)). Removing the embed or unpublishing the report turns it off again.
 _Avoid_: published data, open data (the data protocol "Open" is a different setting).
 
 **Report view**:

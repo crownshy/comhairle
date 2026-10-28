@@ -1,10 +1,15 @@
-//! Shared guard for public report-data endpoints (ADR-0061).
+//! Shared gate for public report-data endpoints (ADR-0061).
 //!
 //! Each embeddable report section block gets its own unauthenticated endpoint that returns only
 //! the aggregated, moderated fields that section block draws. Every one of them must go through
-//! [`public_report_tool_config`] so a step's data is only ever served once its conversation's
-//! report is published.
+//! [`serve_public_report_data`], so a step's data is only served for section blocks the published
+//! report embeds, and only as [`anonymous::PublicReportData`].
 
+pub mod anonymous;
+pub mod embeds;
+
+use anonymous::PublicReportData;
+use embeds::{EmbeddedSectionBlock, embedded_section_blocks};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -12,12 +17,13 @@ use crate::error::ComhairleError;
 use crate::models::{event, report, workflow, workflow_step};
 use crate::tools::ToolConfig;
 
-/// Load the tool config behind a public report-data request. `for_tool` narrows the config to the
-/// endpoint's own tool, for example `|config| match config { ToolConfig::Polis(polis) =>
-/// Some(polis), _ => None }`.
+/// Serve one section block's public data. `for_tool` narrows the step's config to the endpoint's
+/// own tool, for example `|config| match config { ToolConfig::Polis(polis) => Some(polis), _ =>
+/// None }`, and `build` turns that config into the response.
 ///
-/// Returns `ResourceNotFound` when the step doesn't exist, its conversation has no published
-/// report, or it runs a different tool, so an anonymous caller can't tell these apart.
+/// Returns `ResourceNotFound` when the step doesn't exist, its conversation's report isn't
+/// published, the report doesn't embed this section block for this step, or the step runs a
+/// different tool, so an anonymous caller can't tell these apart.
 #[cfg_attr(
     not(test),
     expect(
@@ -25,11 +31,23 @@ use crate::tools::ToolConfig;
         reason = "first caller is the Polis public endpoints (#1253)"
     )
 )]
-pub async fn public_report_tool_config<T>(
+pub async fn serve_public_report_data<Config, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,
-    for_tool: impl FnOnce(ToolConfig) -> Option<T>,
-) -> Result<T, ComhairleError> {
+    section_block: &str,
+    for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
+    build: impl AsyncFnOnce(Config) -> Result<Data, ComhairleError>,
+) -> Result<Data, ComhairleError> {
+    let config = public_tool_config(db, workflow_step_id, section_block, for_tool).await?;
+    build(config).await
+}
+
+async fn public_tool_config<Config>(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    section_block: &str,
+    for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
+) -> Result<Config, ComhairleError> {
     let not_found = || {
         ComhairleError::ResourceNotFound(format!(
             "Report data for workflow step {workflow_step_id}"
@@ -56,6 +74,17 @@ pub async fn public_report_tool_config<T>(
         return Err(not_found());
     }
 
+    let requested = EmbeddedSectionBlock {
+        workflow_step_id: *workflow_step_id,
+        section_block: section_block.to_owned(),
+    };
+    if !embedded_section_blocks(db, &report)
+        .await?
+        .contains(&requested)
+    {
+        return Err(not_found());
+    }
+
     for_tool(step.tool_config.unwrap_or(step.preview_tool_config)).ok_or_else(not_found)
 }
 
@@ -75,18 +104,33 @@ async fn conversation_of_workflow(db: &PgPool, workflow_id: &Uuid) -> Result<Uui
 mod tests {
     use std::error::Error;
 
+    use serde_json::json;
+
+    use super::anonymous::{Count, public_report_data};
     use super::*;
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
     use crate::models::report::PartialReport;
+    use crate::models::translations::{
+        UpdateTextTranslation, get_text_translation_by_content_and_locale, update_text_translation,
+    };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::routes::workflows::dto::WorkflowDto;
     use crate::tools::learn::LearnToolConfig;
     use crate::tools::polis::PolisToolConfig;
 
+    const EMBEDDED: &str = "polis-key-stats";
+    const NOT_EMBEDDED: &str = "polis-opinion-groups";
+
+    public_report_data! {
+        struct ExampleSectionBlock {
+            participants: Count,
+        }
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_only_serve_steps_once_the_report_is_published(
+    async fn should_only_serve_section_blocks_the_published_report_embeds(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -106,56 +150,94 @@ mod tests {
         let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
 
         assert_not_found(
-            public_report_tool_config(&pool, &step.id, learn).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
             "step was served with no report",
         );
 
         report::create_for_conversation(&pool, conversation_id, "en").await?;
+        embed_in_summary(&pool, conversation_id, &step.id, EMBEDDED).await?;
         assert_not_found(
-            public_report_tool_config(&pool, &step.id, learn).await,
+            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
             "step was served from an unpublished report",
         );
 
-        report::update(
-            &pool,
-            conversation_id,
-            PartialReport {
-                is_public: Some(true),
-                conversation_id: None,
-                body: None,
-                section_configs: None,
-            },
-        )
-        .await?;
-
-        let config = public_report_tool_config(&pool, &step.id, learn).await?;
+        set_published(&pool, conversation_id, true).await?;
+        let config = public_tool_config(&pool, &step.id, EMBEDDED, learn).await?;
         assert_eq!(
             Some(ToolConfig::Learn(config)),
             step.tool_config.or(Some(step.preview_tool_config)),
             "wrong tool config served"
         );
+        let served = serve_public_report_data(&pool, &step.id, EMBEDDED, learn, async |_| {
+            Ok(ExampleSectionBlock {
+                participants: Count(3),
+            })
+        })
+        .await?;
+        assert_eq!(served.participants, Count(3), "built data not returned");
 
         assert_not_found(
-            public_report_tool_config(&pool, &step.id, polis).await,
+            public_tool_config(&pool, &step.id, NOT_EMBEDDED, learn).await,
+            "a section block the report doesn't embed was served",
+        );
+        assert_not_found(
+            public_tool_config(&pool, &step.id, EMBEDDED, polis).await,
             "step was served to another tool's endpoint",
         );
 
+        set_published(&pool, conversation_id, false).await?;
+        assert_not_found(
+            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            "step was still served after the report was unpublished",
+        );
+
+        Ok(())
+    }
+
+    async fn embed_in_summary(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        workflow_step_id: &Uuid,
+        section_block: &str,
+    ) -> Result<(), ComhairleError> {
+        let report = report::get_for_conversation(pool, conversation_id).await?;
+        let summary =
+            get_text_translation_by_content_and_locale(pool, &report.summary, "en").await?;
+        let document = json!({
+            "type": "doc",
+            "content": [{
+                "type": "reportComponentEmbed",
+                "attrs": { "toolStepId": workflow_step_id, "componentType": section_block }
+            }]
+        });
+        update_text_translation(
+            pool,
+            &summary.id,
+            &UpdateTextTranslation {
+                content: Some(document.to_string()),
+                ..Default::default()
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn set_published(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        is_public: bool,
+    ) -> Result<(), ComhairleError> {
         report::update(
-            &pool,
+            pool,
             conversation_id,
             PartialReport {
-                is_public: Some(false),
+                is_public: Some(is_public),
                 conversation_id: None,
                 body: None,
                 section_configs: None,
             },
         )
         .await?;
-        assert_not_found(
-            public_report_tool_config(&pool, &step.id, learn).await,
-            "step was still served after the report was unpublished",
-        );
-
         Ok(())
     }
 

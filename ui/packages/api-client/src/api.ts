@@ -2474,6 +2474,17 @@ export const ReportDto = z
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const EmbeddedSectionBlock = z
+  .object({ sectionBlock: z.string(), workflowStepId: z.string().uuid() })
+  .passthrough();
+export type EmbeddedSectionBlock = z.infer<typeof EmbeddedSectionBlock>;
+export const ReportEmbedsDto = z
+  .object({
+    isPublic: z.boolean(),
+    sectionBlocks: z.array(EmbeddedSectionBlock),
+  })
+  .passthrough();
+export type ReportEmbedsDto = z.infer<typeof ReportEmbedsDto>;
 export const ReportImpactDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -3887,6 +3898,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FullReportDto,
   PartialReport,
   ReportDto,
+  EmbeddedSectionBlock,
+  ReportEmbedsDto,
   ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
@@ -5405,6 +5418,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ReportImpactDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/report/embeds",
+    alias: "GetReportEmbeds",
+    requestFormat: "json",
+    response: ReportEmbedsDto,
   },
   {
     method: "get",
