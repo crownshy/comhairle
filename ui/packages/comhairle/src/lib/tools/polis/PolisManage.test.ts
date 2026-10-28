@@ -22,6 +22,7 @@ const props = {
 		description: 'Buses and trains',
 		required_votes: 10,
 		show_remaining_statements: true,
+		show_onboarding: false,
 		strict_moderation: true
 	},
 	statements: []
@@ -37,9 +38,9 @@ function renderControls(actions: string[]) {
 	const { body } = render(PolisManage, { props });
 	const controls =
 		body.match(
-			/<(?:input|textarea|button)\b[^>]*\bid="(?:topic|description|requiredVotes|showRemaining|strictModeration)"[^>]*>/g
+			/<(?:input|textarea|button)\b[^>]*\bid="(?:topic|description|requiredVotes|showRemaining|showOnboarding|strictModeration)"[^>]*>/g
 		) ?? [];
-	expect(controls).toHaveLength(5);
+	expect(controls).toHaveLength(6);
 	return { body, controls };
 }
 
