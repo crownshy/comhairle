@@ -461,12 +461,14 @@ pub async fn update(
         .table(WorkflowStepIden::Table)
         .values(values)
         .and_where(Expr::col(WorkflowStepIden::Id).eq(workflow_step_id.to_owned()))
+        .and_where(Expr::col(WorkflowStepIden::WorkflowId).eq(workflow_id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
         .fetch_one(&mut *transaction)
-        .await?;
+        .await
+        .resolve_db_err("Workflow Step")?;
 
     // Reset the orders to plug the gap if needed
 
