@@ -1,4 +1,5 @@
 import { apiClient } from '@crownshy/api-client/client';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type {
 	PolisPublicGroup,
 	PolisPublicKeyStats,
@@ -28,20 +29,56 @@ export type PolisEmbedData =
 	  };
 
 /**
- * Load one section block's data. The endpoints answer 404 until the published report embeds
- * the block, and that throws like any other failure so the caller shows the embed's
- * unavailable state.
+ * Each section block's endpoints. The preview ones need a facilitator who can update the
+ * conversation; the public ones answer 404 until the published report embeds the block.
+ */
+const ENDPOINTS = {
+	public: {
+		keyStats: apiClient.PolisGetPublicKeyStats,
+		consensus: apiClient.PolisGetPublicConsensus,
+		disagreement: apiClient.PolisGetPublicDisagreement,
+		consensusContinuum: apiClient.PolisGetPublicConsensusContinuum,
+		opinionGroups: apiClient.PolisGetPublicOpinionGroups
+	},
+	preview: {
+		keyStats: apiClient.PolisPreviewKeyStats,
+		consensus: apiClient.PolisPreviewConsensus,
+		disagreement: apiClient.PolisPreviewDisagreement,
+		consensusContinuum: apiClient.PolisPreviewConsensusContinuum,
+		opinionGroups: apiClient.PolisPreviewOpinionGroups
+	}
+};
+
+/**
+ * Load one section block's data. A preview falls back to the public endpoint, so someone
+ * opening a preview link without facilitator rights still sees a published report's charts.
+ * Any failure throws, and the caller shows the embed's unavailable state.
  */
 export async function loadPolisEmbedData(
+	workflowStepId: string,
+	componentType: PolisEmbeddableComponentType,
+	preview = false
+): Promise<PolisEmbedData> {
+	if (preview) {
+		const previewed = await tryCatchAsync(() =>
+			loadFrom(ENDPOINTS.preview, workflowStepId, componentType)
+		);
+		if (previewed.err === null) return previewed.ok;
+	}
+	return loadFrom(ENDPOINTS.public, workflowStepId, componentType);
+}
+
+async function loadFrom(
+	endpoints: (typeof ENDPOINTS)['public'],
 	workflowStepId: string,
 	componentType: PolisEmbeddableComponentType
 ): Promise<PolisEmbedData> {
 	const request = { queries: { workflow_step_id: workflowStepId } };
 	switch (componentType) {
 		case 'polis-key-stats':
-			return { componentType, stats: await apiClient.PolisGetPublicKeyStats(request) };
+			return { componentType, stats: await endpoints.keyStats(request) };
 		case 'polis-area-consensus': {
-			const ranked = await apiClient.PolisGetPublicConsensus(request);
+			const ranked = await endpoints.consensus(request);
 			return {
 				componentType,
 				statements: ranked.statements.map((s) => ({
@@ -52,7 +89,7 @@ export async function loadPolisEmbedData(
 			};
 		}
 		case 'polis-area-disagreement': {
-			const ranked = await apiClient.PolisGetPublicDisagreement(request);
+			const ranked = await endpoints.disagreement(request);
 			return {
 				componentType,
 				statements: ranked.statements.map((s) => ({
@@ -63,7 +100,7 @@ export async function loadPolisEmbedData(
 			};
 		}
 		case 'polis-consensus-continuum': {
-			const continuum = await apiClient.PolisGetPublicConsensusContinuum(request);
+			const continuum = await endpoints.consensusContinuum(request);
 			return {
 				componentType,
 				statements: continuum.statements.map((s) => ({
@@ -74,7 +111,7 @@ export async function loadPolisEmbedData(
 			};
 		}
 		case 'polis-opinion-groups': {
-			const opinionGroups = await apiClient.PolisGetPublicOpinionGroups(request);
+			const opinionGroups = await endpoints.opinionGroups(request);
 			return {
 				componentType,
 				statements: opinionGroups.statements.map(toVotedStatement),

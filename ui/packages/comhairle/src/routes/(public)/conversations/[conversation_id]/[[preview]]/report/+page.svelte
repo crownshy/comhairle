@@ -64,6 +64,7 @@
 					title={currentPage.title}
 					content={currentPage.content}
 					conversationId={conversation.id}
+					preview={data.preview}
 				/>
 			{/key}
 		</div>
@@ -88,6 +89,7 @@
 			conversationId={conversation.id}
 			summary={summaryContent}
 			readMoreHref={pages.length > 0 ? cardHref(page.url, 1) : undefined}
+			preview={data.preview}
 		/>
 	{/if}
 </main>
