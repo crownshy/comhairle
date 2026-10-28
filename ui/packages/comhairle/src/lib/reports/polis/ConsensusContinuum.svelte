@@ -30,7 +30,7 @@
 		groups: ReportGroup[];
 		/**
 		 * Frozen-snapshot render (ADR-0012). The live plot needs a measured width and an
-		 * animated d3-force layout — neither survives being baked to static HTML. In frozen
+		 * animated d3-force layout, and neither survives being baked to static HTML. In frozen
 		 * mode we run the simulation to completion synchronously at a fixed viewBox width and
 		 * emit plain, settled `<circle>`s, so the snapshot is a finished swarm, not a blank box.
 		 */

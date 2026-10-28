@@ -2,7 +2,7 @@
  * Data helpers for the "Consensus continuum" beeswarm.
  *
  * The dot packing itself is done by d3-force (via layerchart's `ForceSimulation`)
- * in `ConsensusContinuum.svelte` — this module only massages the report comments
+ * in `ConsensusContinuum.svelte`; this module only massages the report comments
  * that feed it, kept pure so it can be unit-tested.
  *
  * The x axis is Polis `divisiveness`, which the backend fills straight from the

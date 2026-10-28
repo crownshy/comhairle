@@ -2,7 +2,7 @@
  * Polis report data shapes.
  *
  * The wire types are the single source of truth in the generated
- * `@crownshy/api-client` (`WikiPollReport` and friends) — this module does NOT
+ * `@crownshy/api-client` (`WikiPollReport` and friends). This module does NOT
  * re-declare them, it only re-exports them under the names this feature uses
  * and adds what the client can't know about:
  *   - `topics`/`subtopics`: a client-side overlay tagged from

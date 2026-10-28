@@ -25,7 +25,7 @@
 		/**
 		 * Frozen-snapshot render (ADR-0012): the embed bakes this to static HTML, so the
 		 * interactive controls (filter chips, expand toggle) would be dead. In frozen mode we
-		 * drop them and show every statement — a snapshot, not a broken widget.
+		 * drop them and show every statement: a snapshot, not a broken widget.
 		 */
 		frozen?: boolean;
 		/** AI-generated summary text for this side (consensus or disagreement). */
