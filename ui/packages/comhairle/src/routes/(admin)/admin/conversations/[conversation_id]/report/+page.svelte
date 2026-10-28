@@ -16,7 +16,7 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { cn } from '$lib/utils';
-	import { publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
+	import { embedKey, publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
 	import {
 		REPORT_COLUMN_CLASS,
 		REPORT_EDITOR_HOVER_CLASS,
@@ -152,11 +152,7 @@
 		)
 	);
 	const embeddedKeys = $derived(
-		new Set(
-			[summaryOnScreen, bodyOnScreen]
-				.flatMap(sectionBlocksInDocument)
-				.map((block) => `${block.workflowStepId}:${block.sectionBlock}`)
-		)
+		new Set([summaryOnScreen, bodyOnScreen].flatMap(sectionBlocksInDocument).map(embedKey))
 	);
 	const sections = $derived(reportSections(bodyOnScreen, 'Introduction'));
 	const saveState = $derived(
@@ -357,11 +353,15 @@
 		steps={data.reportEmbedSteps}
 		{embeddedKeys}
 		{published}
-		onPick={(step, block) =>
+		onPick={(step, block, item) =>
 			(activeEditor ?? bodyEditor)
 				?.chain()
 				.focus()
-				.setReportComponentEmbed({ toolStepId: step.id, componentType: block.type })
+				.setReportComponentEmbed({
+					toolStepId: step.id,
+					componentType: block.type,
+					config: item ? { item } : {}
+				})
 				.run()}
 	/>
 

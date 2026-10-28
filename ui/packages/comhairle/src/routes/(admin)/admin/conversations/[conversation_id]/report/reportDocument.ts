@@ -142,7 +142,8 @@ function chart(toolStepId: string, componentType: string): ReportNode {
  */
 export function draftReport(steps: EmbeddableStep[]): ReportDocument {
 	const stepSections = steps.flatMap((step) => {
-		const blocks = sectionBlocksForTool(step.toolType);
+		// A per-item block needs an item picked, so the draft leaves those for the facilitator.
+		const blocks = sectionBlocksForTool(step.toolType).filter((block) => !block.itemName);
 		if (blocks.length === 0) return [];
 		const picks = DRAFT_CHARTS_BY_TOOL[step.toolType] ?? [
 			{ type: blocks[0].type, prompt: PROMPTS.anyChart }
