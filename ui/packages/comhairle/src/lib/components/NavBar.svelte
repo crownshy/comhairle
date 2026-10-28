@@ -69,10 +69,10 @@
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
 		<div class="lg:hidden">
-			<ComhairleLogo logoSize="md" showText={false} themeBrand />
+			<ComhairleLogo logoSize="md" showText={false} />
 		</div>
 		<div class="hidden lg:block">
-			<ComhairleLogo logoSize="md" themeBrand />
+			<ComhairleLogo logoSize="md" />
 		</div>
 
 		<!-- Desktop Navigation -->

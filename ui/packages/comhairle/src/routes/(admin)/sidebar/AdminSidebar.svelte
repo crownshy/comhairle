@@ -73,7 +73,6 @@
 				<ComhairleLogo
 					href={conversationsHref}
 					logoSize="sm"
-					themeBrand
 					color="text-sidebar-foreground"
 					class="group-data-[collapsible=icon]:hidden"
 				/>
