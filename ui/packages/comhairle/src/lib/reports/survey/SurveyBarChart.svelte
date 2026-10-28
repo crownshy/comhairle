@@ -11,7 +11,6 @@
 </script>
 
 <script lang="ts">
-	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
 	import ChoiceBars from './ChoiceBars.svelte';
 	import ChoiceColumns from './ChoiceColumns.svelte';
@@ -20,8 +19,12 @@
 	import { ArrowDownWideNarrow, ChartNoAxesColumn, ChartPie } from 'lucide-svelte';
 	import { type ComponentProps, type ComponentType, type Snippet } from 'svelte';
 
-	type Props = ComponentProps<typeof BarChart> & {
+	type Props = {
+		data: Record<string, unknown>[] | undefined;
+		x: string;
+		y: string;
 		kind: HeyFormFieldKind;
+		orientation?: 'horizontal' | 'vertical';
 		view?: View;
 		title?: Snippet;
 	};

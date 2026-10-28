@@ -13,6 +13,7 @@
 	import { Download } from '@lucide/svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import MetricOverviewCard from '../MetricOverviewCard.svelte';
+	import QuestionIndex from './QuestionIndex.svelte';
 
 	interface Props {
 		data: SurveyQuestion[];
@@ -145,7 +146,7 @@
 {#if data.length <= 0}
 	<span class="text-muted-foreground">No responses yet</span>
 {:else}
-	<div class="flex max-w-3xl flex-col gap-6">
+	<div class="flex max-w-6xl flex-col gap-6">
 		<section aria-label="Summary" class="flex flex-wrap items-end justify-between gap-4">
 			<div class="flex flex-wrap gap-4">
 				<MetricOverviewCard
@@ -164,31 +165,40 @@
 				Download CSV
 			</Button>
 		</section>
-		<div class="grid gap-6 lg:grid-cols-2">
-			{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
-				{#if block.kind === 'question'}
-					<section
-						class={[
-							'bg-card flex flex-col gap-4 rounded-sm border p-6',
-							!isHalfWidth(block) && 'lg:col-span-2'
-						]}
-					>
-						{@render questionBody(block.question)}
-					</section>
-				{:else}
-					<section
-						class="bg-card flex flex-col gap-6 rounded-sm border p-6 lg:col-span-2"
-					>
-						<h2 class="text-xl font-semibold">{block.title}</h2>
+		<div class="flex items-start gap-8">
+			<div class="grid max-w-3xl min-w-0 flex-1 gap-6 lg:grid-cols-2">
+				{#each blocks as block (block.kind === 'group' ? block.id : block.question.id)}
+					{#if block.kind === 'question'}
+						<section
+							id="question-{block.question.id}"
+							class={[
+								'bg-card flex scroll-mt-6 flex-col gap-4 rounded-sm border p-6',
+								!isHalfWidth(block) && 'lg:col-span-2'
+							]}
+						>
+							{@render questionBody(block.question)}
+						</section>
+					{:else}
+						<section
+							class="bg-card flex scroll-mt-6 flex-col gap-6 rounded-sm border p-6 lg:col-span-2"
+						>
+							<h2 class="text-xl font-semibold">{block.title}</h2>
 
-						{#each block.questions as question (question.id)}
-							<div class="flex flex-col gap-4 border-t pt-6">
-								{@render questionBody(question, 'h3')}
-							</div>
-						{/each}
-					</section>
-				{/if}
-			{/each}
+							{#each block.questions as question (question.id)}
+								<div
+									id="question-{question.id}"
+									class="flex flex-col gap-4 border-t pt-6"
+								>
+									{@render questionBody(question, 'h3')}
+								</div>
+							{/each}
+						</section>
+					{/if}
+				{/each}
+			</div>
+			<aside class="hidden w-64 shrink-0 self-stretch xl:block">
+				<QuestionIndex questions={validQuestions} />
+			</aside>
 		</div>
 	</div>
 {/if}
