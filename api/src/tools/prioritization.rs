@@ -218,6 +218,9 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PrioritizationExIm;
+
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationReport;
 
@@ -228,6 +231,7 @@ impl ToolImpl for PrioritizationTool {
     type Config = PrioritizationToolConfig;
     type Setup = PrioritizationToolSetup;
     type Report = PrioritizationReport;
+    type ExportImport = PrioritizationExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -246,6 +250,12 @@ impl ToolImpl for PrioritizationTool {
 
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {

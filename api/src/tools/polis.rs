@@ -230,6 +230,9 @@ pub struct PolisToolSetup {
 #[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PolisExIm;
+
 /// Zero-sized marker type for Polis tool implementation
 pub struct PolisTool;
 
@@ -238,6 +241,7 @@ impl ToolImpl for PolisTool {
     type Config = PolisToolConfig;
     type Setup = PolisToolSetup;
     type Report = PolisReport;
+    type ExportImport = PolisExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -285,6 +289,12 @@ impl ToolImpl for PolisTool {
             .await?;
 
         Ok(())
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {

@@ -5,10 +5,13 @@ use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::Json;
+use axum::body::Body;
 use axum::extract::{FromRequestParts, Path, Query, State};
-use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::http::{HeaderValue, StatusCode};
 use axum::middleware::from_fn_with_state;
+use axum::response::Response;
+use hyper::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -27,8 +30,8 @@ use crate::models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep
 use crate::models::{self, conversation, user_participation};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
-    LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
-    WorkflowStepWithTranslationsDto,
+    ExImWorkflowStep, LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto,
+    WorkflowStepDto, WorkflowStepWithTranslationsDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 
@@ -333,6 +336,57 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
+/// Export a specific workflow to JSON
+#[instrument(err(Debug), skip(state))]
+async fn export_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowStepPathCtx {
+        workflow_id: _,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Response, ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let workflow_step =
+        workflow_step::get_localised_by_id(&state.db, &workflow_step_id, &locale).await?;
+
+    let tool_config = workflow_step
+        .tool_config
+        .unwrap_or(workflow_step.preview_tool_config);
+    let tool_config_export = tool_config.export_tool().await?;
+
+    let content_disposition = HeaderValue::from_str(&format!(
+        "attachment; filename=\"workflow-step-{}.json\"",
+        workflow_step.name,
+    ))?;
+
+    let export_step = ExImWorkflowStep {
+        primary_locale: conversation.primary_locale,
+        name: workflow_step.name,
+        activation_rule: workflow_step.activation_rule,
+        description: workflow_step.description,
+        is_offline: workflow_step.is_offline,
+        required: workflow_step.required,
+        can_revisit: workflow_step.can_revisit,
+        preview_tool_config: tool_config_export,
+        request_user_share_permission: workflow_step.request_user_share_permission,
+        data_protocol: workflow_step.data_protocol,
+    };
+
+    let bytes = serde_json::to_vec(&export_step)?;
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(bytes))?;
+
+    Ok(response)
+}
+
 pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
@@ -402,6 +456,17 @@ Use query param withUserProgress=true to get the active user's progress status f
                 PermissionRequirement::<ConversationResource>::new(Action::Update),
                 permission_middleware::<ConversationResource>,
             )),
+        )
+        .api_route(
+            "/{workflow_step_id}/export",
+            get_with(export_workflow_step, |op| {
+                op.id(&format!("Export{ctx}WorkflowStep"))
+                    .tag("Workflow step")
+                    .summary("Export a workflow step to JSON")
+                    .description("Export a workflow step to JSON")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ExImWorkflowStep>>()
+            }),
         )
 }
 
