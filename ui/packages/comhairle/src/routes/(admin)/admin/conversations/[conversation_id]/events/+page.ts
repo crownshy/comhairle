@@ -7,14 +7,14 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 
 	const { api } = await parent();
 
-	const events = await tryCatchAsync(() =>
-		api.ListEvents({
-			params: { conversation_id: params.conversation_id },
-			queries: { created_at: 'desc' }
-		})
-	);
-
 	return {
-		events: events.ok?.records ?? []
+		streamedEvents: tryCatchAsync(() =>
+			api
+				.ListEvents({
+					params: { conversation_id: params.conversation_id },
+					queries: { created_at: 'desc' }
+				})
+				.then((res) => res.records)
+		)
 	};
 };
