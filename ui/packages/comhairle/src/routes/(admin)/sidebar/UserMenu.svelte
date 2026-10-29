@@ -31,7 +31,7 @@
 						>
 							<span class="truncate text-sm font-semibold">{user?.username}</span>
 							{#if user?.email}
-								<span class="text-sidebar-foreground/70 truncate text-xs">
+								<span class="truncate text-xs opacity-75">
 									{user.email}
 								</span>
 							{/if}
