@@ -26,7 +26,7 @@
 	import WorkspaceSection from './WorkspaceSection.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import type { WorkspaceGroup } from './workspaceLinks';
-	import { ROW_HOVER } from './sidebarRows';
+	import { MENU_BUTTON_HOVER, ROW_HOVER } from './sidebarRows';
 
 	type Props = {
 		/** Set while you're inside a conversation: the sidebar shows it instead of the workspace. */
@@ -62,7 +62,7 @@
 					href={conversationsHref}
 					title="Back to conversations"
 					class={cn(
-						'text-sidebar-foreground/80 hover:text-sidebar-foreground -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-base group-data-[collapsible=icon]:hidden',
+						'text-sidebar-foreground/80 hover:text-sidebar-foreground -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-sm group-data-[collapsible=icon]:hidden',
 						ROW_HOVER
 					)}
 				>
@@ -100,7 +100,7 @@
 		</div>
 		{#if title}
 			<h1
-				class="text-sidebar-foreground line-clamp-2 text-lg leading-7 font-semibold group-data-[collapsible=icon]:hidden"
+				class="text-sidebar-foreground line-clamp-2 text-base leading-6 font-semibold group-data-[collapsible=icon]:hidden"
 				{title}
 			>
 				{title}
@@ -128,7 +128,10 @@
 		{#if !open}
 			<SideBar.Menu>
 				<SideBar.MenuItem>
-					<SideBar.MenuButton tooltipContent="Handbook" class="h-10 text-base">
+					<SideBar.MenuButton
+						tooltipContent="Handbook"
+						class={cn('h-9 text-sm', MENU_BUTTON_HOVER)}
+					>
 						{#snippet child({ props })}
 							<a {...props} href={resolve('/admin/info/welcome')}>
 								<BookOpenText />

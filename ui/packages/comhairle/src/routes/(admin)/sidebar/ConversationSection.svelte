@@ -64,7 +64,7 @@
 	};
 	const ACTIVE_MARKER_CLASS =
 		'border-sidebar-accent-foreground/40 text-sidebar-accent-foreground border';
-	const MILESTONE_ROW = '-ml-1 flex h-10 items-center gap-3 rounded-lg pr-2 pl-1';
+	const MILESTONE_ROW = '-ml-1 flex h-9 items-center gap-3 rounded-lg pr-2 pl-1';
 
 	// The Launch marker stays an outlined rocket until the conversation is launched.
 	function markerClass(stage: ConversationStage, active: boolean): string {
@@ -87,20 +87,20 @@
 {#snippet stageHeading(stage: ConversationStage, index: number, active = false)}
 	<span
 		class={cn(
-			'flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
+			'flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
 			markerClass(stage, active)
 		)}
 		aria-hidden="true"
 	>
 		{#if stage.state === 'done'}
-			<Check class="size-4" strokeWidth={3} />
+			<Check class="size-3.5" strokeWidth={3} />
 		{:else if stage.id === 'launch'}
-			<Rocket class="size-3.5" />
+			<Rocket class="size-3" />
 		{:else}
 			{index + 1}
 		{/if}
 	</span>
-	<span class={cn('text-base font-semibold', labelClass(stage, active))}>
+	<span class={cn('text-sm font-semibold', labelClass(stage, active))}>
 		{stage.label}
 		{#if stage.state === 'done'}<span class="sr-only">, done</span>{/if}
 	</span>
@@ -181,7 +181,7 @@
 			{#if stage.sections.length > 0 && open}
 				<ul
 					id="stage-{stage.id}"
-					class="border-sidebar-foreground/20 ml-3.5 flex flex-col gap-0.5 border-l pl-2"
+					class="border-sidebar-foreground/20 ml-3 flex flex-col gap-0.5 border-l pl-2"
 				>
 					{#each stage.sections as link (link.path)}
 						<li>
@@ -192,7 +192,7 @@
 								{/snippet}
 								{@render lockedRow(
 									link.lock,
-									'text-sidebar-foreground/40 flex h-10 cursor-not-allowed items-center gap-2 rounded-lg px-2 text-base',
+									'text-sidebar-foreground/40 flex h-9 cursor-not-allowed items-center gap-2 rounded-lg px-2 text-sm',
 									sectionBody
 								)}
 							{:else}
@@ -209,7 +209,7 @@
 									{#if link.path === 'design'}
 										<span
 											class={cn(
-												'shrink-0 rounded-full px-2 text-sm',
+												'shrink-0 rounded-full px-2 text-xs',
 												link.active
 													? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground'
 													: 'bg-sidebar-foreground/15 text-sidebar-foreground'
