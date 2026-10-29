@@ -818,14 +818,14 @@ async fn list_thinking_space_follow_up_questions(
     Ok((StatusCode::OK, Json(follow_ups)))
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct AnswersByRoot {
     root: ThinkingSpaceAnswerDto,
     follow_ups: Vec<ThinkingSpaceAnswerDto>,
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ThinkingSpaceUserInsights {
     user_id: Uuid,
@@ -833,7 +833,7 @@ struct ThinkingSpaceUserInsights {
     answers: Vec<AnswersByRoot>,
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ThinkingSpaceInsightsResponse {
     users: Vec<ThinkingSpaceUserInsights>,
@@ -878,7 +878,24 @@ async fn get_thinking_space_insights(
         }
     }
 
-    let user_insights: Vec<ThinkingSpaceUserInsights> = summaries
+    // A participant who revisits the step creates a new summary round, and each
+    // round is generated from all of their answers, so the newest one stands in
+    // for the user.
+    let mut latest_summary_by_user: HashMap<Uuid, ThinkingSpaceSummary> = HashMap::new();
+    for summary in summaries {
+        let is_newer = latest_summary_by_user
+            .get(&summary.user_id)
+            .is_none_or(|current| summary.created_at > current.created_at);
+
+        if is_newer {
+            latest_summary_by_user.insert(summary.user_id, summary);
+        }
+    }
+    let mut latest_summaries: Vec<ThinkingSpaceSummary> =
+        latest_summary_by_user.into_values().collect();
+    latest_summaries.sort_by_key(|summary| summary.created_at);
+
+    let user_insights: Vec<ThinkingSpaceUserInsights> = latest_summaries
         .into_iter()
         .map(|summary| {
             let roots = roots_by_user.remove(&summary.user_id).unwrap_or_default();
@@ -918,6 +935,7 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
+    use crate::models::user_progress::{self, ProgressStatus};
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::test_helpers::thinking_space_tool_config;
 
@@ -1149,6 +1167,111 @@ mod tests {
             answer.answer,
             "An updated answer".to_string(),
             "incorrect answer after update"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_return_one_insight_per_user_with_latest_summary(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with thinking space",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A root question",
+                    "answer": "A root answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let root: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+        session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A follow up question",
+                    "answer": "A follow up answer",
+                    "is_follow_up": true,
+                    "root_question_id": root.id
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let mut summaries = Vec::new();
+        for text in ["First round summary", "Second round summary"] {
+            let (_, value, _) = session
+                .post(
+                    &app,
+                    "/tools/thinking_space/summaries",
+                    json!({
+                        "workflow_step_id": workflow_step.id,
+                        "summary": text,
+                    })
+                    .to_string()
+                    .into(),
+                )
+                .await?;
+            let summary: ThinkingSpaceSummaryDto = serde_json::from_value(value)?;
+            summaries.push(summary);
+        }
+        let user_id = summaries[0].user_id;
+        user_progress::create(&pool, &user_id, &workflow_step.id, ProgressStatus::Done).await?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/tools/thinking_space/insights?workflow_step_id={}",
+                    workflow_step.id
+                ),
+            )
+            .await?;
+        let insights: ThinkingSpaceInsightsResponse = serde_json::from_value(value)?;
+
+        assert_eq!(insights.users.len(), 1, "expected one insight per user");
+        let user_insights = &insights.users[0];
+        assert_eq!(user_insights.user_id, user_id, "incorrect user_id");
+        assert_eq!(
+            user_insights.summary.id, summaries[1].id,
+            "expected the latest summary"
+        );
+        assert_eq!(user_insights.answers.len(), 1, "incorrect root answers");
+        assert_eq!(user_insights.answers[0].root.id, root.id, "incorrect root");
+        assert_eq!(
+            user_insights.answers[0].follow_ups.len(),
+            1,
+            "incorrect follow ups"
         );
 
         Ok(())
