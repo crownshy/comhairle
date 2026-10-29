@@ -129,11 +129,9 @@
 				availableDocuments = [];
 			});
 	});
-	let required = $derived(step?.required ?? false);
-	let revisitable = $derived(step?.canRevisit ?? false);
 	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
 
-	type StepFlag = 'required' | 'canRevisit' | 'requestUserSharePermission';
+	type StepFlag = 'requestUserSharePermission';
 
 	function debouncedFlagUpdate(field: StepFlag) {
 		return useDebounce(async (checked: boolean) => {
@@ -161,8 +159,6 @@
 
 	// One debounce per switch: a shared one would drop the first of two quick toggles.
 	const flagUpdates: Record<StepFlag, ReturnType<typeof debouncedFlagUpdate>> = {
-		required: debouncedFlagUpdate('required'),
-		canRevisit: debouncedFlagUpdate('canRevisit'),
 		requestUserSharePermission: debouncedFlagUpdate('requestUserSharePermission')
 	};
 
@@ -289,42 +285,6 @@
 	</div>
 {/snippet}
 
-{#snippet switches()}
-	<div class="flex items-center gap-2">
-		<Switch
-			id="revisitable-step"
-			checked={revisitable}
-			disabled={!canEdit}
-			onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
-		/>
-		<Label for="revisitable-step" class="text-base">Revisitable step</Label>
-		<span class="text-muted-foreground ml-2 text-sm">(Can users revisit this step?)</span>
-	</div>
-	<div class="flex items-center gap-2">
-		<Switch
-			id="required-step"
-			checked={required}
-			disabled={!canEdit}
-			onCheckedChange={(value) => handleSwitchChange(value, 'required')}
-		/>
-		<Label for="required-step" class="text-base">Required step</Label>
-		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
-	</div>
-	{#if toolType === 'thinkingspace'}
-		<div class="flex items-center gap-2">
-			<Switch
-				checked={requestUserSharePermission}
-				disabled={!canEdit}
-				onCheckedChange={(value) => handleSwitchChange(value, 'requestUserSharePermission')}
-			/>
-			<Label class="text-base">Ask before sharing summaries</Label>
-			<span class="text-muted-foreground ml-2 text-sm">
-				(Participants choose whether organisers see their summary)
-			</span>
-		</div>
-	{/if}
-{/snippet}
-
 {#snippet dangerZone()}
 	{#if canEdit}
 		<div class="border-destructive/30 flex flex-col gap-4 rounded-lg border p-6">
@@ -395,9 +355,25 @@
 {#if inline}
 	<div class="flex flex-col gap-6">
 		{@render fields()}
-		<div data-tour="step-switches" class="border-border flex flex-col gap-4 border-t pt-6">
-			{@render switches()}
-		</div>
+		{#if toolType === 'thinkingspace'}
+			<div class="border-border flex flex-col gap-4 border-t pt-6">
+				<div class="flex items-center gap-2">
+					<Switch
+						id="ask-before-sharing"
+						checked={requestUserSharePermission}
+						disabled={!canEdit}
+						onCheckedChange={(value) =>
+							handleSwitchChange(value, 'requestUserSharePermission')}
+					/>
+					<Label for="ask-before-sharing" class="text-base"
+						>Ask before sharing summaries</Label
+					>
+					<span class="text-muted-foreground ml-2 text-sm">
+						(Participants choose whether organisers see their summary)
+					</span>
+				</div>
+			</div>
+		{/if}
 		<div data-tour="step-danger-zone" class="border-border border-t pt-6">
 			{@render dangerZone()}
 		</div>
@@ -448,10 +424,6 @@
 					{@render fields()}
 				</div>
 			</ScrollArea.Root>
-
-			<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
-				{@render switches()}
-			</div>
 		</Dialog.Content>
 	</Dialog.Root>
 {/if}
