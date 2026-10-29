@@ -6,7 +6,7 @@
 		title: string;
 		name: string;
 		options: Option[];
-		onselect: (value: string[]) => void;
+		onselect?: (value: string[]) => void;
 		defaultSelected?: string[];
 		multiple?: boolean;
 	};
@@ -24,7 +24,7 @@
 			selected.push(value);
 		}
 
-		onselect(selected);
+		onselect?.(selected);
 	}
 </script>
 

@@ -5,13 +5,14 @@
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'children'> {
 		text: string;
+		ref?: HTMLButtonElement | null;
 		isSubmitting?: boolean;
 	}
 
-	let { text, isSubmitting, ...props }: Props = $props();
+	let { text, ref = $bindable(), isSubmitting, ...props }: Props = $props();
 </script>
 
-<Button type="submit" {...props} disabled={isSubmitting}>
+<Button type="submit" bind:ref {...props} disabled={isSubmitting}>
 	{#if isSubmitting}
 		<Spinner />
 	{/if}
