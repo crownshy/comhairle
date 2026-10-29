@@ -2131,6 +2131,37 @@ export const PartialWorkflowStep = z
   .partial()
   .passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const ToolExIm = z.union([
+  z.object({ type: z.literal("polis") }).passthrough(),
+  z
+    .object({
+      fields: z.array(FormField),
+      server_url: z.string(),
+      type: z.literal("heyform"),
+    })
+    .passthrough(),
+  z.object({ type: z.literal("learn") }).passthrough(),
+  z.object({ type: z.literal("stories") }).passthrough(),
+  z.object({ type: z.literal("elicitationbot") }).passthrough(),
+  z.object({ type: z.literal("prioritization") }).passthrough(),
+  z.object({ type: z.literal("thinkingspace") }).passthrough(),
+]);
+export type ToolExIm = z.infer<typeof ToolExIm>;
+export const ExImWorkflowStep = z
+  .object({
+    activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
+    data_protocol: z.union([z.string(), z.null()]).optional(),
+    description: z.string(),
+    is_offline: z.boolean(),
+    name: z.string(),
+    preview_tool_config: ToolExIm,
+    primary_locale: z.string(),
+    request_user_share_permission: z.boolean(),
+    required: z.boolean(),
+  })
+  .passthrough();
+export type ExImWorkflowStep = z.infer<typeof ExImWorkflowStep>;
 export const CreateThemeCollection = z
   .object({
     context: z.string(),
@@ -3847,6 +3878,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateWorkflowStep,
   WorkflowStepDto,
   PartialWorkflowStep,
+  ToolExIm,
+  ExImWorkflowStep,
   CreateThemeCollection,
   StatementDto,
   ThemeDto,
@@ -5045,6 +5078,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/export",
+    alias: "ExportEventWorkflowStep",
+    description: `Export a workflow step to JSON`,
+    requestFormat: "json",
+    response: ExImWorkflowStep,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/feedback",
     alias: "ListFeedbackForConversation",
     requestFormat: "json",
@@ -5637,6 +5678,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/export",
+    alias: "ExportConversationWorkflowStep",
+    description: `Export a workflow step to JSON`,
+    requestFormat: "json",
+    response: ExImWorkflowStep,
   },
   {
     method: "get",

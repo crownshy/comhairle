@@ -63,6 +63,12 @@ pub enum ComhairleError {
     #[error("Email content type error: {0}")]
     EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
 
+    #[error("Invalid header: {0}")]
+    InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] axum::http::Error),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 

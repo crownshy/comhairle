@@ -49,6 +49,9 @@ async fn elicitation_bot_setup(
     })
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct ElicitationBotExIm;
+
 /// Zero-sized marker type for ElicitationBot tool implementation
 pub struct ElicitationBotTool;
 
@@ -57,6 +60,7 @@ impl ToolImpl for ElicitationBotTool {
     type Config = ElicitationBotToolConfig;
     type Setup = ElicitationBotToolSetup;
     type Report = ElicitationBotReport;
+    type ExportImport = ElicitationBotExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -114,6 +118,12 @@ impl ToolImpl for ElicitationBotTool {
         bot_service_user_session::delete_by_ids(&state.db, &session_ids).await?;
 
         Ok(())
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {

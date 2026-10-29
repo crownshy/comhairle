@@ -501,6 +501,19 @@
 													>
 														<Pencil class="size-4" /> Rename
 													</DropdownMenu.Item>
+													{#if type === 'heyform'}
+														<DropdownMenu.Item>
+															<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
+															<a
+																href={`/api/conversation/${conversation.id}/workflow/${workflow.id}/workflow_step/${step.id}/export`}
+																download
+																class="flex w-full items-center gap-2"
+															>
+																<Info class="size-4" /> Export
+															</a>
+															<!-- eslint-enable svelte/no-navigation-without-resolve -->
+														</DropdownMenu.Item>
+													{/if}
 													<DropdownMenu.Separator />
 													<DropdownMenu.Item>
 														<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
