@@ -318,7 +318,8 @@ If you copy a block a second time, stop and extract it.
   CSS, it's a utility. (Complex keyframe/`@container` work is the rare exception and must
   be justified in a comment.)
 - **Never smaller than `text-base` for content.** `text-sm` and `text-xs` are for small
-  labels, metadata, and dense chrome like the admin sidebar.
+  labels, metadata, and navigation that packs many rows into a narrow space, like the
+  admin sidebar.
 - Use the **flat shadcn design tokens** (`bg-card`, `text-muted-foreground`, …). When
   translating from Figma, map its doubled token names to the flat token in markup.
 
