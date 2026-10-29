@@ -3,6 +3,7 @@
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { Music, Video, type IconProps } from '@lucide/svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import './MediaBackground.css';
 	import ErrorMessage from '../ErrorMessage.svelte';
@@ -84,15 +85,16 @@
 		{#each media.ok as m (m.id)}
 			<li class="relative">
 				{#if mode === 'view'}
-					<button
-						type="button"
+					<Button
 						class="h-full w-full"
+						command="open-dialog:media-details"
+						plain
 						onclick={() => {
 							onDetailsOpen?.(m);
 						}}
 					>
 						{@render MediaItem(m)}
-					</button>
+					</Button>
 				{:else if mode === 'single-select'}
 					<label class="cursor-pointer">
 						<input

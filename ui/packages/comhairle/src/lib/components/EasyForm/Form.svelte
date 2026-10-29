@@ -17,6 +17,7 @@
 		children: Snippet<[SnippetArgs]>;
 		ref?: HTMLFormElement | null;
 		onsubmit: OnSubmit;
+		closeOnSubmit?: string;
 		noReset?: boolean;
 		// Additional reset function if a form reset doesn't completely reset it
 		additionalReset?: () => void;
@@ -27,6 +28,7 @@
 		children,
 		ref = $bindable(),
 		onsubmit,
+		closeOnSubmit,
 		noReset = false,
 		additionalReset,
 		invalidate: ik,
@@ -49,6 +51,13 @@
 		if (!noReset) {
 			ref?.reset();
 			additionalReset?.();
+		}
+
+		if (closeOnSubmit) {
+			const dialog = document.getElementById(closeOnSubmit) as HTMLDialogElement | null;
+			if (dialog) {
+				dialog.close();
+			}
 		}
 
 		if (ik) {
