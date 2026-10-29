@@ -5,7 +5,6 @@
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
 	import { Form, Input, Submit, type OnSubmit } from '$lib/components/EasyForm';
@@ -13,19 +12,20 @@
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import StepIcon from './StepIcon.svelte';
 	import ProgressBar from '../ProgressBar.svelte';
+	import Dialog from '$lib/components/Dialog.svelte';
 	import ErrorMessage from '../ErrorMessage.svelte';
 
-	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
+	type Props = Omit<ComponentProps<typeof Button>, 'onclick'> & {
 		oncomplete?: (media: MediaDto) => void;
-	}
+	};
+
 	const { oncomplete, ...props }: Props = $props();
 
-	let uploadForm: HTMLFormElement | null = $state(null);
 	let file = $state<File | null>(null);
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
-	let open = $state<boolean>(false);
 	let page = $state<number>(1);
+	let RemoveFileButton = $state.raw<HTMLElement | null>(null);
 
 	const mediaUploader = new Media.uploader();
 
@@ -62,42 +62,41 @@
 	</div>
 {/snippet}
 
-<Button {...props} type="button" onclick={() => (open = true)} icon={Upload}>
+<Button {...props} type="button" icon={Upload} command="open-dialog:upload-media">
 	{m.upload()}
 </Button>
 
-<Dialog.Root
-	bind:open
-	onOpenChangeComplete={(open) => {
-		if (!open) {
-			file = null;
-		}
-	}}
+<Dialog
+	id="upload-media"
+	onlyHardDismiss={page === 2}
+	closeHidden={page === 2}
+	--max-width="35rem"
+	--min-width="20rem"
 >
-	<Dialog.Portal>
-		<Dialog.Content
-			class="{page === 2 ? 'md:w-75' : 'md:w-138'} rounded-2xl p-8 duration-350"
-			interactOutsideBehavior={page === 2 ? 'ignore' : 'close'}
-			showCloseButton={page !== 2}
-		>
-			<section class="flex flex-row justify-center gap-x-3">
-				{#each { length: 2 }, index}
-					<div
-						data-slot="page {index + 1}"
-						aria-hidden="true"
-						class="size-2 rounded-full bg-slate-500/70 transition-colors duration-300"
-						class:bg-primary!={index + 1 === page}
-					></div>
-				{/each}
-			</section>
-			{#if page === 1}
-				<div class="flex flex-col items-center gap-y-2">
-					<Form
-						bind:ref={uploadForm}
-						enctype="multipart/form-data"
-						class="flex flex-col"
-						{onsubmit}
-					>
+	<section
+		class="flex flex-col {page === 2 ? 'md:w-75' : 'md:w-138'} rounded-2xl p-8 duration-350"
+	>
+		<section class="flex flex-row justify-center gap-x-3">
+			{#each { length: 2 }, index}
+				<div
+					data-slot="page {index + 1}"
+					aria-hidden="true"
+					class="size-2 rounded-full bg-slate-500/70 transition-colors duration-300"
+					class:bg-primary!={index + 1 === page}
+				></div>
+			{/each}
+		</section>
+		{#if page === 1}
+			<div class="flex flex-col items-center gap-y-2">
+				<Form
+					enctype="multipart/form-data"
+					class="flex flex-col"
+					{onsubmit}
+					additionalReset={() => {
+						RemoveFileButton?.click();
+					}}
+				>
+					{#snippet children({ isSubmitting })}
 						<FileInput
 							{...MediaSchema.media}
 							bind:this={fileInput}
@@ -123,6 +122,7 @@
 										{Media.formatBytes(file.size)}
 									</span>
 									<Button
+										bind:ref={RemoveFileButton}
 										title="Remove file"
 										aria-label="Remove file"
 										variant="ghost"
@@ -151,36 +151,34 @@
 							type="text"
 							placeholder="e.g. Company logo"
 						/>
-						<Submit class="mt-7 self-end" text="Upload" />
-					</Form>
-				</div>
-			{:else}
-				<div class="flex flex-col gap-y-2 self-start">
-					{@render Step('Creating')}
-					{@render Step('Uploading')}
-					{#if mediaUploader.step >= UploaderProgress.Uploading}
-						<ProgressBar
-							percentage={mediaUploader.percentage}
-							error={!!mediaUploader.error}
-						/>
-					{/if}
-					{#if mediaUploader.error}
-						<ErrorMessage size="sm">{mediaUploader.error}</ErrorMessage>
-					{/if}
-					<Button
-						type="button"
-						class="mt-3 self-end"
-						onclick={() => {
-							open = false;
-							page = 1;
-						}}
-					>
-						{mediaUploader.error || mediaUploader.step === UploaderProgress.Completed
-							? 'Finish'
-							: 'Close'}
-					</Button>
-				</div>
-			{/if}
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+						<Submit class="mt-7 self-end" text="Upload" {isSubmitting} />
+					{/snippet}
+				</Form>
+			</div>
+		{:else}
+			<div class="flex flex-col gap-y-2 self-start">
+				{@render Step('Creating')}
+				{@render Step('Uploading')}
+				{#if mediaUploader.step >= UploaderProgress.Uploading}
+					<ProgressBar
+						percentage={mediaUploader.percentage}
+						error={!!mediaUploader.error}
+					/>
+				{/if}
+				{#if mediaUploader.error}
+					<ErrorMessage size="sm">{mediaUploader.error}</ErrorMessage>
+				{/if}
+				<Button
+					type="button"
+					class="mt-3 self-end"
+					command="close-dialog:upload-media"
+					onclick={() => void (page = 1)}
+				>
+					{mediaUploader.error || mediaUploader.step === UploaderProgress.Completed
+						? 'Finish'
+						: 'Close'}
+				</Button>
+			</div>
+		{/if}
+	</section>
+</Dialog>

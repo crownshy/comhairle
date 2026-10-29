@@ -2,10 +2,9 @@
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import type { Component } from 'svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import Music from '@lucide/svelte/icons/music';
-	import Video from '@lucide/svelte/icons/video';
-	import type { IconProps } from '@lucide/svelte';
+	import { Music, Video, type IconProps } from '@lucide/svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import './MediaBackground.css';
 	import ErrorMessage from '../ErrorMessage.svelte';
@@ -37,7 +36,7 @@
 {#snippet MediaItem(media: MediaDto)}
 	{@const type: HTMLMediaElement | undefined = htmlFromMediaType(media.contentType) }
 	<div
-		class="chequered-background border-muted media-item hover:border-accent focus-visible:border-accent grid aspect-video min-h-48 w-full cursor-pointer grid-cols-1 grid-rows-[4fr_1fr] items-center overflow-hidden rounded-lg border-2"
+		class="chequered-background border-accent media-item grid aspect-video min-h-48 w-full cursor-pointer grid-cols-1 grid-rows-[4fr_1fr] items-center overflow-hidden rounded-lg border-2"
 	>
 		<div class="justify-self-center overflow-hidden select-none">
 			{#snippet placeholder(Icon: Component<IconProps>)}
@@ -70,7 +69,7 @@
 	</div>
 {/snippet}
 
-<ul class="flex flex-row flex-wrap gap-5">
+<ul class="mt-5 flex flex-row flex-wrap gap-5">
 	{#if media.err !== null}
 		{console.error(media.err)}
 		<ErrorMessage>Could not load media please try again</ErrorMessage>
@@ -78,15 +77,16 @@
 		{#each media.ok as m (m.id)}
 			<li class="relative max-w-75">
 				{#if mode === 'view'}
-					<button
-						type="button"
+					<Button
 						class="block aspect-video h-full w-full"
+						command="open-dialog:media-details"
+						plain
 						onclick={() => {
 							onDetailsOpen?.(m);
 						}}
 					>
 						{@render MediaItem(m)}
-					</button>
+					</Button>
 				{:else if mode === 'single-select'}
 					<label class="cursor-pointer">
 						<input
