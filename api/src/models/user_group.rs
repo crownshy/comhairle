@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -189,13 +190,18 @@ pub async fn invalidate_memberships(state: &Arc<ComhairleState>, user_id: Uuid) 
     }
 }
 
-pub async fn is_organization_member(
+/// Returns the ids of the given organizations the user belongs to, in one query.
+pub async fn organization_ids_with_membership(
     db: &sqlx::PgPool,
-    organization_id: Uuid,
+    organization_ids: &[Uuid],
     user_id: Uuid,
-) -> Result<bool, ComhairleError> {
-    let membership = Query::select()
-        .expr(Expr::val(1))
+) -> Result<HashSet<Uuid>, ComhairleError> {
+    if organization_ids.is_empty() {
+        return Ok(HashSet::new());
+    }
+
+    let (sql, values) = Query::select()
+        .column((OrganizationIden::Table, OrganizationIden::Id))
         .from(UserGroupMemberIden::Table)
         .join(
             JoinType::InnerJoin,
@@ -207,14 +213,15 @@ pub async fn is_organization_member(
                         .equals((UserGroupMemberIden::Table, UserGroupMemberIden::GroupId)),
                 ),
         )
-        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(organization_id))
         .and_where(Expr::col((UserGroupMemberIden::Table, UserGroupMemberIden::UserId)).eq(user_id))
-        .to_owned();
-    let (sql, values) = Query::select()
-        .expr(Expr::exists(membership))
+        .and_where(
+            Expr::col((OrganizationIden::Table, OrganizationIden::Id))
+                .is_in(organization_ids.iter().copied()),
+        )
         .build_sqlx(PostgresQueryBuilder);
 
-    Ok(sqlx::query_scalar_with(&sql, values).fetch_one(db).await?)
+    let ids: Vec<(Uuid,)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    Ok(ids.into_iter().map(|(id,)| id).collect())
 }
 
 pub async fn organization_groups_of_user(

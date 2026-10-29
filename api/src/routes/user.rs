@@ -19,8 +19,9 @@ use crate::models::organization::{self, OrganizationFilterOptions, OrganizationO
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
 use crate::models::permissions::{
     PermissionAction, PermissionRole, SYSTEM_RESOURCE_ID, can_perform_action,
-    conversation as conversation_permissions, has_resource_permission, list_user_permissions,
-    organization as organization_permissions, system,
+    conversation as conversation_permissions, has_resource_permission, holds_action,
+    list_user_permissions, organization as organization_permissions, role_names_by_resource,
+    system,
 };
 use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
 use crate::models::{self};
@@ -343,31 +344,38 @@ pub async fn get_user_organizations(
         .map(LocalizedOrganizationDto::from)
         .collect::<Vec<_>>();
 
+    let organization_ids: Vec<Uuid> = all_organizations
+        .iter()
+        .map(|organization| organization.id)
+        .collect();
+    let group_ids = models::user_group::memberships(&state, user.id).await?;
+    let member_of =
+        models::user_group::organization_ids_with_membership(&state.db, &organization_ids, user.id)
+            .await?;
+    let roles_by_organization = role_names_by_resource(
+        &state.db,
+        organization_permissions::Action::RESOURCE_TYPE.as_ref(),
+        &organization_ids,
+        &user.id,
+        &group_ids,
+    )
+    .await?;
+    let is_super_admin =
+        has_resource_permission(&state, system::Role::SuperAdmin.system_triplet()?, &user.id)
+            .await?;
+
     let mut organizations = Vec::with_capacity(all_organizations.len());
     for organization in &all_organizations {
-        let is_associated = user
-            .organization_id
-            .is_some_and(|organization_id| organization_id == organization.id)
-            || models::user_group::is_organization_member(&state.db, organization.id, user.id)
-                .await?;
-
-        let can_update = can_perform_action(
-            &state,
-            &organization.id,
-            organization_permissions::Action::Update,
-            &user.id,
-            None,
-        )
-        .await?;
-
-        let can_delete = can_perform_action(
-            &state,
-            &organization.id,
-            organization_permissions::Action::Delete,
-            &user.id,
-            None,
-        )
-        .await?;
+        let roles = roles_by_organization
+            .get(&organization.id)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let can_update =
+            is_super_admin || holds_action(roles, organization_permissions::Action::Update);
+        let can_delete =
+            is_super_admin || holds_action(roles, organization_permissions::Action::Delete);
+        let is_associated =
+            user.organization_id == Some(organization.id) || member_of.contains(&organization.id);
 
         organizations.push(UserOrganizationAccess {
             organization: organization.clone(),

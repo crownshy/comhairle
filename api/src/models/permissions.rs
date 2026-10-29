@@ -5,6 +5,7 @@
 //! Writes target these six tables directly. `ResourcePermission` is a shared API
 //! projection, not a table; cross-resource reads combine concrete-table queries.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub mod assignments;
@@ -1129,11 +1130,87 @@ pub async fn can_perform_action<Action: PermissionAction>(
 
     roles.dedup();
 
-    Ok(roles.iter().any(|role_name| {
+    Ok(holds_action(&roles, action))
+}
+
+/// Whether any of the role names grants the action.
+pub fn holds_action<Action: PermissionAction>(role_names: &[String], action: Action) -> bool {
+    role_names.iter().any(|role_name| {
         role_name
             .parse::<Action::Role>()
             .is_ok_and(|role| role.allows(action))
-    }))
+    })
+}
+
+async fn fetch_roles_for_resources(
+    db: &sqlx::PgPool,
+    resource_type: &str,
+    resource_ids: &[Uuid],
+    actor: ActorId,
+    recipient_ids: &[Uuid],
+) -> Result<Vec<(Uuid, String)>, ComhairleError> {
+    let (table, recipient_column) = permission_table(resource_type, actor)?;
+    let (sql, values) = Query::select()
+        .column(ResourcePermissionIden::ResourceId)
+        .column(ResourcePermissionIden::RoleName)
+        .from(table)
+        .and_where(Expr::col(recipient_column).is_in(recipient_ids.iter().copied()))
+        .and_where(
+            Expr::col(ResourcePermissionIden::ResourceId).is_in(resource_ids.iter().copied()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, (Uuid, String), _>(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(ComhairleError::DatabaseError)
+}
+
+/// Role names the user holds on each resource, directly or through one of its groups.
+///
+/// Uncached, and one query per actor kind, so a caller checking many resources pays
+/// for two queries rather than two or more per resource. The actor passed to
+/// [`fetch_roles_for_resources`] only selects the permission table.
+pub async fn role_names_by_resource(
+    db: &sqlx::PgPool,
+    resource_type: &str,
+    resource_ids: &[Uuid],
+    user_id: &Uuid,
+    group_ids: &[Uuid],
+) -> Result<HashMap<Uuid, Vec<String>>, ComhairleError> {
+    if resource_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut rows = fetch_roles_for_resources(
+        db,
+        resource_type,
+        resource_ids,
+        ActorId::User(*user_id),
+        &[*user_id],
+    )
+    .await?;
+    if let Some(first_group) = group_ids.first() {
+        rows.extend(
+            fetch_roles_for_resources(
+                db,
+                resource_type,
+                resource_ids,
+                ActorId::Group(*first_group),
+                group_ids,
+            )
+            .await?,
+        );
+    }
+
+    let mut roles_by_resource: HashMap<Uuid, Vec<String>> = HashMap::new();
+    for (resource_id, role_name) in rows {
+        roles_by_resource
+            .entry(resource_id)
+            .or_default()
+            .push(role_name);
+    }
+    Ok(roles_by_resource)
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
