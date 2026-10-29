@@ -4,12 +4,16 @@
 	import type {
 		ConversationDto,
 		MyDemographicAnswer,
-		QuestionDto
+		QuestionDto,
+		QuestionType2
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { onMount } from 'svelte';
 	import type { OnSequenceChange, ToolSequence } from '../toolSequence';
-	import Question from './Question.svelte';
+	import Callout from '$lib/components/Callout.svelte';
+	import { Form, Input, SelectList, Submit, type Option } from '$lib/components/EasyForm';
+	import Formatter from './Formatter';
+	import Demographics from '$lib/interfaces/Demographics';
 
 	type Props = {
 		organizationId: ConversationDto['organizationId'];
@@ -24,19 +28,43 @@
 	let questionNumber = $state<number>(1);
 	let answers = $state.raw<MyDemographicAnswer[]>([]);
 
-	let value: unknown;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	let cache = new Map();
 
-	const getVersion = (question: QuestionDto) => question.versions.at(-1)?.id;
+	let submit = $state<HTMLButtonElement | null>(null);
 
-	async function move(questionNum: number) {
-		const currentQuestion = questions[questionNum - 1];
-		const version_id = getVersion(currentQuestion);
-		if (!version_id || !value) {
+	async function handleSubmission(formData: FormData) {
+		const question = questions[questionNumber - 1];
+		if (!question) {
+			return;
+		}
+
+		const type = formData.get('question_type') as QuestionType2;
+		const consent = formData.get('consent') as 'accepted' | null;
+		const value = formData.getAll(question.id ?? '') as string[] | null;
+		if (!value || (value.length === 1 && value[0] === '')) {
+			return;
+		}
+
+		const processedValue = Formatter.from(type, value);
+
+		cache.set(question.id, processedValue);
+
+		if (value.length > 0 && question.latest_published?.special_category && consent === null) {
+			// TODO: Add in error saying need to accept special consent
+			return;
+		}
+
+		const version = Demographics.getVersion(question);
+		if (!version) {
 			return;
 		}
 
 		const putDemographicResponse = await tryCatchAsync(() =>
-			apiClient.PutDemographicResponse({ value }, { params: { version_id } })
+			apiClient.PutDemographicResponse(
+				{ value: processedValue },
+				{ params: { version_id: version.id } }
+			)
 		);
 		if (putDemographicResponse.err !== null) {
 			notifications.addFlash({
@@ -46,16 +74,56 @@
 		}
 	}
 
+	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
+		const options: Option[] = question.options.map((o) => ({
+			label: o.label,
+			value: o.id
+		}));
+
+		if (question.allow_other) options.push({ label: 'Other', value: 'other' });
+
+		if (question.prefer_not_to_say)
+			options.push({ label: 'Prefer not to say', value: 'prefer_not_to_say' });
+
+		return options;
+	}
+
 	let sequence = $derived<ToolSequence>({
-		next: questionNumber >= questions.length ? onDone : () => move(questionNumber++),
-		previous: questionNumber <= 1 ? undefined : () => move(questionNumber--),
+		next:
+			questionNumber >= questions.length
+				? onDone
+				: () => {
+						submit?.click();
+						questionNumber++;
+					},
+		previous:
+			questionNumber <= 1
+				? undefined
+				: () => {
+						submit?.click();
+						questionNumber--;
+					},
 		progress: questionNumber / questions.length,
 		position: `Question ${questionNumber} of ${questions.length}`
 	});
 
+	function getInputType(
+		questionType: Omit<QuestionType2, 'single_select' | 'multi_select' | 'location'>
+	): HTMLInputElement['type'] {
+		switch (questionType) {
+			case 'number':
+				return 'number';
+			case 'date':
+				return 'date';
+			case 'any_string':
+			case 'custom':
+			default:
+				return 'text';
+		}
+	}
+
 	$effect(() => {
 		onSequenceChange?.(sequence);
-		value = undefined;
 	});
 
 	onMount(async () => {
@@ -99,13 +167,54 @@
 	});
 </script>
 
-{#if questions.length > 0}
-	<Question
-		q={questions[questionNumber - 1].latest_published}
-		onValue={(newValue) => void (value = newValue)}
-		defaultValue={answers.find(
-			(a) =>
-				a.answer.question_version_id === questions[questionNumber - 1].versions.at(-1)?.id
-		)?.answer.value}
-	/>
+{#if questions[questionNumber - 1]?.latest_published}
+	{@const question = questions[questionNumber - 1]}
+	{@const q = question.latest_published!}
+	{#key question.id}
+		<Form {handleSubmission}>
+			{@const defaultValue = Formatter.to(
+				q.question_type,
+				cache.get(question.id) ??
+					answers.find(
+						(a) =>
+							a.answer.question_version_id === Demographics.getVersion(question)?.id
+					)?.answer.value
+			)}
+			<input type="hidden" name="question_type" value={q.question_type} />
+			{#if q.special_category}
+				<Callout>
+					<input
+						id="special-consent"
+						name="consent"
+						type="checkbox"
+						required
+						value="accepted"
+					/>
+					<label for="special-consent" class="pl-3">
+						{q.consent_text ??
+							'This question requires additional content as it contains sensitive information'}
+					</label>
+				</Callout>
+			{/if}
+			{#if q.question_type === 'single_select' || q.question_type === 'multi_select'}
+				<SelectList
+					title={q.text}
+					name={question.id}
+					multiple={q.question_type === 'multi_select'}
+					options={getOptions(q)}
+					defaultSelected={defaultValue as string[] | undefined}
+				/>
+			{:else if q.question_type === 'location'}
+				<Input label={q.text} name={question.id} {defaultValue} />
+			{:else}
+				<Input
+					label={q.text}
+					name={question.id}
+					type={getInputType(q.question_type)}
+					{defaultValue}
+				/>
+			{/if}
+			<Submit bind:ref={submit} class="hidden" text="Submit" />
+		</Form>
+	{/key}
 {/if}

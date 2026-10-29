@@ -35,7 +35,7 @@ export function toggleChoice(
 	} else if (isChoiceDisabled(answer, choice, kind, maxSelections)) {
 		return answer;
 	} else {
-		selected = [...answer.selected.filter((value) => value !== PREFER_NOT_TO_SAY), choice];
+		selected = answer.selected.filter((value) => value !== PREFER_NOT_TO_SAY).concat(choice);
 	}
 	return {
 		...answer,
