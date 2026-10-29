@@ -6,54 +6,55 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { eventsListTour } from './tour';
+	import TabContent from '$lib/components/TabContent.svelte';
 
 	useTour(() => eventsListTour);
 
 	let { data } = $props();
-	let conversation = $derived(data.conversation);
-	let events = $derived(data.events);
+	let { conversation, events } = $derived(data);
+
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation.id)
 	);
-
-	let pageTitle = $derived(`Manage Events - ${conversation.title}`);
 </script>
 
 <svelte:head>
-	<title>{pageTitle} - Comhairle Admin</title>
+	<title>Manage Events - {conversation.title} - Comhairle Admin</title>
 </svelte:head>
 
-<div data-tour="events-list" class="flex max-w-[700px] flex-col gap-6">
-	{#if events.length === 0}
-		<div
-			class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
-		>
-			<p class="text-base">No events yet.</p>
-			{#if canEdit}
-				<Button
-					variant="default"
-					href={`/admin/conversations/${conversation.id}/events/new`}
-				>
-					<Plus class="h-4 w-4" /> Add event
-				</Button>
-			{/if}
-		</div>
-	{:else}
-		{#each events as event (event.id)}
-			<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
-				<EventCard {event} conversationId={conversation.id} editable={canEdit} />
-			</Card.Root>
-		{/each}
-
-		{#if canEdit}
-			<div class="flex justify-center pt-6">
-				<Button
-					variant="default"
-					href={`/admin/conversations/${conversation.id}/events/new`}
-				>
-					<Plus class="h-4 w-4" /> Add event
-				</Button>
+<TabContent>
+	<div data-tour="events-list" class="flex max-w-175 flex-col gap-6">
+		{#if events.length === 0}
+			<div
+				class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
+			>
+				<p class="text-base">No events yet.</p>
+				{#if canEdit}
+					<Button
+						variant="default"
+						href={`/admin/conversations/${conversation.id}/events/new`}
+					>
+						<Plus class="h-4 w-4" /> Add event
+					</Button>
+				{/if}
 			</div>
+		{:else}
+			{#each events as event (event.id)}
+				<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
+					<EventCard {event} conversationId={conversation.id} editable={canEdit} />
+				</Card.Root>
+			{/each}
+
+			{#if canEdit}
+				<div class="flex justify-center pt-6">
+					<Button
+						variant="default"
+						href={`/admin/conversations/${conversation.id}/events/new`}
+					>
+						<Plus class="h-4 w-4" /> Add event
+					</Button>
+				</div>
+			{/if}
 		{/if}
-	{/if}
-</div>
+	</div>
+</TabContent>
