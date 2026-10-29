@@ -408,6 +408,7 @@ Use query param withUserProgress=true to get the active user's progress status f
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
 
@@ -424,7 +425,17 @@ mod tests {
     use crate::setup_server;
     use crate::test_helpers::{
         UserSession, extract, learn_tool_config, polis_tool_config, test_state,
+        thinking_space_tool_config,
     };
+
+    /// Sets the `COMHAIRLE_LOCALE` cookie on the session so subsequent
+    /// requests resolve translations for `locale` instead of the default `en`.
+    fn set_locale(session: &mut UserSession, locale: &str) {
+        session.cookies.get_or_insert_with(HashMap::new).insert(
+            "COMHAIRLE_LOCALE".to_string(),
+            format!("COMHAIRLE_LOCALE={locale}"),
+        );
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -591,6 +602,215 @@ mod tests {
             "Learn Workflow Step", workflow_2_return_name,
             "Second workflow step should have the right name"
         );
+        Ok(())
+    }
+
+    /// Covers the round trip that
+    /// `workflow_step::list_with_translations` plus the route's separate
+    /// tool_config translation batching are jointly responsible for: a step's
+    /// own fields (`name`/`description`) *and* a nested tool_config field
+    /// (`ThinkingSpaceToolConfig::topic`) must both resolve to a requested
+    /// non-primary locale when a translation exists for it.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_resolve_step_and_tool_config_translations_for_requested_locale(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Translations bench",
+                    "short_description": "bench",
+                    "description": "bench",
+                    "image_url": "https://fakeimg.pl/1000x600",
+                    "tags": [],
+                    "is_public": true,
+                    "is_live": true,
+                    "is_invite_only": false,
+                    "primary_locale": "en",
+                    "supported_languages": ["en", "fr"]
+                }),
+            )
+            .await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Original name",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "Original description",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": thinking_space_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let list_url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step?withTranslations=true"
+        );
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        let name_id: String = extract("id", &step["translations"]["name"]["textContent"]);
+        let description_id: String =
+            extract("id", &step["translations"]["description"]["textContent"]);
+        let topic_id: String = extract(
+            "id",
+            &step["toolConfig"]["topic"]["translations"]["textContent"],
+        );
+
+        for (text_content_id, content) in [
+            (&name_id, "Nom traduit"),
+            (&description_id, "Description traduite"),
+            (&topic_id, "Sujet traduit"),
+        ] {
+            let (status, _, _) = session
+                .post(
+                    &app,
+                    &format!("/translations/{text_content_id}/fr"),
+                    json!({ "content": content }).to_string().into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED, "should create fr translation");
+        }
+
+        set_locale(&mut session, "fr");
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with fr translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        assert_eq!(
+            step["name"], "Nom traduit",
+            "step name should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["description"], "Description traduite",
+            "step description should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["toolConfig"]["topic"]["localized"], "Sujet traduit",
+            "tool_config topic should resolve to the fr translation"
+        );
+
+        Ok(())
+    }
+
+    /// Mirror of the happy-path test above, but no `fr` translation is ever
+    /// created for `description` or the tool_config `topic`. Both must fall
+    /// back to the primary-locale content rather than coming back empty.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_fall_back_to_primary_locale_when_translation_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Translations fallback bench",
+                    "short_description": "bench",
+                    "description": "bench",
+                    "image_url": "https://fakeimg.pl/1000x600",
+                    "tags": [],
+                    "is_public": true,
+                    "is_live": true,
+                    "is_invite_only": false,
+                    "primary_locale": "en",
+                    "supported_languages": ["en", "fr"]
+                }),
+            )
+            .await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Original name",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "Original description",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": thinking_space_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let list_url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step?withTranslations=true"
+        );
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        let name_id: String = extract("id", &step["translations"]["name"]["textContent"]);
+
+        // Only `name` gets an `fr` translation; description and tool_config
+        // topic are deliberately left untranslated.
+        let (status, _, _) = session
+            .post(
+                &app,
+                &format!("/translations/{name_id}/fr"),
+                json!({ "content": "Nom traduit" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "should create fr translation");
+
+        set_locale(&mut session, "fr");
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with fr translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        assert_eq!(
+            step["name"], "Nom traduit",
+            "step name should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["description"], "Original description",
+            "step description should fall back to the primary locale"
+        );
+        assert_eq!(
+            step["toolConfig"]["topic"]["localized"], "test topic",
+            "tool_config topic should fall back to the primary locale"
+        );
+
         Ok(())
     }
 

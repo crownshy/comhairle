@@ -14,7 +14,10 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::translations::{
+    ResolveWithTranslations, TextContentId, TextFormat, get_text_content_with_translations,
+    new_translation,
+};
 use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
 use crate::models::users::UserIden;
 use crate::models::{SqlxResultExt, moderation_policy};
@@ -575,11 +578,65 @@ pub async fn list_with_translations(
     locale: &str,
 ) -> Result<Vec<WorkflowStepWithTranslations>, ComhairleError> {
     let workflow_steps = list(db, workflow_id).await?;
-    let mut steps_with_translations = Vec::new();
-    for step in workflow_steps {
-        let step_with_trans = WorkflowStepWithTranslations::from_original(db, step, locale).await?;
-        steps_with_translations.push(step_with_trans);
+
+    let mut text_content_ids = Vec::with_capacity(workflow_steps.len() * 2);
+    for step in &workflow_steps {
+        text_content_ids.push(step.name);
+        text_content_ids.push(step.description);
+        if let Some(data_protocol) = step.data_protocol {
+            text_content_ids.push(data_protocol);
+        }
     }
+
+    let translations_map = get_text_content_with_translations(db, text_content_ids).await?;
+
+    let steps_with_translations = workflow_steps
+        .into_iter()
+        .map(|step| {
+            let name = step
+                .name
+                .resolve_with_translations(&translations_map, locale);
+            let description = step
+                .description
+                .resolve_with_translations(&translations_map, locale);
+            let data_protocol = step
+                .data_protocol
+                .resolve_with_translations(&translations_map, locale);
+
+            WorkflowStepWithTranslations {
+                id: step.id,
+                workflow_id: step.workflow_id,
+                name: name.localized,
+                step_order: step.step_order,
+                activation_rule: step.activation_rule,
+                description: description.localized,
+                is_offline: step.is_offline,
+                required: step.required,
+                can_revisit: step.can_revisit,
+                tool_config: step.tool_config,
+                preview_tool_config: step.preview_tool_config,
+                request_user_share_permission: step.request_user_share_permission,
+                data_protocol: data_protocol.as_ref().map(|d| d.localized.clone()),
+                created_at: step.created_at,
+                updated_at: step.updated_at,
+                translations: WorkflowStepTranslations {
+                    name: Translation {
+                        text_content: name.translations.text_content,
+                        text_translations: name.translations.text_translations,
+                    },
+                    description: Translation {
+                        text_content: description.translations.text_content,
+                        text_translations: description.translations.text_translations,
+                    },
+                    data_protocol: data_protocol.map(|d| Translation {
+                        text_content: d.translations.text_content,
+                        text_translations: d.translations.text_translations,
+                    }),
+                },
+            }
+        })
+        .collect();
+
     Ok(steps_with_translations)
 }
 
