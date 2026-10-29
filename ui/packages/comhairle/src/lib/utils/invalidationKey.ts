@@ -14,6 +14,7 @@ type InputKey =
 	| 'admin/documents'
 	| 'admin/email-template-config'
 	| 'admin/event'
+	| 'admin/media'
 	| 'admin/knowledge-base/documents'
 	| 'admin/organization/details'
 	| 'admin/organization/permissions'

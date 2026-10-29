@@ -59,8 +59,7 @@
 	}
 </script>
 
-<Button {...props} type="button" onclick={() => (open = true)}>
-	<Upload class="h-4 w-4" />
+<Button {...props} type="button" icon={Upload} onclick={() => (open = true)}>
 	{m.upload()}
 </Button>
 

@@ -11,7 +11,7 @@
 	const { data, media }: Props<MediaDto> = $props();
 </script>
 
-<ul class="flex flex-row flex-wrap gap-5">
+<ul class="mt-5 flex flex-row flex-wrap gap-5">
 	{#if data.length === 0}
 		<div class="mt-8">
 			<p class="text-muted-foreground font-bold">No media found</p>

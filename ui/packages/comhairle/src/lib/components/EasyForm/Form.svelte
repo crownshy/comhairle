@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { Snippet } from 'svelte';
 	import type { HTMLFormAttributes } from 'svelte/elements';
-	import { isSubmitting } from './formState.svelte';
 
-	interface Props extends HTMLFormAttributes {
+	export type HandleSubmission = (formData: FormData) => Promise<void>;
+
+	interface Props extends Omit<HTMLFormAttributes, 'children'> {
+		children: Snippet<[isSubmitting: boolean]>;
 		ref?: HTMLFormElement | null;
-		handleSubmission?: (formData: FormData) => Promise<void>;
+		handleSubmission?: HandleSubmission;
 	}
 
 	let {
@@ -15,6 +18,8 @@
 		method = 'POST',
 		...props
 	}: Props = $props();
+
+	let isSubmitting = $state<boolean>(false);
 </script>
 
 <form
@@ -22,17 +27,17 @@
 	{...props}
 	bind:this={ref}
 	use:enhance={async ({ cancel, formData }) => {
-		$isSubmitting = true;
+		isSubmitting = true;
 		if (handleSubmission) {
 			cancel();
 			await handleSubmission(formData);
-			$isSubmitting = false;
+			isSubmitting = false;
 		}
 		return async ({ update }) => {
 			await update();
-			$isSubmitting = false;
+			isSubmitting = false;
 		};
 	}}
 >
-	{@render children?.()}
+	{@render children(isSubmitting)}
 </form>
