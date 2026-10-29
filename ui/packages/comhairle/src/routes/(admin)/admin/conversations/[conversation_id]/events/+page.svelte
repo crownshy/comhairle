@@ -39,7 +39,7 @@
 <TabContent>
 	<div data-tour="events-list" class="mx-auto flex max-w-175 flex-col gap-6">
 		{#await data.streamedEvents}
-			<LoadingMessage items="events" />
+			<LoadingMessage subject="events" />
 		{:then events}
 			{#if events.err !== null}
 				<ErrorMessage>Could not load events, please try again</ErrorMessage>

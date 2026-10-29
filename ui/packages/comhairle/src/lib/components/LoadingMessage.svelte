@@ -2,13 +2,13 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 
 	type Props = {
-		items: string;
+		subject: string;
 	};
 
-	let { items }: Props = $props();
+	let { subject }: Props = $props();
 </script>
 
 <div class="text-muted-foreground flex flex-row items-center gap-x-2">
 	<Spinner class="size-5" />
-	<span>Loading {items}</span>
+	<span>Loading {subject}</span>
 </div>
