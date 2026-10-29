@@ -22,6 +22,8 @@
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		topic: string;
@@ -287,12 +289,18 @@
 		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
 
+	let latest = $derived(rounds.at(-1));
+	let isLatestEdited = $derived(latest !== undefined && editsById[latest.id] !== undefined);
+	let latestWordCount = $derived(latest ? countWords(valueFor(latest)) : 0);
+	let latestOverLimit = $derived(isLatestEdited && latestWordCount > MAX_SUMMARY_WORDS);
 	let latestHasText = $derived(
 		rounds.length > 0 && valueFor(rounds[rounds.length - 1]).trim().length > 0
 	);
 	// A failed generation must not trap the participant: their answers are already saved.
 	let summaryFailed = $derived(loadError && rounds.length === 0 && !pendingNextRound);
-	let canSubmit = $derived((latestHasText || summaryFailed) && !pendingNextRound && !submitting);
+	let canSubmit = $derived(
+		(latestHasText || summaryFailed) && !pendingNextRound && !submitting && !latestOverLimit
+	);
 	let blockedReason = $derived.by(() => {
 		if (canSubmit) return undefined;
 		if (pendingNextRound || rounds.length === 0)
@@ -503,27 +511,38 @@
 					</Button>
 				</div>
 			{/if}
-			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-				<Button
-					variant="outline"
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={onAnswerMore}
-					disabled={!onAnswerMore}
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+				<span class={cn(latestOverLimit && 'text-destructive')}
+					>{#if isLatestEdited}{latestWordCount} / {MAX_SUMMARY_WORDS}{/if}</span
 				>
-					<PlusCircle class="size-4" />
-					{m.thinking_space_answer_more()}
-				</Button>
-				<Button
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={submit}
-					disabled={!latestHasText || submitting}
-				>
-					<Check class="size-4" />
-					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
-				</Button>
+				<div class="flex gap-2">
+					<Button
+						variant="outline"
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={onAnswerMore}
+						disabled={latestOverLimit || !onAnswerMore}
+					>
+						<PlusCircle class="size-4" />
+						{m.thinking_space_answer_more()}
+					</Button>
+					<Button
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={submit}
+						disabled={!latestHasText || submitting || latestOverLimit}
+					>
+						<Check class="size-4" />
+						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
+					</Button>
+				</div>
 			</div>
+			{#if latestOverLimit}
+				<p>
+					Your summary is {latestWordCount}. Trim it to {MAX_SUMMARY_WORDS} words or fewer to
+					save your changes.
+				</p>
+			{/if}
 		{/if}
 	</section>
 </div>
