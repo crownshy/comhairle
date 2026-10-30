@@ -2,10 +2,11 @@
 	import type { Snippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { X } from 'lucide-svelte';
+	import { cn } from '$lib/utils';
 
 	type Action = {
 		label: string;
-		onclick: () => void;
+		onclick?: () => void;
 	};
 
 	type SnippetArgs = {
@@ -16,12 +17,13 @@
 		id: string;
 		ref?: HTMLDialogElement | null;
 		title?: string;
+		class?: string;
 		children?: Snippet<[SnippetArgs]>;
 		actions?: {
 			primary?: Action;
 			secondary?: Action;
 		};
-		HeaderAction?: Snippet<[SnippetArgs]>;
+		HeaderActions?: Snippet<[SnippetArgs]>;
 		PrimaryAction?: Snippet<[SnippetArgs]>;
 		SecondaryAction?: Snippet<[SnippetArgs]>;
 		// If true, clicking outside of the Dialog won't dismiss it
@@ -32,9 +34,10 @@
 		id,
 		ref = $bindable(),
 		title,
+		class: classNames,
 		actions,
 		children,
-		HeaderAction,
+		HeaderActions,
 		PrimaryAction,
 		SecondaryAction,
 		onlyHardDismiss
@@ -46,7 +49,10 @@
 <dialog
 	{id}
 	bind:this={ref}
-	class="bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3"
+	class={cn(
+		'bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3',
+		classNames
+	)}
 	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height, none);"
 	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
@@ -60,14 +66,14 @@
 		aria-label="Close dialog"
 	/>
 	<div class="grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5">
-		{#if title || HeaderAction}
+		{#if title || HeaderActions}
 			<header
 				class="border-border mb-5 flex flex-row items-center justify-between border-b-2 pb-2"
 			>
 				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
 				<span class="shrink grow-0">
-					{#if HeaderAction}
-						{@render HeaderAction({ close })}
+					{#if HeaderActions}
+						{@render HeaderActions({ close })}
 					{/if}
 				</span>
 			</header>
@@ -82,14 +88,27 @@
 				{#if SecondaryAction}
 					{@render SecondaryAction({ close })}
 				{:else if actions?.secondary}
-					<Button onclick={actions.secondary.onclick} variant="outline">
+					<Button
+						onclick={() => {
+							actions.secondary?.onclick();
+							close();
+						}}
+						variant="outline"
+					>
 						{actions.secondary.label}
 					</Button>
 				{/if}
 				{#if PrimaryAction}
 					{@render PrimaryAction({ close })}
 				{:else if actions?.primary}
-					<Button onclick={actions.primary.onclick}>{actions.primary.label}</Button>
+					<Button
+						onclick={() => {
+							actions.primary?.onclick();
+							close();
+						}}
+					>
+						{actions.primary.label}
+					</Button>
 				{/if}
 			</footer>
 		{/if}
