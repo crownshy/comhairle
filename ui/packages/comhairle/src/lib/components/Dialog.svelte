@@ -25,17 +25,20 @@
 		$props();
 </script>
 
-<dialog {id} class="bg-background border-border m-auto rounded-2xl border p-2">
+<dialog {id} class="bg-background border-border m-auto rounded-2xl border p-3">
+	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
 	<Button
-		class="absolute inset-e-2 h-4 w-4 rounded-sm p-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
+		class="absolute inset-e-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
 		variant="ghost"
 		dialogClose={id}
 		icon={X}
 		title="close"
 		aria-label="Close dialog"
 	/>
-	<div class="grid h-full w-full grid-rows-[auto_1fr_auto] p-5 pr-2">
-		<header class="flex flex-row items-center justify-between">
+	<div class="grid h-full min-h-40 w-full grid-rows-[auto_1fr_auto] p-5 pr-2">
+		<header
+			class="border-border mb-5 flex flex-row items-center justify-between border-b-2 pb-2"
+		>
 			<span class="shrink-0 grow pt-4 text-3xl font-medium">{title}</span>
 			<span class="shrink grow-0">
 				{#if HeaderAction}
@@ -66,4 +69,8 @@
 </dialog>
 
 <style>
+	dialog::backdrop {
+		background-color: var(--background);
+		filter: opacity(70%);
+	}
 </style>
