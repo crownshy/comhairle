@@ -100,8 +100,8 @@
 		&::backdrop {
 			opacity: 0;
 			transition: opacity var(--_duration);
-			background-color: oklch(from var(--background) l c h / 0.5);
-			backdrop-filter: blur(4px);
+			background-color: oklch(from var(--background) l c h / 0.7);
+			backdrop-filter: blur(5px);
 		}
 
 		&[open] {
