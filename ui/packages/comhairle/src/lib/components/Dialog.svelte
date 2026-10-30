@@ -82,8 +82,39 @@
 </dialog>
 
 <style>
-	dialog::backdrop {
-		background-color: oklch(from var(--background) l c h / 0.5);
-		backdrop-filter: blur(4px);
+	dialog {
+		--_distance: 25px;
+		--_duration: 400ms;
+
+		opacity: 0;
+		translate: 0 var(--_distance);
+		transition: opacity, display, overlay, translate;
+		transition-behavior: allow-discrete;
+		transition-duration: var(--_duration);
+
+		&::backdrop {
+			opacity: 0;
+			transition: opacity var(--_duration);
+			background-color: oklch(from var(--background) l c h / 0.5);
+			backdrop-filter: blur(4px);
+		}
+
+		&[open] {
+			opacity: 1;
+			translate: 0 0;
+
+			&::backdrop {
+				opacity: 1;
+			}
+
+			@starting-style {
+				opacity: 0;
+				translate: 0 var(--_distance);
+
+				&::backdrop {
+					opacity: 0;
+				}
+			}
+		}
 	}
 </style>
