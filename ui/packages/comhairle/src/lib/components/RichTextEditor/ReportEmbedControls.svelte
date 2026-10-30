@@ -4,10 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
 	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import {
-		POLIS_EMBEDDABLE_COMPONENTS,
-		type EmbeddableComponentMeta
-	} from '$lib/reports/polis/embeddableComponents';
+	import { sectionBlocksForTool, type SectionBlockMeta } from '$lib/reports/embeds';
 
 	/** A report-capable Step offered in stage 1 of the picker. */
 	export type EmbeddableStep = { id: string; name: string; toolType: string };
@@ -17,9 +14,8 @@
 	let open = $state(false);
 	let selectedStep = $state<EmbeddableStep | null>(null);
 
-	// MVP: Polis only. When more tools land, switch the allow-list on selectedStep.toolType.
-	const componentsForStep = $derived<EmbeddableComponentMeta[]>(
-		selectedStep?.toolType === 'polis' ? POLIS_EMBEDDABLE_COMPONENTS : []
+	const componentsForStep = $derived<SectionBlockMeta[]>(
+		sectionBlocksForTool(selectedStep?.toolType)
 	);
 
 	function reset() {
@@ -31,8 +27,8 @@
 	}
 
 	// Insert stores only the reference (ADR-0012); the embedded component loads its own data
-	// live, so this is instant — no freeze step.
-	function pickComponent(meta: EmbeddableComponentMeta) {
+	// live, so this is instant, with no freeze step.
+	function pickComponent(meta: SectionBlockMeta) {
 		if (!editor || !selectedStep) return;
 		editor
 			.chain()
@@ -98,6 +94,9 @@
 			</div>
 		{:else}
 			<!-- Stage 2: pick the component -->
+			<p class="text-muted-foreground text-base">
+				Results you embed become public when the report is published.
+			</p>
 			<div class="flex flex-col gap-2">
 				{#each componentsForStep as meta (meta.type)}
 					<button
