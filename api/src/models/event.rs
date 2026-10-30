@@ -440,12 +440,30 @@ impl CreateEvent {
     }
 }
 
+/// A custom link is rendered as a plain `href`, so anything other than an absolute
+/// `https` URL would resolve relative to the event page and break the lobby button.
+fn validate_custom_event_link(link: &str) -> Result<(), ComhairleError> {
+    let is_https_url = reqwest::Url::parse(link.trim()).is_ok_and(|url| url.scheme() == "https");
+
+    if link.trim().is_empty() || is_https_url {
+        return Ok(());
+    }
+
+    Err(ComhairleError::BadRequest(
+        "Custom event link must be a full URL starting with https://".into(),
+    ))
+}
+
 #[instrument(err(Debug), skip(db))]
 pub async fn create(
     db: &PgPool,
     conversation_id: &Uuid,
     new_event: &CreateEvent,
 ) -> Result<Event, ComhairleError> {
+    if let Some(link) = &new_event.custom_event_link {
+        validate_custom_event_link(link)?;
+    }
+
     let mut columns = new_event.columns();
     let mut values = new_event.values();
 
@@ -516,6 +534,8 @@ impl PartialEvent {
             values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.custom_event_link {
+            validate_custom_event_link(value)?;
+
             if value.trim().is_empty() {
                 values.push((
                     EventIden::CustomEventLink,
@@ -859,6 +879,23 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
+
+    #[test]
+    fn custom_event_link_must_be_blank_or_https() {
+        for link in ["", "  ", "https://meet.google.com/abc-defg-hij"] {
+            assert!(validate_custom_event_link(link).is_ok(), "{link} rejected");
+        }
+
+        for link in [
+            "brainstorming-workshop",
+            "meet.google.com/abc",
+            "/conversations/1/events/2/live",
+            "http://meet.google.com/abc",
+            "javascript:alert(1)",
+        ] {
+            assert!(validate_custom_event_link(link).is_err(), "{link} accepted");
+        }
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -184,7 +184,8 @@
 		try {
 			const eventParams = {
 				...eventData,
-				custom_event_link: eventData.custom_event_link?.trim() || '',
+				custom_event_link:
+					eventData.format === 'online' ? eventData.custom_event_link?.trim() || '' : '',
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
@@ -592,13 +593,16 @@
 							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>
 							<span>Custom event link</span>
-							<span class="font-normal">Override default Jitsi meeting link</span>
+							<span class="font-normal"
+								>Full link to an external meeting. Leave empty to use the built-in
+								meeting.</span
+							>
 						</Form.Label>
 						<div class="flex-1">
 							<Input
 								{...props}
 								bind:value={$form.custom_event_link}
-								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+								placeholder="https://meet.example.com/your-room"
 								disabled={!canEdit || $form.format !== 'online'}
 							/>
 							<Form.FieldErrors />

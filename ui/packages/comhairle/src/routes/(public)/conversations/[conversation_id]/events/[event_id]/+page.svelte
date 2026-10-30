@@ -7,6 +7,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
+	import { validateUrl } from '$lib/utils/urlValidation';
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
@@ -46,23 +47,10 @@
 		return 'live' as const;
 	});
 
-	let isToday = $derived.by(() => {
-		if (!event) return false;
-		const start = new Date(event.startTime);
-		const now = new Date();
-		return (
-			start.getFullYear() === now.getFullYear() &&
-			start.getMonth() === now.getMonth() &&
-			start.getDate() === now.getDate()
-		);
-	});
-
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
 	let liveHref = $derived.by(() => {
-		if (event?.format === 'online' && event?.customEventLink) {
-			return event.customEventLink;
-		}
-		return `/conversations/${conversationId}/events/${event?.id}/live`;
+		const customLink = event?.format === 'online' ? validateUrl(event.customEventLink) : null;
+		return customLink ?? `/conversations/${conversationId}/events/${event?.id}/live`;
 	});
 
 	let canStartMeeting = $derived(
@@ -114,8 +102,8 @@
 			);
 			// Reload to refresh attendance data
 			await invalidate(key('public/event'));
-		} catch (e: any) {
-			error = e?.message || 'Failed to register';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Failed to register';
 		} finally {
 			joining = false;
 		}
