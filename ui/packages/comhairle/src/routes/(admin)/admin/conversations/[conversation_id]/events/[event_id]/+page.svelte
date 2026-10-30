@@ -594,8 +594,8 @@
 						>
 							<span>Custom event link</span>
 							<span class="font-normal"
-								>Full link to an external meeting. Leave empty to use the built-in
-								meeting.</span
+								>For meetings on Zoom, Teams or Google Meet. Paste the full link,
+								starting with https://. Leave empty to use the built-in meeting.</span
 							>
 						</Form.Label>
 						<div class="flex-1">
