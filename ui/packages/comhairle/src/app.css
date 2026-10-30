@@ -15,11 +15,6 @@ html:has(dialog[open]) {
 	overflow: hidden;
 }
 
-/* Blur background when dialog is open */
-body:has(dialog[open]) {
-	filter: blur(4px);
-}
-
 html,
 body {
 	width: 100%;

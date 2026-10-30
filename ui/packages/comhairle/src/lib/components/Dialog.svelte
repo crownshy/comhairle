@@ -70,7 +70,7 @@
 
 <style>
 	dialog::backdrop {
-		background-color: var(--background);
-		filter: opacity(70%);
+		background-color: oklch(from var(--background) l c h / 0.5);
+		backdrop-filter: blur(4px);
 	}
 </style>
