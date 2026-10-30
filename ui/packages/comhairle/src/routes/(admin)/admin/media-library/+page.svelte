@@ -102,7 +102,7 @@
 					{:else}
 						<Button
 							variant="destructive"
-							disabled={selected.length !== 0}
+							disabled={selected.length === 0}
 							icon={Trash2}
 							dialogOpen="delete-media"
 						>
