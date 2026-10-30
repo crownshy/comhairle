@@ -95,4 +95,18 @@ describe('conversationStages', () => {
 
 		expect(links.filter((link) => link.active).map((link) => link.path)).toEqual(['design']);
 	});
+
+	it('shows a moderator only Moderate, open before launch and without a Polis step', () => {
+		const moderation = conversationStages({
+			conversation: draft,
+			pathname: '/admin/conversations/c1/moderate',
+			canAdmin: false,
+			surface: 'moderation'
+		});
+
+		expect(moderation.map((stage) => stage.id)).toEqual(['engage']);
+		expect(moderation[0].sections).toMatchObject([
+			{ path: 'moderate', lock: null, active: true }
+		]);
+	});
 });
