@@ -107,6 +107,15 @@ impl ToolImpl for LearnTool {
         ))
     }
 
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         // Learn tool has no routes
         ApiRouter::new()

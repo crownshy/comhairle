@@ -78,7 +78,6 @@ impl ToolConfigSanitize for HeyFormToolConfig {
 /// The HeyForm questions to copy onto a new form when the step is imported
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct HeyFormExIm {
-    pub server_url: String,
     pub fields: Vec<FormField>,
 }
 
@@ -305,10 +304,14 @@ impl ToolImpl for HeyFormTool {
     async fn export_tool(config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
         let fields = fetch_form_fields(config).await?;
 
-        Ok(Self::ExportImport {
-            server_url: config.server_url.clone(),
-            fields,
-        })
+        Ok(Self::ExportImport { fields })
+    }
+
+    async fn import_tool(
+        config: &Self::ExportImport,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        create_form_with_fields(&state.config.heyform_url, config.fields.clone()).await
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
