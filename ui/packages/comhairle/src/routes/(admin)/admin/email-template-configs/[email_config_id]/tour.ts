@@ -7,7 +7,7 @@ export const emailTemplateConfigTour: Tour = {
 			element: '[data-tour="section-header"]',
 			title: 'Edit this custom email',
 			description:
-				'Preview your changes before saving, or delete it to fall back to the default.',
+				'Change the wording and check the preview, then save. Remove it to go back to the default.',
 			side: 'bottom'
 		}
 	]

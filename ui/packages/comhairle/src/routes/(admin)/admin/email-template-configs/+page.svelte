@@ -1,17 +1,37 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { Plus } from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
-	import EmailConfigCard from '$lib/components/EmailConfigCard.svelte';
+	import { EMAIL_TYPE_COPY } from './emailTypeCopy';
+	import EmailTypeTab from './EmailTypeTab.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
+	import { buildEmailTypeView } from '$lib/utils/emailTemplateGroups';
 	import { emailTemplateConfigsTour } from './tour';
+	import { page } from '$app/state';
+	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 
 	useTour(() => emailTemplateConfigsTour);
 
 	let { data } = $props();
-	const { emailConfigs } = data;
+
+	const DEFAULT_TYPE = 'conversation_invite';
+
+	let tabs = $derived(
+		data.schemas.map((schema) => ({
+			value: schema.email_type,
+			label: EMAIL_TYPE_COPY[schema.email_type].name
+		}))
+	);
+	let selectedType = $derived(page.url.searchParams.get('type') ?? DEFAULT_TYPE);
+	let schema = $derived(
+		data.schemas.find((candidate) => candidate.email_type === selectedType) ?? data.schemas[0]
+	);
+	let view = $derived(
+		buildEmailTypeView(
+			schema,
+			data.emailConfigs,
+			data.conversations.map(({ id, title }) => ({ id, title }))
+		)
+	);
 </script>
 
 <svelte:head>
@@ -19,24 +39,14 @@
 </svelte:head>
 
 <SectionHeader
+	hasTabs
 	content={{
 		eyebrow: 'Library',
 		title: 'Email templates',
-		description: 'Use this space to manage your custom emails.'
+		description: 'The email templates you can customise for each conversation.'
 	}}
->
-	{#snippet actions()}
-		<Button href="/admin/email-template-configs/new">
-			<Plus class="h-4 w-4" /> Add custom email
-		</Button>
-	{/snippet}
-</SectionHeader>
+/>
+<SubTabStrip tone="primary" paramName="type" items={tabs} defaultValue={DEFAULT_TYPE} />
 <TabContent>
-	<div data-tour="email-configs-list" class="flex max-w-175 flex-col gap-6">
-		{#each emailConfigs as emailConfig (emailConfig.id)}
-			<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
-				<EmailConfigCard {emailConfig} />
-			</Card.Root>
-		{/each}
-	</div>
+	<EmailTypeTab {view} {schema} conversations={data.conversations} />
 </TabContent>
