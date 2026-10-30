@@ -37,6 +37,7 @@
 	{id}
 	bind:this={Dialog}
 	class="bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3"
+	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height, none);"
 	closedby="any"
 >
 	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
