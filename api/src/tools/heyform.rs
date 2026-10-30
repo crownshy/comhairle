@@ -1152,13 +1152,105 @@ mod tests {
         get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
-    use crate::test_helpers::heyform_tool_config;
+    use crate::setup_server;
+    use crate::test_helpers::{
+        MultipartBodyBuilder, UserSession, heyform_tool_config, test_config, test_state,
+    };
 
     #[derive(Clone)]
     struct MockHeyFormState {
         submission_calls: Arc<AtomicUsize>,
+        form_count: Arc<AtomicUsize>,
         /// Every GraphQL payload received, in order, so tests can assert on outgoing calls.
         requests: Arc<Mutex<Vec<serde_json::Value>>>,
+    }
+
+    fn workflow_steps_url(conversation_id: &Uuid, workflow_id: &Uuid) -> String {
+        format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step")
+    }
+
+    async fn create_heyform_step_with_conversation(
+        app: &crate::App,
+        session: &mut crate::test_helpers::UserSession,
+        server_url: &str,
+    ) -> Result<(Uuid, WorkflowStepDto), Box<dyn Error>> {
+        let conversation_id = get_random_conversation_id(app, session).await?;
+        let workflow_id = get_random_workflow_id(app, session, &conversation_id).await?;
+        let mut tool_setup = heyform_tool_config();
+        tool_setup["server_url"] = json!(server_url);
+
+        let (status, value, _) = session
+            .create_workflow_step(
+                app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "Survey step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "<p>Tell us what you think</p>",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": tool_setup,
+                }),
+            )
+            .await?;
+        assert!(
+            status.is_success(),
+            "failed to create heyform step: {value}"
+        );
+
+        Ok((conversation_id, serde_json::from_value(value)?))
+    }
+
+    async fn export_step(
+        app: &crate::App,
+        session: &mut crate::test_helpers::UserSession,
+        conversation_id: &Uuid,
+        step: &WorkflowStepDto,
+    ) -> Result<(StatusCode, serde_json::Value), Box<dyn Error>> {
+        let url = format!(
+            "{}/{}/export",
+            workflow_steps_url(conversation_id, &step.workflow_id),
+            step.id
+        );
+        let (status, value, _) = session.get(app, &url).await?;
+        Ok((status, value))
+    }
+
+    async fn import_step(
+        app: &crate::App,
+        session: &mut crate::test_helpers::UserSession,
+        conversation_id: &Uuid,
+        workflow_id: &Uuid,
+        file_contents: &str,
+    ) -> Result<(StatusCode, serde_json::Value), Box<dyn Error>> {
+        let boundary = "import-boundary";
+        let body = MultipartBodyBuilder::new(boundary.to_string())
+            .add_file("step.json", Some("application/json"), file_contents)
+            .build();
+        let url = format!(
+            "{}/import",
+            workflow_steps_url(conversation_id, workflow_id)
+        );
+        let (status, value, _) = session
+            .post_multipart(app, &url, boundary, body.into())
+            .await?;
+        Ok((status, value))
+    }
+
+    fn requests_with_operation(
+        state: &MockHeyFormState,
+        operation: &str,
+    ) -> Vec<serde_json::Value> {
+        state
+            .requests
+            .lock()
+            .expect("mock request log poisoned")
+            .iter()
+            .filter(|request| request["operationName"] == operation)
+            .cloned()
+            .collect()
     }
 
     #[test]
@@ -1324,9 +1416,10 @@ mod tests {
         }
 
         if operation_name == "createForm" || query.contains("mutation createForm(") {
+            let form_number = state.form_count.fetch_add(1, Ordering::SeqCst) + 1;
             return Json(json!({
                 "data": {
-                    "createForm": "form-1"
+                    "createForm": format!("form-{form_number}")
                 }
             }));
         }
@@ -1446,6 +1539,7 @@ mod tests {
     -> Result<(String, tokio::task::JoinHandle<()>, MockHeyFormState), Box<dyn Error>> {
         let state = MockHeyFormState {
             submission_calls: Arc::new(AtomicUsize::new(0)),
+            form_count: Arc::new(AtomicUsize::new(0)),
             requests: Arc::new(Mutex::new(Vec::new())),
         };
 
@@ -1985,6 +2079,92 @@ mod tests {
         assert_eq!(insights.questions[0].id, "report-1");
         // No matching form field => title falls back to the field ID.
         assert_eq!(insights.questions[0].title, "report-1");
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn export_heyform_step_returns_fields_without_credentials(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, _) = start_mock_heyform_server_with_state().await?;
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (conversation_id, step) =
+            create_heyform_step_with_conversation(&app, &mut session, &mock_url).await?;
+
+        let (status, export) = export_step(&app, &mut session, &conversation_id, &step).await?;
+
+        assert_eq!(status, StatusCode::OK, "{export}");
+        assert_eq!(export["preview_tool_config"]["type"], "heyform");
+        assert_eq!(export["preview_tool_config"]["fields"][0]["id"], "report-1");
+        assert_eq!(export["name"], "Survey step");
+        assert_eq!(export["required"], true);
+        assert_eq!(export["primary_locale"], "en");
+
+        let serialized = export.to_string();
+        for secret in [
+            "admin_user",
+            "admin_password",
+            "survey_id",
+            "workspace_id",
+            "project_id",
+        ] {
+            assert!(!serialized.contains(secret), "export leaked {secret}");
+        }
+        assert!(export.get("id").is_none() && export.get("workflow_id").is_none());
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn import_heyform_step_creates_new_form_with_exported_fields(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
+        let mut test_config = test_config()?;
+        test_config.heyform_url = mock_url.clone();
+        let state = Arc::new(test_state().db(pool.clone()).config(test_config).call()?);
+        let app = setup_server(state.clone()).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        // let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (conversation_id, step) =
+            create_heyform_step_with_conversation(&app, &mut session, &mock_url).await?;
+        let (_, export) = export_step(&app, &mut session, &conversation_id, &step).await?;
+
+        let (status, value) = import_step(
+            &app,
+            &mut session,
+            &conversation_id,
+            &step.workflow_id,
+            &export.to_string(),
+        )
+        .await?;
+
+        assert_eq!(status, StatusCode::CREATED, "{value}");
+        let imported: WorkflowStepDto = serde_json::from_value(value)?;
+        assert_ne!(imported.id, step.id);
+        assert_eq!(
+            imported.step_order, 2,
+            "import should append to the workflow"
+        );
+
+        let ToolConfig::HeyForm(imported_config) = imported.preview_tool_config else {
+            panic!("imported step is not a heyform step");
+        };
+        assert_eq!(imported_config.survey_id, "form-2");
+
+        let schema_updates = requests_with_operation(&mock_state, "updateFormSchemas");
+        let import_update = schema_updates.last().expect("fields were not copied");
+        assert_eq!(import_update["variables"]["input"]["formId"], "form-2");
+        assert_eq!(
+            import_update["variables"]["input"]["fields"][0]["id"],
+            "report-1"
+        );
 
         mock_server.abort();
         Ok(())
