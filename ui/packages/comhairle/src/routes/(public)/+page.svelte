@@ -5,17 +5,17 @@
 	import { Info } from 'lucide-svelte';
 
 	let { data } = $props();
-	let { isCommunity } = data;
-
-	let topPadding = $derived(isCommunity ? 'pt-6 sm:pt-36' : 'pt-26 sm:pt-50');
+	const isCommunity = $derived(data.isCommunity);
 </script>
 
 <svelte:head>
 	<title>Comhairle</title>
 </svelte:head>
 
-<div class={`flex h-full flex-col items-center ${topPadding}`}>
-	<div class="my-auto flex flex-col items-center justify-center gap-y-10 p-6 sm:p-10">
+<!-- Centred rather than pushed down by a fixed top padding, which grows with browser zoom
+	while the viewport shrinks and drops the text below the fold. -->
+<div class="flex min-h-[80vh] flex-col items-center justify-center">
+	<div class="flex flex-col items-center justify-center gap-y-10 p-6 sm:p-10">
 		<h1
 			class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl {isCommunity
 				? 'text-left'
@@ -47,7 +47,7 @@
 		</h1>
 
 		{#if isCommunity}
-			{#each [m.community_server_description_1(), m.community_server_description_2()] as description}
+			{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
 				<p class="text-foreground w-full text-left text-xl sm:text-2xl">
 					{description}
 				</p>
