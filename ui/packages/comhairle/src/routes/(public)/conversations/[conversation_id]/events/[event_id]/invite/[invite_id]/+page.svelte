@@ -20,16 +20,6 @@
 	async function acceptInviteAndRegisterForEvent() {
 		try {
 			try {
-				await apiClient.CreateEventAttendance(
-					{ role: 'participant' },
-					{ params: { conversation_id: conversationId, event_id: eventId } }
-				);
-			} catch (e) {
-				// silently ignore conflicts in case user is already registered
-				if (e.response.status !== 409) throw new Error(defaultErrorMessage);
-			}
-
-			try {
 				await apiClient.AcceptInvite(undefined, {
 					params: { conversation_id: conversationId, invite_id: invite.id }
 				});
