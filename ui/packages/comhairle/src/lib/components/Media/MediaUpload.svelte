@@ -5,30 +5,31 @@
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
-	import { Form, Input, Submit } from '$lib/components/EasyForm';
+	import { Form, Input, Submit, type HandleSubmission } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
+	import Dialog from '$lib/components/Dialog.svelte';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
-	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
+	type Props = Omit<ComponentProps<typeof Button>, 'onclick'> & {
 		clientSide?: boolean;
 		oncomplete?: (media: MediaDto) => void;
-	}
-	const { clientSide, oncomplete, ...props }: Props = $props();
+	};
+	const { oncomplete, ...props }: Props = $props();
 
-	let uploadForm: HTMLFormElement | null = $state(null);
+	let dialog = $state<HTMLDialogElement | null>(null);
 	let file = $state<File | null>(null);
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
-	let open = $state<boolean>(false);
 
 	const media = new Media();
 
-	async function handleSubmission(formData: FormData) {
+	const handleSubmission: HandleSubmission = async (formData) => {
 		const response = await media.upload('/api/media', formData, {
 			schema: MediaSchema
 		});
@@ -55,83 +56,59 @@
 			priority: 'SUCCESS'
 		});
 
+		dialog?.close();
 		oncomplete?.(mediaDto.ok as MediaDto);
-	}
+		await invalidate(key('admin/media'));
+	};
 </script>
 
-<Button {...props} type="button" icon={Upload} onclick={() => (open = true)}>
+<Button {...props} type="button" icon={Upload} dialogOpen="upload-media">
 	{m.upload()}
 </Button>
 
-<Dialog.Root
-	bind:open
-	onOpenChangeComplete={(open) => {
-		if (!open) {
-			file = null;
-		}
-	}}
->
-	<Dialog.Portal>
-		<Dialog.Content class="min-w-138  rounded-2xl p-8">
-			<Form
-				bind:ref={uploadForm}
-				method="POST"
-				action="/admin/media-library?/upload"
-				enctype="multipart/form-data"
-				class="flex flex-col"
-				handleSubmission={clientSide ? handleSubmission : undefined}
-				onsubmit={() => (open = false)}
+<Dialog id="upload-media" ref={dialog} --max-width="35rem" --min-width="20rem">
+	<Form enctype="multipart/form-data" class="flex flex-col" {handleSubmission}>
+		<FileInput
+			{...MediaSchema.media}
+			bind:this={fileInput}
+			onfile={(newFile) => {
+				file = newFile;
+				nameInput?.setValue(Media.getFilename(file.name));
+			}}
+			class={file !== null ? 'hidden' : ''}
+		/>
+		{#if file}
+			<div
+				class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
 			>
-				<FileInput
-					{...MediaSchema.media}
-					bind:this={fileInput}
-					onfile={(newFile) => {
-						file = newFile;
-						nameInput?.setValue(Media.getFilename(file.name));
-					}}
-					class={file !== null ? 'hidden' : ''}
-				/>
-				{#if file}
-					<div
-						class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
-					>
-						<div class="flex basis-3/5 flex-row items-center gap-2">
-							<FileIcon {file} />
-							<span>{file.name}</span>
-						</div>
-						<div class="flex flex-row items-center justify-evenly gap-4">
-							<span class="text-muted-foreground"
-								>{Media.getExtension(file.name)?.toUpperCase()}</span
-							>
-							<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span
-							>
-							<Button
-								title="Remove file"
-								aria-label="Remove file"
-								variant="ghost"
-								size="sm"
-								class="text-destructive hover:text-destructive/80 rounded-sm"
-								onclick={() => {
-									file = null;
-									nameInput?.setValue('');
-									nameInput?.setError('');
-									fileInput?.clear();
-								}}
-							>
-								<Trash2 />
-							</Button>
-						</div>
-					</div>
-				{/if}
-				<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" type="text" />
-				<Input
-					{...MediaSchema.alt}
-					label="Alt"
-					type="text"
-					placeholder="e.g. Company logo"
-				/>
-				<Submit class="mt-7 self-end" text="Upload" />
-			</Form>
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+				<div class="flex basis-3/5 flex-row items-center gap-2">
+					<FileIcon {file} />
+					<span>{file.name}</span>
+				</div>
+				<div class="flex flex-row items-center justify-evenly gap-4">
+					<span class="text-muted-foreground">
+						{Media.getExtension(file.name)?.toUpperCase()}
+					</span>
+					<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span>
+					<Button
+						title="Remove file"
+						aria-label="Remove file"
+						variant="ghost"
+						size="sm"
+						icon={Trash2}
+						class="text-destructive hover:text-destructive/80 rounded-sm"
+						onclick={() => {
+							file = null;
+							nameInput?.setValue('');
+							nameInput?.setError('');
+							fileInput?.clear();
+						}}
+					/>
+				</div>
+			</div>
+		{/if}
+		<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" />
+		<Input {...MediaSchema.alt} label="Alt" placeholder="e.g. Company logo" />
+		<Submit class="mt-7 self-end" text="Upload" />
+	</Form>
+</Dialog>

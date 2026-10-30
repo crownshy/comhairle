@@ -14,7 +14,7 @@
 <ul class="mt-5 flex flex-row flex-wrap gap-5">
 	{#if data.length === 0}
 		<div class="mt-8">
-			<p class="text-muted-foreground font-bold">No media found</p>
+			<span class="text-muted-foreground font-bold">No media found</span>
 		</div>
 	{:else}
 		{#each data as d (d.id)}

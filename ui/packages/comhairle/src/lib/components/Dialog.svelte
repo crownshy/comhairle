@@ -14,8 +14,9 @@
 
 	type Props = {
 		id: string;
+		ref?: HTMLDialogElement | null;
 		title?: string;
-		children?: Snippet;
+		children?: Snippet<[SnippetArgs]>;
 		actions?: {
 			primary?: Action;
 			secondary?: Action;
@@ -23,22 +24,31 @@
 		HeaderAction?: Snippet<[SnippetArgs]>;
 		PrimaryAction?: Snippet<[SnippetArgs]>;
 		SecondaryAction?: Snippet<[SnippetArgs]>;
+		// If true, clicking outside of the Dialog won't dismiss it
+		onlyHardDismiss?: boolean;
 	};
 
-	let { id, title, actions, children, HeaderAction, PrimaryAction, SecondaryAction }: Props =
-		$props();
+	let {
+		id,
+		ref = $bindable(),
+		title,
+		actions,
+		children,
+		HeaderAction,
+		PrimaryAction,
+		SecondaryAction,
+		onlyHardDismiss
+	}: Props = $props();
 
-	let Dialog = $state<HTMLDialogElement | null>(null);
-
-	const close = () => Dialog?.close();
+	const close = () => ref?.close();
 </script>
 
 <dialog
 	{id}
-	bind:this={Dialog}
+	bind:this={ref}
 	class="bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3"
 	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height, none);"
-	closedby="any"
+	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
 	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
 	<Button
@@ -65,7 +75,7 @@
 			<header></header>
 		{/if}
 		<section>
-			{@render children?.()}
+			{@render children?.({ close })}
 		</section>
 		{#if PrimaryAction || actions?.primary}
 			<footer class="flex flex-row justify-end gap-x-2">
