@@ -39,11 +39,15 @@
 	export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 	export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
 
+	type ModalId = string;
+
 	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
 			icon?: ComponentType<LucideIcon>;
+			dialogOpen?: ModalId;
+			dialogClose?: ModalId;
 		};
 </script>
 
@@ -56,10 +60,28 @@
 		href = undefined,
 		type = 'button',
 		disabled,
+		dialogOpen,
+		dialogClose,
 		icon: Icon,
 		children,
 		...restProps
 	}: ButtonProps = $props();
+
+	function getCommand(): Pick<HTMLButtonAttributes, 'command' | 'commandfor'> | undefined {
+		if (dialogOpen) {
+			return {
+				command: 'show-modal',
+				commandfor: dialogOpen
+			};
+		}
+		if (dialogClose) {
+			return {
+				command: 'close',
+				commandfor: dialogClose
+			};
+		}
+		return undefined;
+	}
 </script>
 
 {#if href}
@@ -83,6 +105,7 @@
 		bind:this={ref}
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
+		{...getCommand()}
 		{type}
 		{disabled}
 		{...restProps}
