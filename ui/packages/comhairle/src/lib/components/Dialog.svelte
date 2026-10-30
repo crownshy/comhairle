@@ -50,16 +50,20 @@
 		aria-label="Close dialog"
 	/>
 	<div class="grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5">
-		<header
-			class="border-border mb-5 flex flex-row items-center justify-between border-b-2 pb-2"
-		>
-			<span class="shrink-0 grow text-3xl font-medium">{title}</span>
-			<span class="shrink grow-0">
-				{#if HeaderAction}
-					{@render HeaderAction({ close })}
-				{/if}
-			</span>
-		</header>
+		{#if title || HeaderAction}
+			<header
+				class="border-border mb-5 flex flex-row items-center justify-between border-b-2 pb-2"
+			>
+				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
+				<span class="shrink grow-0">
+					{#if HeaderAction}
+						{@render HeaderAction({ close })}
+					{/if}
+				</span>
+			</header>
+		{:else}
+			<header></header>
+		{/if}
 		<section>
 			{@render children?.()}
 		</section>
