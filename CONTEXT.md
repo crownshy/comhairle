@@ -209,18 +209,18 @@ _Avoid_: Magic-link sign-in email, plaintext password email.
 
 ### Polis admin (Discuss step)
 
-The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Insights`**. Moderation is its own page under Engage (ADR-0055). civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
+The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup`**. Moderation (ADR-0055) and Insights (ADR-0060) are their own pages under Engage. civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
 
 **Moderation**:
 Polis statement review, on the **Moderate** page under Engage (`/admin/conversations/<id>/moderate`, one page per Polis step). Sync statements from Polis, split composite statements, and accept or reject each one with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Seeds are written in **Setup**, not here. **Moderate** is the sidebar and page label; **Moderation** is the activity.
 _Avoid_: Statements (design label), Moderation subtab (removed from the step editor, ADR-0055).
 
 **Insights**:
-A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
-_Avoid_: Report (that's the conversation-level tab — a different, global concept).
+A **per-Step report**: the read-only analytics surface for a single Step, on the **Insights** page under Engage (`/admin/conversations/<id>/insights`, one page per Step that has Insights, ADR-0060). For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, Prioritisation, HeyForm; not Learn) gets its own Insights page.
+_Avoid_: Report (that's the conversation-level tab, a different, global concept), Insights subtab (removed from the step editor, ADR-0060).
 
 **Report**:
-The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** subtab.
+The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** page.
 _Avoid_: Insights (that's per-Step).
 
 **Participants** (Polis admin):

@@ -25,7 +25,7 @@ describe('conversationStages', () => {
 		expect(grouped).toEqual([
 			['set-up', ['Configure', 'Process design', 'Learning Assistant', 'Events']],
 			['launch', []],
-			['engage', ['Recruit', 'Notify', 'Monitor']],
+			['engage', ['Recruit', 'Notify', 'Insights', 'Monitor']],
 			['close', []],
 			['results', ['Report']]
 		]);
@@ -76,8 +76,8 @@ describe('conversationStages', () => {
 				.find((stage) => stage.id === 'engage')
 				?.sections.map((link) => link.name);
 
-		expect(engage(false)).toEqual(['Recruit', 'Notify', 'Monitor']);
-		expect(engage(true)).toEqual(['Recruit', 'Notify', 'Moderate', 'Monitor']);
+		expect(engage(false)).toEqual(['Recruit', 'Notify', 'Insights', 'Monitor']);
+		expect(engage(true)).toEqual(['Recruit', 'Notify', 'Moderate', 'Insights', 'Monitor']);
 	});
 
 	it('locks Notify for people without Admin while leaving Monitor open', () => {
