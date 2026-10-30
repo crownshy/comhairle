@@ -433,11 +433,31 @@ impl CreateEvent {
         }
 
         if let Some(ref value) = self.custom_event_link {
-            values.push(value.into());
+            values.push(value.trim().into());
         }
 
         values
     }
+}
+
+const MAX_CUSTOM_EVENT_LINK_LENGTH: usize = 2048;
+
+/// A custom link is rendered as a plain `href`, so anything other than an absolute
+/// `https` URL would resolve relative to the event page and break the lobby button.
+/// Keep this in step with `validateUrl` on the frontend, which drops any link it rejects.
+fn validate_custom_event_link(link: &str) -> Result<(), ComhairleError> {
+    let link = link.trim();
+    let is_https_url = link.starts_with("https://")
+        && link.len() <= MAX_CUSTOM_EVENT_LINK_LENGTH
+        && reqwest::Url::parse(link).is_ok();
+
+    if link.is_empty() || is_https_url {
+        return Ok(());
+    }
+
+    Err(ComhairleError::BadRequest(
+        "Custom event link must be a full URL starting with https://".into(),
+    ))
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -446,6 +466,10 @@ pub async fn create(
     conversation_id: &Uuid,
     new_event: &CreateEvent,
 ) -> Result<Event, ComhairleError> {
+    if let Some(link) = &new_event.custom_event_link {
+        validate_custom_event_link(link)?;
+    }
+
     let mut columns = new_event.columns();
     let mut values = new_event.values();
 
@@ -516,13 +540,16 @@ impl PartialEvent {
             values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.custom_event_link {
-            if value.trim().is_empty() {
+            validate_custom_event_link(value)?;
+
+            let link = value.trim();
+            if link.is_empty() {
                 values.push((
                     EventIden::CustomEventLink,
                     sea_query::Value::String(None).into(),
                 ));
             } else {
-                values.push((EventIden::CustomEventLink, value.clone().into()));
+                values.push((EventIden::CustomEventLink, link.into()));
             }
         }
         if let Some(value) = &self.default_time_zone {
@@ -859,6 +886,28 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
+
+    #[test]
+    fn custom_event_link_must_be_blank_or_https() {
+        for link in ["", "  ", "https://meet.google.com/abc-defg-hij"] {
+            assert!(validate_custom_event_link(link).is_ok(), "{link} rejected");
+        }
+
+        for link in [
+            "brainstorming-workshop",
+            "meet.google.com/abc",
+            "/conversations/1/events/2/live",
+            "http://meet.google.com/abc",
+            "javascript:alert(1)",
+            "HTTPS://meet.google.com/abc",
+            "https:meet.google.com/abc",
+        ] {
+            assert!(validate_custom_event_link(link).is_err(), "{link} accepted");
+        }
+
+        let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
+        assert!(validate_custom_event_link(&too_long).is_err());
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
