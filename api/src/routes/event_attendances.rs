@@ -14,7 +14,8 @@ use uuid::Uuid;
 
 use crate::middleware::rate_limit::RateLimitLayers;
 use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
-use crate::models::event::{self, SignupMode};
+use crate::models::conversation::Conversation;
+use crate::models::event::{self, LocalizedEvent, SignupMode};
 use crate::models::event_attendance::{
     self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
     EventAttendanceOrderOptions, UpdateEventAttendance,
@@ -22,7 +23,7 @@ use crate::models::event_attendance::{
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::users::{self, User, get_or_create_user_by_email};
 use crate::models::{breakout_plan, conversation};
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::event_attendances::dto::EventAttendanceDto;
 use crate::{ComhairleError, ComhairleState};
 
@@ -62,6 +63,36 @@ pub async fn get(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
+/// Sends what a newly registered participant receives: the event reminders and
+/// the confirmation email.
+pub(crate) async fn notify_registered_participant(
+    state: &Arc<ComhairleState>,
+    conversation: &Conversation,
+    event: &LocalizedEvent,
+    user: &User,
+    email: &str,
+) -> Result<(), ComhairleError> {
+    event
+        .schedule_event_reminders(
+            &state.db,
+            user,
+            conversation.owner_id,
+            &conversation.primary_locale,
+        )
+        .await?;
+
+    state
+        .mailer
+        .send_event_confirmation_email(
+            state,
+            email,
+            event.id,
+            conversation.owner_id,
+            &conversation.primary_locale,
+        )
+        .await
+}
+
 /// Resolves the `User` who should be recorded as the attendee for an event
 /// attendance request, handling both authenticated and anonymous callers.
 ///
@@ -76,7 +107,9 @@ pub async fn get(
 ///     [`get_or_create_user_by_email`].
 ///
 /// - **Authenticated caller, no `request_email`**: the caller registers
-///   themselves; `opt_user` is returned as-is.
+///   themselves; `opt_user` is returned as-is. On an event that is not
+///   [`SignupMode::Open`] this needs `caller_manages_event`, as everyone else
+///   joins by accepting an invite.
 ///
 /// - **Authenticated caller with `request_email`**: the caller is
 ///   registering *someone else*. This is only permitted when the caller is
@@ -87,7 +120,8 @@ pub async fn get(
 /// # Errors
 ///
 /// Returns an error if:
-/// - the event does not have open signup and no user is logged in
+/// - the event does not have open signup and the caller is not logged in or is
+///   registering themselves without managing the event
 ///   ([`ComhairleError::EventInvalidSignupMode`]),
 /// - an anonymous request is missing an email
 ///   ([`ComhairleError::BadRequest`]),
@@ -100,6 +134,7 @@ async fn resolve_event_attendee(
     owner_id: Uuid,
     signup_mode: &SignupMode,
     opt_user: Option<User>,
+    caller_manages_event: bool,
     request_email: Option<String>,
     client_ip: &str,
     user_agent: Option<&str>,
@@ -118,6 +153,10 @@ async fn resolve_event_attendee(
 
     // Logged-in user request with no target email -> register logged in user
     let Some(email) = request_email else {
+        if *signup_mode != SignupMode::Open && !caller_manages_event {
+            return Err(ComhairleError::EventInvalidSignupMode);
+        }
+
         return Ok(user);
     };
 
@@ -147,11 +186,22 @@ pub async fn create(
     let event =
         event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
 
+    let caller_manages_event = match &opt_user {
+        Some(caller) => caller.id == conversation.owner_id || is_user_admin(&state, caller).await,
+        None => false,
+    };
+    let role = if caller_manages_event {
+        payload.role
+    } else {
+        "participant".to_string()
+    };
+
     let user = resolve_event_attendee(
         &state.db,
         conversation.owner_id,
         &event.signup_mode,
         opt_user,
+        caller_manages_event,
         payload.user_email,
         &client_ip.0,
         user_agent.0.as_deref(),
@@ -161,7 +211,7 @@ pub async fn create(
     let create_event_attendance = CreateEventAttendance {
         user_id: user.id,
         event_id,
-        role: payload.role,
+        role,
     };
 
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
@@ -186,27 +236,7 @@ pub async fn create(
     if let Some(ref email) = user.email
         && &event_attendance.role == "participant"
     {
-        let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
-
-        event
-            .schedule_event_reminders(
-                &state.db,
-                &user,
-                conversation.owner_id,
-                &conversation.primary_locale,
-            )
-            .await?;
-
-        state
-            .mailer
-            .send_event_confirmation_email(
-                &state,
-                email,
-                event_id,
-                event_owner.id,
-                &conversation.primary_locale,
-            )
-            .await?;
+        notify_registered_participant(&state, &conversation, &event, &user, email).await?;
     }
 
     Ok((StatusCode::CREATED, Json(event_attendance.into())))
@@ -522,7 +552,7 @@ mod tests {
         };
 
         let body = serde_json::to_vec(&new_attendance)?;
-        let (_, response, _) = session
+        let (status, response, _) = session
             .post(
                 &app,
                 &format!(
@@ -533,6 +563,7 @@ mod tests {
             )
             .await?;
 
+        assert_eq!(status, StatusCode::FORBIDDEN, "incorrect status");
         assert_eq!(
             response.get("err").unwrap(),
             "Event has incorrect signup mode for this action",
@@ -669,6 +700,123 @@ mod tests {
             "Only the owner of the conversation can perform this action",
             "incorrect error message"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_guest_self_registration_on_invite_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let mut guest = UserSession::new("", "", "");
+        guest.signup_guest(&app).await?;
+
+        let (status, response, _) = guest
+            .create_random_event_attendance(
+                &app,
+                &conversation_id.to_string(),
+                &event.id.to_string(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN, "incorrect status");
+        assert_eq!(
+            response.get("err").unwrap(),
+            "Event has incorrect signup mode for this action",
+            "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_let_guest_self_register_on_open_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let response =
+            create_random_open_event(&app, &mut session, &conversation_id.to_string()).await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let mut guest = UserSession::new("", "", "");
+        guest.signup_guest(&app).await?;
+
+        let (status, response, _) = guest
+            .create_random_event_attendance(
+                &app,
+                &conversation_id.to_string(),
+                &event.id.to_string(),
+            )
+            .await?;
+        let attendance: EventAttendanceDto = serde_json::from_value(response)?;
+
+        assert_eq!(status, StatusCode::CREATED, "incorrect status");
+        assert_eq!(attendance.user_id, guest.id.unwrap(), "incorrect user_id");
+        assert_eq!(attendance.role, "participant", "incorrect role");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_ignore_requested_role_for_non_owner(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let response =
+            create_random_open_event(&app, &mut session, &conversation_id.to_string()).await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let mut guest = UserSession::new("", "", "");
+        guest.signup_guest(&app).await?;
+
+        let (_, response, _) = guest
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                json!({ "role": "moderator" }).to_string().into(),
+            )
+            .await?;
+        let attendance: EventAttendanceDto = serde_json::from_value(response)?;
+
+        assert_eq!(attendance.role, "participant", "incorrect role");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_keep_requested_role_for_owner(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let (_, response, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                json!({ "role": "moderator" }).to_string().into(),
+            )
+            .await?;
+        let attendance: EventAttendanceDto = serde_json::from_value(response)?;
+
+        assert_eq!(attendance.role, "moderator", "incorrect role");
 
         Ok(())
     }
@@ -861,7 +1009,7 @@ mod tests {
                     "capacity": 10,
                     "start_time": start_time,
                     "end_time": start_time + chrono::Duration::hours(1),
-                    "signup_mode": "invite"
+                    "signup_mode": "open"
                 })
                 .to_string()
                 .into(),

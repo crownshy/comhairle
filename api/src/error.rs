@@ -424,6 +424,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
             | ComhairleError::ParticipantSealed
+            | ComhairleError::EventInvalidSignupMode
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch

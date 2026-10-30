@@ -48,6 +48,7 @@
 		return 'live' as const;
 	});
 
+	let isInviteOnly = $derived(event?.signupMode === 'invite');
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
 	let liveHref = $derived(event ? lobbyHref(conversationId, event) : undefined);
 
@@ -259,7 +260,10 @@
 				>
 					<Info class="text-primary mt-0.5 h-4 w-4 shrink-0" />
 					<span>
-						{#if user}
+						{#if isInviteOnly}
+							You need an invite to join this event. Please use the link in your
+							invite.
+						{:else if user}
 							Register below to join this event when it goes live.
 						{:else}
 							Log in and register to join this event when it goes live.
@@ -286,6 +290,10 @@
 				<p class="text-muted-foreground text-xs">
 					You can wait in the lobby. The meeting will begin when the facilitator starts
 					it.
+				</p>
+			{:else if !userAttendance && user && status !== 'past' && isInviteOnly}
+				<p class="text-muted-foreground text-base">
+					This event is invite only. Please use the link in your invite to register.
 				</p>
 			{:else if !userAttendance && user && status !== 'past'}
 				<Button
