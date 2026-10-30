@@ -35,3 +35,13 @@ export function highlightsFromPositions(positions: number[][] | undefined | null
 	}
 	return out;
 }
+
+/**
+ * The top edge of the highest highlight on `page`, in PDF points, or null when
+ * the page has none. The viewer scrolls here on open so the passage is in view
+ * rather than just its page.
+ */
+export function firstHighlightTop(highlights: PdfHighlight[], page: number): number | null {
+	const tops = highlights.filter((h) => h.page === page).map((h) => h.top);
+	return tops.length ? Math.min(...tops) : null;
+}
