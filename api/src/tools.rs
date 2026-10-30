@@ -106,6 +106,12 @@ pub trait ToolImpl: Send + Sync + 'static {
     /// service, but must not create anything; new resources are created on import.
     async fn export_tool(config: &Self::Config) -> Result<Self::ExportImport, ComhairleError>;
 
+    /// Build new config an associated resources from export form of this tool.
+    async fn import_tool(
+        config: &Self::ExportImport,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError>;
+
     /// Sanitize config by removing sensitive data
     fn sanitize(config: Self::Config) -> Self::Config;
 }
@@ -340,6 +346,8 @@ pub enum ReportConfig {
     ThinkingSpace(ThinkingSpaceReport),
 }
 
+/// Exported data for any tool, with one variant per tool's `ExportImport` type.
+/// Tagged by `type` like `ToolConfig`, so an import can tell which tool to recreate.
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 #[serde(rename_all = "lowercase", tag = "type")]
 pub enum ToolExIm {
@@ -350,4 +358,35 @@ pub enum ToolExIm {
     ElicitationBot(<elicitation_bot::ElicitationBotTool as ToolImpl>::ExportImport),
     Prioritization(<prioritization::PrioritizationTool as ToolImpl>::ExportImport),
     ThinkingSpace(<thinking_space::ThinkingSpaceTool as ToolImpl>::ExportImport),
+}
+
+impl ToolExIm {
+    pub async fn import_tool(
+        &self,
+        state: &Arc<ComhairleState>,
+    ) -> Result<ToolConfig, ComhairleError> {
+        match self {
+            ToolExIm::Polis(export) => Ok(ToolConfig::Polis(
+                polis::PolisTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::Learn(export) => Ok(ToolConfig::Learn(
+                learn::LearnTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::HeyForm(export) => Ok(ToolConfig::HeyForm(
+                heyform::HeyFormTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::Stories(export) => Ok(ToolConfig::Stories(
+                stories::StoriesTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::ElicitationBot(export) => Ok(ToolConfig::ElicitationBot(
+                elicitation_bot::ElicitationBotTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::Prioritization(export) => Ok(ToolConfig::Prioritization(
+                prioritization::PrioritizationTool::import_tool(export, state).await?,
+            )),
+            ToolExIm::ThinkingSpace(export) => Ok(ToolConfig::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::import_tool(export, state).await?,
+            )),
+        }
+    }
 }

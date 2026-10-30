@@ -249,10 +249,11 @@ impl LocalizedWorkflowStepWithProgress {
     }
 }
 
-/// Represents data required to export & import a WorkflowStep.
+/// A portable copy of a WorkflowStep, used to export a step to JSON and import it
+/// into another conversation.
 ///
-/// IDs and sensitive data is stripped. Fields that should use default values
-/// on import are also stripped.
+/// IDs, credentials and anything recreated on import (such as `step_order`) are left
+/// out. Translatable fields hold the text for `primary_locale` only.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct ExImWorkflowStep {
     pub primary_locale: String,
