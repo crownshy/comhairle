@@ -20,7 +20,7 @@
 		{#each data as d (d.id)}
 			{@const type = htmlFromMediaType(d.contentType)}
 			{#if type}
-				<li class="relative w-56">
+				<li class="relative max-w-75">
 					{@render media(type, d)}
 				</li>
 			{/if}

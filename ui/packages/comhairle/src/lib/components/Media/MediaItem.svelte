@@ -17,7 +17,7 @@
 </script>
 
 <div
-	class="chequered-background container aspect-video min-h-48 w-full cursor-pointer items-center overflow-hidden rounded-lg"
+	class="chequered-background border-muted-foreground container grid aspect-video min-h-48 w-full cursor-pointer grid-cols-1 grid-rows-[4fr_1fr] items-center overflow-hidden rounded-lg border-2"
 >
 	<div class="justify-self-center overflow-hidden select-none">
 		{#snippet placeholder(Icon: ComponentType<Icon>)}
@@ -35,7 +35,7 @@
 		class="bg-card text-card-foreground flex flex-col items-start self-stretch px-5 py-2 text-xs"
 		title={props.name}
 	>
-		<div class="grid-auto grid items-center justify-between self-stretch">
+		<div class="grid grid-cols-[auto_auto] items-center justify-between self-stretch">
 			<div class="truncate font-bold">
 				{props.name}
 			</div>
@@ -49,19 +49,12 @@
 
 <style>
 	.container {
-		display: grid;
-		grid-template-rows: 4fr 1fr;
-		grid-template-columns: 1fr;
-		border: 2px solid var(--selected, 'transparent');
+		border-color: var(--selected, var(--color-accent, 'transparent'));
 		transition: translate 150ms ease-out;
 		translate: 0px 0px;
 
 		&:is(:focus, :hover) {
 			translate: 0px -3px;
 		}
-	}
-
-	.grid-auto {
-		grid-template-columns: auto auto;
 	}
 </style>
