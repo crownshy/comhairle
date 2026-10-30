@@ -23,6 +23,7 @@
 		ArrowDown,
 		MoreVertical,
 		Plus,
+		Import,
 		LoaderCircle,
 		GripVertical,
 		Info
@@ -37,6 +38,9 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { processDesignTour } from './tour';
+	import FileInput from '$lib/components/FileInput.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 
 	useTour(() => processDesignTour);
 
@@ -264,7 +268,7 @@
 			return;
 		}
 
-		await invalidate(key('admin/conversation/design/workflow'));
+		await invalidate(key('admin/conversation/workflow'));
 	}
 
 	// --- Delete ---
@@ -286,7 +290,7 @@
 			return;
 		}
 
-		await invalidate(key('admin/conversation/design/workflow'));
+		await invalidate(key('admin/conversation/workflow'));
 		notifications.send({ priority: 'INFO', message: 'Step deleted' });
 	}
 
@@ -315,6 +319,43 @@
 			if (highlightedStepId === pending) highlightedStepId = null;
 		}, 2500);
 	});
+
+	let importFile = $state<File | null>(null);
+	let openImportModal = $state(false);
+	let importing = $state(false);
+
+	async function importWorkflowStep(file: File) {
+		importing = true;
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const response = await tryCatchAsync(() =>
+			fetch(
+				`/api/conversation/${conversation.id}/workflow/${workflow.id}/workflow_step/import`,
+				{
+					method: 'POST',
+					credentials: 'include',
+					body: formData,
+					headers: {
+						enctype: 'multipart/form-data'
+					}
+				}
+			)
+		);
+
+		if (response.err !== null) {
+			console.error(response.err);
+			importing = false;
+			return notifications.send({
+				priority: 'ERROR',
+				message: 'Something went wrong importing step from JSON file'
+			});
+		}
+
+		await invalidate(key('admin/conversation/workflow'));
+		importing = false;
+		openImportModal = false;
+	}
 </script>
 
 <svelte:head>
@@ -501,6 +542,19 @@
 													>
 														<Pencil class="size-4" /> Rename
 													</DropdownMenu.Item>
+													{#if type === 'heyform'}
+														<DropdownMenu.Item>
+															<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
+															<a
+																href={`/api/conversation/${conversation.id}/workflow/${workflow.id}/workflow_step/${step.id}/export`}
+																download
+																class="flex w-full items-center gap-2"
+															>
+																<Info class="size-4" /> Export
+															</a>
+															<!-- eslint-enable svelte/no-navigation-without-resolve -->
+														</DropdownMenu.Item>
+													{/if}
 													<DropdownMenu.Separator />
 													<DropdownMenu.Item>
 														<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
@@ -533,6 +587,14 @@
 								<Plus class="size-4" />
 								Add step
 							</Button>
+							<Button
+								variant="ghost"
+								onclick={() => (openImportModal = true)}
+								title="Import step from JSON export file"
+							>
+								<Import class="size-4" />
+								Import step
+							</Button>
 						</div>
 					{/if}
 				{/await}
@@ -548,6 +610,22 @@
 	confirmLabel="Apply template"
 	onConfirm={(template) => chooseTemplate({ kind: 'template', template })}
 />
+
+<Dialog.Root open={openImportModal} onOpenChange={() => (openImportModal = !openImportModal)}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Select a file to import from</Dialog.Title>
+		</Dialog.Header>
+		<FileInput name="import_files" accept=".json" onfile={(file) => (importFile = file)} />
+		<Dialog.Footer class="gap-2 sm:gap-2">
+			<Button
+				disabled={!importFile}
+				onclick={() => importFile && importWorkflowStep(importFile)}
+				>{#if importing}<Spinner />{:else}Import{/if}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
 
 <AlertDialog.Root bind:open={templateDialogOpen}>
 	<AlertDialog.Content>

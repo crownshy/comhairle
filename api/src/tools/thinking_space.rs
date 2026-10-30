@@ -125,6 +125,9 @@ impl ThinkingSpaceToolSetup {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct ThinkingSpaceExIm;
+
 #[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ThinkingSpaceReport;
 
@@ -136,6 +139,7 @@ impl ToolImpl for ThinkingSpaceTool {
     type Config = ThinkingSpaceToolConfig;
     type Setup = ThinkingSpaceToolSetup;
     type Report = ThinkingSpaceReport;
+    type ExportImport = ThinkingSpaceExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -192,6 +196,21 @@ impl ToolImpl for ThinkingSpaceTool {
         bot_service_user_session::delete_by_ids(&state.db, &session_ids).await?;
 
         Ok(())
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {

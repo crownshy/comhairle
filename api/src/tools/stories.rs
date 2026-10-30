@@ -42,6 +42,9 @@ impl ToolConfigSanitize for StoriesToolConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct StoriesExIm;
+
 /// Zero-sized marker type for Stories tool implementation
 pub struct StoriesTool;
 
@@ -50,6 +53,7 @@ impl ToolImpl for StoriesTool {
     type Config = StoriesToolConfig;
     type Setup = StoriesToolSetup;
     type Report = StoriesReport;
+    type ExportImport = StoriesExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -69,6 +73,21 @@ impl ToolImpl for StoriesTool {
 
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::BadRequest(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
