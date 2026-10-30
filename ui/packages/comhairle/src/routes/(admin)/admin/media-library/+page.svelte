@@ -23,6 +23,7 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
+	import Dialog from '$lib/components/Dialog.svelte';
 
 	useTour(() => mediaLibraryTour);
 
@@ -32,7 +33,6 @@
 	let selected = $state([]);
 	let details = $state.raw<MediaDto | null>(null);
 	let filter = $state<HTMLMediaElement | null>(null);
-	let deleteDialogOpen = $state<boolean>(false);
 
 	const handleDelete: HandleSubmission = async (formData) => {
 		const media = formData.getAll('media') as string[];
@@ -58,7 +58,7 @@
 	<title>Media library - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet filterButton(type: HTMLMediaElement)}
+{#snippet FilterButton(type: HTMLMediaElement)}
 	<label class="cursor-pointer">
 		<input
 			type="radio"
@@ -74,9 +74,9 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
 
@@ -103,35 +103,12 @@
 					{:else}
 						<Button
 							variant="destructive"
-							disabled={selected.length === 0}
+							disabled={selected.length !== 0}
 							icon={Trash2}
-							onclick={() => void (deleteDialogOpen = true)}
+							dialogOpen="delete-media"
 						>
 							{m.delete()}
 						</Button>
-						<AlertDialog.Root bind:open={deleteDialogOpen}>
-							<AlertDialog.Content class="rounded-xl p-5 pt-0">
-								<AlertDialog.Header class="shrink-0 border-b p-6 pb-4">
-									<AlertDialog.Title class="text-2xl">
-										Are you sure?
-									</AlertDialog.Title>
-								</AlertDialog.Header>
-								<AlertDialog.Footer>
-									<Button
-										variant="outline"
-										onclick={() => void (deleteDialogOpen = false)}
-									>
-										Cancel
-									</Button>
-									<Submit
-										text="Delete"
-										variant="destructive"
-										icon={Trash2}
-										{isSubmitting}
-									/>
-								</AlertDialog.Footer>
-							</AlertDialog.Content>
-						</AlertDialog.Root>
 						<Button variant="outline" icon={X} onclick={() => (bulkEdit = false)}>
 							{m.cancel()}
 						</Button>
@@ -140,12 +117,18 @@
 			{/snippet}
 		</SectionHeader>
 
+		<Dialog id="delete-media" title="Are you sure?">
+			{#snippet PrimaryAction()}
+				<Submit text="Delete" icon={Trash2} variant="destructive" {isSubmitting} />
+			{/snippet}
+			{#snippet SecondaryAction()}
+				<Button variant="outline" dialogClose="delete-media" disabled={isSubmitting}>
+					Cancel
+				</Button>
+			{/snippet}
+		</Dialog>
+
 		<TabContent>
-			<div data-tour="media-filters" class="flex flex-row gap-4">
-				{@render filterButton('audio')}
-				{@render filterButton('image')}
-				{@render filterButton('video')}
-			</div>
 			{#await data.streamedMedia}
 				<PageSpinner subject="media" />
 			{:then media}
@@ -156,6 +139,11 @@
 						if (filter === null) return media.ok;
 						return media.ok.filter((m) => htmlFromMediaType(m.contentType) === filter);
 					})()}
+					<div data-tour="media-filters" class="flex flex-row gap-4">
+						{@render FilterButton('audio')}
+						{@render FilterButton('image')}
+						{@render FilterButton('video')}
+					</div>
 					<MediaLibrary data={items}>
 						{#snippet media(type, media)}
 							{#if bulkEdit}

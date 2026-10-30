@@ -9,7 +9,7 @@
 </script>
 
 <div
-	class="text-muted-foreground flex h-full w-full flex-col items-center justify-center"
+	class="text-muted-foreground mt-5 flex h-full w-full flex-col items-center justify-center"
 	aria-label="Loading {subject}"
 	aria-live="polite"
 >
