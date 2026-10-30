@@ -433,19 +433,25 @@ impl CreateEvent {
         }
 
         if let Some(ref value) = self.custom_event_link {
-            values.push(value.into());
+            values.push(value.trim().into());
         }
 
         values
     }
 }
 
+const MAX_CUSTOM_EVENT_LINK_LENGTH: usize = 2048;
+
 /// A custom link is rendered as a plain `href`, so anything other than an absolute
 /// `https` URL would resolve relative to the event page and break the lobby button.
+/// Keep this in step with `validateUrl` on the frontend, which drops any link it rejects.
 fn validate_custom_event_link(link: &str) -> Result<(), ComhairleError> {
-    let is_https_url = reqwest::Url::parse(link.trim()).is_ok_and(|url| url.scheme() == "https");
+    let link = link.trim();
+    let is_https_url = link.starts_with("https://")
+        && link.len() <= MAX_CUSTOM_EVENT_LINK_LENGTH
+        && reqwest::Url::parse(link).is_ok();
 
-    if link.trim().is_empty() || is_https_url {
+    if link.is_empty() || is_https_url {
         return Ok(());
     }
 
@@ -536,13 +542,14 @@ impl PartialEvent {
         if let Some(value) = &self.custom_event_link {
             validate_custom_event_link(value)?;
 
-            if value.trim().is_empty() {
+            let link = value.trim();
+            if link.is_empty() {
                 values.push((
                     EventIden::CustomEventLink,
                     sea_query::Value::String(None).into(),
                 ));
             } else {
-                values.push((EventIden::CustomEventLink, value.clone().into()));
+                values.push((EventIden::CustomEventLink, link.into()));
             }
         }
         if let Some(value) = &self.default_time_zone {
@@ -892,9 +899,14 @@ mod tests {
             "/conversations/1/events/2/live",
             "http://meet.google.com/abc",
             "javascript:alert(1)",
+            "HTTPS://meet.google.com/abc",
+            "https:meet.google.com/abc",
         ] {
             assert!(validate_custom_event_link(link).is_err(), "{link} accepted");
         }
+
+        let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
+        assert!(validate_custom_event_link(&too_long).is_err());
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
