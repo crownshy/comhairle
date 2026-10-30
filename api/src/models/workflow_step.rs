@@ -867,9 +867,9 @@ mod tests {
             "wrong tool_config type"
         );
         assert_eq!(name.content, "test heyform step", "incorrect name");
-        assert!(name.can_revisit, "incorrect can_revisit");
+        assert!(step.can_revisit, "incorrect can_revisit");
         assert!(
-            name.request_user_share_permission,
+            step.request_user_share_permission,
             "incorrect request_user_share_permission"
         );
 
