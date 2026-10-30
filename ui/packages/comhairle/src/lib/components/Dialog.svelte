@@ -25,7 +25,7 @@
 		$props();
 </script>
 
-<dialog {id} class="bg-background border-border m-auto rounded-2xl border p-3">
+<dialog {id} class="bg-background border-border m-auto rounded-2xl border p-3" closedby="any">
 	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
 	<Button
 		class="absolute inset-e-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
