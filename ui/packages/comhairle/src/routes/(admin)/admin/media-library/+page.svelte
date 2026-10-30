@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { SquarePen, Trash2, X } from 'lucide-svelte';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
@@ -121,10 +120,8 @@
 			{#snippet PrimaryAction()}
 				<Submit text="Delete" icon={Trash2} variant="destructive" {isSubmitting} />
 			{/snippet}
-			{#snippet SecondaryAction()}
-				<Button variant="outline" dialogClose="delete-media" disabled={isSubmitting}>
-					Cancel
-				</Button>
+			{#snippet SecondaryAction({ close })}
+				<Button variant="outline" onclick={close} disabled={isSubmitting}>Cancel</Button>
 			{/snippet}
 		</Dialog>
 

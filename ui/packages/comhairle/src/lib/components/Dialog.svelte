@@ -8,6 +8,10 @@
 		onclick: () => void;
 	};
 
+	type SnippetArgs = {
+		close: () => void;
+	};
+
 	type Props = {
 		id: string;
 		title?: string;
@@ -16,17 +20,22 @@
 			primary?: Action;
 			secondary?: Action;
 		};
-		HeaderAction?: Snippet<[]>;
-		PrimaryAction?: Snippet<[]>;
-		SecondaryAction?: Snippet<[]>;
+		HeaderAction?: Snippet<[SnippetArgs]>;
+		PrimaryAction?: Snippet<[SnippetArgs]>;
+		SecondaryAction?: Snippet<[SnippetArgs]>;
 	};
 
 	let { id, title, actions, children, HeaderAction, PrimaryAction, SecondaryAction }: Props =
 		$props();
+
+	let Dialog = $state<HTMLDialogElement | null>(null);
+
+	const close = () => Dialog?.close();
 </script>
 
 <dialog
 	{id}
+	bind:this={Dialog}
 	class="bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3"
 	closedby="any"
 >
@@ -46,7 +55,7 @@
 			<span class="shrink-0 grow text-3xl font-medium">{title}</span>
 			<span class="shrink grow-0">
 				{#if HeaderAction}
-					{@render HeaderAction()}
+					{@render HeaderAction({ close })}
 				{/if}
 			</span>
 		</header>
@@ -56,14 +65,14 @@
 		{#if PrimaryAction || actions?.primary}
 			<footer class="flex flex-row justify-end gap-x-2">
 				{#if SecondaryAction}
-					{@render SecondaryAction()}
+					{@render SecondaryAction({ close })}
 				{:else if actions?.secondary}
 					<Button onclick={actions.secondary.onclick} variant="outline">
 						{actions.secondary.label}
 					</Button>
 				{/if}
 				{#if PrimaryAction}
-					{@render PrimaryAction()}
+					{@render PrimaryAction({ close })}
 				{:else if actions?.primary}
 					<Button onclick={actions.primary.onclick}>{actions.primary.label}</Button>
 				{/if}
