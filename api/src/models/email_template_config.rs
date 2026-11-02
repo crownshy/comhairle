@@ -38,6 +38,7 @@ pub struct EmailTemplateConfig {
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
     pub conversation_id: Option<Uuid>,
+    pub event_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -50,6 +51,27 @@ pub enum EmailType {
     EventRegistrationInvite,
     EventRegistrationConfirmation,
     EventReminder,
+}
+
+/// The kind of resource an [`EmailType`] can be scoped to, beyond the owner default.
+enum ScopeResource {
+    Conversation,
+    Event,
+}
+
+impl EmailType {
+    /// Returns the resource this email type can be scoped to.
+    ///
+    /// Kept exhaustive (no wildcard) so a new email type fails to compile until
+    /// its scope is decided.
+    fn scope_resource(&self) -> ScopeResource {
+        match self {
+            EmailType::ConversationInvite => ScopeResource::Conversation,
+            EmailType::EventRegistrationInvite
+            | EmailType::EventRegistrationConfirmation
+            | EmailType::EventReminder => ScopeResource::Event,
+        }
+    }
 }
 
 impl From<EmailType> for sea_query::Value {
@@ -93,7 +115,7 @@ impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
     }
 }
 
-const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 9] = [
+const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 10] = [
     EmailTemplateConfigIden::Id,
     EmailTemplateConfigIden::OwnerId,
     EmailTemplateConfigIden::OrganizationId,
@@ -101,6 +123,7 @@ const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 9] = [
     EmailTemplateConfigIden::Slots,
     EmailTemplateConfigIden::Subject,
     EmailTemplateConfigIden::ConversationId,
+    EmailTemplateConfigIden::EventId,
     EmailTemplateConfigIden::CreatedAt,
     EmailTemplateConfigIden::UpdatedAt,
 ];
@@ -476,11 +499,44 @@ impl MailerContextMap for DefaultEmailSlots {
     }
 }
 
+/// What an email template config applies to.
+///
+/// Serialized as `{"type": "owner"}`, `{"type": "conversation", "id": "<uuid>"}`
+/// or `{"type": "event", "id": "<uuid>"}`.
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, Default)]
+#[serde(tag = "type", content = "id", rename_all = "snake_case")]
+pub enum EmailTemplateScope {
+    /// The creator's default template, used when no scoped template matches.
+    #[default]
+    Owner,
+    /// Applies to every email of this type sent for the conversation, whoever sends it.
+    Conversation(Uuid),
+    /// Applies to every email of this type sent for the event, whoever sends it.
+    Event(Uuid),
+}
+
+impl EmailTemplateScope {
+    /// Rejects scopes that don't match the email type, e.g. a `conversation_invite`
+    /// scoped to an event. [`EmailTemplateScope::Owner`] is valid for every type.
+    fn validate_for(&self, email_type: &EmailType) -> Result<(), ComhairleError> {
+        match (self, email_type.scope_resource()) {
+            (EmailTemplateScope::Owner, _)
+            | (EmailTemplateScope::Conversation(_), ScopeResource::Conversation)
+            | (EmailTemplateScope::Event(_), ScopeResource::Event) => Ok(()),
+            (EmailTemplateScope::Conversation(_) | EmailTemplateScope::Event(_), _) => {
+                Err(ComhairleError::BadRequest(format!(
+                    "{email_type} emails cannot be scoped to this resource"
+                )))
+            }
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateEmailTemplateConfig {
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
-    pub conversation_id: Option<Uuid>,
+    pub scope: EmailTemplateScope,
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -489,6 +545,10 @@ pub async fn create(
     user_id: Uuid,
     params: &CreateEmailTemplateConfig,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
+    params
+        .scope
+        .validate_for(&params.slots.schema().email_type)?;
+
     let slots_json = serde_json::to_value(&params.slots)?;
 
     let mut columns = vec![
@@ -500,9 +560,16 @@ pub async fn create(
     columns.push(EmailTemplateConfigIden::EmailType);
     values.push(params.slots.to_string().into());
 
-    if let Some(conversation_id) = params.conversation_id {
-        columns.push(EmailTemplateConfigIden::ConversationId);
-        values.push(conversation_id.into());
+    match params.scope {
+        EmailTemplateScope::Owner => {}
+        EmailTemplateScope::Conversation(conversation_id) => {
+            columns.push(EmailTemplateConfigIden::ConversationId);
+            values.push(conversation_id.into());
+        }
+        EmailTemplateScope::Event(event_id) => {
+            columns.push(EmailTemplateConfigIden::EventId);
+            values.push(event_id.into());
+        }
     }
 
     if let Some(subject) = &params.subject {
@@ -691,8 +758,8 @@ pub async fn get_by_id_with_scope(
 ///
 /// Resolution falls back from the most specific scope to the least:
 ///
-/// 1. A template scoped to `conversation_id`, regardless of who created it, so
-///    every admin sending for that conversation gets the same template.
+/// 1. A template scoped to `conversation_id` or `event_id`, regardless of who
+///    created it, so every admin sending for that resource gets the same template.
 /// 2. The sender's unscoped default template for `email_type`.
 ///
 /// Returns `None` when neither exists, in which case callers should fall back
@@ -704,16 +771,24 @@ pub async fn get_effective(
     db: &PgPool,
     sender_id: Uuid,
     email_type: &EmailType,
-    conversation_id: Option<Uuid>,
+    template_scope: EmailTemplateScope,
 ) -> Result<Option<EmailTemplateConfig>, ComhairleError> {
-    // If not scoped to specific conversation, scope to user
+    // If not scoped to specific conversation or event, scope to user
     let owner_default = Cond::all()
         .add(Expr::col(EmailTemplateConfigIden::ConversationId).is_null())
+        .add(Expr::col(EmailTemplateConfigIden::EventId).is_null())
         .add(Expr::col(EmailTemplateConfigIden::OwnerId).eq(sender_id));
 
     let mut scope = Cond::any().add(owner_default);
-    if let Some(conversation_id) = conversation_id {
-        scope = scope.add(Expr::col(EmailTemplateConfigIden::ConversationId).eq(conversation_id));
+    match template_scope {
+        EmailTemplateScope::Owner => {}
+        EmailTemplateScope::Conversation(conversation_id) => {
+            scope =
+                scope.add(Expr::col(EmailTemplateConfigIden::ConversationId).eq(conversation_id))
+        }
+        EmailTemplateScope::Event(event_id) => {
+            scope = scope.add(Expr::col(EmailTemplateConfigIden::EventId).eq(event_id))
+        }
     }
 
     let (sql, values) = Query::select()
@@ -725,7 +800,9 @@ pub async fn get_effective(
                 .add(scope),
         )
         .order_by_expr(
-            Expr::col(EmailTemplateConfigIden::ConversationId).is_null(),
+            Expr::col(EmailTemplateConfigIden::ConversationId)
+                .is_null()
+                .and(Expr::col(EmailTemplateConfigIden::EventId).is_null()),
             Order::Asc,
         )
         .limit(1)
@@ -846,6 +923,7 @@ mod tests {
 
     use super::*;
     use crate::models::conversation;
+    use crate::models::event::{self, CreateEvent};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
@@ -854,8 +932,29 @@ mod tests {
         CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()),
             subject: None,
-            conversation_id,
+            scope: conversation_id
+                .map(EmailTemplateScope::Conversation)
+                .unwrap_or(EmailTemplateScope::Owner),
         }
+    }
+
+    fn event_reminder_params(scope: EmailTemplateScope) -> CreateEmailTemplateConfig {
+        CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::EventReminder(DefaultEmailSlots::default()),
+            subject: None,
+            scope,
+        }
+    }
+
+    async fn create_test_event(
+        pool: &PgPool,
+        conversation_id: Uuid,
+    ) -> Result<Uuid, Box<dyn Error>> {
+        let new_event = CreateEvent {
+            name: "test_event".to_string(),
+            ..Default::default()
+        };
+        Ok(event::create(pool, &conversation_id, &new_event).await?.id)
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -872,7 +971,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;
@@ -881,6 +980,139 @@ mod tests {
             email_config.owner_id, current_user.id,
             "owner_id doesn't match"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_event_scoped_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        let config = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+
+        assert_eq!(config.event_id, Some(event_id), "incorrect event_id");
+        assert_eq!(
+            config.conversation_id, None,
+            "event config should not be conversation scoped"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_event_configs_for_different_events(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_a = create_test_event(&pool, conversation_id).await?;
+        let event_b = create_test_event(&pool, conversation_id).await?;
+
+        let config_a = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_a)),
+        )
+        .await?;
+        let config_b = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_b)),
+        )
+        .await?;
+
+        assert_eq!(config_a.event_id, Some(event_a), "incorrect event_id");
+        assert_eq!(config_b.event_id, Some(event_b), "incorrect event_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_owner_default_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let default_config = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Owner),
+        )
+        .await?;
+
+        assert_eq!(default_config.event_id, None, "default should be unscoped");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_duplicate_config_for_same_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+        let err = create(
+            &pool,
+            other_user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::Conflict(_)),
+            "expected conflict, got {err:?}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_different_email_types_for_same_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+        let confirmation = create(
+            &pool,
+            user.id,
+            &CreateEmailTemplateConfig {
+                slots: EmailTemplateSlots::EventRegistrationConfirmation(
+                    DefaultEmailSlots::default(),
+                ),
+                subject: None,
+                scope: EmailTemplateScope::Event(event_id),
+            },
+        )
+        .await?;
+
+        assert_eq!(confirmation.event_id, Some(event_id), "incorrect event_id");
 
         Ok(())
     }
@@ -1016,7 +1248,7 @@ mod tests {
             &pool,
             user.id,
             &EmailType::ConversationInvite,
-            Some(conversation_id),
+            EmailTemplateScope::Conversation(conversation_id),
         )
         .await?
         .ok_or("expected a config")?;
@@ -1050,7 +1282,7 @@ mod tests {
             &pool,
             user.id,
             &EmailType::ConversationInvite,
-            Some(unscoped_conversation),
+            EmailTemplateScope::Conversation(unscoped_conversation),
         )
         .await?
         .ok_or("expected a config")?;
@@ -1084,7 +1316,7 @@ mod tests {
             &pool,
             other_user.id,
             &EmailType::ConversationInvite,
-            Some(conversation_id),
+            EmailTemplateScope::Conversation(conversation_id),
         )
         .await?
         .ok_or("expected a config")?;
@@ -1112,7 +1344,7 @@ mod tests {
             &pool,
             user.id,
             &EmailType::ConversationInvite,
-            Some(conversation_id),
+            EmailTemplateScope::Conversation(conversation_id),
         )
         .await?;
 
@@ -1137,9 +1369,14 @@ mod tests {
         .await?;
         let default_config = create(&pool, user.id, &conversation_invite_params(None)).await?;
 
-        let effective = get_effective(&pool, user.id, &EmailType::ConversationInvite, None)
-            .await?
-            .ok_or("expected a config")?;
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::ConversationInvite,
+            EmailTemplateScope::Owner,
+        )
+        .await?
+        .ok_or("expected a config")?;
 
         assert_eq!(
             effective.id, default_config.id,
@@ -1150,35 +1387,258 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_not_get_effective_config_of_another_email_type(
+    async fn should_get_effective_event_config_over_owner_default(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let (_, user, _) = session.current_user(&app).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
 
+        // Default inserted first so a broken ORDER BY returns it via heap order
         create(
             &pool,
             user.id,
-            &CreateEmailTemplateConfig {
-                slots: EmailTemplateSlots::EventReminder(DefaultEmailSlots::default()),
-                subject: None,
-                conversation_id: Some(conversation_id),
-            },
+            &event_reminder_params(EmailTemplateScope::Owner),
+        )
+        .await?;
+        let scoped = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
         )
         .await?;
 
         let effective = get_effective(
             &pool,
             user.id,
-            &EmailType::ConversationInvite,
-            Some(conversation_id),
+            &EmailType::EventReminder,
+            EmailTemplateScope::Event(event_id),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(effective.id, scoped.id, "expected event scoped config");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_owner_default_for_unscoped_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let scoped_event = create_test_event(&pool, conversation_id).await?;
+        let unscoped_event = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(scoped_event)),
+        )
+        .await?;
+        let default_config = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Owner),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::EventReminder,
+            EmailTemplateScope::Event(unscoped_event),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(effective.id, default_config.id, "expected owner default");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_get_effective_event_config_for_other_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_a = create_test_event(&pool, conversation_id).await?;
+        let event_b = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_a)),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::EventReminder,
+            EmailTemplateScope::Event(event_b),
         )
         .await?;
 
         assert!(
             effective.is_none(),
-            "should not match a different email_type"
+            "event A config should not apply to event B"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_get_effective_event_config_for_owner_scope(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::EventReminder,
+            EmailTemplateScope::Owner,
+        )
+        .await?;
+
+        assert!(
+            effective.is_none(),
+            "event config should not act as owner default"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_get_effective_event_config_for_any_sender(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        let scoped = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            other_user.id,
+            &EmailType::EventReminder,
+            EmailTemplateScope::Event(event_id),
+        )
+        .await?
+        .ok_or("expected a config")?;
+
+        assert_eq!(
+            effective.id, scoped.id,
+            "expected event config regardless of sender"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_get_effective_event_config_of_another_email_type(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+
+        let effective = get_effective(
+            &pool,
+            user.id,
+            &EmailType::EventRegistrationConfirmation,
+            EmailTemplateScope::Event(event_id),
+        )
+        .await?;
+
+        assert!(
+            effective.is_none(),
+            "reminder config should not match confirmation"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_conversation_invite_scoped_to_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+
+        let err = create(
+            &pool,
+            user.id,
+            &CreateEmailTemplateConfig {
+                slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()),
+                subject: None,
+                scope: EmailTemplateScope::Event(event_id),
+            },
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::BadRequest(_)),
+            "expected bad request, got {err:?}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_event_template_scoped_to_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let err = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Conversation(conversation_id)),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(
+            matches!(err, ComhairleError::BadRequest(_)),
+            "expected bad request, got {err:?}"
         );
 
         Ok(())
@@ -1196,7 +1656,7 @@ mod tests {
             &pool,
             user.id,
             &EmailType::ConversationInvite,
-            Some(conversation_id),
+            EmailTemplateScope::Conversation(conversation_id),
         )
         .await?;
 
@@ -1220,7 +1680,7 @@ mod tests {
         let params = CreateEmailTemplateConfig {
             slots: create_slots.clone(),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -1270,7 +1730,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -1322,13 +1782,13 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
         create(&pool, user.id, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
         create(&pool, user.id, &params_b).await?;
 
@@ -1438,7 +1898,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;

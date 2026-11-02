@@ -18,8 +18,9 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::email_template_config::{
-    self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
-    SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
+    self, EmailTemplateScope, MailerContextMap, SCHEMA_CONVERSATION_INVITE,
+    SCHEMA_EVENT_REGISTRATION_CONFIRMATION, SCHEMA_EVENT_REGISTRATION_INVITE,
+    SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::media::{FromWithMedia, MediaResolver};
@@ -364,7 +365,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_CONVERSATION_INVITE.email_type,
-            Some(conversation.id),
+            EmailTemplateScope::Conversation(conversation.id),
         )
         .await?;
 
@@ -519,7 +520,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_INVITE.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 
@@ -583,7 +584,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_CONFIRMATION.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 
@@ -681,7 +682,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             sender_id,
             &SCHEMA_EVENT_REMINDER.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 

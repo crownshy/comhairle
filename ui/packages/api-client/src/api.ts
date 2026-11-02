@@ -3422,9 +3422,17 @@ export const EmailTemplateConfigWithScopeDto = z
 export type EmailTemplateConfigWithScopeDto = z.infer<
   typeof EmailTemplateConfigWithScopeDto
 >;
+export const EmailTemplateScope = z.union([
+  z.object({ type: z.literal("owner") }).passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("conversation") })
+    .passthrough(),
+  z.object({ id: z.string().uuid(), type: z.literal("event") }).passthrough(),
+]);
+export type EmailTemplateScope = z.infer<typeof EmailTemplateScope>;
 export const CreateEmailTemplateConfig = z
   .object({
-    conversation_id: z.union([z.string(), z.null()]).optional(),
+    scope: EmailTemplateScope,
     slots: EmailTemplateSlots,
     subject: z.union([z.string(), z.null()]).optional(),
   })
@@ -4035,6 +4043,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   email_type,
   EmailTemplateSlots,
   EmailTemplateConfigWithScopeDto,
+  EmailTemplateScope,
   CreateEmailTemplateConfig,
   EmailTemplateConfigDto,
   UpdateEmailTemplateConfig,
