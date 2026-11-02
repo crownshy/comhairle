@@ -28,8 +28,8 @@ use crate::routes::invites::dto::InviteDto;
 pub mod dto;
 
 /// Registers the invited user for the event as a participant and returns whether
-/// they are newly registered. Someone already registered keeps their attendance,
-/// so accepting stays safe to repeat.
+/// they are newly registered. Someone already registered keeps their attendance
+/// and still gets their reserved breakout seat resolved.
 async fn register_for_invited_event(
     state: &Arc<ComhairleState>,
     event_id: Uuid,
@@ -46,11 +46,11 @@ async fn register_for_invited_event(
     )
     .await;
 
-    match registration {
-        Ok(_) => {}
-        Err(ComhairleError::UserAlreadyRegisteredForEvent(_)) => return Ok(false),
+    let newly_registered = match registration {
+        Ok(_) => true,
+        Err(ComhairleError::UserAlreadyRegisteredForEvent(_)) => false,
         Err(error) => return Err(error),
-    }
+    };
 
     // Best-effort: a failure here must not block registration.
     if let Err(error) = breakout_plan::ensure_user_slotted(
@@ -66,7 +66,7 @@ async fn register_for_invited_event(
         warn!("Failed to slot user into breakout plan: {error}");
     }
 
-    Ok(true)
+    Ok(newly_registered)
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -79,6 +79,7 @@ async fn accept_invite(
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Check to see if the invite is valid
+    invite.belongs_to_conversation(&conversation_id)?;
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
@@ -344,6 +345,7 @@ async fn auto_register_event_attendance(
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
     let invite = models::invites::get_by_id(&state.db, &invite_id).await?;
+    invite.belongs_to_conversation(&conversation_id)?;
     invite.is_still_valid()?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
@@ -361,41 +363,15 @@ async fn auto_register_event_attendance(
     let user = get_or_create_user_by_email(&state.db, email, &client_ip.0, user_agent.0.as_deref())
         .await?;
 
-    // Register for event — existing users may already be registered, so treat
-    // as a soft failure and log error rather than a hard failure
-    if let Err(error) = event_attendance::create(
-        &state.db,
-        &CreateEventAttendance {
-            user_id: user.id,
-            event_id,
-            role: "participant".to_string(),
-        },
-    )
-    .await
-    {
-        warn!("Error registering user for event: {error}");
-    }
-
-    // Resolve this user's reserved seat (or slot them in) in the breakout plan.
-    // Best-effort: never block sign-up on this.
-    if let Err(error) = breakout_plan::ensure_user_slotted(
-        &state.db,
-        &event_id,
-        &user.id,
-        false,
-        Some(invite_id),
-        Some(email.as_str()),
-    )
-    .await
-    {
-        warn!("Failed to slot user into breakout plan: {error}");
-    }
+    let newly_registered = register_for_invited_event(&state, event_id, invite.id, &user).await?;
 
     let invite = invite.accept(&state.db, &user).await?;
 
     let cookie = create_session_cookie(&user, &state)?;
 
-    notify_registered_participant(&state, &conversation, &event, &user, email).await?;
+    if newly_registered {
+        notify_registered_participant(&state, &conversation, &event, &user, email).await?;
+    }
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
@@ -1058,6 +1034,51 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn accepting_an_invite_through_another_conversation_registers_nobody(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+        let invite = create_event_invite_for(
+            &app,
+            &mut session,
+            &conversation_id,
+            event.id,
+            InviteType::Open,
+        )
+        .await?;
+
+        let mut guest = UserSession::new("", "", "");
+        guest.signup_guest(&app).await?;
+        let (status, _, _) = guest
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{other_conversation_id}/invite/{}/accept",
+                    invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND, "incorrect status");
+        let attendance =
+            event_attendance::get_by_event_and_user(&pool, &event.id, &guest.id.unwrap()).await;
+        assert!(attendance.is_err(), "guest should not be registered");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn used_single_use_event_invite_does_not_register_another_user(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1093,7 +1114,7 @@ mod tests {
         second_guest.signup_guest(&app).await?;
         let (status, _, _) = second_guest.post(&app, &accept_path, Body::empty()).await?;
 
-        assert_ne!(status, StatusCode::OK, "second use should fail");
+        assert_eq!(status, StatusCode::GONE, "second use should fail");
         let attendance =
             event_attendance::get_by_event_and_user(&pool, &event.id, &second_guest.id.unwrap())
                 .await;

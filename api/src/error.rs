@@ -402,6 +402,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
+            ComhairleError::InviteExpired => StatusCode::GONE,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound

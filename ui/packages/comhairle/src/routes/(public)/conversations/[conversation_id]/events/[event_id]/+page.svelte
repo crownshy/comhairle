@@ -316,7 +316,11 @@
 			{/if}
 
 			{#if !user && status !== 'past'}
-				<p class="text-muted-foreground text-sm">Log in to register for this event.</p>
+				<p class="text-muted-foreground text-sm">
+					{isInviteOnly
+						? 'This event is invite only. Please use the link in your invite to register.'
+						: 'Log in to register for this event.'}
+				</p>
 			{/if}
 
 			{#if error}

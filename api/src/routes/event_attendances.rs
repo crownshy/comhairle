@@ -93,44 +93,9 @@ pub(crate) async fn notify_registered_participant(
         .await
 }
 
-/// Resolves the `User` who should be recorded as the attendee for an event
-/// attendance request, handling both authenticated and anonymous callers.
-///
-/// Behavior depends on whether the caller is logged in, whether they can
-/// register without an invite and whether a target `request_email` was
-/// supplied in the payload. `can_register_without_invite` holds when the event
-/// has open signup or the caller manages the event:
-///
-/// - **Anonymous caller** (`opt_user` is `None`):
-///   - Without `can_register_without_invite`, the request is rejected with
-///     [`ComhairleError::EventInvalidSignupMode`].
-///   - Otherwise, `request_email` is required. An existing user with that
-///     email is returned, or a new account is created on the fly via
-///     [`get_or_create_user_by_email`].
-///
-/// - **Authenticated caller, no `request_email`**: the caller registers
-///   themselves; `opt_user` is returned as-is. This needs
-///   `can_register_without_invite`, as everyone else joins by accepting an
-///   invite.
-///
-/// - **Authenticated caller with `request_email`**: the caller is
-///   registering *someone else*. This is only permitted when the caller is
-///   the conversation owner (`conversation.owner_id == user.id`); otherwise
-///   the request is rejected with [`ComhairleError::UserIsNotConversationOwner`].
-///   If permitted, the target user is looked up by email.
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - the event does not have open signup and the caller is not logged in or is
-///   registering themselves without managing the event
-///   ([`ComhairleError::EventInvalidSignupMode`]),
-/// - an anonymous request is missing an email
-///   ([`ComhairleError::BadRequest`]),
-/// - a non-owner attempts to register another user
-///   ([`ComhairleError::UserIsNotConversationOwner`]),
-/// - the target user cannot be found or created (propagated from
-///   [`get_or_create_user_by_email`] or [`users::get_user_by_email`]).
+/// Resolves the `User` to record as the attendee. Anyone without
+/// `can_register_without_invite` is refused, and only the conversation owner can
+/// name someone else through `request_email`.
 async fn resolve_event_attendee(
     db: &PgPool,
     owner_id: Uuid,
@@ -186,6 +151,11 @@ pub async fn create(
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let event =
         event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
+
+    // Managing a conversation only counts for that conversation's own events.
+    if event.conversation_id != conversation_id {
+        return Err(ComhairleError::ResourceNotFound("Event".to_string()));
+    }
 
     let caller_manages_event = match &opt_user {
         Some(caller) => caller.id == conversation.owner_id || is_user_admin(&state, caller).await,
@@ -530,6 +500,38 @@ mod tests {
             .await?;
 
         Ok(response)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn owning_another_conversation_does_not_grant_access_to_its_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let new_attendance = CreateEventAttendanceRequest {
+            role: "facilitator".to_string(),
+            user_email: None,
+        };
+        let (status, _, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{other_conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                serde_json::to_vec(&new_attendance)?.into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND, "incorrect status");
+
+        Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

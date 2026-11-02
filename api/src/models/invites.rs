@@ -42,6 +42,14 @@ pub struct Invite {
 }
 
 impl Invite {
+    pub fn belongs_to_conversation(&self, conversation_id: &Uuid) -> Result<(), ComhairleError> {
+        if self.conversation_id == *conversation_id {
+            Ok(())
+        } else {
+            Err(ComhairleError::ResourceNotFound("Invite".to_string()))
+        }
+    }
+
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
         // If the invite is accepted we still want to return it
