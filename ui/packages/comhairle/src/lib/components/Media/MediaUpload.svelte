@@ -67,7 +67,7 @@
 </Button>
 
 <Dialog id="upload-media" ref={dialog} --max-width="35rem" --min-width="20rem">
-	<Form enctype="multipart/form-data" class="flex flex-col" {onSubmit}>
+	<Form enctype="multipart/form-data" class="flex flex-col" {onSubmit} resetOnSubmit>
 		{#snippet children({ isSubmitting })}
 			<FileInput
 				{...MediaSchema.media}

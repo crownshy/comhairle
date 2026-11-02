@@ -13,17 +13,23 @@
 		children: Snippet<[SnippetArgs]>;
 		ref?: HTMLFormElement | null;
 		onSubmit: OnSubmit;
+		resetOnSubmit?: boolean;
 	};
 
-	let { children, ref = $bindable(), onSubmit, ...props }: Props = $props();
+	let { children, ref = $bindable(), onSubmit, resetOnSubmit = true, ...props }: Props = $props();
 
 	let isSubmitting = $state<boolean>(false);
+	let Form = $state<HTMLFormElement | null>(null);
+
+	$effect(() => {
+		ref = Form;
+	});
 </script>
 
 <form
 	method="POST"
 	{...props}
-	bind:this={ref}
+	bind:this={Form}
 	use:enhance={async ({ cancel, formData }) => {
 		isSubmitting = true;
 
@@ -34,6 +40,9 @@
 		return async ({ update }) => {
 			await update();
 			isSubmitting = false;
+			if (resetOnSubmit) {
+				Form?.reset();
+			}
 		};
 	}}
 >
