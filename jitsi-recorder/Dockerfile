@@ -1,0 +1,98 @@
+# Multi-stage Dockerfile for jisti-recorder
+# Stage 1: Build gst-meet
+FROM rustlang/rust:nightly-bookworm AS gst-meet-builder
+
+# Install GStreamer development libraries and dependencies
+RUN apt-get update && apt-get install -y \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    libgstreamer-plugins-bad1.0-dev \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-tools \
+    libnice-dev \
+    libsrtp2-dev \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and build gst-meet
+WORKDIR /build
+RUN git clone https://github.com/avstack/gst-meet.git
+WORKDIR /build/gst-meet
+RUN cargo build --release --bin gst-meet
+
+# Stage 2: Build jisti-recorder
+FROM rustlang/rust:nightly-bookworm AS recorder-builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy dependency files first for better caching
+COPY Cargo.toml ./
+COPY src ./src
+COPY templates ./templates
+
+# Build the application
+RUN cargo build --release
+
+# Stage 3: Runtime image
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-tools \
+    libnice10 \
+    libsrtp2-1 \
+    libssl3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 recorder && \
+    mkdir -p /tmp/jitsi-recordings && \
+    chown -R recorder:recorder /tmp/jitsi-recordings
+
+# Copy binaries from builders
+COPY --from=gst-meet-builder /build/gst-meet/target/release/gst-meet /usr/local/bin/gst-meet
+COPY --from=recorder-builder /app/target/release/jisti-recorder /usr/local/bin/jisti-recorder
+
+# Set permissions
+RUN chmod +x /usr/local/bin/gst-meet /usr/local/bin/jisti-recorder
+
+# Switch to non-root user
+USER recorder
+
+# Set working directory
+WORKDIR /home/recorder
+
+# Expose port
+EXPOSE 3000
+
+# Environment variables (can be overridden)
+ENV RUST_LOG=info \
+    PORT=3000 \
+    JITSI_WEBSOCKET_URL=wss://jitsi.comhairle.scot/xmpp-websocket \
+    GST_MEET_PATH=/usr/local/bin/gst-meet \
+    RECORDINGS_DIR=/tmp/jitsi-recordings
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/recordings || exit 1
+
+# Run the application
+CMD ["/usr/local/bin/jisti-recorder"]
