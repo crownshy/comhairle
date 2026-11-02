@@ -34,7 +34,7 @@
 			logoSize="sm"
 			color="text-primary"
 			class="-m-2 shrink-0 p-2"
-			surface="light"
+			surface="page"
 		/>
 		{#if preview}
 			<span

@@ -45,7 +45,7 @@
 	import EventLocationForm from './EventLocationForm.svelte';
 	import EventRecordings from './EventRecordings.svelte';
 	import EventBreakoutRooms from './EventBreakoutRooms.svelte';
-	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
+	import { capitalise } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { permissions } from '$lib/permissions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
@@ -184,7 +184,8 @@
 		try {
 			const eventParams = {
 				...eventData,
-				custom_event_link: eventData.custom_event_link?.trim() || '',
+				custom_event_link:
+					eventData.format === 'online' ? eventData.custom_event_link?.trim() || '' : '',
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
@@ -568,14 +569,14 @@
 						type="single"
 						disabled={!canEdit}
 						value={$form.format}
-						onValueChange={(value: string) => ($form.format = value)}
+						onValueChange={(value) => ($form.format = value)}
 					>
-						<Select.Trigger class="w-45"
-							>Format: {snakeToStartCase($form.format)}</Select.Trigger
-						>
+						{@const toLabel = (value: string) => capitalise(value).replaceAll('_', '-')}
+						<Select.Trigger class="w-45">{toLabel($form.format)}</Select.Trigger>
 						<Select.Content>
-							<Select.Item value="online">Online</Select.Item>
-							<Select.Item value="in_person">In-person</Select.Item>
+							{#each ['online', 'in_person'] as option (option)}
+								<Select.Item value={option}>{toLabel(option)}</Select.Item>
+							{/each}
 						</Select.Content>
 					</Select.Root>
 				</Form.Control>
@@ -592,13 +593,16 @@
 							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>
 							<span>Custom event link</span>
-							<span class="font-normal">Override default Jitsi meeting link</span>
+							<span class="font-normal"
+								>For meetings on Zoom, Teams or Google Meet. Paste the full link,
+								starting with https://. Leave empty to use the built-in meeting.</span
+							>
 						</Form.Label>
 						<div class="flex-1">
 							<Input
 								{...props}
 								bind:value={$form.custom_event_link}
-								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+								placeholder="https://meet.example.com/your-room"
 								disabled={!canEdit || $form.format !== 'online'}
 							/>
 							<Form.FieldErrors />

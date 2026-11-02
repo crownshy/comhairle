@@ -13,7 +13,7 @@ use crate::models::workflow_step::{
     WorkflowStepTranslations, WorkflowStepWithTranslations,
 };
 use crate::schema_helpers::{example_localized_text, example_uuid};
-use crate::tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations};
+use crate::tools::{LocalizedToolConfig, ToolConfig, ToolConfigWithTranslations, ToolExIm};
 
 /// Data transfer object (public API representation) for a WorkflowStep.
 ///
@@ -247,4 +247,25 @@ impl LocalizedWorkflowStepWithProgress {
             progress_status: self.status,
         }
     }
+}
+
+/// A portable copy of a WorkflowStep, used to export a step to JSON and import it
+/// into another conversation.
+///
+/// IDs, credentials and anything recreated on import (such as `step_order`) are left
+/// out. Translatable fields hold the text for `primary_locale` only.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ExImWorkflowStep {
+    pub primary_locale: String,
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub preview_tool_config: ToolExIm,
+    pub request_user_share_permission: bool,
+    pub data_protocol: Option<String>,
 }
