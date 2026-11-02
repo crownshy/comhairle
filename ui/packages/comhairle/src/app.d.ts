@@ -2,6 +2,7 @@
 // for information about these interfaces
 import type { createApiClient } from '@crownshy/api-client/client';
 import type { UserActions } from '@crownshy/api-client/api';
+import type { PageMeta } from '$lib/utils/pageMeta';
 
 declare global {
 	namespace App {
@@ -14,6 +15,7 @@ declare global {
 			conversationActions?: UserActions | null;
 			organizationActions?: UserActions | null;
 			resourceActions?: (UserActions | null)[];
+			meta?: PageMeta;
 		}
 		// interface PageState {}
 		// interface Platform {}
