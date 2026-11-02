@@ -179,9 +179,17 @@ pub async fn launch(
     let (primary_locale, supported_languages) =
         conversation_locales(state, &workflow_step.workflow_id).await?;
 
-    // When a Polis poll goes live, seed the aux statement table from the new
-    // live poll so moderation/theming has rows to work with immediately.
+    // When a Polis poll goes live, clear the preview poll's aux rows (comhairle's
+    // per-statement moderation and theme metadata) and seed the
+    // table from the new live poll so moderation/theming has rows to work with
+    // immediately.
     if let ToolConfig::Polis(config) = &new_live_config {
+        crate::models::polis_statement_aux::delete_for_step_except_poll(
+            &state.db,
+            workflow_step_id,
+            &config.poll_id,
+        )
+        .await?;
         crate::tools::polis::sync_statement_aux_inner(
             state,
             workflow_step_id,

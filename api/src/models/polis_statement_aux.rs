@@ -766,6 +766,26 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, Comhairl
     Ok(aux)
 }
 
+/// Removes a step's aux rows that belong to any Polis poll other than `poll_id`.
+/// Launch swaps the step to a new live poll whose statement ids restart at 0, so
+/// the preview rows would otherwise collide with the live ones on sync.
+#[instrument(err(Debug), skip(db))]
+pub async fn delete_for_step_except_poll(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    poll_id: &str,
+) -> Result<u64, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(PolisStatementAuxIden::Table)
+        .and_where(Expr::col(PolisStatementAuxIden::WorkflowStepId).eq(*workflow_step_id))
+        .and_where(Expr::col(PolisStatementAuxIden::PolisConversationId).ne(poll_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_with(&sql, values).execute(db).await?;
+
+    Ok(result.rows_affected())
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;
@@ -949,6 +969,71 @@ mod tests {
                 "derived statements are not attributed to a participant"
             );
         }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn delete_for_step_except_poll_keeps_only_that_polls_rows(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, workflow_step, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Polis step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "polis step",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": polis_tool_config(),
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step_id = Uuid::parse_str(&extract::<String>("id", &workflow_step))?;
+
+        let statement = |poll_id: &str, statement_id: i32| UpsertFromPolis {
+            workflow_step_id,
+            user_id: None,
+            zid: 1,
+            polis_conversation_id: poll_id.into(),
+            polis_statement_id: statement_id,
+            statement_text: format!("{poll_id} statement {statement_id}"),
+            source_locale: Some("en".into()),
+            is_seed: true,
+            moderation_status: ModerationStatus::Accepted,
+        };
+        upsert_from_polis(&pool, &statement("preview-poll", 0)).await?;
+        upsert_from_polis(&pool, &statement("preview-poll", 1)).await?;
+        let live = upsert_from_polis(&pool, &statement("live-poll", 2)).await?;
+
+        let deleted = delete_for_step_except_poll(&pool, &workflow_step_id, "live-poll").await?;
+
+        let remaining = list(
+            &pool,
+            Some(workflow_step_id),
+            None,
+            PolisStatementAuxFilterOptions::default(),
+        )
+        .await?;
+        assert_eq!(deleted, 2);
+        assert_eq!(
+            remaining.iter().map(|aux| aux.id).collect::<Vec<_>>(),
+            vec![live.id]
+        );
         Ok(())
     }
 }
