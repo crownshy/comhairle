@@ -68,47 +68,54 @@
 
 <Dialog id="upload-media" ref={dialog} --max-width="35rem" --min-width="20rem">
 	<Form enctype="multipart/form-data" class="flex flex-col" {onSubmit}>
-		<FileInput
-			{...MediaSchema.media}
-			bind:this={fileInput}
-			onfile={(newFile) => {
-				file = newFile;
-				nameInput?.setValue(Media.getFilename(file.name));
-			}}
-			class={file !== null ? 'hidden' : ''}
-		/>
-		{#if file}
-			<div
-				class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
-			>
-				<div class="flex basis-3/5 flex-row items-center gap-2">
-					<FileIcon {file} />
-					<span>{file.name}</span>
+		{#snippet children({ isSubmitting })}
+			<FileInput
+				{...MediaSchema.media}
+				bind:this={fileInput}
+				onfile={(newFile) => {
+					file = newFile;
+					nameInput?.setValue(Media.getFilename(file.name));
+				}}
+				class={file !== null ? 'hidden' : ''}
+			/>
+			{#if file}
+				<div
+					class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
+				>
+					<div class="flex basis-3/5 flex-row items-center gap-2">
+						<FileIcon {file} />
+						<span>{file.name}</span>
+					</div>
+					<div class="flex flex-row items-center justify-evenly gap-4">
+						<span class="text-muted-foreground">
+							{Media.getExtension(file.name)?.toUpperCase()}
+						</span>
+						<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span>
+						<Button
+							title="Remove file"
+							aria-label="Remove file"
+							variant="ghost"
+							size="sm"
+							icon={Trash2}
+							class="text-destructive hover:text-destructive/80 rounded-sm"
+							onclick={() => {
+								file = null;
+								nameInput?.setValue('');
+								nameInput?.setError('');
+								fileInput?.clear();
+							}}
+						/>
+					</div>
 				</div>
-				<div class="flex flex-row items-center justify-evenly gap-4">
-					<span class="text-muted-foreground">
-						{Media.getExtension(file.name)?.toUpperCase()}
-					</span>
-					<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span>
-					<Button
-						title="Remove file"
-						aria-label="Remove file"
-						variant="ghost"
-						size="sm"
-						icon={Trash2}
-						class="text-destructive hover:text-destructive/80 rounded-sm"
-						onclick={() => {
-							file = null;
-							nameInput?.setValue('');
-							nameInput?.setError('');
-							fileInput?.clear();
-						}}
-					/>
-				</div>
-			</div>
-		{/if}
-		<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" />
-		<Input {...MediaSchema.alt} label="Alt" placeholder="e.g. Company logo" />
-		<Submit class="mt-7 self-end" text="Upload" command="close-dialog:upload-media" />
+			{/if}
+			<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" />
+			<Input {...MediaSchema.alt} label="Alt" placeholder="e.g. Company logo" />
+			<Submit
+				class="mt-7 self-end"
+				text="Upload"
+				command="close-dialog:upload-media"
+				{isSubmitting}
+			/>
+		{/snippet}
 	</Form>
 </Dialog>
