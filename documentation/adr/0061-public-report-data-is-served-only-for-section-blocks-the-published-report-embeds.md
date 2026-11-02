@@ -34,8 +34,9 @@ Thinking Space summary, another may have told participants it stays with the org
   documents on each request (`tools::public_report_data::embeds`), so it can't drift from what
   readers see. The per-step caches absorb the extra query.
 - **Facilitators are told where they act.** Every embed in the report editor says "Public when
-  published", the embed dialog says embedded results become public, and the step's Configure
-  page lists which of its section blocks are public in the report, with a link to edit them.
+  published", the embed dialog asks "Make these results public?" before a section block's
+  first embed, and the step's Configure page lists which of its section blocks are public in
+  the report, with a link to edit them.
 - **Public report data only comes from dedicated report-data endpoints.** The Insights
   endpoints stay admin-only and are never called by a public surface.
 - **One endpoint per section block, to start.** Each embeddable section block gets its own
