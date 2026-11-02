@@ -21,9 +21,10 @@ use crate::models::event_attendance::{
     EventAttendanceOrderOptions, UpdateEventAttendance,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::permissions::{can_perform_action, conversation as conversation_permissions};
 use crate::models::users::{self, User, get_or_create_user_by_email};
 use crate::models::{breakout_plan, conversation};
-use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser, is_user_admin};
+use crate::routes::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
 use crate::routes::event_attendances::dto::EventAttendanceDto;
 use crate::{ComhairleError, ComhairleState};
 
@@ -102,8 +103,8 @@ pub(crate) async fn notify_registered_participant(
 /// - Logged in with `request_email`: only the conversation owner can register
 ///   someone else this way.
 ///
-/// `can_register_without_invite` is true for open events, and for the
-/// conversation owner or an admin on any event.
+/// `can_register_without_invite` is true for open events, and for anyone who can
+/// edit the conversation on any event.
 async fn resolve_event_attendee(
     db: &PgPool,
     owner_id: Uuid,
@@ -142,6 +143,23 @@ async fn resolve_event_attendee(
     users::get_user_by_email(&email, db).await
 }
 
+/// Events have no permissions of their own yet, so managing one means being
+/// able to edit its conversation: the owner, or anyone granted edit rights on it.
+async fn can_manage_event(
+    state: &Arc<ComhairleState>,
+    conversation: &Conversation,
+    caller: &User,
+) -> Result<bool, ComhairleError> {
+    can_perform_action(
+        state,
+        &conversation.id,
+        conversation_permissions::Action::Update,
+        &caller.id,
+        Some(&conversation.owner_id),
+    )
+    .await
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateEventAttendanceRequest {
     role: String,
@@ -167,7 +185,7 @@ pub async fn create(
     }
 
     let caller_manages_event = match &opt_user {
-        Some(caller) => caller.id == conversation.owner_id || is_user_admin(&state, caller).await,
+        Some(caller) => can_manage_event(&state, &conversation, caller).await?,
         None => false,
     };
     let role = if caller_manages_event {
@@ -372,6 +390,7 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
+    use crate::models::permissions::{ActorId, GrantRoleRequest, PermissionRole, grant_role};
     use crate::models::scheduled_email::{
         self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions,
     };
@@ -814,6 +833,84 @@ mod tests {
         let event: EventDto = serde_json::from_value(response)?;
 
         let (_, response, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                json!({ "role": "moderator" }).to_string().into(),
+            )
+            .await?;
+        let attendance: EventAttendanceDto = serde_json::from_value(response)?;
+
+        assert_eq!(attendance.role, "moderator", "incorrect role");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn platform_admin_without_a_conversation_role_cannot_join_invite_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        // test@crown-shy.com is in the test config's admin_users list.
+        let mut other_admin = UserSession::new(
+            "other_admin",
+            crate::test_helpers::TEST_PASSWORD,
+            "test@crown-shy.com",
+        );
+        other_admin.signup(&app).await?;
+
+        let (status, _, _) = other_admin
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                json!({ "role": "moderator" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN, "incorrect status");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn conversation_editor_keeps_requested_role_on_invite_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let mut editor = UserSession::new("", "", "");
+        editor.signup_guest(&app).await?;
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(editor.id.unwrap()),
+                permission_triplet: conversation_permissions::Role::ContentEditor
+                    .triplet(&conversation_id)?,
+                granted_by: &session.id.unwrap(),
+                grant_reason: "Testing",
+            },
+        )
+        .await?;
+
+        let (_, response, _) = editor
             .post(
                 &app,
                 &format!(
