@@ -50,13 +50,13 @@
 <dialog
 	{id}
 	bind:this={ref}
-	class="bg-background border-border relative m-auto rounded-2xl border p-3"
+	class="bg-background border-border relative m-auto overflow-y-auto rounded-2xl border p-3 pt-0"
 	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height,  '40vh');"
 	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
 	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
 	<Button
-		class="absolute inset-e-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
+		class="absolute top-3 right-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
 		variant="ghost"
 		command={`close-dialog:${id}`}
 		icon={X}
@@ -66,7 +66,7 @@
 	<div class={cn('grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5', classNames)}>
 		{#if title || HeaderActions}
 			<header
-				class="border-border sticky top-0 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pb-2 md:flex-row"
+				class="border-border bg-background sticky top-0 z-2 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pt-3 pb-2 md:flex-row"
 			>
 				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
 				<span class="shrink grow-0">
