@@ -49,14 +49,17 @@
 		<Button
 			size="sm"
 			aria-label="Open media library"
+			icon={Images}
 			onclick={() => {
 				if (cache !== null) {
 					dataRequest = Promise.resolve({ ok: cache, err: null });
 					return;
 				}
 				dataRequest = getData();
-			}}><Images class="h-4 w-4" />Media library</Button
+			}}
 		>
+			Media library
+		</Button>
 	</Dialog.Trigger>
 	<Dialog.Portal>
 		<Dialog.Content
@@ -84,8 +87,10 @@
 								if (!selectedMedia) return;
 								onconfirm(selectedMedia);
 								open = false;
-							}}>Select</Button
+							}}
 						>
+							Select
+						</Button>
 						<Dialog.Close
 							class="focus-visible:outline-ring rounded-sm p-2 opacity-70 hover:opacity-100 focus-visible:outline-2"
 							aria-label="Close media library"

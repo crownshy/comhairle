@@ -43,17 +43,15 @@
 		onlyHardDismiss
 	}: Props = $props();
 
-	const close = () => ref?.close();
+	export const open = () => ref?.showModal();
+	export const close = () => ref?.close();
 </script>
 
 <dialog
 	{id}
 	bind:this={ref}
-	class={cn(
-		'bg-background border-border relative m-auto min-h-40 rounded-2xl border p-3',
-		classNames
-	)}
-	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height, none);"
+	class="bg-background border-border relative m-auto rounded-2xl border p-3"
+	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height,  '40vh');"
 	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
 	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
@@ -65,10 +63,10 @@
 		title="close"
 		aria-label="Close dialog"
 	/>
-	<div class="grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5">
+	<div class={cn('grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5', classNames)}>
 		{#if title || HeaderActions}
 			<header
-				class="border-border mb-5 flex flex-row items-center justify-between border-b-2 pb-2"
+				class="border-border sticky top-0 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pb-2 md:flex-row"
 			>
 				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
 				<span class="shrink grow-0">
@@ -90,10 +88,10 @@
 				{:else if actions?.secondary}
 					<Button
 						onclick={() => {
-							actions.secondary?.onclick();
-							close();
+							actions?.secondary?.onclick?.();
 						}}
 						variant="outline"
+						dialogClose={id}
 					>
 						{actions.secondary.label}
 					</Button>
@@ -103,9 +101,9 @@
 				{:else if actions?.primary}
 					<Button
 						onclick={() => {
-							actions.primary?.onclick();
-							close();
+							actions?.primary?.onclick?.();
 						}}
+						dialogClose={id}
 					>
 						{actions.primary.label}
 					</Button>
@@ -121,8 +119,9 @@
 		--_duration: 400ms;
 
 		opacity: 0;
-		translate: 0 var(--_distance);
-		transition: opacity, display, overlay, translate;
+		translate: 0 0;
+		scale: 0.95;
+		transition: opacity, display, overlay, translate, scale;
 		transition-behavior: allow-discrete;
 		transition-duration: var(--_duration);
 
@@ -136,6 +135,7 @@
 		&[open] {
 			opacity: 1;
 			translate: 0 0;
+			scale: 1;
 
 			&::backdrop {
 				opacity: 1;
@@ -144,6 +144,7 @@
 			@starting-style {
 				opacity: 0;
 				translate: 0 var(--_distance);
+				scale: 1;
 
 				&::backdrop {
 					opacity: 0;

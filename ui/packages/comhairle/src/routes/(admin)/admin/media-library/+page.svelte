@@ -30,7 +30,7 @@
 
 	let bulkEdit = $state<boolean>(false);
 	let selected = $state([]);
-	let details = $state.raw<MediaDto | null>(null);
+	let details = $state.raw<MediaDto | undefined>(undefined);
 	let filter = $state<HTMLMediaElement | null>(null);
 
 	const handleDelete: HandleSubmission = async (formData) => {
@@ -156,8 +156,13 @@
 								</label>
 							{:else}
 								<button
+									type="button"
 									class="block aspect-video h-full w-full"
-									onclick={() => (details = media)}
+									command="show-modal"
+									commandfor="media-details"
+									onclick={() => {
+										details = media;
+									}}
 								>
 									<MediaItem {type} {...media} />
 								</button>
@@ -170,13 +175,11 @@
 	{/snippet}
 </Form>
 
-{#if details}
-	<DetailsDialog
-		{...details}
-		type={htmlFromMediaType(details.contentType)}
-		close={() => (details = null)}
-	/>
-{/if}
+<DetailsDialog
+	id="media-details"
+	media={details}
+	type={htmlFromMediaType(details?.contentType ?? 'image/jpeg')}
+/>
 
 <style>
 	input:checked + * {

@@ -16,29 +16,25 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 
-	interface Props extends MediaDto {
+	type Props = {
+		id: string;
+		media: MediaDto | undefined;
 		type: HTMLMediaElement | undefined;
-		close: () => void;
-	}
+	};
 
-	let {
-		id,
-		type,
-		filename,
-		name: initialName,
-		alt: initialAlt,
-		url: src,
-		createdAt,
-		close
-	}: Props = $props();
+	let { id, type, media }: Props = $props();
 
 	let editable = $state<boolean>(false);
 
 	async function deleteMedia() {
+		if (!media) {
+			return;
+		}
+
 		const response = await tryCatchAsync(() =>
 			apiClient.DeleteMedia(undefined, {
 				params: {
-					media_id: id
+					media_id: media.id
 				}
 			})
 		);
@@ -56,6 +52,9 @@
 	}
 
 	async function updateMedia(formData: FormData) {
+		if (!media) {
+			return;
+		}
 		const newName = (formData.get('name') ?? undefined) as string | undefined;
 		const newAlt = (formData.get('alt') ?? undefined) as string | undefined;
 
@@ -64,7 +63,7 @@
 		}
 
 		// If the values are the same then just cancel
-		if (newName === initialName && newAlt === initialAlt) {
+		if (newName === media.name && newAlt === media.alt) {
 			editable = false;
 			return;
 		}
@@ -74,7 +73,7 @@
 				{ name: newName, alt: newAlt },
 				{
 					params: {
-						media_id: id
+						media_id: media.id
 					}
 				}
 			)
@@ -82,35 +81,37 @@
 
 		if (response.err !== null) {
 			notifications.send({
-				message: `Failed to update ${filename}. Please try again.`,
+				message: `Failed to update ${media.filename}. Please try again.`,
 				priority: 'ERROR'
 			});
 			return;
 		}
 		notifications.send({
-			message: `Updated ${filename} successfully`,
+			message: `Updated ${media.filename} successfully`,
 			priority: 'SUCCESS'
 		});
 		editable = false;
-		initialName = newName;
-		initialAlt = newAlt;
+		media.name = newName;
+		media.alt = newAlt;
 		await invalidate(key('admin/media'));
 	}
 </script>
 
 <Dialog
-	{id}
+	id="delete-this-media"
 	title="Are you sure you want to delete this?"
 	actions={{ secondary: { label: 'Cancel' } }}
 >
 	{#snippet PrimaryAction()}
 		<Button
+			dialogClose="delete-this-media"
 			onclick={async () => {
 				await deleteMedia();
-				close();
 			}}
+			variant="destructive"
+			icon={Trash2}
 		>
-			Yes
+			Delete
 		</Button>
 	{/snippet}
 </Dialog>
@@ -120,7 +121,13 @@
 	<div class="mb-5">{value}</div>
 {/snippet}
 
-<Dialog id="media-details" class="flex min-w-[90vw] flex-col overflow-y-scroll" title={filename}>
+<Dialog
+	{id}
+	class="flex flex-col overflow-y-auto"
+	--min-width="90%"
+	--max-width="90vw"
+	title={media?.filename ?? ''}
+>
 	{#snippet HeaderActions()}
 		{#if !editable}
 			<Button
@@ -128,74 +135,85 @@
 				size="sm"
 				onclick={() => (editable = true)}
 				aria-label="Edit"
-				title="Edit"><Edit /></Button
-			>
+				title="Edit"
+				icon={Edit}
+			/>
 			<Button
 				variant="outline"
 				size="sm"
 				class="text-destructive/90 hover:text-destructive"
 				aria-label="Delete"
 				title="Delete"
+				dialogOpen="delete-this-media"
 				icon={Trash2}
 			/>
 		{/if}
 	{/snippet}
-	<div class="grid grid-cols-1 gap-7 lg:grid-cols-[2fr_1fr]">
-		<div
-			class="chequered-background flex flex-col justify-center rounded p-1 lg:min-h-[50vh] lg:p-6"
-		>
-			{#if type === undefined}
-				<ErrorMessage>Error trying to read the file type</ErrorMessage>
-			{:else if type === 'audio'}
-				<audio {src} controls autoplay={false}></audio>
-			{:else if type === 'video'}
-				<video {src} controls autoplay={false} class="max-h-[60vh]">
-					<track kind="captions" />
-				</video>
-			{:else}
-				<img {src} alt={initialAlt} class="max-h-[60vh] object-contain" />
-			{/if}
-		</div>
-		<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
-			<Form class="flex flex-col" handleSubmission={updateMedia}>
-				<DetailsField
-					label="Name"
-					initialValue={initialName}
-					{editable}
-					field="name"
-					readOnlyField={ReadOnlyField}
-				/>
-				<DetailsField
-					label="Alt"
-					initialValue={initialAlt}
-					{editable}
-					field="alt"
-					readOnlyField={ReadOnlyField}
-				/>
-				<section class="grid grid-cols-2">
-					<div>
-						{@render ReadOnlyField('Type', capitalise(type ?? ''))}
-					</div>
-					<div>
-						{@render ReadOnlyField(
-							'Format',
-							Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
-						)}
-					</div>
-					<div>
-						{@render ReadOnlyField('Created at', new Date(createdAt).toLocaleString())}
-					</div>
-				</section>
+	{#if media}
+		<div class="grid grid-cols-1 gap-7 lg:grid-cols-[2fr_1fr]">
+			<div
+				class="chequered-background flex flex-col justify-center rounded p-1 lg:min-h-[50vh] lg:p-6"
+			>
+				{#if type === undefined}
+					<ErrorMessage>Error trying to read the file type</ErrorMessage>
+				{:else if type === 'audio'}
+					<audio src={media.url} controls autoplay={false}></audio>
+				{:else if type === 'video'}
+					<video src={media.url} controls autoplay={false} class="max-h-[60vh]">
+						<track kind="captions" />
+					</video>
+				{:else}
+					<img src={media.url} alt={media.alt} class="max-h-[60vh] object-contain" />
+				{/if}
+			</div>
+			<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
+				<Form class="flex flex-col" handleSubmission={updateMedia}>
+					<DetailsField
+						label="Name"
+						initialValue={media.name}
+						{editable}
+						field="name"
+						readOnlyField={ReadOnlyField}
+					/>
+					<DetailsField
+						label="Alt"
+						initialValue={media.alt}
+						{editable}
+						field="alt"
+						readOnlyField={ReadOnlyField}
+					/>
+					<section class="grid grid-cols-2">
+						<div>
+							{@render ReadOnlyField('Type', capitalise(type ?? ''))}
+						</div>
+						<div>
+							{@render ReadOnlyField(
+								'Format',
+								Media.getExtension(media.filename)?.toUpperCase().slice(1) ?? ''
+							)}
+						</div>
+						<div>
+							{@render ReadOnlyField(
+								'Created at',
+								new Date(media.createdAt).toLocaleString()
+							)}
+						</div>
+					</section>
 
-				<div class="mt-4 self-end">
-					{#if editable}
-						<Button variant="outline" onclick={() => (editable = false)} type="button">
-							Cancel
-						</Button>
-						<Submit class="ml-2" text="Update" />
-					{/if}
-				</div>
-			</Form>
-		</aside>
-	</div>
+					<div class="mt-4 self-end">
+						{#if editable}
+							<Button
+								variant="outline"
+								onclick={() => (editable = false)}
+								type="button"
+							>
+								Cancel
+							</Button>
+							<Submit class="ml-2" text="Update" />
+						{/if}
+					</div>
+				</Form>
+			</aside>
+		</div>
+	{/if}
 </Dialog>
