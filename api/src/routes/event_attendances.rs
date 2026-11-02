@@ -197,13 +197,11 @@ pub async fn create(
 
     // Slot the new attendee into the pre-assigned breakout plan if one exists.
     // Best-effort: a failure here must not block registration.
-    let is_moderator =
-        event_attendance.role == "moderator" || event_attendance.role == "facilitator";
     if let Err(error) = breakout_plan::ensure_user_slotted(
         &state.db,
         &event_id,
         &user.id,
-        is_moderator,
+        breakout_plan::is_moderator_role(&event_attendance.role),
         None,
         user.email.as_deref(),
     )

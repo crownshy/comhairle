@@ -28,8 +28,8 @@ use crate::routes::invites::dto::InviteDto;
 pub mod dto;
 
 /// Registers the invited user for the event as a participant and returns whether
-/// they are newly registered. Someone already registered keeps their attendance
-/// and still gets their reserved breakout seat resolved.
+/// they are newly registered. Someone already registered keeps their attendance,
+/// role included, and still gets their reserved breakout seat resolved.
 async fn register_for_invited_event(
     state: &Arc<ComhairleState>,
     event_id: Uuid,
@@ -46,9 +46,12 @@ async fn register_for_invited_event(
     )
     .await;
 
-    let newly_registered = match registration {
-        Ok(_) => true,
-        Err(ComhairleError::UserAlreadyRegisteredForEvent(_)) => false,
+    let (newly_registered, attendance) = match registration {
+        Ok(attendance) => (true, attendance),
+        Err(ComhairleError::UserAlreadyRegisteredForEvent(_)) => (
+            false,
+            event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await?,
+        ),
         Err(error) => return Err(error),
     };
 
@@ -57,7 +60,7 @@ async fn register_for_invited_event(
         &state.db,
         &event_id,
         &user.id,
-        false,
+        breakout_plan::is_moderator_role(&attendance.role),
         Some(invite_id),
         user.email.as_deref(),
     )
@@ -499,6 +502,7 @@ mod tests {
 
     use super::*;
     use crate::mailer::MockComhairleMailer;
+    use crate::models::event::{BreakoutPlan, BreakoutPlanRoom, BreakoutSeat};
     use crate::models::invites::LoginBehaviour;
     use crate::models::model_test_helpers::get_random_conversation_id;
     use crate::models::users;
@@ -1119,6 +1123,82 @@ mod tests {
             event_attendance::get_by_event_and_user(&pool, &event.id, &second_guest.id.unwrap())
                 .await;
         assert!(attendance.is_err(), "second guest should not be registered");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn facilitator_accepting_event_invite_takes_reserved_seat_as_moderator(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+        let invite = create_event_invite_for(
+            &app,
+            &mut session,
+            &conversation_id,
+            event.id,
+            InviteType::Open,
+        )
+        .await?;
+        let reserved_seat = BreakoutSeat {
+            user_id: None,
+            invite_id: Some(invite.id),
+            is_moderator: false,
+        };
+        breakout_plan::save(
+            &pool,
+            &event.id,
+            &BreakoutPlan(vec![BreakoutPlanRoom {
+                seats: vec![reserved_seat],
+            }]),
+        )
+        .await?;
+
+        let mut facilitator = UserSession::new("", "", "");
+        facilitator.signup_guest(&app).await?;
+        let facilitator_id = facilitator.id.unwrap();
+        event_attendance::create(
+            &pool,
+            &CreateEventAttendance {
+                user_id: facilitator_id,
+                event_id: event.id,
+                role: "facilitator".to_string(),
+            },
+        )
+        .await?;
+
+        let (status, _, _) = facilitator
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/invite/{}/accept",
+                    invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "incorrect status");
+        let attendance =
+            event_attendance::get_by_event_and_user(&pool, &event.id, &facilitator_id).await?;
+        assert_eq!(attendance.role, "facilitator", "role should be kept");
+        let plan = breakout_plan::get(&pool, &event.id).await?;
+        let seat = plan
+            .0
+            .iter()
+            .flat_map(|room| &room.seats)
+            .find(|seat| seat.user_id == Some(facilitator_id))
+            .ok_or("facilitator should have a seat")?;
+        assert!(seat.is_moderator, "seat should be a moderator seat");
 
         Ok(())
     }
