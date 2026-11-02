@@ -41,10 +41,21 @@ pub struct FullReportDto {
 }
 
 impl FullReportDto {
+    /// Impacts and feedback are only for the people running the conversation, so they are left
+    /// empty unless `include_private` is set.
     pub async fn from_report(
         db: &PgPool,
         report: ReportView,
+        include_private: bool,
     ) -> Result<FullReportDto, ComhairleError> {
+        if !include_private {
+            return Ok(FullReportDto {
+                report,
+                impacts: vec![],
+                facilitator_feedback: vec![],
+                participant_feedback: vec![],
+            });
+        }
         let (report_id, conversation_id) = match &report {
             ReportView::WithTranslations(report) => (report.id, report.conversation_id),
             ReportView::Localized(report) => (report.id, report.conversation_id),
