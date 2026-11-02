@@ -31,7 +31,7 @@ const SECTION_STRIP_SKELETONS: Record<string, TabStripSkeletonShape> = {
 	invites: { leadingIcon: false, widths: [4, 5] }
 };
 
-/** A workflow step's own tabs: Setup, Configure and sometimes Moderation and Insights. */
+/** A workflow step's own tabs: Setup and Configure. */
 const STEP_STRIP_SKELETON: TabStripSkeletonShape = { leadingIcon: false, widths: [3.5, 5, 6] };
 
 /**
