@@ -179,7 +179,8 @@ pub async fn launch(
     let (primary_locale, supported_languages) =
         conversation_locales(state, &workflow_step.workflow_id).await?;
 
-    // When a Polis poll goes live, clear the preview poll's aux rows and seed the
+    // When a Polis poll goes live, clear the preview poll's aux rows (comhairle's
+    // per-statement moderation and theme metadata) and seed the
     // table from the new live poll so moderation/theming has rows to work with
     // immediately.
     if let ToolConfig::Polis(config) = &new_live_config {

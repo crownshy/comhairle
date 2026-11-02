@@ -2895,7 +2895,12 @@ mod tests {
         Ok(())
     }
 
-    fn preview_comment(text: &str, is_seed: bool, moderation: i32) -> WikiPollComment {
+    fn preview_comment(text: &str, is_seed: bool, status: ModerationStatus) -> WikiPollComment {
+        let moderation = match status {
+            ModerationStatus::Accepted => 1,
+            ModerationStatus::Rejected => -1,
+            ModerationStatus::Pending => 0,
+        };
         WikiPollComment {
             txt: text.into(),
             is_seed,
@@ -2923,10 +2928,14 @@ mod tests {
         service.expect_get_comments().returning(|_| {
             Box::pin(async {
                 Ok(vec![
-                    preview_comment("Accepted seed", true, 1),
-                    preview_comment("Rejected seed", true, -1),
-                    preview_comment("Pending seed", true, 0),
-                    preview_comment("Statement from preview testing", false, 1),
+                    preview_comment("Accepted seed", true, ModerationStatus::Accepted),
+                    preview_comment("Rejected seed", true, ModerationStatus::Rejected),
+                    preview_comment("Pending seed", true, ModerationStatus::Pending),
+                    preview_comment(
+                        "Statement from preview testing",
+                        false,
+                        ModerationStatus::Accepted,
+                    ),
                 ])
             })
         });
