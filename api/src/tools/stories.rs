@@ -76,7 +76,7 @@ impl ToolImpl for StoriesTool {
     }
 
     async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
-        Err(ComhairleError::BadRequest(
+        Err(ComhairleError::NotImplemented(
             "Not implemented for this tool".to_string(),
         ))
     }
@@ -85,7 +85,7 @@ impl ToolImpl for StoriesTool {
         _config: &Self::ExportImport,
         _state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
-        Err(ComhairleError::BadRequest(
+        Err(ComhairleError::NotImplemented(
             "Not implemented for this tool".to_string(),
         ))
     }

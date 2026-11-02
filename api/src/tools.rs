@@ -366,27 +366,33 @@ impl ToolExIm {
         state: &Arc<ComhairleState>,
     ) -> Result<ToolConfig, ComhairleError> {
         match self {
-            ToolExIm::Polis(export) => Ok(ToolConfig::Polis(
-                polis::PolisTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::Learn(export) => Ok(ToolConfig::Learn(
-                learn::LearnTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::HeyForm(export) => Ok(ToolConfig::HeyForm(
-                heyform::HeyFormTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::Stories(export) => Ok(ToolConfig::Stories(
-                stories::StoriesTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::ElicitationBot(export) => Ok(ToolConfig::ElicitationBot(
-                elicitation_bot::ElicitationBotTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::Prioritization(export) => Ok(ToolConfig::Prioritization(
-                prioritization::PrioritizationTool::import_tool(export, state).await?,
-            )),
-            ToolExIm::ThinkingSpace(export) => Ok(ToolConfig::ThinkingSpace(
-                thinking_space::ThinkingSpaceTool::import_tool(export, state).await?,
-            )),
+            ToolExIm::Polis(export) => polis::PolisTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Polis),
+            ToolExIm::Learn(export) => learn::LearnTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Learn),
+            ToolExIm::HeyForm(export) => heyform::HeyFormTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::HeyForm),
+            ToolExIm::Stories(export) => stories::StoriesTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Stories),
+            ToolExIm::ElicitationBot(export) => {
+                elicitation_bot::ElicitationBotTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::ElicitationBot)
+            }
+            ToolExIm::Prioritization(export) => {
+                prioritization::PrioritizationTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::Prioritization)
+            }
+            ToolExIm::ThinkingSpace(export) => {
+                thinking_space::ThinkingSpaceTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::ThinkingSpace)
+            }
         }
     }
 }
