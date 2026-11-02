@@ -104,7 +104,7 @@
 							variant="destructive"
 							disabled={selected.length === 0}
 							icon={Trash2}
-							dialogOpen="delete-media"
+							command="open-dialog:delete-media"
 						>
 							{m.delete()}
 						</Button>
@@ -155,17 +155,16 @@
 									<MediaItem {type} {...media} />
 								</label>
 							{:else}
-								<button
-									type="button"
+								<Button
 									class="block aspect-video h-full w-full"
-									command="show-modal"
-									commandfor="media-details"
+									command="open-dialog:media-details"
+									plain
 									onclick={() => {
 										details = media;
 									}}
 								>
 									<MediaItem {type} {...media} />
-								</button>
+								</Button>
 							{/if}
 						{/snippet}
 					</MediaLibrary>

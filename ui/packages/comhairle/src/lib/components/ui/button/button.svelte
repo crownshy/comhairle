@@ -39,15 +39,18 @@
 	export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 	export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
 
-	type ModalId = string;
+	type DialogId = string;
 
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+	// Using "," to have multiple dialogs be affected
+	type Command = `open-dialog:${DialogId}` | `close-dialog:${DialogId}`;
+
+	export type ButtonProps = Omit<WithElementRef<HTMLButtonAttributes>, 'command'> &
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
 			icon?: ComponentType<LucideIcon>;
-			dialogOpen?: ModalId;
-			dialogClose?: ModalId;
+			plain?: boolean;
+			command?: Command;
 		};
 </script>
 
@@ -60,39 +63,25 @@
 		href = undefined,
 		type = 'button',
 		disabled,
-		dialogOpen,
-		dialogClose,
+		command,
 		icon: Icon,
+		plain,
+		onclick,
 		children,
 		...restProps
 	}: ButtonProps = $props();
-
-	function getCommand(): Pick<HTMLButtonAttributes, 'command' | 'commandfor'> | undefined {
-		if (dialogOpen) {
-			return {
-				command: 'show-modal',
-				commandfor: dialogOpen
-			};
-		}
-		if (dialogClose) {
-			return {
-				command: 'close',
-				commandfor: dialogClose
-			};
-		}
-		return undefined;
-	}
 </script>
 
 {#if href}
 	<a
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={plain ? className : cn(buttonVariants({ variant, size }), className)}
 		href={disabled ? undefined : href}
 		aria-disabled={disabled}
 		role={disabled ? 'link' : undefined}
 		tabindex={disabled ? -1 : undefined}
+		{onclick}
 		{...restProps}
 	>
 		{#if Icon}
@@ -104,10 +93,30 @@
 	<button
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
-		{...getCommand()}
+		class={plain ? className : cn(buttonVariants({ variant, size }), className)}
 		{type}
 		{disabled}
+		onclick={(e) => {
+			onclick?.(e);
+			if (command) {
+				const [cmd, idStr] = command.split(':');
+				const ids = idStr.split(',');
+
+				for (const id of ids) {
+					const Dialog = document.getElementById(id) as HTMLDialogElement | null;
+					if (!Dialog) {
+						return;
+					}
+					switch (cmd) {
+						case 'open-dialog':
+							Dialog.showModal();
+							break;
+						case 'close-dialog':
+							Dialog.close();
+					}
+				}
+			}
+		}}
 		{...restProps}
 	>
 		{#if Icon}

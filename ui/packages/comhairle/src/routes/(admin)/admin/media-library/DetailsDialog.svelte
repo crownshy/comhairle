@@ -104,7 +104,7 @@
 >
 	{#snippet PrimaryAction()}
 		<Button
-			dialogClose="delete-this-media"
+			command="close-dialog:delete-this-media,media-details"
 			onclick={async () => {
 				await deleteMedia();
 			}}
@@ -144,7 +144,7 @@
 				class="text-destructive/90 hover:text-destructive"
 				aria-label="Delete"
 				title="Delete"
-				dialogOpen="delete-this-media"
+				command="open-dialog:delete-this-media"
 				icon={Trash2}
 			/>
 		{/if}

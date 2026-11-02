@@ -58,7 +58,7 @@
 	<Button
 		class="absolute inset-e-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
 		variant="ghost"
-		dialogClose={id}
+		command={`close-dialog:${id}`}
 		icon={X}
 		title="close"
 		aria-label="Close dialog"
@@ -91,7 +91,7 @@
 							actions?.secondary?.onclick?.();
 						}}
 						variant="outline"
-						dialogClose={id}
+						command={`close-dialog:${id}`}
 					>
 						{actions.secondary.label}
 					</Button>
@@ -103,7 +103,7 @@
 						onclick={() => {
 							actions?.primary?.onclick?.();
 						}}
-						dialogClose={id}
+						command={`close-dialog:${id}`}
 					>
 						{actions.primary.label}
 					</Button>

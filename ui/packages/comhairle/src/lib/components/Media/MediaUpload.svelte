@@ -62,7 +62,7 @@
 	};
 </script>
 
-<Button {...props} type="button" icon={Upload} dialogOpen="upload-media">
+<Button {...props} type="button" icon={Upload} command="open-dialog:upload-media">
 	{m.upload()}
 </Button>
 
@@ -109,6 +109,6 @@
 		{/if}
 		<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" />
 		<Input {...MediaSchema.alt} label="Alt" placeholder="e.g. Company logo" />
-		<Submit class="mt-7 self-end" text="Upload" />
+		<Submit class="mt-7 self-end" text="Upload" command="close-dialog:upload-media" />
 	</Form>
 </Dialog>
