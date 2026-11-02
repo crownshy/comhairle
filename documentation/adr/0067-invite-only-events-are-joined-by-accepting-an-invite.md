@@ -18,12 +18,15 @@ resolves the breakout seat, and sends the reminders and confirmation email. The 
 calls nothing else. Anonymous email invites take the same route through
 `AutoRegisterEventAttendance`.
 
-**2. On an invite-mode event, only the conversation owner or an admin can self-register.**
-Everyone else gets a 403 (`EventInvalidSignupMode`). Open events still take anyone. The
-public event page shows an invite-only message rather than Register to Attend, so owners and
-admins have no button even though the API accepts them.
+**2. On an invite-mode event, only people who can edit the conversation can self-register.**
+That is the owner, anyone holding a conversation role with `conversation_update` (admin or
+content editor), and super admins. Events have no permissions of their own yet, so this
+borrows the conversation's. Being a platform admin is not enough on its own. Everyone else
+gets a 403 (`EventInvalidSignupMode`). Open events still take anyone. The public event page
+shows an invite-only message rather than Register to Attend, so editors have no button even
+though the API accepts them.
 
-**3. The requested role only counts for the owner or an admin.** For anyone else the
+**3. The requested role only counts for people who can edit the conversation.** For anyone else the
 attendance is created as `participant`, whatever the request says. Invites only ever grant
 `participant`. Facilitators are still added through `/facilitator`.
 
