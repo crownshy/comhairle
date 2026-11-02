@@ -93,9 +93,17 @@ pub(crate) async fn notify_registered_participant(
         .await
 }
 
-/// Resolves the `User` to record as the attendee. Anyone without
-/// `can_register_without_invite` is refused, and only the conversation owner can
-/// name someone else through `request_email`.
+/// Resolves the `User` to record as the attendee.
+///
+/// - Logged out: needs `can_register_without_invite` and a `request_email`; the
+///   user is found or created from that email.
+/// - Logged in, no `request_email`: registers the caller, and also needs
+///   `can_register_without_invite`.
+/// - Logged in with `request_email`: only the conversation owner can register
+///   someone else this way.
+///
+/// `can_register_without_invite` is true for open events, and for the
+/// conversation owner or an admin on any event.
 async fn resolve_event_attendee(
     db: &PgPool,
     owner_id: Uuid,
@@ -106,7 +114,7 @@ async fn resolve_event_attendee(
     user_agent: Option<&str>,
 ) -> Result<User, ComhairleError> {
     let Some(user) = opt_user else {
-        // When no logged in user, only allow event registration for open events
+        // Logged out: only allowed on open events
         if !can_register_without_invite {
             return Err(ComhairleError::EventInvalidSignupMode);
         }
@@ -117,7 +125,8 @@ async fn resolve_event_attendee(
         return get_or_create_user_by_email(db, &email, client_ip, user_agent).await;
     };
 
-    // Logged-in user request with no target email -> register logged in user
+    // Logged in with no target email: register the caller, unless the event is
+    // invite only and they don't manage it
     let Some(email) = request_email else {
         if !can_register_without_invite {
             return Err(ComhairleError::EventInvalidSignupMode);
