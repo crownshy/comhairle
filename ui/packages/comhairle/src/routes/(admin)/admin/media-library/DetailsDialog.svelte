@@ -121,13 +121,7 @@
 	<div class="mb-5">{value}</div>
 {/snippet}
 
-<Dialog
-	{id}
-	class="flex flex-col overflow-y-auto"
-	--min-width="90%"
-	--max-width="90vw"
-	title={media?.filename ?? ''}
->
+<Dialog {id} --min-width="90%" --max-width="90vw" title={media?.filename ?? ''}>
 	{#snippet HeaderActions()}
 		{#if !editable}
 			<Button
