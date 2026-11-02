@@ -46,8 +46,8 @@
 		(conversation.supportedLanguages as Locale[]) ?? ['en']
 	);
 
-	// FIX: Remove this after the types have been fixed on the backend
-	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
+	// The editor only handles per-language pages, not the older single LearnPage format.
+	type LearnToolConfig = Omit<InstancedToolConfig<'learn'>, 'pages'> & {
 		pages: LocalizedPage[][];
 	};
 	let sourceConfig: LearnToolConfig = $derived(
