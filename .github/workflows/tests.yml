@@ -52,7 +52,7 @@ jobs:
         name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 'lts/*' # Use the latest LTS version of Node.js
+          node-version: 24 # Node 25+ ships a global localStorage that hides jsdom's in unit tests
 
       - 
         name: Install pnpm
