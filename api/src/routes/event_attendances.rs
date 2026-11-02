@@ -96,20 +96,22 @@ pub(crate) async fn notify_registered_participant(
 /// Resolves the `User` who should be recorded as the attendee for an event
 /// attendance request, handling both authenticated and anonymous callers.
 ///
-/// Behavior depends on whether the caller is logged in, signup_mode of the
-/// event and whether a target `request_email` was supplied in the payload:
+/// Behavior depends on whether the caller is logged in, whether they can
+/// register without an invite and whether a target `request_email` was
+/// supplied in the payload. `can_register_without_invite` holds when the event
+/// has open signup or the caller manages the event:
 ///
 /// - **Anonymous caller** (`opt_user` is `None`):
-///   - If the event's `signup_mode` is not [`SignupMode::Open`], the request
-///     is rejected with [`ComhairleError::EventInvalidSignupMode`].
+///   - Without `can_register_without_invite`, the request is rejected with
+///     [`ComhairleError::EventInvalidSignupMode`].
 ///   - Otherwise, `request_email` is required. An existing user with that
 ///     email is returned, or a new account is created on the fly via
 ///     [`get_or_create_user_by_email`].
 ///
 /// - **Authenticated caller, no `request_email`**: the caller registers
-///   themselves; `opt_user` is returned as-is. On an event that is not
-///   [`SignupMode::Open`] this needs `caller_manages_event`, as everyone else
-///   joins by accepting an invite.
+///   themselves; `opt_user` is returned as-is. This needs
+///   `can_register_without_invite`, as everyone else joins by accepting an
+///   invite.
 ///
 /// - **Authenticated caller with `request_email`**: the caller is
 ///   registering *someone else*. This is only permitted when the caller is
@@ -132,16 +134,15 @@ pub(crate) async fn notify_registered_participant(
 async fn resolve_event_attendee(
     db: &PgPool,
     owner_id: Uuid,
-    signup_mode: &SignupMode,
+    can_register_without_invite: bool,
     opt_user: Option<User>,
-    caller_manages_event: bool,
     request_email: Option<String>,
     client_ip: &str,
     user_agent: Option<&str>,
 ) -> Result<User, ComhairleError> {
     let Some(user) = opt_user else {
         // When no logged in user, only allow event registration for open events
-        if *signup_mode != SignupMode::Open {
+        if !can_register_without_invite {
             return Err(ComhairleError::EventInvalidSignupMode);
         }
 
@@ -153,7 +154,7 @@ async fn resolve_event_attendee(
 
     // Logged-in user request with no target email -> register logged in user
     let Some(email) = request_email else {
-        if *signup_mode != SignupMode::Open && !caller_manages_event {
+        if !can_register_without_invite {
             return Err(ComhairleError::EventInvalidSignupMode);
         }
 
@@ -199,9 +200,8 @@ pub async fn create(
     let user = resolve_event_attendee(
         &state.db,
         conversation.owner_id,
-        &event.signup_mode,
+        event.signup_mode == SignupMode::Open || caller_manages_event,
         opt_user,
-        caller_manages_event,
         payload.user_email,
         &client_ip.0,
         user_agent.0.as_deref(),
