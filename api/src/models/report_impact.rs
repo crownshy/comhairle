@@ -65,7 +65,7 @@ pub async fn update(
     db: &PgPool,
     update_request: PartialReportImpact,
     impact_id: &Uuid,
-    user_id: &Uuid,
+    report_id: &Uuid,
 ) -> Result<ReportImpact, ComhairleError> {
     let values = update_request.to_values();
 
@@ -73,7 +73,7 @@ pub async fn update(
         .table(ReportImpactIden::Table)
         .values(values)
         .and_where(Expr::col(ReportImpactIden::Id).eq(*impact_id))
-        .and_where(Expr::col(ReportImpactIden::CreatedBy).eq(*user_id))
+        .and_where(Expr::col(ReportImpactIden::ReportId).eq(*report_id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -81,6 +81,22 @@ pub async fn update(
         .fetch_one(db)
         .await
         .map_err(ComhairleError::FailedToUpdateImpact)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn delete(db: &PgPool, impact_id: &Uuid, report_id: &Uuid) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(ReportImpactIden::Table)
+        .and_where(Expr::col(ReportImpactIden::Id).eq(*impact_id))
+        .and_where(Expr::col(ReportImpactIden::ReportId).eq(*report_id))
+        .returning(Query::returning().column(ReportImpactIden::Id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Report Impact")?;
+    Ok(())
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -124,6 +140,7 @@ pub async fn get_for_report(
         .columns(DEFAULT_COLUMNS)
         .from(ReportImpactIden::Table)
         .and_where(Expr::col(ReportImpactIden::ReportId).eq(report_id.to_owned()))
+        .order_by(ReportImpactIden::CreatedAt, sea_query::Order::Asc)
         .build_sqlx(PostgresQueryBuilder);
 
     sqlx::query_as_with::<_, ReportImpact, _>(&sql, values)

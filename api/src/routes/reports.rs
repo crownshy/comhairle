@@ -45,11 +45,12 @@ async fn get_report(
     OptionalUser(user): OptionalUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
-    let should_return_with_translations = if let Some(user) = user {
-        query.with_translations && is_user_admin(&state, &user).await
+    let should_return_with_translations = if let Some(user) = &user {
+        query.with_translations && is_user_admin(&state, user).await
     } else {
         false
     };
+    let can_update = can_update_conversation(&state, user.as_ref(), conversation_id).await?;
 
     if should_return_with_translations {
         let raw_report = models::report::get_for_conversation(&state.db, conversation_id).await?;
@@ -58,6 +59,7 @@ async fn get_report(
         let full_report = FullReportDto::from_report(
             &state.db,
             ReportView::WithTranslations(report_with_translations),
+            can_update,
         )
         .await?;
 
@@ -67,10 +69,32 @@ async fn get_report(
             models::report::get_localized_for_conversation(&state.db, conversation_id, &locale)
                 .await?;
         let full_report =
-            FullReportDto::from_report(&state.db, ReportView::Localized(report.into())).await?;
+            FullReportDto::from_report(&state.db, ReportView::Localized(report.into()), can_update)
+                .await?;
 
         Ok((StatusCode::OK, Json(full_report)))
     }
+}
+
+/// Impacts and feedback only go to people who can update the conversation. The report itself
+/// is read by the public page, so the route stays open.
+async fn can_update_conversation(
+    state: &Arc<ComhairleState>,
+    user: Option<&models::users::User>,
+    conversation_id: Uuid,
+) -> Result<bool, ComhairleError> {
+    let Some(user) = user else {
+        return Ok(false);
+    };
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+    models::permissions::can_perform_action(
+        state,
+        &conversation.id,
+        Action::Update,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -100,6 +124,7 @@ async fn create_report(
     let full_report = FullReportDto::from_report(
         &state.db,
         ReportView::WithTranslations(report_with_translations),
+        true,
     )
     .await?;
 
@@ -150,7 +175,11 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                 op.id("UpdateReport")
                     .summary("Update a report")
                     .response::<201, Json<ReportDto>>()
-            }),
+            })
+            .route_layer(from_fn_with_state(
+                requirement(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
         )
         .api_route(
             "/",
