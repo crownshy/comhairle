@@ -62,10 +62,10 @@
 	<div class={cn('grid grid-rows-[auto_1fr_auto] p-3 pt-5 pr-5', classNames)}>
 		{#if title || HeaderActions}
 			<header
-				class="border-border bg-background sticky top-0 z-2 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pt-3 pb-2 md:flex-row"
+				class="border-border bg-background sticky top-0 z-2 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pt-4 pb-3 md:flex-row"
 			>
 				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
-				<span class="shrink grow-0">
+				<span class="flex shrink grow-0 flex-row items-center gap-x-2">
 					{#if HeaderActions}
 						{@render HeaderActions()}
 					{/if}
