@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import type { ResolvedPathname } from '$app/types';
 	import type { Snippet } from 'svelte';
+	import { sectionTabClass } from './sectionTabClass';
 
 	interface Props {
 		href: ResolvedPathname;
@@ -20,10 +21,7 @@
 		role="tab"
 		{href}
 		data-sveltekit-noscroll
-		class="text-foreground inline-flex h-9 items-center px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-		class:text-primary={active}
-		class:opacity-70={!active}
-		class:hover:opacity-100={!active}
+		class={sectionTabClass(active)}
 		aria-selected={active}
 	>
 		{@render children()}

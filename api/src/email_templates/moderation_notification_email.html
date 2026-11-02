@@ -1,0 +1,9 @@
+{% extends "email_layout.html" %}
+{% block content %}
+  <h1>Dear moderator</h1>
+
+  <p style="margin-bottom: 2rem">There are new comments on your conversation, <b>{{conversation_title}}</b>, that require moderation.</p>
+
+  {{body|safe}}
+
+{% endblock %}

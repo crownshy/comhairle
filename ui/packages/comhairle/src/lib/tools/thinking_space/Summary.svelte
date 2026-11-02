@@ -21,6 +21,9 @@
 	import ConsentToggle from './ConsentToggle.svelte';
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		topic: string;
@@ -57,6 +60,8 @@
 		onDone?: () => void;
 		/** Fired when the participant clicks "I want to answer more questions". */
 		onAnswerMore?: () => void;
+		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -74,7 +79,9 @@
 		progressStatus = 'not_started',
 		onRetryGenerate,
 		onDone,
-		onAnswerMore
+		onAnswerMore,
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	let submitting = $state(false);
@@ -92,7 +99,8 @@
 	function setSaveState(id: string, state: SaveState | undefined) {
 		clearTimeout(savedResetTimers[id]);
 		if (state === undefined) {
-			const { [id]: _, ...rest } = saveStateById;
+			const rest = { ...saveStateById };
+			delete rest[id];
 			saveStateById = rest;
 			return;
 		}
@@ -182,10 +190,7 @@
 	}
 
 	async function submit() {
-		const latest = rounds[rounds.length - 1];
-		if (!latest) return;
-		const value = valueFor(latest).trim();
-		if (!value || submitting) return;
+		if (!canSubmit) return;
 		// First-ever submit on this step: gate on the consent modal. Returning
 		// participants (progressStatus === 'done') have already decided and skip
 		// straight to doSubmit.
@@ -197,12 +202,12 @@
 	}
 
 	async function doSubmit() {
-		const latest = rounds[rounds.length - 1];
-		if (!latest) return;
-		const value = valueFor(latest).trim();
-		if (!value || submitting) return;
+		if (submitting) return;
+		// With no summary (generation failed) there is nothing to save, so the step just completes.
+		const latest = rounds.at(-1);
+		const value = latest ? valueFor(latest).trim() : '';
 		submitting = true;
-		if (editsById[latest.id] !== undefined) {
+		if (latest && editsById[latest.id] !== undefined) {
 			const res = await tryCatchAsync(() =>
 				saveRound({ workflowStepId, roundId: latest.id, submittedText: value })
 			);
@@ -284,7 +289,40 @@
 		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
 
-	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
+	let latest = $derived(rounds.at(-1));
+	let isLatestEdited = $derived(latest !== undefined && editsById[latest.id] !== undefined);
+	let latestWordCount = $derived(latest ? countWords(valueFor(latest)) : 0);
+	let latestOverLimit = $derived(isLatestEdited && latestWordCount > MAX_SUMMARY_WORDS);
+	let latestHasText = $derived(
+		rounds.length > 0 && valueFor(rounds[rounds.length - 1]).trim().length > 0
+	);
+	// A failed generation must not trap the participant: their answers are already saved.
+	let summaryFailed = $derived(loadError && rounds.length === 0 && !pendingNextRound);
+	let canSubmit = $derived(
+		(latestHasText || summaryFailed) && !pendingNextRound && !submitting && !latestOverLimit
+	);
+	let blockedReason = $derived.by(() => {
+		if (canSubmit) return undefined;
+		if (pendingNextRound || rounds.length === 0)
+			return m.thinking_space_summary_still_writing();
+		if (!latestHasText) return m.thinking_space_summary_needs_text();
+		return undefined;
+	});
+
+	// The pager's Next runs the same submit as Confirm & Save, so it can't skip the
+	// consent question or the final save.
+	$effect(() => {
+		onCanContinueChange?.(canSubmit);
+	});
+	$effect(() => {
+		onSequenceChange?.({
+			progress: 1,
+			next: canSubmit ? () => void submit() : undefined,
+			blockedReason
+		});
+	});
+
+	let showFirstGenError = $derived(summaryFailed);
 	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
 
@@ -366,7 +404,7 @@
 						{:else if saveStateById[round.id] === 'saved'}
 							<span class="inline-flex items-center gap-1 text-xs text-green-600">
 								<Check class="size-3" />
-								{m.saving()}
+								{m.saved()}
 							</span>
 						{:else if saveStateById[round.id] === 'error'}
 							<span class="text-destructive inline-flex items-center gap-1 text-xs">
@@ -439,6 +477,9 @@
 				<p class="text-muted-foreground text-sm">
 					{m.thinking_space_summary_gen_failure()}
 				</p>
+				<p class="text-muted-foreground text-sm">
+					{m.thinking_space_summary_continue_without()}
+				</p>
 				<div class="flex justify-center">
 					<Button
 						variant="outline"
@@ -470,27 +511,38 @@
 					</Button>
 				</div>
 			{/if}
-			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-				<Button
-					variant="outline"
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={onAnswerMore}
-					disabled={!onAnswerMore}
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+				<span class={cn(latestOverLimit && 'text-destructive')}
+					>{#if isLatestEdited}{latestWordCount} / {MAX_SUMMARY_WORDS}{/if}</span
 				>
-					<PlusCircle class="size-4" />
-					{m.thinking_space_answer_more()}
-				</Button>
-				<Button
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={submit}
-					disabled={!valueFor(rounds[rounds.length - 1]).trim() || submitting}
-				>
-					<Check class="size-4" />
-					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
-				</Button>
+				<div class="flex gap-2">
+					<Button
+						variant="outline"
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={onAnswerMore}
+						disabled={latestOverLimit || !onAnswerMore}
+					>
+						<PlusCircle class="size-4" />
+						{m.thinking_space_answer_more()}
+					</Button>
+					<Button
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={submit}
+						disabled={!latestHasText || submitting || latestOverLimit}
+					>
+						<Check class="size-4" />
+						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
+					</Button>
+				</div>
 			</div>
+			{#if latestOverLimit}
+				<p>
+					Your summary is {latestWordCount}. Trim it to {MAX_SUMMARY_WORDS} words or fewer to
+					save your changes.
+				</p>
+			{/if}
 		{/if}
 	</section>
 </div>

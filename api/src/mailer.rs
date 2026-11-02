@@ -22,10 +22,13 @@ use crate::models::email_template_config::{
     SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
+use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
+use crate::models::workflow_step::LocalizedWorkflowStep;
 use crate::models::{conversation, organization, otp};
 use crate::routes::auth::{OtpClaims, generate_jwt};
+use crate::routes::conversations::dto::LocalizedConversationDto;
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
 
@@ -130,6 +133,13 @@ pub trait ComhairleMailer: Send + Sync {
         action: &str,
     ) -> Result<(), ComhairleError>;
 
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError>;
+
     fn preview_email(
         &self,
         template: &str,
@@ -180,6 +190,9 @@ impl MockComhairleMailer {
             .expect_send_conversation_broadcast_email()
             .returning(|_, _, _| Ok(()));
         mailer
+            .expect_send_moderation_notification_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
             .expect_send_permission_notification_email()
             .returning(|_, _, _| Ok(()));
         mailer
@@ -188,6 +201,14 @@ impl MockComhairleMailer {
 
         mailer
     }
+}
+
+#[allow(
+    clippy::expect_used,
+    reason = "minijinja_embed's generated code panics at startup if an embedded template is invalid"
+)]
+fn load_email_templates(mut env: &mut minijinja::Environment<'static>) {
+    minijinja_embed::load_templates!(env);
 }
 
 impl Mailer {
@@ -203,7 +224,7 @@ impl Mailer {
             "footer_logo_url",
             minijinja::Value::from(DEFAULT_FOOTER_LOGO_URL),
         );
-        minijinja_embed::load_templates!(&mut env);
+        load_email_templates(&mut env);
         Self {
             host: host.into(),
             creds,
@@ -259,14 +280,9 @@ impl ComhairleMailer for Mailer {
         context: Value,
         attachment: Option<SinglePart>,
     ) -> Result<(), ComhairleError> {
-        let template = self
-            .template_engine
-            .get_template(template)
-            .expect("template to exist");
+        let template = self.template_engine.get_template(template)?;
 
-        let html = template
-            .render(context)
-            .expect("Template to render properly");
+        let html = template.render(context)?;
         let html_inline_styles = css_inline::inline(&html)?;
 
         let to = Mailbox::from_str(to)?;
@@ -321,6 +337,17 @@ impl ComhairleMailer for Mailer {
             None => None,
         };
 
+        let media = MediaResolver::load(
+            &state.db,
+            &conversation.image.map(|image| [image]).unwrap_or_default(),
+        )
+        .await?;
+        let conversation = LocalizedConversationDto::from_with_media(
+            conversation,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -359,6 +386,7 @@ impl ComhairleMailer for Mailer {
         let context = context! {
             invite_link,
             domain => state.config.domain,
+            banner_image => conversation.image_url,
             organization_name => organization.map(|org| org.name),
             ..rendered_map
         };
@@ -716,6 +744,42 @@ impl ComhairleMailer for Mailer {
                 resource_type => permission.resource_type,
                 resource_id => permission.resource_id,
                 action,
+            },
+            None,
+        )
+    }
+
+    fn send_moderation_notification_email(
+        &self,
+        email: &str,
+        conversation_title: &str,
+        steps_with_pending: &[(LocalizedWorkflowStep, i32, String)],
+    ) -> Result<(), ComhairleError> {
+        let mut list_items = String::new();
+        for (step, count, mod_url) in steps_with_pending {
+            list_items.push_str(&format!(
+                r#"
+                <li><a href="{}">{}</a> ({} pending comments)</a>
+            "#,
+                mod_url, step.name, count
+            ))
+        }
+        let body = format!(
+            r#"
+            <p style="font-weight: bold">Steps that require your attention</p>
+            <ul>
+                {list_items}
+            </ul>
+        "#
+        );
+
+        self.send_email(
+            email,
+            "A conversation needs your attention",
+            "moderation_notification_email.html",
+            context! {
+                conversation_title,
+                body,
             },
             None,
         )

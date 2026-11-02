@@ -3,15 +3,16 @@
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
-	import TabContent from '../TabContent.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { SCROLL_REGION_CLASS } from '../styles';
 
 	let { data, children, params } = $props();
 	const canAdmin = $derived(
 		permissions.can('conversation', 'conversation_admin', data.conversation.id)
 	);
 
-	const tabs = ['details', 'content', 'glossary', 'moderation-policy', 'access'] as const;
+	const tabs = ['details', 'content', 'moderation-policy'] as const;
 </script>
 
 {#snippet Tab(tab: (typeof tabs)[number] | 'team')}
@@ -34,6 +35,8 @@
 	{/if}
 </TabStripShell>
 
-<TabContent>
-	{@render children?.()}
-</TabContent>
+<div class={SCROLL_REGION_CLASS}>
+	<TabContent>
+		{@render children?.()}
+	</TabContent>
+</div>

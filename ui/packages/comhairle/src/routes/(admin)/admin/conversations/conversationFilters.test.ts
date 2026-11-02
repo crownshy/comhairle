@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+	conversationCountLabel,
 	conversationListQueries,
+	conversationNoun,
 	isPageTurn,
+	listViewFromUrl,
+	listViewHref,
 	searchFromUrl,
 	searchHref,
 	statusFilterFromUrl,
@@ -87,5 +91,50 @@ describe('isPageTurn', () => {
 
 	it('is false when the page stays the same', () => {
 		expect(isPageTurn(at('?q=wind'), at('?q=winds'))).toBe(false);
+	});
+});
+
+describe('listViewFromUrl', () => {
+	it('shows cards unless ?view=list', () => {
+		expect(listViewFromUrl(at(''))).toBe('card');
+		expect(listViewFromUrl(at('?view=banana'))).toBe('card');
+		expect(listViewFromUrl(at('?view=list'))).toBe('list');
+	});
+});
+
+describe('listViewHref', () => {
+	const url = at('?status=live&q=wind&page=3');
+
+	it('keeps the filter, search and page', () => {
+		expect(listViewHref(url, 'list')).toBe(
+			'/admin/conversations?status=live&q=wind&page=3&view=list'
+		);
+	});
+
+	it('drops view for cards so it keeps one URL', () => {
+		expect(listViewHref(at('?view=list&page=2'), 'card')).toBe('/admin/conversations?page=2');
+	});
+});
+
+describe('conversationNoun', () => {
+	it('matches the count and the filter', () => {
+		expect(conversationNoun('all', 1)).toBe('conversation');
+		expect(conversationNoun('all', 2)).toBe('conversations');
+		expect(conversationNoun('live', 1)).toBe('live conversation');
+		expect(conversationNoun('shared', 0)).toBe('shared conversations');
+	});
+});
+
+describe('conversationCountLabel', () => {
+	it('says how many match a search', () => {
+		expect(conversationCountLabel(1, 'all', 'wind')).toBe('1 conversation matches "wind"');
+		expect(conversationCountLabel(4, 'draft', 'wind')).toBe(
+			'4 draft conversations match "wind"'
+		);
+	});
+
+	it('counts everything you have, or one filter', () => {
+		expect(conversationCountLabel(3, 'all', '')).toBe('You have 3 conversations');
+		expect(conversationCountLabel(1, 'completed', '')).toBe('1 completed conversation');
 	});
 });

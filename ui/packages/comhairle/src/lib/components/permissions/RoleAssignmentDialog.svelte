@@ -8,7 +8,13 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
-	import type { RoleManagement, RoleRecipient } from './roleAssignments';
+	import { cn } from '$lib/utils';
+	import {
+		roleDescription,
+		type RoleManagement,
+		type RoleRecipient,
+		type RoleResourceType
+	} from './roleAssignments';
 
 	type Props = {
 		open: boolean;
@@ -23,6 +29,7 @@
 		organizationId: string;
 		canAdmin: boolean;
 		roleData: RoleManagement['ok'];
+		resourceType: RoleResourceType;
 		hasChanges: boolean;
 		onToggleRole: (role: string, checked: boolean) => void;
 		onSave: () => Promise<void>;
@@ -42,11 +49,17 @@
 		organizationId = $bindable(),
 		canAdmin,
 		roleData,
+		resourceType,
 		hasChanges,
 		onToggleRole,
 		onSave,
 		onReload
 	}: Props = $props();
+
+	const kindOptions = [
+		{ value: 'user', label: 'Person', hint: 'Invite by email' },
+		{ value: 'organization', label: 'Organization', hint: 'Everyone in it' }
+	] as const;
 </script>
 
 <Dialog.Root bind:open>
@@ -62,9 +75,13 @@
 	>
 		<Dialog.Header class="pr-6">
 			<Dialog.Title
-				>{recipient ? `Edit roles for ${recipient.name}` : 'Add recipient'}</Dialog.Title
+				>{recipient ? `Edit roles for ${recipient.name}` : 'Add people'}</Dialog.Title
 			>
-			<Dialog.Description>{recipient?.kind ?? 'Role assignment'}</Dialog.Description>
+			<Dialog.Description
+				>{recipient
+					? recipient.detail
+					: 'Choose who to add and what they can do.'}</Dialog.Description
+			>
 		</Dialog.Header>
 		<form
 			class="flex min-h-0 flex-1 flex-col gap-6"
@@ -75,18 +92,33 @@
 		>
 			<div class="min-h-0 flex-1 space-y-6 overflow-y-auto">
 				{#if !recipient}
-					<div class="space-y-2">
-						<Label for="recipient-type">Type</Label>
-						<select
-							id="recipient-type"
-							bind:value={newKind}
-							disabled={saving || !canAdmin}
-							class="border-input bg-background h-10 w-full rounded-md border px-3 text-base"
-						>
-							<option value="user">User</option>
-							<option value="organization">Organization</option>
-						</select>
-					</div>
+					<fieldset class="space-y-2" disabled={saving || !canAdmin}>
+						<legend class="mb-2 text-base font-semibold">Add a</legend>
+						<div class="grid grid-cols-2 gap-2">
+							{#each kindOptions as option (option.value)}
+								<label
+									class={cn(
+										'border-border has-focus-visible:ring-ring flex cursor-pointer flex-col rounded-lg border p-3 transition-colors has-focus-visible:ring-2',
+										newKind === option.value
+											? 'border-primary bg-primary/10'
+											: 'hover:bg-muted'
+									)}
+								>
+									<input
+										type="radio"
+										name="recipient-type"
+										value={option.value}
+										bind:group={newKind}
+										class="sr-only"
+									/>
+									<span class="text-base font-medium">{option.label}</span>
+									<span class="text-muted-foreground text-base"
+										>{option.hint}</span
+									>
+								</label>
+							{/each}
+						</div>
+					</fieldset>
 					{#if newKind === 'user'}<div class="space-y-2">
 							<Label for="recipient-email">Email</Label>
 							<Input
@@ -121,21 +153,37 @@
 						disabled={!canAdmin || saving || (recipient !== null && snapshot === null)}
 						class="space-y-3"
 					>
-						<legend class="mb-3 text-base font-semibold">Assign roles</legend>
+						<legend class="mb-3 text-base font-semibold">Roles</legend>
 						{#each roleData?.roles ?? [] as role (role)}
-							<div class="flex items-center gap-3">
+							{@const isSelected = selectedRoles.includes(role)}
+							{@const description = roleDescription(resourceType, role)}
+							<Label
+								for={`assignment-${role}`}
+								class={cn(
+									'border-border flex cursor-pointer items-start gap-3 rounded-lg border p-3 leading-normal font-normal transition-colors',
+									isSelected ? 'border-primary bg-primary/10' : 'hover:bg-muted'
+								)}
+							>
 								<Checkbox
 									id={`assignment-${role}`}
-									checked={selectedRoles.includes(role)}
+									class="mt-1"
+									checked={isSelected}
 									disabled={!canAdmin ||
 										saving ||
 										(recipient !== null && snapshot === null)}
 									onCheckedChange={(checked) => onToggleRole(role, checked)}
 								/>
-								<Label for={`assignment-${role}`} class="text-base">
-									{snakeToStartCase(role)}
-								</Label>
-							</div>
+								<span class="flex flex-col gap-0.5">
+									<span class="text-base font-medium"
+										>{snakeToStartCase(role)}</span
+									>
+									{#if description}
+										<span class="text-muted-foreground text-base"
+											>{description}</span
+										>
+									{/if}
+								</span>
+							</Label>
 						{/each}
 					</fieldset>
 				{/if}

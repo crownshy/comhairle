@@ -22,6 +22,7 @@ use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::job::CreateJob;
+use crate::models::moderation_policy::{self, PublishedReason};
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::conversation::Action;
 use crate::models::polis_statement_aux::{
@@ -34,7 +35,8 @@ use crate::models::{self, polis_statement_aux};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::wiki_poll_service::polis_service::WikiPollReport;
 use crate::wiki_poll_service::{
-    ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
+    ModerationStatus, ReportScope, WikiPoll, WikiPollComment, WikiPollConfigUpdate, WikiPollLogin,
+    WikiPollService,
 };
 
 #[derive(Deserialize)]
@@ -168,8 +170,12 @@ pub struct PolisToolConfig {
     pub admin_user: String,
     pub admin_password: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
+    /// Off by default so steps set up before first-timer onboarding (ADR-0062)
+    /// keep their voting flow unchanged.
+    #[serde(default)]
+    pub show_onboarding: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
     // them (Polis exposes no read path for topic/description/is_active/
@@ -182,13 +188,15 @@ pub struct PolisToolConfig {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub strict_moderation: Option<bool>,
-    // Reasons offered when rejecting a statement. None means the built-in
-    // defaults in models::moderation_policy::DEFAULT_REASONS.
+    /// Reasons offered when rejecting a statement. None means the built-in
+    /// defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
+    #[serde(default = "default_true")]
+    pub notify_moderators: bool,
 }
 
-fn default_show_remaining_statements() -> bool {
+fn default_true() -> bool {
     true
 }
 
@@ -201,11 +209,13 @@ impl ToolConfigSanitize for PolisToolConfig {
             poll_id: self.poll_id.clone(),
             required_votes: self.required_votes,
             show_remaining_statements: self.show_remaining_statements,
+            show_onboarding: self.show_onboarding,
             topic: self.topic.clone(),
             description: self.description.clone(),
             is_active: self.is_active,
             strict_moderation: self.strict_moderation,
             moderation_policy_id: self.moderation_policy_id,
+            notify_moderators: self.notify_moderators,
         }
     }
 }
@@ -214,12 +224,15 @@ impl ToolConfigSanitize for PolisToolConfig {
 pub struct PolisToolSetup {
     pub topic: String,
     pub required_votes: Option<i32>,
-    #[serde(default = "default_show_remaining_statements")]
+    #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
 }
 
 #[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PolisExIm;
 
 /// Zero-sized marker type for Polis tool implementation
 pub struct PolisTool;
@@ -229,6 +242,7 @@ impl ToolImpl for PolisTool {
     type Config = PolisToolConfig;
     type Setup = PolisToolSetup;
     type Report = PolisReport;
+    type ExportImport = PolisExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -278,6 +292,21 @@ impl ToolImpl for PolisTool {
         Ok(())
     }
 
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
             .api_route(
@@ -303,6 +332,21 @@ impl ToolImpl for PolisTool {
                              required-votes progress from server data.",
                         )
                         .response::<200, Json<VoteCountResponse>>()
+                }),
+            )
+            .api_route(
+                "/polis/moderation_policy",
+                get_with(get_published_moderation_policy, |op| {
+                    op.id("PolisGetPublishedModerationPolicy")
+                        .tag("Tools")
+                        .summary("Get the moderation policy participants can read for a step")
+                        .description(
+                            "Lists the reject reasons (label and description) the step's \
+                             moderators pick from, so participants can read the rules before \
+                             they write a statement. Reads the draft config when preview is \
+                             set or the step isn't launched.",
+                        )
+                        .response::<200, Json<Vec<PublishedReason>>>()
                 }),
             )
             .api_route(
@@ -835,6 +879,45 @@ async fn get_user_vote_count(
     };
 
     Ok((StatusCode::OK, Json(VoteCountResponse { vote_count })))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct PublishedModerationPolicyQuery {
+    pub workflow_step_id: Uuid,
+    #[serde(default)]
+    pub preview: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_published_moderation_policy(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(query): Query<PublishedModerationPolicyQuery>,
+) -> Result<(StatusCode, Json<Vec<PublishedReason>>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &query.workflow_step_id).await?;
+
+    let config = match (query.preview, workflow_step.tool_config) {
+        (false, Some(live)) => live,
+        _ => workflow_step.preview_tool_config,
+    };
+    let ToolConfig::Polis(config) = config else {
+        return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()));
+    };
+
+    let workflow = models::workflow::get_by_id(&state.db, &workflow_step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+
+    let reasons = moderation_policy::published_reasons_for_step(
+        &state.db,
+        conversation_id,
+        config.moderation_policy_id,
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(reasons)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -1885,6 +1968,7 @@ pub async fn launch(
             // None is a preview created before the mirror existed, so its real
             // Polis value is unknown. Go live moderated rather than guess.
             strict_moderation: preview_config.strict_moderation.unwrap_or(true),
+            notify_moderators: preview_config.notify_moderators,
         },
         &preview_config.server_url,
         client,
@@ -1899,9 +1983,7 @@ pub async fn launch(
         })
         .await?;
 
-    // TODO: filter seed statements.
-
-    for comment in seed_statements {
+    for comment in statements_to_carry_over(seed_statements) {
         client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id, &live_auth_cookies)
             .await?;
@@ -1909,8 +1991,25 @@ pub async fn launch(
 
     Ok(PolisToolConfig {
         moderation_policy_id: preview_config.moderation_policy_id,
+        show_onboarding: preview_config.show_onboarding,
         ..live_poll_config
     })
+}
+
+/// Statements from the preview poll that go into the live poll at launch: the
+/// seeds, minus any rejected in preview. Statements submitted while testing in
+/// preview stay behind.
+fn statements_to_carry_over(comments: Vec<WikiPollComment>) -> Vec<WikiPollComment> {
+    comments
+        .into_iter()
+        .filter(|comment| {
+            comment.is_seed
+                && !matches!(
+                    ModerationStatus::try_from(comment.moderation),
+                    Ok(ModerationStatus::Rejected)
+                )
+        })
+        .collect()
 }
 
 /// Polis conversation settings written straight after the poll is created.
@@ -1920,6 +2019,7 @@ struct PolisPollSettings {
     topic: Option<String>,
     description: Option<String>,
     strict_moderation: bool,
+    notify_moderators: bool,
 }
 
 impl Default for PolisPollSettings {
@@ -1928,6 +2028,7 @@ impl Default for PolisPollSettings {
             topic: None,
             description: None,
             strict_moderation: true,
+            notify_moderators: true,
         }
     }
 }
@@ -1966,6 +2067,7 @@ async fn polis_setup(
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
         show_remaining_statements: setup.show_remaining_statements,
+        show_onboarding: false,
         // Mirror what the poll now holds so the Setup tab reflects reality
         // before the admin edits anything.
         topic: settings.topic.clone(),
@@ -1973,6 +2075,7 @@ async fn polis_setup(
         is_active: Some(true),
         strict_moderation: Some(settings.strict_moderation),
         moderation_policy_id: None,
+        notify_moderators: settings.notify_moderators,
     })
 }
 
@@ -2726,11 +2829,13 @@ mod tests {
             admin_password: "pw".into(),
             required_votes: Some(5),
             show_remaining_statements: false,
+            show_onboarding: true,
             topic: Some("Transport".into()),
             description: Some("Buses and trains".into()),
             is_active: Some(true),
             strict_moderation: Some(false),
             moderation_policy_id: Some(Uuid::new_v4()),
+            notify_moderators: true,
         }
     }
 
@@ -2750,6 +2855,7 @@ mod tests {
         .await?;
 
         assert_eq!(config.strict_moderation, Some(true));
+        assert!(!config.show_onboarding);
         let updates = updates.lock().unwrap();
         assert_eq!(updates.len(), 1);
         assert_eq!(updates[0].0, "live_poll");
@@ -2769,6 +2875,7 @@ mod tests {
         assert_eq!(live.description, preview.description);
         assert_eq!(live.required_votes, preview.required_votes);
         assert!(!live.show_remaining_statements);
+        assert!(live.show_onboarding);
         assert_eq!(live.moderation_policy_id, preview.moderation_policy_id);
 
         let updates = updates.lock().unwrap();
@@ -2790,6 +2897,82 @@ mod tests {
 
         assert_eq!(live.strict_moderation, Some(true));
         assert_eq!(updates.lock().unwrap()[0].1.strict_moderation, Some(true));
+        Ok(())
+    }
+
+    #[test]
+    fn config_saved_before_onboarding_flag_has_onboarding_off() -> Result<(), Box<dyn Error>> {
+        let config: PolisToolConfig = serde_json::from_value(serde_json::json!({
+            "server_url": "polis.test",
+            "poll_id": "poll",
+            "admin_user": "u@mock.com",
+            "admin_password": "pw",
+            "required_votes": 10
+        }))?;
+
+        assert!(!config.show_onboarding);
+        Ok(())
+    }
+
+    fn preview_comment(text: &str, is_seed: bool, status: ModerationStatus) -> WikiPollComment {
+        let moderation = match status {
+            ModerationStatus::Accepted => 1,
+            ModerationStatus::Rejected => -1,
+            ModerationStatus::Pending => 0,
+        };
+        WikiPollComment {
+            txt: text.into(),
+            is_seed,
+            moderation,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn launch_carries_over_only_unrejected_seeds() -> Result<(), Box<dyn Error>> {
+        let posted = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("live_poll".to_string()) }));
+        service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
+        service.expect_get_comments().returning(|_| {
+            Box::pin(async {
+                Ok(vec![
+                    preview_comment("Accepted seed", true, ModerationStatus::Accepted),
+                    preview_comment("Rejected seed", true, ModerationStatus::Rejected),
+                    preview_comment("Pending seed", true, ModerationStatus::Pending),
+                    preview_comment(
+                        "Statement from preview testing",
+                        false,
+                        ModerationStatus::Accepted,
+                    ),
+                ])
+            })
+        });
+        let recorded = posted.clone();
+        service
+            .expect_post_seed_comment()
+            .returning(move |text, _, _| {
+                recorded.lock().unwrap().push(text.to_string());
+                Box::pin(async { Ok(Default::default()) })
+            });
+        let service: Arc<dyn WikiPollService> = Arc::new(service);
+
+        launch(&preview_config(), &service).await?;
+
+        assert_eq!(
+            *posted.lock().unwrap(),
+            vec!["Accepted seed".to_string(), "Pending seed".to_string()]
+        );
         Ok(())
     }
 }

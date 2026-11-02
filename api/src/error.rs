@@ -63,6 +63,12 @@ pub enum ComhairleError {
     #[error("Email content type error: {0}")]
     EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
 
+    #[error("Invalid header: {0}")]
+    InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] axum::http::Error),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -188,6 +194,14 @@ pub enum ComhairleError {
 
     #[error("No user logged in")]
     NoLoggedInUser,
+
+    /// A draft conversation that has a preview password, asked for by someone who has not
+    /// unlocked it. Distinct from `NoLoggedInUser` so the frontend can show the password form.
+    #[error("Preview password required")]
+    PreviewPasswordRequired,
+
+    #[error("Wrong preview password")]
+    WrongPreviewPassword,
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
@@ -318,6 +332,9 @@ pub enum ComhairleError {
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
 
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
@@ -405,6 +422,8 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::SessionRefreshFailure(_)
             | ComhairleError::InviteDoesNotMatchUser
+            | ComhairleError::PreviewPasswordRequired
+            | ComhairleError::WrongPreviewPassword
             | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast
@@ -420,6 +439,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            ComhairleError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             ComhairleError::PolisError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::WikiPollServiceError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::TranslationError(ref err) => Into::<StatusCode>::into(err),

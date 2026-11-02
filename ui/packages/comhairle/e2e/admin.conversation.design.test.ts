@@ -7,7 +7,7 @@ test.describe('Design page', () => {
 	test.beforeEach(async ({ page }) => {
 		await login(page);
 		await Conversation.open(page);
-		await Conversation.openTab(page, 'Process Design', undefined);
+		await Conversation.openTab(page, 'Process design', undefined);
 	});
 
 	test('Add learn step', async ({ page, cleanup }) => {

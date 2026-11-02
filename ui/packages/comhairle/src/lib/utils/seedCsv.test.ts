@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findSeedIssues, parseSeedCsv } from './seedCsv';
+import { findSeedIssues, isRemovedSeed, parseSeedCsv } from './seedCsv';
 
 describe('parseSeedCsv', () => {
 	it('reads one statement per line', async () => {
@@ -250,5 +250,22 @@ describe('findSeedIssues', () => {
 			'duplicate-in-step',
 			'duplicate-in-file'
 		]);
+	});
+
+	it('flags a statement that matches a removed seed ahead of the step duplicate', () => {
+		expect(findSeedIssues(['Removed one'], ['Removed one'], ['removed  ONE'])).toEqual([
+			'removed-seed'
+		]);
+	});
+});
+
+describe('isRemovedSeed', () => {
+	it('matches ignoring case and spacing', () => {
+		expect(isRemovedSeed(' removed  one ', ['Removed one'])).toBe(true);
+	});
+
+	it('does not match blank text or other statements', () => {
+		expect(isRemovedSeed('  ', [''])).toBe(false);
+		expect(isRemovedSeed('Something else', ['Removed one'])).toBe(false);
 	});
 });

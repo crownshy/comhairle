@@ -3,7 +3,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Progress } from '$lib/components/ui/progress';
 	import {
 		CornerDownRight,
 		Shuffle,
@@ -15,25 +14,28 @@
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
+	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { cn } from '$lib/utils';
+	import { MAX_ANSWER_WORDS } from './wordLimit';
 
 	type Props = {
-		topic: string;
 		workflowStepId: string;
 		questions: QuestionConfig<string>[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
 		mode?: FlowMode;
 		onComplete: (answers: QuestionAnswers[]) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
-		topic,
 		workflowStepId,
 		questions,
 		followUpCount,
 		initialAnswers = [],
 		mode = 'initial',
-		onComplete
+		onComplete,
+		onSequenceChange
 	}: Props = $props();
 
 	const flow = new QuestionFlowState({
@@ -45,10 +47,29 @@
 		mode
 	});
 
+	// The chrome's bar shows progress (ADR-0047). Extension mode runs after the summary, so the
+	// segment stays full there.
+	$effect(() => {
+		const blockedReason = m.thinking_space_answer_to_continue();
+		if (flow.mode === 'extension') {
+			onSequenceChange?.({ progress: 1, blockedReason });
+			return;
+		}
+		onSequenceChange?.({
+			blockedReason,
+			progress: flow.progress / 100,
+			position: m.question_x_of_y({
+				current: flow.currentQuestionIndex + 1,
+				total: questions.length
+			})
+		});
+	});
+
 	let bottomEl = $state<HTMLDivElement | null>(null);
 	let continueEl = $state<HTMLElement | null>(null);
 	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let overWordLimit = $derived(flow.draftWordCount > MAX_ANSWER_WORDS);
 
 	async function scrollToFocus() {
 		await tick();
@@ -114,32 +135,22 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<!-- Header / progress -->
-	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
-		<div class="mx-auto max-w-2xl">
-			<div class="text-muted-foreground mb-2 flex items-center justify-between gap-3 text-xs">
-				<span></span>
+	{#if inExtensionPicker || inExtensionChain}
+		<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
+			<div class="text-muted-foreground mx-auto flex max-w-2xl justify-end text-xs">
 				<span>
 					{#if inExtensionPicker}
 						{m.thinking_space_pick_question()}
-					{:else if inExtensionChain}
+					{:else}
 						{m.thinking_space_go_deeper()}
 						{flow.currentQuestionIndex + 1}
 						{m.of()}
 						{questions.length}
-					{:else}
-						{m.question()}
-						{flow.currentQuestionIndex + 1}
-						{m.of()}
-						{questions.length} · {Math.round(flow.progress)}%
 					{/if}
 				</span>
 			</div>
-			{#if flow.mode !== 'extension'}
-				<Progress value={flow.progress} class="h-1.5" />
-			{/if}
 		</div>
-	</div>
+	{/if}
 
 	<!-- Scrollable content -->
 	<div
@@ -214,7 +225,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitRootAnswer()}
 								disabled={!flow.currentState.rootAnswer.trim() || flow.submitting}
@@ -477,7 +493,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitFollowUp()}
 								disabled={!flow.currentState.currentPickAnswer.trim() ||

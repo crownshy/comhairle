@@ -13,6 +13,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
+	import { pendingWork } from '$lib/stores/pendingWork.svelte';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -24,7 +25,6 @@
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
-	let privacyAccepted = $state(false);
 
 	let emailStep = $state<'closed' | 'email' | 'code'>('closed');
 	let emailValue = $state('');
@@ -40,18 +40,27 @@
 		if (isSubmitting) return;
 		isSubmitting = true;
 		if (conversation.shortPrivacyPolicy) {
-			privacyAccepted = false;
 			privacyPolicyOpen = true;
 		} else {
 			doJoin();
 		}
 	}
 
-	function doJoin() {
-		if (!user && firstWorkflow.autoLogin) {
-			registerGuestUserSignupAndRedirect();
-		} else {
-			registerUser();
+	// Joining is API calls and then a page load. Both are awaited so the progress bar stays
+	// up until the step page has loaded.
+	async function doJoin() {
+		pendingWork.start();
+		const joined = await tryCatchAsync<void, ApiError>(() =>
+			!user && joinsAnonymously ? registerGuestUserSignupAndRedirect() : registerUser()
+		);
+		pendingWork.stop();
+
+		if (joined.err !== null) {
+			notifications.send({
+				message: 'Failed to sign you up for the conversation, try again later',
+				priority: 'ERROR'
+			});
+			isSubmitting = false;
 		}
 	}
 
@@ -66,18 +75,14 @@
 		}
 	}
 
-	function handlePrivacyPolicyAccept() {
-		privacyAccepted = true;
-		doJoin();
+	function handlePrivacyPolicyDismiss() {
+		isSubmitting = false;
 	}
 
-	$effect(() => {
-		if (!privacyPolicyOpen && !privacyAccepted && isSubmitting) {
-			isSubmitting = false;
-		}
-	});
-
 	let firstWorkflow = $derived(workflows[0]);
+	// Someone sent a preview link has no account and no reason to make one, so a preview
+	// always offers the one-click anonymous join, whatever the conversation's own setting.
+	let joinsAnonymously = $derived(firstWorkflow.autoLogin || preview);
 
 	let firstWorkflowPath = $derived(
 		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/next`
@@ -96,7 +101,7 @@
 		});
 
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
-		goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
+		await goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
 	function openGuestChoice() {
@@ -253,31 +258,16 @@
 	}
 
 	async function registerUser() {
-		try {
-			await apiClient.RegisterUserForConversationWorkflow(undefined, {
-				params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
-			});
+		await apiClient.RegisterUserForConversationWorkflow(undefined, {
+			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
+		});
 
-			notifications.addFlash({
-				message: `You are part of the "${conversation.title}" conversation!`
-			});
+		notifications.addFlash({
+			message: `You are part of the "${conversation.title}" conversation!`
+		});
 
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
-			goto(firstWorkflowPath);
-		} catch (e) {
-			let message;
-
-			if (e instanceof Error) message = e.message;
-			else message = String(e);
-
-			console.warn(`Failed to register user for workflow ${message}`);
-
-			notifications.send({
-				message: 'Failed to sign you up for the conversation, try again later',
-				priority: 'ERROR'
-			});
-			isSubmitting = false;
-		}
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- built from the conversation slug
+		await goto(firstWorkflowPath);
 	}
 </script>
 
@@ -315,7 +305,7 @@
 							{conversation.callToAction || m.join_the_conversation()}
 						</Button>
 					{/if}
-				{:else if firstWorkflow.autoLogin}
+				{:else if joinsAnonymously}
 					<Button
 						class="mt-5 w-full md:w-fit"
 						onclick={handleJoin}
@@ -464,7 +454,8 @@
 				{conversation}
 				availableDocuments={data.availableDocuments}
 				bind:open={privacyPolicyOpen}
-				onAccept={handlePrivacyPolicyAccept}
+				onAccept={doJoin}
+				onDismiss={handlePrivacyPolicyDismiss}
 			/>
 		{/if}
 	{:else}

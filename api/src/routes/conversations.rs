@@ -5,6 +5,7 @@ use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with
 use axum::extract::{Json, Path, Query, State};
 use axum::http::StatusCode;
 use axum::middleware::from_fn_with_state;
+use axum_extra::extract::cookie::CookieJar;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -15,8 +16,8 @@ use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models::conversation::{
-    self, ConversationFilterOptions, ConversationOrderOptions, ConversationWithTranslations,
-    CreateConversation, IdOrSlug, PartialConversation,
+    self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
+    ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
 };
 use crate::models::conversation_email_notification_recipients::{
     self as email_recipients_model, CreateConversationEmailNotificationRecipients,
@@ -35,8 +36,10 @@ use crate::models::permissions::{
     PermissionRole, RevokeRoleRequest, SystemResource, can_perform_action, grant_role,
 };
 use crate::models::user_participation::{self};
-use crate::models::{organization, user_conversation_preferences, user_profile};
+use crate::models::users::User;
+use crate::models::{organization, user_conversation_preferences, user_profile, user_progress};
 use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+use crate::routes::preview_access::{has_preview_grant, preview_denied_error};
 use crate::routes::translations::LocaleExtractor;
 
 pub mod dto;
@@ -162,13 +165,14 @@ pub enum ConversationResponse {
 }
 
 /// Get a specific conversation
-#[instrument(err(Debug), skip(state))]
+#[instrument(err(Debug), skip(state, jar))]
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
     Query(query): Query<GetConversationQuery>,
     OptionalUser(user): OptionalUser,
     LocaleExtractor(locale): LocaleExtractor,
+    jar: CookieJar,
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
@@ -176,24 +180,7 @@ async fn get_conversation(
     let original_conversation =
         conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
 
-    // If this isn't a live conversation and the user is not the owner
-    if !original_conversation.is_live {
-        if let Some(user) = &user {
-            if !can_perform_action(
-                &state,
-                &original_conversation.id,
-                Action::Read,
-                &user.id,
-                Some(&original_conversation.owner_id),
-            )
-            .await?
-            {
-                return Err(ComhairleError::UserNotAuthorized);
-            }
-        } else {
-            return Err(ComhairleError::NoLoggedInUser);
-        }
-    }
+    ensure_can_read(&state, &original_conversation, user.as_ref(), &jar).await?;
 
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = if query.with_translations
@@ -242,19 +229,63 @@ async fn get_conversation(
     }
 }
 
+/// A draft conversation is readable by its team, or by anyone who unlocked its preview with
+/// the preview password. Being logged in is not enough on its own: preview visitors get an
+/// anonymous account, so every one of them is logged in.
+async fn ensure_can_read(
+    state: &Arc<ComhairleState>,
+    conversation: &Conversation,
+    user: Option<&User>,
+    jar: &CookieJar,
+) -> Result<(), ComhairleError> {
+    if conversation.is_live {
+        return Ok(());
+    }
+
+    if let Some(user) = user
+        && can_perform_action(
+            state,
+            &conversation.id,
+            Action::Read,
+            &user.id,
+            Some(&conversation.owner_id),
+        )
+        .await?
+    {
+        return Ok(());
+    }
+
+    if has_preview_grant(state, jar, conversation.id).await? {
+        return Ok(());
+    }
+
+    let fallback = if user.is_some() {
+        ComhairleError::UserNotAuthorized
+    } else {
+        ComhairleError::NoLoggedInUser
+    };
+    Err(preview_denied_error(state, conversation.id, fallback).await?)
+}
+
 /// List organizations that are co-hosts of a conversation, inferred from permissions.
 #[instrument(err(Debug), skip(state))]
 async fn list_conversation_cohosts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<OrganizationWithPermissionDto>>), ComhairleError> {
+    let owning_organization_id = conversation::get_by_id(&state.db, &conversation_id)
+        .await?
+        .organization_id;
     let organizations = permissions::list_organizations_with_permission(
         &state.db,
         "conversation",
         conversation_id,
         Some(Role::Observer.as_ref()),
     )
-    .await?;
+    .await?
+    .into_iter()
+    .filter(|organization| Some(organization.id) != owning_organization_id)
+    .collect();
 
     Ok((StatusCode::OK, Json(organizations)))
 }
@@ -386,6 +417,32 @@ pub struct NotificationRecipientsResponse {
     pub email_recipients: Vec<String>,
     /// Convenience count of `email_recipients`.
     pub email_recipient_count: i32,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ParticipationCountResponse {
+    pub participant_count: u64,
+}
+
+/// Open to participants so the thank-you page can show it, with the same draft gate as
+/// `get_conversation`.
+#[instrument(err(Debug), skip(state, jar))]
+async fn get_participation_count(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    OptionalUser(user): OptionalUser,
+    jar: CookieJar,
+) -> Result<(StatusCode, Json<ParticipationCountResponse>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    ensure_can_read(&state, &conversation, user.as_ref(), &jar).await?;
+    let participant_count =
+        user_progress::count_people_who_have_taken_part(&state.db, &conversation_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ParticipationCountResponse { participant_count }),
+    ))
 }
 
 /// Preview the recipient lists for the notify page (count + email list).
@@ -998,6 +1055,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Notifications")
             })
                 .route_layer(from_fn_with_state(requirement(Action::Admin), permission_middleware::<ConversationResource>)),
+        )
+        .api_route(
+            "/{conversation_id}/participation-count",
+            get_with(get_participation_count, |op| {
+                op.id("GetParticipationCount")
+                    .summary("Count the people who have taken part")
+                    .description("Returns how many distinct people have at least one done step in this conversation.")
+                    .response::<200, Json<ParticipationCountResponse>>()
+                    .tag("Conversation")
+            }),
         )
         .api_route(
             "/{conversation_id}/email-updates",
@@ -2400,7 +2467,7 @@ mod tests {
 
         let conversation_id = make_conversation(&mut admin, &app, "opt_in_authed").await?;
 
-        // user1 — opted in
+        // user1: opted in
         let user1 = create_user(
             &SignupRequest {
                 username: "opt_in_user".into(),
@@ -2424,7 +2491,7 @@ mod tests {
         )
         .await?;
 
-        // user2 — explicitly opted out (preferences row exists, flag false)
+        // user2: explicitly opted out (preferences row exists, flag false)
         let user2 = create_user(
             &SignupRequest {
                 username: "opt_out_user".into(),
@@ -2448,7 +2515,7 @@ mod tests {
         )
         .await?;
 
-        // user3 — no preferences row at all (default = not opted in)
+        // user3: no preferences row at all (default = not opted in)
         let _user3 = create_user(
             &SignupRequest {
                 username: "no_prefs_user".into(),
@@ -3063,6 +3130,152 @@ mod tests {
         Ok(())
     }
 
+    async fn register_and_mark_step_done(
+        session: &mut UserSession,
+        app: &crate::App,
+        conversation_id: &str,
+        workflow_id: &str,
+        step: &serde_json::Value,
+    ) -> Result<(), Box<dyn Error>> {
+        let step_id = step["id"].as_str().unwrap();
+        let workflow_url = format!("/conversation/{conversation_id}/workflow/{workflow_id}");
+        session
+            .post(app, &format!("{workflow_url}/register"), Body::empty())
+            .await?;
+        session
+            .put(
+                app,
+                &format!("{workflow_url}/progress/{step_id}"),
+                serde_json::json!({ "status": "done" }).to_string().into(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_only_counts_people_with_a_done_step(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+        let workflow_id = workflow["id"].as_str().unwrap().to_string();
+        let steps = admin
+            .create_random_workflow_steps(&app, &conversation_id, &workflow_id, 2)
+            .await?;
+        let count_url = format!("/conversation/{conversation_id}/participation-count");
+
+        let mut registered_only = UserSession::new_guest();
+        registered_only.signup_guest(&app).await?;
+        registered_only
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/register"),
+                Body::empty(),
+            )
+            .await?;
+
+        let (status, value, _) = registered_only.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 0);
+
+        let mut done_both = UserSession::new_guest();
+        done_both.signup_guest(&app).await?;
+        for step in &steps {
+            register_and_mark_step_done(&mut done_both, &app, &conversation_id, &workflow_id, step)
+                .await?;
+        }
+
+        let (status, value, _) = done_both.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 1);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_spans_every_workflow_in_the_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_conversation(&app).await?;
+        let conversation_id = conversation["id"].as_str().unwrap().to_string();
+        let mut first_steps = vec![];
+        for _ in 0..2 {
+            let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+            let workflow_id = workflow["id"].as_str().unwrap().to_string();
+            let steps = admin
+                .create_random_workflow_steps(&app, &conversation_id, &workflow_id, 1)
+                .await?;
+            first_steps.push((workflow_id, steps[0].clone()));
+        }
+
+        let mut in_both = UserSession::new_guest();
+        in_both.signup_guest(&app).await?;
+        for (workflow_id, step) in &first_steps {
+            register_and_mark_step_done(&mut in_both, &app, &conversation_id, workflow_id, step)
+                .await?;
+        }
+
+        let mut in_second_only = UserSession::new_guest();
+        in_second_only.signup_guest(&app).await?;
+        let (second_workflow_id, second_step) = &first_steps[1];
+        register_and_mark_step_done(
+            &mut in_second_only,
+            &app,
+            &conversation_id,
+            second_workflow_id,
+            second_step,
+        )
+        .await?;
+
+        let (status, value, _) = in_second_only
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/participation-count"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(value["participantCount"], 2);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn participation_count_is_hidden_until_the_conversation_is_live(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+        let (_, conversation, _) = admin.create_random_unlaunched_conversation(&app).await?;
+        let count_url = format!(
+            "/conversation/{}/participation-count",
+            conversation["id"].as_str().unwrap()
+        );
+
+        let mut guest = UserSession::new_guest();
+        guest.signup_guest(&app).await?;
+        let (status, _, _) = guest.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = admin.get(&app, &count_url).await?;
+        assert_eq!(status, StatusCode::OK);
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn participant_can_register_email_for_updates(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
@@ -3134,6 +3347,100 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn owning_organization_members_read_and_administrators_edit_until_the_owner_changes(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::model_test_helpers::get_random_user_id;
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut owner).await?;
+        let other_organization_id =
+            crate::models::model_test_helpers::get_random_organization_id(&app, &mut owner).await?;
+
+        let mut member = UserSession::new_guest();
+        let member_id = get_random_user_id(&app, &mut member).await?;
+        let mut administrator = UserSession::new_guest();
+        let administrator_id = get_random_user_id(&app, &mut administrator).await?;
+        for (group, user_id) in [("members", member_id), ("admins", administrator_id)] {
+            let (status, _, _) = owner
+                .put(
+                    &app,
+                    &format!("/organizations/{organization_id}/groups/{group}/members/{user_id}"),
+                    Body::empty(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+        }
+
+        let (_, value, _) = owner.create_random_unlaunched_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+        let id = conversation.id.to_string();
+        let rename = json!({ "tags": ["owned"] });
+
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let (status, _, _) = owner
+            .update_conversation(&app, &id, json!({ "organization_id": organization_id }))
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::OK, "members can read");
+        let (status, _, _) = member
+            .update_conversation(&app, &id, rename.clone())
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "members cannot edit");
+        let (status, _, _) = administrator.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = administrator
+            .update_conversation(&app, &id, rename.clone())
+            .await?;
+        assert_eq!(status, StatusCode::OK, "administrators can edit");
+
+        let (_, response, _) = owner
+            .get(&app, &format!("/conversation/{id}/cohosts"))
+            .await?;
+        let cohosts: Vec<OrganizationWithPermissionDto> = serde_json::from_value(response)?;
+        assert!(
+            cohosts.is_empty(),
+            "the owning organization is not a co-host"
+        );
+
+        let (status, _, _) = owner
+            .update_conversation(
+                &app,
+                &id,
+                json!({ "organization_id": other_organization_id }),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let (status, _, _) = member.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN, "revoked on owner change");
+        let (status, _, _) = administrator.get_conversation(&app, &id).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        sqlx::query("UPDATE conversation SET organization_id = NULL WHERE id = $1")
+            .bind(conversation.id)
+            .execute(&pool)
+            .await?;
+        let remaining: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM conversation_group_permissions WHERE resource_id = $1 AND grant_reason = 'Owning organization'",
+        )
+        .bind(conversation.id)
+        .fetch_one(&pool)
+        .await?;
+        assert_eq!(remaining, 0, "revoked when the owner is cleared");
 
         Ok(())
     }

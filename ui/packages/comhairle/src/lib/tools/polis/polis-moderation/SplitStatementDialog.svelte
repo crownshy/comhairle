@@ -102,7 +102,7 @@
 			<div class="flex flex-col gap-3">
 				<span class="text-muted-foreground text-sm font-medium">Replacement statements</span
 				>
-				{#each replacements as _, i (i)}
+				{#each replacements, i (i)}
 					<div class="flex items-start gap-2">
 						<Textarea
 							bind:value={replacements[i]}

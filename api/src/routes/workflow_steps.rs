@@ -5,10 +5,13 @@ use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use axum::Json;
-use axum::extract::{FromRequestParts, Path, Query, State};
-use axum::http::StatusCode;
+use axum::body::Body;
+use axum::extract::{FromRequestParts, Multipart, Path, Query, State};
 use axum::http::request::Parts;
+use axum::http::{HeaderValue, StatusCode};
 use axum::middleware::from_fn_with_state;
+use axum::response::Response;
+use hyper::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -23,14 +26,17 @@ use crate::models::permissions::conversation::Action;
 use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
-use crate::models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig};
+use crate::models::workflow_step::{
+    self, ActivationRule, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig, setup_tool,
+};
 use crate::models::{self, conversation, user_participation};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
-    LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
-    WorkflowStepWithTranslationsDto,
+    ExImWorkflowStep, LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto,
+    WorkflowStepDto, WorkflowStepWithTranslationsDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
+use crate::tools::ToolSetup;
 
 #[derive(Deserialize, JsonSchema, Debug, Default)]
 #[serde(rename_all = "camelCase")]
@@ -95,6 +101,17 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepPathCtx {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+pub struct CreateWorkflowStepRequest {
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    pub description: String,
+    pub is_offline: bool,
+    pub tool_setup: ToolSetup,
+    pub required: bool,
+}
+
 /// Create workflow handler
 #[instrument(err(Debug), skip(state))]
 async fn create_workflow_step(
@@ -104,20 +121,36 @@ async fn create_workflow_step(
         event_id: _,
     }: SourcePathCtx,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-    Json(new_workflow): Json<CreateWorkflowStep>,
+    Json(payload): Json<CreateWorkflowStepRequest>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    let workflow = workflow_step::create(
+    let preview_tool_config =
+        setup_tool(&payload.tool_setup, &state, &conversation.primary_locale).await?;
+
+    let new_step = CreateWorkflowStep {
+        name: payload.name,
+        description: payload.description,
+        tool_config: preview_tool_config,
+        step_order: payload.step_order,
+        activation_rule: payload.activation_rule,
+        is_offline: payload.is_offline,
+        required: payload.required,
+        can_revisit: None,
+        request_user_share_permission: None,
+        data_protocol: None,
+    };
+
+    let workflow_step = workflow_step::create(
         &state,
-        &new_workflow,
+        &new_step,
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
     )
     .await?
     .into();
-    Ok((StatusCode::CREATED, Json(workflow)))
+    Ok((StatusCode::CREATED, Json(workflow_step)))
 }
 
 /// Update workflow handler
@@ -333,6 +366,112 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
+/// Export a specific workflow to JSON
+#[instrument(err(Debug), skip(state))]
+async fn export_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowStepPathCtx {
+        workflow_id: _,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
+) -> Result<Response, ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let workflow_step = workflow_step::get_localised_by_id(
+        &state.db,
+        &workflow_step_id,
+        &conversation.primary_locale,
+    )
+    .await?;
+
+    let tool_config = workflow_step
+        .tool_config
+        .unwrap_or(workflow_step.preview_tool_config);
+    let tool_config_export = tool_config.export_tool().await?;
+
+    let content_disposition = HeaderValue::from_str(&format!(
+        "attachment; filename=\"workflow-step-{}.json\"",
+        workflow_step.name.replace(char::is_whitespace, "-"),
+    ))?;
+
+    let export_step = ExImWorkflowStep {
+        primary_locale: conversation.primary_locale,
+        name: workflow_step.name,
+        activation_rule: workflow_step.activation_rule,
+        description: workflow_step.description,
+        is_offline: workflow_step.is_offline,
+        required: workflow_step.required,
+        can_revisit: workflow_step.can_revisit,
+        preview_tool_config: tool_config_export,
+        request_user_share_permission: workflow_step.request_user_share_permission,
+        data_protocol: workflow_step.data_protocol,
+    };
+
+    let bytes = serde_json::to_vec(&export_step)?;
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(bytes))?;
+
+    Ok(response)
+}
+
+/// Export a specific workflow to JSON
+#[instrument(err(Debug), skip(state))]
+async fn import_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
+    mut form_data: Multipart,
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let bytes = match form_data.next_field().await? {
+        Some(field) => field.bytes().await?,
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one file import allowed".to_string(),
+        ));
+    }
+
+    let export: ExImWorkflowStep = serde_json::from_slice(&bytes)?;
+
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let existing_steps = workflow_step::list(&state.db, &workflow_id).await?;
+    let tool_config = export.preview_tool_config.import_tool(&state).await?;
+
+    let new_step = CreateWorkflowStep {
+        name: export.name,
+        description: export.description,
+        tool_config,
+        step_order: existing_steps.len() as i32 + 1,
+        activation_rule: export.activation_rule,
+        is_offline: export.is_offline,
+        required: export.required,
+        can_revisit: Some(export.can_revisit),
+        request_user_share_permission: Some(export.request_user_share_permission),
+        data_protocol: export.data_protocol,
+    };
+
+    let workflow_step = workflow_step::create(
+        &state,
+        &new_step,
+        workflow_id,
+        &conversation.primary_locale,
+        conversation.is_live,
+    )
+    .await?;
+
+    Ok((StatusCode::CREATED, Json(workflow_step.into())))
+}
+
 pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
@@ -403,11 +542,45 @@ Use query param withUserProgress=true to get the active user's progress status f
                 permission_middleware::<ConversationResource>,
             )),
         )
+        .api_route(
+            "/{workflow_step_id}/export",
+            get_with(export_workflow_step, |op| {
+                op.id(&format!("Export{ctx}WorkflowStep"))
+                    .tag("Workflow step")
+                    .summary("Export a workflow step to JSON")
+                    .description("Export a workflow step to JSON")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ExImWorkflowStep>>()
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
+        )
+        .api_route(
+            "/import",
+            post_with(import_workflow_step, |op| {
+                op.tag("Workflow step")
+                    .summary("Import a workflow step from exported JSON file")
+                    .description(
+                        "This endpoint requires multipart/form-data.\
+                        Generated API clients may not support file uploads.\
+                        Use FormData and a raw HTTP request.",
+                    )
+                    .security_requirement("JWT")
+                    .response::<201, Json<WorkflowStepDto>>()
+            })
+            .route_layer(from_fn_with_state(
+                PermissionRequirement::<ConversationResource>::new(Action::Update),
+                permission_middleware::<ConversationResource>,
+            )),
+        )
 }
 
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
 
@@ -424,7 +597,17 @@ mod tests {
     use crate::setup_server;
     use crate::test_helpers::{
         UserSession, extract, learn_tool_config, polis_tool_config, test_state,
+        thinking_space_tool_config,
     };
+
+    /// Sets the `COMHAIRLE_LOCALE` cookie on the session so subsequent
+    /// requests resolve translations for `locale` instead of the default `en`.
+    fn set_locale(session: &mut UserSession, locale: &str) {
+        session.cookies.get_or_insert_with(HashMap::new).insert(
+            "COMHAIRLE_LOCALE".to_string(),
+            format!("COMHAIRLE_LOCALE={locale}"),
+        );
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -591,6 +774,215 @@ mod tests {
             "Learn Workflow Step", workflow_2_return_name,
             "Second workflow step should have the right name"
         );
+        Ok(())
+    }
+
+    /// Covers the round trip that
+    /// `workflow_step::list_with_translations` plus the route's separate
+    /// tool_config translation batching are jointly responsible for: a step's
+    /// own fields (`name`/`description`) *and* a nested tool_config field
+    /// (`ThinkingSpaceToolConfig::topic`) must both resolve to a requested
+    /// non-primary locale when a translation exists for it.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_resolve_step_and_tool_config_translations_for_requested_locale(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Translations bench",
+                    "short_description": "bench",
+                    "description": "bench",
+                    "image_url": "https://fakeimg.pl/1000x600",
+                    "tags": [],
+                    "is_public": true,
+                    "is_live": true,
+                    "is_invite_only": false,
+                    "primary_locale": "en",
+                    "supported_languages": ["en", "fr"]
+                }),
+            )
+            .await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Original name",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "Original description",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": thinking_space_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let list_url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step?withTranslations=true"
+        );
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        let name_id: String = extract("id", &step["translations"]["name"]["textContent"]);
+        let description_id: String =
+            extract("id", &step["translations"]["description"]["textContent"]);
+        let topic_id: String = extract(
+            "id",
+            &step["toolConfig"]["topic"]["translations"]["textContent"],
+        );
+
+        for (text_content_id, content) in [
+            (&name_id, "Nom traduit"),
+            (&description_id, "Description traduite"),
+            (&topic_id, "Sujet traduit"),
+        ] {
+            let (status, _, _) = session
+                .post(
+                    &app,
+                    &format!("/translations/{text_content_id}/fr"),
+                    json!({ "content": content }).to_string().into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::CREATED, "should create fr translation");
+        }
+
+        set_locale(&mut session, "fr");
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with fr translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        assert_eq!(
+            step["name"], "Nom traduit",
+            "step name should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["description"], "Description traduite",
+            "step description should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["toolConfig"]["topic"]["localized"], "Sujet traduit",
+            "tool_config topic should resolve to the fr translation"
+        );
+
+        Ok(())
+    }
+
+    /// Mirror of the happy-path test above, but no `fr` translation is ever
+    /// created for `description` or the tool_config `topic`. Both must fall
+    /// back to the primary-locale content rather than coming back empty.
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_fall_back_to_primary_locale_when_translation_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Translations fallback bench",
+                    "short_description": "bench",
+                    "description": "bench",
+                    "image_url": "https://fakeimg.pl/1000x600",
+                    "tags": [],
+                    "is_public": true,
+                    "is_live": true,
+                    "is_invite_only": false,
+                    "primary_locale": "en",
+                    "supported_languages": ["en", "fr"]
+                }),
+            )
+            .await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Original name",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "Original description",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": thinking_space_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let list_url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step?withTranslations=true"
+        );
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        let name_id: String = extract("id", &step["translations"]["name"]["textContent"]);
+
+        // Only `name` gets an `fr` translation; description and tool_config
+        // topic are deliberately left untranslated.
+        let (status, _, _) = session
+            .post(
+                &app,
+                &format!("/translations/{name_id}/fr"),
+                json!({ "content": "Nom traduit" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED, "should create fr translation");
+
+        set_locale(&mut session, "fr");
+
+        let (status, steps, _) = session.get(&app, &list_url).await?;
+        assert_eq!(status, StatusCode::OK, "should list with fr translations");
+        let step = steps.as_array().unwrap().first().unwrap();
+
+        assert_eq!(
+            step["name"], "Nom traduit",
+            "step name should resolve to the fr translation"
+        );
+        assert_eq!(
+            step["description"], "Original description",
+            "step description should fall back to the primary locale"
+        );
+        assert_eq!(
+            step["toolConfig"]["topic"]["localized"], "test topic",
+            "tool_config topic should fall back to the primary locale"
+        );
+
         Ok(())
     }
 

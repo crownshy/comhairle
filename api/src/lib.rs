@@ -11,6 +11,7 @@ pub mod models;
 pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;
+pub mod sensemaking;
 #[cfg(test)]
 mod test_helpers;
 mod tools;
@@ -192,13 +193,25 @@ pub async fn build_router_and_spec(
                     routes::workflows::router(WorkflowRouterContext::Conversation)
                         .nest(
                             "/{workflow_id}/workflow_step",
-                            routes::workflow_steps::router(WorkflowRouterContext::Conversation),
+                            routes::workflow_steps::router(WorkflowRouterContext::Conversation)
+                                .nest(
+                                    "/{workflow_step_id}/theme_collections",
+                                    routes::theme_collections::router(),
+                                )
+                                .nest(
+                                    "/{workflow_step_id}/statements",
+                                    routes::statements::router(),
+                                ),
                         )
                         .nest("/{workflow_id}/progress", routes::user_progress::router())
                         .nest(
                             "/{workflow_id}/recruitment_targets",
                             routes::recruitment_targets::router(),
                         ),
+                )
+                .nest(
+                    "/{conversation_id}/preview_access",
+                    routes::preview_access::router(rate_limiters.as_ref()),
                 )
                 .nest(
                     "/{conversation_id}/invite",

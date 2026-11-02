@@ -9,7 +9,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
-	import { parseSeedCsv, type ParsedSeedCsv } from '$lib/utils/seedCsv';
+	import { isRemovedSeed, parseSeedCsv, type ParsedSeedCsv } from '$lib/utils/seedCsv';
 	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
@@ -17,11 +17,14 @@
 		workflowStepId: string;
 		/** Every statement already in the step, rejected ones included, for duplicate flags. */
 		existingStatements: string[];
+		/** Seeds removed in Setup. Polis won't take the same text twice, so these are restored, not re-posted. */
+		removedSeeds: string[];
 		// Called after seeds are posted + synced so the parent can refresh its data.
 		onSeeded: () => void | Promise<void>;
 	};
 
-	let { conversationId, workflowStepId, existingStatements, onSeeded }: Props = $props();
+	let { conversationId, workflowStepId, existingStatements, removedSeeds, onSeeded }: Props =
+		$props();
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversationId)
 	);
@@ -43,8 +46,11 @@
 	let importing = $state(false);
 	let nextDraftId = 0;
 	const postable = $derived(
-		drafts.map((draft) => draft.text.trim()).filter((text) => text.length > 0)
+		drafts
+			.map((draft) => draft.text.trim())
+			.filter((text) => text.length > 0 && !isRemovedSeed(text, removedSeeds))
 	);
+	const draftWasRemoved = $derived(isRemovedSeed(draftText, removedSeeds));
 
 	// Number of statements posted so far / in the current batch, for the progress
 	// readout while a post or import is in flight.
@@ -118,7 +124,7 @@
 	async function addSeed() {
 		if (!canEdit) return;
 		const text = draftText.trim();
-		if (!text || busy) return;
+		if (!text || draftWasRemoved || busy) return;
 		addingSeed = true;
 
 		const outcome = await postSeeds([text]);
@@ -288,6 +294,7 @@
 					{parsed}
 					onColumnChange={pickColumn}
 					{existingStatements}
+					{removedSeeds}
 					posting={busy}
 				/>
 			{:else}
@@ -301,6 +308,11 @@
 					placeholder="Write a seed statement…"
 					disabled={busy}
 				/>
+				{#if draftWasRemoved}
+					<p class="text-muted-foreground text-sm">
+						You removed this seed earlier. Restore it from the Removed list instead.
+					</p>
+				{/if}
 
 				<div class="text-muted-foreground flex items-center gap-2 text-sm">
 					<span>or</span>
@@ -335,7 +347,7 @@
 						: `Post ${postable.length} ${pluralise(postable.length, 'statement')}`}
 				</Button>
 			{:else}
-				<Button onclick={addSeed} disabled={!draftText.trim() || busy}>
+				<Button onclick={addSeed} disabled={!draftText.trim() || draftWasRemoved || busy}>
 					{addingSeed ? 'Posting…' : 'Post seed'}
 				</Button>
 			{/if}

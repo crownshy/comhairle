@@ -1,4 +1,10 @@
-import type { MemberVotePercent, PolisReportData, ReportComment, ReportGroup } from './reportTypes';
+import type {
+	MemberVotePercent,
+	PolisReportData,
+	ReportComment,
+	ReportGroup,
+	VoteCounts
+} from './reportTypes';
 
 /** A-Z label for a group_id (0 -> "A"). */
 export function groupLabel(groupId: number): string {
@@ -69,8 +75,12 @@ export function getEngagementStats(data: PolisReportData) {
 }
 
 /** Vote total for a single comment (a + d + p). */
+export function sumVotes(votes: VoteCounts): number {
+	return votes.agrees + votes.disagrees + votes.passes;
+}
+
 export function totalVotes(c: ReportComment): number {
-	return c.overall_votes.agrees + c.overall_votes.disagrees + c.overall_votes.passes;
+	return sumVotes(c.overall_votes);
 }
 
 /**

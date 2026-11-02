@@ -4,7 +4,12 @@ import {
 	translateTiptapContent,
 	isTiptapJson
 } from '$lib/utils/tiptapUtils';
-import type { Translation, Translation2, TranslationDto } from '@crownshy/api-client/api';
+import type {
+	ConversationWithTranslations,
+	Translation,
+	Translation2,
+	TranslationDto
+} from '@crownshy/api-client/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
@@ -94,6 +99,19 @@ export function getTextInLocale(
 	if (!translation?.textTranslations) return fallback;
 	const localeTranslation = translation.textTranslations.find((t) => t.locale === locale);
 	return localeTranslation?.content ?? fallback;
+}
+
+/** The conversation's title in its primary locale, falling back to the untranslated title. */
+export function conversationTitle(
+	conversation: Pick<ConversationWithTranslations, 'title' | 'translations' | 'primaryLocale'>
+): string {
+	return (
+		getTextInLocale(
+			conversation.translations?.title,
+			conversation.primaryLocale ?? 'en',
+			conversation.title
+		) || conversation.title
+	);
 }
 
 export const statusToBadgeVariant = {

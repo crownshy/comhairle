@@ -1,8 +1,8 @@
 import { expect } from '@playwright/test';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
-import { eventually, test } from './utils/testing';
-import { exists } from './utils';
+import { test } from './utils/testing';
+import { Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -11,48 +11,62 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Configure/team page', async ({ page }) => {
-	const EmailTextbox = page.getByRole('textbox', { name: 'Grant a user "content editor' });
-	const EmailTextboxLabel = page.getByText('Grant a user "content editor');
-	const Submit = page.getByRole('button', { name: 'Submit' });
-
-	const ERROR_INPUT = 'test@crown-shy';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(ERROR_INPUT);
-	await Submit.click();
-
-	await expect(EmailTextboxLabel).toHaveAttribute('data-fs-error');
-
-	const ERROR_USER = 'test@crown-shy.com';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(ERROR_USER);
-	await Submit.click();
-
-	await expect(EmailTextboxLabel).not.toHaveAttribute('data-fs-error');
-	await expect(page.getByText('Something went wrong granting').first()).toBeVisible();
+	const main = page.getByRole('main');
+	// Adding and editing use the same dialog under different titles, and only one is open at a time.
+	const dialog = page.getByRole('dialog');
+	const Email = await Textbox('Email', { page }, { exact: true });
+	const contentEditor = dialog.getByRole('checkbox', { name: /^Content Editor/ });
+	const save = dialog.getByRole('button', { name: 'Save changes' });
 
 	const NEW_USER = 'admin@crown-shy.com';
-	await EmailTextbox.click();
-	await EmailTextbox.fill(NEW_USER);
-	await Submit.click();
+	// Rows are labelled by username, so find the row by its email.
+	const editNewUser = main
+		.getByRole('listitem')
+		.filter({ hasText: NEW_USER })
+		.getByRole('button', { name: /^Edit roles for/ });
 
-	await eventually(async () => {
-		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
-	});
+	// A failed earlier run can leave the role behind.
+	await expect(main.getByRole('heading', { name: 'Team', level: 2 })).toBeVisible();
+	if (await editNewUser.isVisible()) {
+		await removeAllRoles();
+	}
 
-	const RevokePermission = page.getByRole('button', { name: 'Revoke permission' });
-	await RevokePermission.click();
+	await main.getByRole('button', { name: 'Add people' }).first().click();
+	await contentEditor.click();
 
-	const Cancel = page.getByRole('button', { name: 'Cancel' });
-	await Cancel.click();
+	await Email.write('not-an-email');
+	expect(await Email.isValid()).toBe(false);
 
-	expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(true);
+	await Email.write('test@crown-shy.com');
+	await save.click();
+	await expect(dialog.getByRole('alert')).toContainText('Could not save roles');
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
 
-	await RevokePermission.click();
+	await main.getByRole('button', { name: 'Add people' }).first().click();
+	await Email.write(NEW_USER);
+	await contentEditor.click();
+	await save.click();
+	await expect(dialog).toBeHidden();
+	await expect(editNewUser).toBeVisible();
 
-	const Revoke = page.getByRole('button', { name: 'Revoke', exact: true });
-	await Revoke.click();
+	// Cancelling keeps the role.
+	await editNewUser.click();
+	await expect(contentEditor).toBeChecked();
+	await contentEditor.click();
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(editNewUser).toBeVisible();
 
-	await eventually(async () => {
-		expect(await exists(page.getByRole('cell', { name: 'admin@crown-shy.com' }))).toBe(false);
-	});
+	await removeAllRoles();
+
+	async function removeAllRoles() {
+		await editNewUser.click();
+		const checked = dialog.getByRole('checkbox', { checked: true });
+		await expect(checked.first()).toBeVisible();
+		while ((await checked.count()) > 0) {
+			await checked.first().click();
+		}
+		await save.click();
+		await expect(dialog).toBeHidden();
+		await expect(editNewUser).toBeHidden();
+	}
 });

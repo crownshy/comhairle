@@ -517,7 +517,7 @@ mod tests {
         get_random_conversation_id, get_random_organization_id,
     };
     use crate::models::permissions::{ActorId, GrantRoleRequest, grant_role};
-    use crate::models::user_group;
+    use crate::models::user_group::{self, OrganizationGroup};
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
 
@@ -541,8 +541,14 @@ mod tests {
         let (status, _, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
 
-        user_group::set_organization_member(&state, organization_id, member_id, admin_id, false)
-            .await?;
+        user_group::add_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            member_id,
+            admin_id,
+        )
+        .await?;
         let (status, response, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(response["id"], json!(organization_id));
@@ -564,8 +570,14 @@ mod tests {
             .await?;
         assert_eq!(status, StatusCode::OK);
 
-        user_group::remove_organization_member(&state, organization_id, member_id, admin_id)
-            .await?;
+        user_group::remove_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            member_id,
+            admin_id,
+        )
+        .await?;
         let (status, _, _) = member.get(&app, &details_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
         let (status, response, _) = member.get(&app, &actions_url).await?;
@@ -628,8 +640,14 @@ mod tests {
         let (status, _, _) = editor.delete(&app, &revoke_url).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
 
-        user_group::set_organization_member(&state, organization_id, editor_id, owner_id, false)
-            .await?;
+        user_group::add_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            editor_id,
+            owner_id,
+        )
+        .await?;
         let group_id = user_group::organization_group(&state.db, organization_id).await?;
         grant_role(
             &state,
@@ -653,8 +671,14 @@ mod tests {
             ])
         );
 
-        user_group::remove_organization_member(&state, organization_id, editor_id, owner_id)
-            .await?;
+        user_group::remove_organization_member(
+            &state,
+            organization_id,
+            OrganizationGroup::Members,
+            editor_id,
+            owner_id,
+        )
+        .await?;
         let (status, response, _) = editor.get(&app, &url).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(

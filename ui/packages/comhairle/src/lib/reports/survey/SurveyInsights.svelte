@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Doughnut from '$lib/components/Charts/Doughnut.svelte';
 	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
-	import Responses from './Responses.svelte';
 	import SurveyBarChart from './SurveyBarChart.svelte';
+	import SurveyFreeTextQuestion from './SurveyFreeTextQuestion.svelte';
 	import type { ChoiceQuestion, NonChoiceQuestion, SurveyQuestion } from './insights-loader';
 	import {
 		isHeyFormChoiceFieldKind,
@@ -17,10 +17,11 @@
 	interface Props {
 		data: SurveyQuestion[];
 		conversationId: string;
+		workflowId: string;
 		workflowStepId: string;
 	}
 
-	let { data, conversationId, workflowStepId }: Props = $props();
+	let { data, conversationId, workflowId, workflowStepId }: Props = $props();
 
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', conversationId)
@@ -95,7 +96,14 @@
 						/>
 					{/if}
 					{#if isStringArray(section.answers)}
-						<Responses data={section.answers} />
+						<SurveyFreeTextQuestion
+							{conversationId}
+							{workflowId}
+							{workflowStepId}
+							questionId={section.id}
+							questionTitle={section.title}
+							answers={section.answers}
+						/>
 					{/if}
 				{/if}
 			</div>

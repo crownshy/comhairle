@@ -125,7 +125,11 @@ export async function parseSeedCsv(text: string, column?: number): Promise<Parse
 }
 
 /** Why a parsed statement is worth a second look before it is posted. */
-export type SeedStatementIssue = 'empty' | 'duplicate-in-file' | 'duplicate-in-step';
+export type SeedStatementIssue =
+	| 'empty'
+	| 'duplicate-in-file'
+	| 'removed-seed'
+	| 'duplicate-in-step';
 
 function normalise(statement: string): string {
 	return statement.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -141,12 +145,15 @@ function normalise(statement: string): string {
  *
  * @param statements the parsed statements, as currently edited
  * @param existingStatements every statement already in the step, rejected ones included
+ * @param removedSeeds seeds removed in Setup, which Polis won't take again but can restore
  */
 export function findSeedIssues(
 	statements: string[],
-	existingStatements: string[]
+	existingStatements: string[],
+	removedSeeds: string[] = []
 ): (SeedStatementIssue | null)[] {
 	const existing = new Set(existingStatements.map(normalise));
+	const removed = new Set(removedSeeds.map(normalise));
 	const seen = new Set<string>();
 
 	return statements.map((statement) => {
@@ -154,7 +161,14 @@ export function findSeedIssues(
 		if (!key) return 'empty';
 		if (seen.has(key)) return 'duplicate-in-file';
 		seen.add(key);
+		if (removed.has(key)) return 'removed-seed';
 		if (existing.has(key)) return 'duplicate-in-step';
 		return null;
 	});
+}
+
+/** Whether the statement matches a removed seed, ignoring case and spacing. */
+export function isRemovedSeed(statement: string, removedSeeds: string[]): boolean {
+	const key = normalise(statement);
+	return key !== '' && removedSeeds.some((seed) => normalise(seed) === key);
 }

@@ -19,21 +19,17 @@
 	let { leadingIcon = false, widths = [3.5, 4, 3, 2.75] }: Props = $props();
 </script>
 
-<!-- Placeholder for the injected "Row 2" primary strip: reserves the row's height so a
-	 refresh doesn't shift the layout. Reuses TabStripShell to stay pixel-identical to the
-	 real strips. -->
+<!-- Placeholder for a section's tab strip: reserves the row's height so a refresh doesn't
+	 shift the layout. Reuses TabStripShell and the tab height (h-11) to match the real strips. -->
 <TabStripShell ariaHidden>
 	{#if leadingIcon}
-		<!-- Leading icon tab, matching the real strips' first item. -->
-		<li class="flex h-9 items-center gap-1.5 px-3.5">
+		<li class="flex h-11 items-center gap-1.5">
 			<Skeleton class="bg-primary/15 size-4 rounded" />
 			<Skeleton class="bg-primary/15 h-4 w-14 rounded-md" />
 		</li>
 	{/if}
 	{#each widths as width, i (i)}
-		<!-- Tinted with the brand color so the shimmer reads against the secondary strip
-			 instead of gray-on-gray. -->
-		<li class="flex h-9 items-center px-3.5">
+		<li class="flex h-11 items-center">
 			<Skeleton class="bg-primary/15 h-4 rounded-md" style="width: {width}rem" />
 		</li>
 	{/each}

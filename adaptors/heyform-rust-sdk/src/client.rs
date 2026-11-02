@@ -264,6 +264,29 @@ impl HeyFormClient {
         Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
     }
 
+    pub async fn update_poll_fields(
+        &self,
+        form_id: &str,
+        fields: Option<Vec<FormField>>,
+    ) -> Result<bool> {
+        let variables = json!({
+            "input": {
+                "formId": form_id,
+                "fields": fields
+            }
+        });
+
+        let response: HashMap<String, bool> = self
+            .execute_graphql(
+                UPDATE_FORM_SCHEMAS_MUTATION,
+                variables,
+                Some("updateFormSchemas"),
+            )
+            .await?;
+
+        Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
+    }
+
     pub async fn delete_poll(&self, form_id: &str) -> Result<bool> {
         let variables = json!({
             "input": {

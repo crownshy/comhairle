@@ -143,7 +143,7 @@
 <!-- Controls -->
 <div class="flex flex-col gap-4">
 	<!-- Top row: Page controls -->
-	<div class="flex items-center justify-between gap-4">
+	<div data-tour="learn-pages" class="flex items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			{#if isInitialLoad}
 				<Skeleton class="h-10 w-45" />
@@ -215,47 +215,49 @@
 	</div>
 
 	<!-- Primary content editor + translation badges + dialog -->
-	{#if isInitialLoad}
-		<div class="flex flex-col gap-2">
-			<div class="overflow-hidden rounded-lg border">
-				<div class="bg-muted/30 flex items-center gap-1 border-b p-2">
-					<Skeleton class="h-8 w-8 rounded" />
-					<Skeleton class="h-8 w-8 rounded" />
-					<Skeleton class="h-8 w-8 rounded" />
+	<div data-tour="learn-editor">
+		{#if isInitialLoad}
+			<div class="flex flex-col gap-2">
+				<div class="overflow-hidden rounded-lg border">
+					<div class="bg-muted/30 flex items-center gap-1 border-b p-2">
+						<Skeleton class="h-8 w-8 rounded" />
+						<Skeleton class="h-8 w-8 rounded" />
+						<Skeleton class="h-8 w-8 rounded" />
+					</div>
+					<div class="p-4" style="min-height: 300px;">
+						<Skeleton class="mb-3 h-4 w-3/4" />
+						<Skeleton class="mb-3 h-4 w-full" />
+						<Skeleton class="mb-3 h-4 w-5/6" />
+						<Skeleton class="h-4 w-2/3" />
+					</div>
 				</div>
-				<div class="p-4" style="min-height: 300px;">
-					<Skeleton class="mb-3 h-4 w-3/4" />
-					<Skeleton class="mb-3 h-4 w-full" />
-					<Skeleton class="mb-3 h-4 w-5/6" />
-					<Skeleton class="h-4 w-2/3" />
+				<div class="flex gap-2">
+					<Skeleton class="h-7 w-24 rounded-full" />
+					<Skeleton class="h-7 w-24 rounded-full" />
 				</div>
 			</div>
-			<div class="flex gap-2">
-				<Skeleton class="h-7 w-24 rounded-full" />
-				<Skeleton class="h-7 w-24 rounded-full" />
-			</div>
-		</div>
-	{:else if canEdit}
-		<TranslatableField
-			source={translationSource}
-			{primaryLocale}
-			{supportedLanguages}
-			editorType="rich"
-			minHeight="300px"
-			dialogMinHeight="250px"
-			dialogTitle="Translate"
-			{availableDocuments}
-			{conversationId}
-		/>
-	{:else}
-		<div class="bg-card border-border rounded-lg border p-4">
-			<ContentRenderer
-				content={translationSource.contents[primaryLocale] ?? ''}
+		{:else if canEdit}
+			<TranslatableField
+				source={translationSource}
+				{primaryLocale}
+				{supportedLanguages}
+				editorType="rich"
+				minHeight="300px"
+				dialogMinHeight="250px"
+				dialogTitle="Translate"
 				{availableDocuments}
 				{conversationId}
 			/>
-		</div>
-	{/if}
+		{:else}
+			<div class="bg-card border-border rounded-lg border p-4">
+				<ContentRenderer
+					content={translationSource.contents[primaryLocale] ?? ''}
+					{availableDocuments}
+					{conversationId}
+				/>
+			</div>
+		{/if}
+	</div>
 	{#if canEdit && pages.count > 1}
 		<Button
 			variant="destructiveOutline"

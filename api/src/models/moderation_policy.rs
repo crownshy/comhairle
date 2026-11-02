@@ -492,6 +492,49 @@ pub async fn delete(db: &PgPool, conversation_id: Uuid, id: Uuid) -> Result<(), 
     Ok(())
 }
 
+/// A reject reason as participants read it, without the moderator-only fields.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct PublishedReason {
+    pub label: String,
+    pub description: Option<String>,
+}
+
+/// The reasons a Polis step's moderators pick from: the step's own policy, otherwise the
+/// conversation's first policy, otherwise the defaults. Matches `rejectReasonsForStep` in
+/// the admin UI, so participants read the same list moderators apply.
+#[instrument(err(Debug), skip(db))]
+pub async fn published_reasons_for_step(
+    db: &PgPool,
+    conversation_id: Uuid,
+    policy_id: Option<Uuid>,
+) -> Result<Vec<PublishedReason>, ComhairleError> {
+    let mut policies = list_for_conversation(db, conversation_id).await?;
+    let chosen = policies
+        .iter()
+        .position(|candidate| Some(candidate.policy.id) == policy_id)
+        .or((!policies.is_empty()).then_some(0));
+
+    let Some(index) = chosen else {
+        return Ok(DEFAULT_REASONS
+            .iter()
+            .map(|(label, description)| PublishedReason {
+                label: label.to_string(),
+                description: Some(description.to_string()),
+            })
+            .collect());
+    };
+
+    Ok(policies
+        .swap_remove(index)
+        .reasons
+        .into_iter()
+        .map(|reason| PublishedReason {
+            label: reason.label,
+            description: reason.description,
+        })
+        .collect())
+}
+
 /// Locks the policy for a workflow step save, and errors unless it belongs to the step's own
 /// conversation. There's no foreign key from the tool config jsonb, so call this in the
 /// transaction that writes the step. `FOR KEY SHARE` is the lock a foreign key check takes:
@@ -792,6 +835,85 @@ mod tests {
             DEFAULT_REASONS.len(),
             "failed update wasn't rolled back"
         );
+
+        Ok(())
+    }
+
+    fn named_reason(label: &str) -> NewModerationPolicyReason {
+        NewModerationPolicyReason {
+            label: label.into(),
+            description: None,
+        }
+    }
+
+    async fn create_named_policy(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        label: &str,
+    ) -> Result<ModerationPolicyWithReasons, ComhairleError> {
+        create(
+            pool,
+            conversation_id,
+            &CreateModerationPolicy {
+                name: label.into(),
+                reasons: Some(vec![named_reason(label)]),
+            },
+        )
+        .await
+    }
+
+    fn labels(reasons: &[PublishedReason]) -> Vec<&str> {
+        reasons.iter().map(|reason| reason.label.as_str()).collect()
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_publish_defaults_when_conversation_has_no_policy(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let published = published_reasons_for_step(&pool, conversation_id, None).await?;
+
+        let default_labels: Vec<&str> = DEFAULT_REASONS.iter().map(|(label, _)| *label).collect();
+        assert_eq!(labels(&published), default_labels);
+        assert!(published.iter().all(|reason| reason.description.is_some()));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_publish_the_step_policy(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_policy(&pool, conversation_id, "First").await?;
+        let second = create_named_policy(&pool, conversation_id, "Second").await?;
+
+        let published =
+            published_reasons_for_step(&pool, conversation_id, Some(second.policy.id)).await?;
+
+        assert_eq!(labels(&published), ["Second"]);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_publish_the_first_policy_when_the_step_has_none_or_a_foreign_one(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_policy(&pool, conversation_id, "First").await?;
+        create_named_policy(&pool, conversation_id, "Second").await?;
+        let foreign = create_named_policy(&pool, other_conversation_id, "Foreign").await?;
+
+        let without_policy = published_reasons_for_step(&pool, conversation_id, None).await?;
+        let with_foreign =
+            published_reasons_for_step(&pool, conversation_id, Some(foreign.policy.id)).await?;
+
+        assert_eq!(labels(&without_policy), ["First"]);
+        assert_eq!(labels(&with_foreign), ["First"]);
 
         Ok(())
     }

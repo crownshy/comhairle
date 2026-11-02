@@ -6,5 +6,5 @@ export type Locators<T> = [key: T, identifier: string][];
 
 export type Refs = {
 	page: Page;
-	cleanup: Cleanup;
+	cleanup?: Cleanup;
 };

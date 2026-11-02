@@ -8,14 +8,16 @@
 	import { userConversationPreferencesSchema } from './schema';
 	import type { UserConversationPreferencesDto } from '@crownshy/api-client/api';
 	import { onMount } from 'svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { m } from '$lib/paraglide/messages';
 
-	let {
-		conversationId,
-		isGuest
-	}: {
+	type ApiError = { response?: { data?: { message?: string } } };
+
+	type Props = {
 		conversationId: string;
 		isGuest: boolean;
-	} = $props();
+	};
+	let { conversationId, isGuest }: Props = $props();
 
 	let loading = $state(true);
 	let saving = $state(false);
@@ -52,40 +54,39 @@
 	}
 
 	async function loadPreferences() {
-		try {
-			loading = true;
-			loadError = null;
-			const loadedPreferences = await apiClient.GetUserPreferenceForConversation({
+		loading = true;
+		loadError = null;
+		const loaded = await tryCatchAsync<UserConversationPreferencesDto, ApiError>(() =>
+			apiClient.GetUserPreferenceForConversation({
 				params: { conversation_id: conversationId }
-			});
-			updateFormWithPreferences(loadedPreferences);
-		} catch (error: any) {
-			loadError =
-				error?.response?.data?.message || 'Failed to load preferences. Please try again.';
-		} finally {
-			loading = false;
+			})
+		);
+		loading = false;
+
+		if (loaded.err !== null) {
+			loadError = loaded.err.response?.data?.message || m.update_preferences_load_failed();
+			return;
 		}
+		updateFormWithPreferences(loaded.ok);
 	}
 
 	async function savePreferences() {
 		const result = await validateForm({ update: true });
 		if (!result.valid) return;
 
-		try {
-			saving = true;
-			await apiClient.UpdateUserPreferenceForConversation(result.data, {
+		saving = true;
+		const saved = await tryCatchAsync<UserConversationPreferencesDto, ApiError>(() =>
+			apiClient.UpdateUserPreferenceForConversation(result.data, {
 				params: { conversation_id: conversationId }
-			});
-		} catch (error: any) {
-			console.error(error);
+			})
+		);
+		saving = false;
+
+		if (saved.err !== null) {
 			notifications.send({
-				message:
-					error?.response?.data?.message ||
-					'Failed to save preferences. Please try again.',
+				message: saved.err.response?.data?.message || m.update_preferences_save_failed(),
 				priority: 'ERROR'
 			});
-		} finally {
-			saving = false;
 		}
 	}
 </script>
@@ -93,41 +94,41 @@
 {#if loading}
 	<div class="flex items-center justify-center p-6">
 		<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-		<span class="text-muted-foreground ml-2">Loading preferences...</span>
+		<span class="text-muted-foreground ml-2">{m.update_preferences_loading()}</span>
 	</div>
 {:else if loadError}
 	<div class="flex flex-col items-center justify-center space-y-4 p-6">
 		<div class="text-destructive text-center">
-			<h3 class="mb-2 font-semibold">Failed to Load Preferences</h3>
-			<p class="text-sm">{loadError}</p>
+			<h3 class="mb-2 font-semibold">{m.update_preferences_load_failed_heading()}</h3>
+			<p class="text-base">{loadError}</p>
 		</div>
 		<button
 			class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-4 py-2 transition-colors"
 			onclick={() => loadPreferences()}
 			disabled={loading}
 		>
-			{loading ? 'Retrying...' : 'Try Again'}
+			{loading ? m.update_preferences_retrying() : m.try_again()}
 		</button>
 	</div>
 {:else}
 	<form method="POST" class="w-full" use:enhance>
-		<div class="flex flex-col gap-2 md:flex-row">
-			<div class="flex-1 p-4">
-				<h4 class="text-base font-medium">Conversation Updates</h4>
-				<p class="text-muted-foreground my-2 text-sm">
-					Get notified about new activities in this conversation.
+		<div class="flex flex-col gap-6">
+			<div class="flex flex-col gap-3">
+				<h4 class="text-xl font-semibold">{m.update_preferences_conversation_heading()}</h4>
+				<p class="text-muted-foreground text-lg">
+					{m.update_preferences_conversation_body()}
 				</p>
 
 				<Form.Field {form} name="receiveUpdatesByNotification" class="space-y-2">
 					<Form.Control>
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal"
-									>In-app notifications</Form.Label
+								<Form.Label class="text-lg font-normal"
+									>{m.update_preferences_in_app()}</Form.Label
 								>
 								<Switch
 									{...props}
-									aria-label="Conversation updates: in-app notifications"
+									aria-label={`${m.update_preferences_conversation_heading()}: ${m.update_preferences_in_app()}`}
 									bind:checked={$formData.receiveUpdatesByNotification}
 									disabled={saving}
 								/>
@@ -141,12 +142,12 @@
 						<Form.Control>
 							{#snippet children({ props })}
 								<div class="flex items-center justify-between">
-									<Form.Label class="text-sm font-normal"
-										>Email notifications</Form.Label
+									<Form.Label class="text-lg font-normal"
+										>{m.update_preferences_email()}</Form.Label
 									>
 									<Switch
 										{...props}
-										aria-label="Conversation updates: email notifications"
+										aria-label={`${m.update_preferences_conversation_heading()}: ${m.update_preferences_email()}`}
 										bind:checked={$formData.receiveUpdatesByEmail}
 										disabled={saving}
 									/>
@@ -158,10 +159,10 @@
 				{/if}
 			</div>
 
-			<div class="flex-1 p-4">
-				<h4 class="text-base font-medium">Similar Conversations</h4>
-				<p class="text-muted-foreground my-2 text-sm">
-					Get notified about updates in similar conversations that might interest you.
+			<div class="flex flex-col gap-3">
+				<h4 class="text-xl font-semibold">{m.update_preferences_similar_heading()}</h4>
+				<p class="text-muted-foreground text-lg">
+					{m.update_preferences_similar_body()}
 				</p>
 
 				<Form.Field
@@ -172,12 +173,12 @@
 					<Form.Control>
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal"
-									>In-app notifications</Form.Label
+								<Form.Label class="text-lg font-normal"
+									>{m.update_preferences_in_app()}</Form.Label
 								>
 								<Switch
 									{...props}
-									aria-label="Similar conversations: in-app notifications"
+									aria-label={`${m.update_preferences_similar_heading()}: ${m.update_preferences_in_app()}`}
 									bind:checked={
 										$formData.receiveSimilarConversationUpdatesByNotification
 									}
@@ -192,18 +193,18 @@
 				{#if !isGuest}
 					<Form.Field
 						{form}
-						name="receive_similar_conversation_updates_by_email"
+						name="receiveSimilarConversationUpdatesByEmail"
 						class="space-y-2"
 					>
 						<Form.Control>
 							{#snippet children({ props })}
 								<div class="flex items-center justify-between">
-									<Form.Label class="text-sm font-normal"
-										>Email notifications</Form.Label
+									<Form.Label class="text-lg font-normal"
+										>{m.update_preferences_email()}</Form.Label
 									>
 									<Switch
 										{...props}
-										aria-label="Similar conversations: email notifications"
+										aria-label={`${m.update_preferences_similar_heading()}: ${m.update_preferences_email()}`}
 										bind:checked={
 											$formData.receiveSimilarConversationUpdatesByEmail
 										}

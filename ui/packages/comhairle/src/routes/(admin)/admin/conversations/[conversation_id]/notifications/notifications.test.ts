@@ -1,15 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render } from 'svelte/server';
 import type { ConversationAction } from '@crownshy/api-client/api';
-import ConversationTabs from '$lib/components/ConversationTabs.svelte';
-import { permissions } from '$lib/permissions.svelte';
 import { load } from './+page.server';
-
-vi.mock('$app/state', () => ({
-	page: { url: new URL('http://localhost/admin/conversations/conversation/monitor') },
-	navigating: { to: null }
-}));
-vi.mock('$lib/permissions.svelte', () => ({ permissions: { can: vi.fn() } }));
 
 const conversationId = 'conversation';
 
@@ -30,32 +21,6 @@ function routeEvent(actions: ConversationAction[]) {
 }
 
 describe('Notify Admin access', () => {
-	it('renders Notify as disabled without Admin while leaving Monitor accessible', () => {
-		vi.mocked(permissions.can).mockReturnValue(false);
-		const { body } = render(ConversationTabs, {
-			props: { conversationId, conversationIsLive: true }
-		});
-
-		expect(body).toContain('Notify');
-		expect(body).toContain('Admin permission required');
-		expect(body).not.toContain(`href="/admin/conversations/${conversationId}/notifications"`);
-		expect(body).toContain(`href="/admin/conversations/${conversationId}/monitor"`);
-		expect(permissions.can).toHaveBeenCalledWith(
-			'conversation',
-			'conversation_admin',
-			conversationId
-		);
-	});
-
-	it('renders the Notify link for Admins', () => {
-		vi.mocked(permissions.can).mockReturnValue(true);
-		const { body } = render(ConversationTabs, {
-			props: { conversationId, conversationIsLive: true }
-		});
-
-		expect(body).toContain(`href="/admin/conversations/${conversationId}/notifications"`);
-	});
-
 	it.each<ConversationAction>([
 		'conversation_read',
 		'conversation_update',

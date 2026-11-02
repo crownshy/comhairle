@@ -112,6 +112,9 @@ pub enum Role {
     #[serde(rename = "organization_admin")]
     #[strum(serialize = "organization_admin")]
     Admin,
+    #[serde(rename = "organization_member")]
+    #[strum(serialize = "organization_member")]
+    Member,
 }
 
 impl PermissionRole for Role {
@@ -123,6 +126,7 @@ impl PermissionRole for Role {
 
         match self {
             Self::Admin => ALL_ACTIONS.as_slice(),
+            Self::Member => &[Action::Read],
         }
     }
 }
@@ -138,5 +142,13 @@ mod tests {
         assert!(Role::Admin.allows(Action::RevokePermission));
         assert!(Role::Admin.allows(Action::RemoveMember));
         assert_eq!(Action::RESOURCE_TYPE, ResourceType::Organization);
+    }
+
+    #[test]
+    fn members_can_only_view_the_organization() {
+        assert_eq!(Role::Member.as_ref(), "organization_member");
+        assert!(
+            Action::iter().all(|action| Role::Member.allows(action) == (action == Action::Read))
+        );
     }
 }

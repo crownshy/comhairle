@@ -1,3 +1,4 @@
+import type { ConversationCardLayout } from '$lib/components/ConversationCard.svelte';
 import { getPage } from '$lib/pagination';
 import {
 	CONVERSATION_STATUS_LABELS,
@@ -76,4 +77,36 @@ export function conversationListQueries(
 		default:
 			return CONVERSATION_STATUS_QUERIES[filter];
 	}
+}
+
+/** The list shows cards unless `?view=list` asks for one row per conversation. */
+export function listViewFromUrl(url: URL): ConversationCardLayout {
+	return url.searchParams.get('view') === 'list' ? 'list' : 'card';
+}
+
+/** Keeps the filter, search and page, since switching view doesn't change the results. */
+export function listViewHref(url: URL, view: ConversationCardLayout): string {
+	const target = new URL(url);
+	if (view === 'list') target.searchParams.set('view', view);
+	else target.searchParams.delete('view');
+	return `${target.pathname}${target.search}`;
+}
+
+/** e.g. "1 live conversation", "3 conversations". */
+export function conversationNoun(filter: ConversationStatusFilter, count: number): string {
+	const noun = count === 1 ? 'conversation' : 'conversations';
+	if (filter === 'all') return noun;
+	return `${CONVERSATION_STATUS_FILTER_LABELS[filter].toLowerCase()} ${noun}`;
+}
+
+/** The line above the list saying how many conversations it holds. */
+export function conversationCountLabel(
+	total: number,
+	filter: ConversationStatusFilter,
+	search: string
+): string {
+	const noun = conversationNoun(filter, total);
+	if (search) return `${total} ${noun} ${total === 1 ? 'matches' : 'match'} "${search}"`;
+	if (filter === 'all') return `You have ${total} ${noun}`;
+	return `${total} ${noun}`;
 }

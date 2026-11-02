@@ -38,7 +38,7 @@
 		justCreatedConversation.flag(created.ok.id);
 		notifications.addFlash({ message: 'Conversation created' });
 		dialogOpen = false;
-		// The sidebar list lives in the admin layout, keyed on the plural key.
+		// The conversations list loads on the plural key.
 		await goto(
 			resolve('/(admin)/admin/conversations/[conversation_id]/configure', {
 				conversation_id: created.ok.id

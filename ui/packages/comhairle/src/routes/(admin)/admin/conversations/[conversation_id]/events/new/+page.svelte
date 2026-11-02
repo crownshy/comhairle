@@ -24,11 +24,16 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { basic_learn_config } from '$lib/workflow_templates';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { key } from '$lib/utils/invalidationKey';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { newEventTour } from './tour';
+
+	useTour(() => newEventTour);
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
@@ -172,9 +177,14 @@
 				priority: 'INFO'
 			});
 
-			goto(`/admin/conversations/${conversation.id}/events`, {
-				invalidate: [key('admin/conversation')]
-			});
+			goto(
+				resolve('/(admin)/admin/conversations/[conversation_id]/events', {
+					conversation_id: conversation.id
+				}),
+				{
+					invalidate: [key('admin/conversation')]
+				}
+			);
 		} catch (e) {
 			console.error(e);
 			submitError = 'Something went wrong creating the event.';
@@ -194,10 +204,10 @@
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">New Event</h1>
+<h2 data-tour="page-header" class="mb-4 text-xl font-bold">New event</h2>
 
 <div class="flex flex-col gap-4">
-	<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>
+	<h3 class="text-card-foreground text-base font-semibold">Edit information</h3>
 </div>
 
 {#if submitError || $errorMessage}

@@ -29,7 +29,8 @@ export const createApiClient = (
 	baseUrl: string,
 	authToken: string | undefined,
 	source: string,
-	locale?: string
+	locale?: string,
+	forwardedCookies: string[] = []
 ): ReturnType<typeof createApi> => {
 	let api = createApi(baseUrl, {
 		axiosConfig: {
@@ -46,6 +47,7 @@ export const createApiClient = (
 			if (locale) {
 				cookies.push(`COMHAIRLE_LOCALE=${locale}`);
 			}
+			cookies.push(...forwardedCookies);
 			if (cookies.length > 0) {
 				config.headers['Cookie'] = cookies.join('; ');
 			}

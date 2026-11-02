@@ -245,13 +245,13 @@ impl<'r> Decode<'r, Postgres> for EventLocation {
     }
 }
 
-impl From<EventLocation> for sea_query::Value {
-    fn from(l: EventLocation) -> Self {
-        Self::Json(Some(Box::new(
-            // `expect` should be safe here as serialization should fail at the api
-            // layer if invalid
-            serde_json::to_value(l).expect("EventLocation serialization failed"),
-        )))
+impl TryFrom<EventLocation> for sea_query::Value {
+    type Error = ComhairleError;
+
+    fn try_from(l: EventLocation) -> Result<Self, Self::Error> {
+        let json = serde_json::to_value(l)?;
+
+        Ok(Self::Json(Some(Box::new(json))))
     }
 }
 
@@ -433,11 +433,31 @@ impl CreateEvent {
         }
 
         if let Some(ref value) = self.custom_event_link {
-            values.push(value.into());
+            values.push(value.trim().into());
         }
 
         values
     }
+}
+
+const MAX_CUSTOM_EVENT_LINK_LENGTH: usize = 2048;
+
+/// A custom link is rendered as a plain `href`, so anything other than an absolute
+/// `https` URL would resolve relative to the event page and break the lobby button.
+/// Keep this in step with `validateUrl` on the frontend, which drops any link it rejects.
+fn validate_custom_event_link(link: &str) -> Result<(), ComhairleError> {
+    let link = link.trim();
+    let is_https_url = link.starts_with("https://")
+        && link.len() <= MAX_CUSTOM_EVENT_LINK_LENGTH
+        && reqwest::Url::parse(link).is_ok();
+
+    if link.is_empty() || is_https_url {
+        return Ok(());
+    }
+
+    Err(ComhairleError::BadRequest(
+        "Custom event link must be a full URL starting with https://".into(),
+    ))
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -446,6 +466,10 @@ pub async fn create(
     conversation_id: &Uuid,
     new_event: &CreateEvent,
 ) -> Result<Event, ComhairleError> {
+    if let Some(link) = &new_event.custom_event_link {
+        validate_custom_event_link(link)?;
+    }
+
     let mut columns = new_event.columns();
     let mut values = new_event.values();
 
@@ -485,7 +509,7 @@ pub async fn create(
 }
 
 impl PartialEvent {
-    pub fn to_values(&self) -> Vec<(EventIden, sea_query::SimpleExpr)> {
+    pub fn try_to_values(&self) -> Result<Vec<(EventIden, sea_query::SimpleExpr)>, ComhairleError> {
         let mut values = vec![];
         if let Some(value) = &self.name {
             values.push((EventIden::Name, value.into()));
@@ -509,19 +533,23 @@ impl PartialEvent {
             values.push((EventIden::Agenda, value.into()));
         }
         if let Some(value) = &self.location {
-            values.push((EventIden::Location, value.clone().into()));
+            let location = sea_query::Value::try_from(value.clone())?;
+            values.push((EventIden::Location, location.into()));
         }
         if let Some(value) = &self.format {
             values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.custom_event_link {
-            if value.trim().is_empty() {
+            validate_custom_event_link(value)?;
+
+            let link = value.trim();
+            if link.is_empty() {
                 values.push((
                     EventIden::CustomEventLink,
                     sea_query::Value::String(None).into(),
                 ));
             } else {
-                values.push((EventIden::CustomEventLink, value.clone().into()));
+                values.push((EventIden::CustomEventLink, link.into()));
             }
         }
         if let Some(value) = &self.default_time_zone {
@@ -531,7 +559,7 @@ impl PartialEvent {
             values.push((EventIden::Metadata, value.clone().into()));
         }
 
-        values
+        Ok(values)
     }
 }
 
@@ -541,7 +569,7 @@ pub async fn update(
     id: &Uuid,
     update_event: &PartialEvent,
 ) -> Result<Event, ComhairleError> {
-    let values = update_event.to_values();
+    let values = update_event.try_to_values()?;
 
     if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
@@ -858,6 +886,28 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
+
+    #[test]
+    fn custom_event_link_must_be_blank_or_https() {
+        for link in ["", "  ", "https://meet.google.com/abc-defg-hij"] {
+            assert!(validate_custom_event_link(link).is_ok(), "{link} rejected");
+        }
+
+        for link in [
+            "brainstorming-workshop",
+            "meet.google.com/abc",
+            "/conversations/1/events/2/live",
+            "http://meet.google.com/abc",
+            "javascript:alert(1)",
+            "HTTPS://meet.google.com/abc",
+            "https:meet.google.com/abc",
+        ] {
+            assert!(validate_custom_event_link(link).is_err(), "{link} accepted");
+        }
+
+        let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
+        assert!(validate_custom_event_link(&too_long).is_err());
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -23,6 +23,10 @@
 	import ImportAreas from './ImportAreas.svelte';
 	import RegionsEditor from './RegionsEditor.svelte';
 	import { boundarySchema } from './import';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { regionsTour } from './tour';
+
+	useTour(() => regionsTour);
 
 	let props: PageProps = $props();
 	let activeTab = $state('areas');
@@ -213,7 +217,7 @@
 	}}
 	class="flex min-h-0 w-full flex-1 flex-col gap-0"
 >
-	<div class="bg-background grid gap-4 border-b px-5 py-4 md:px-8">
+	<div data-tour="regions-tabs" class="bg-background grid gap-4 border-b px-5 py-4 md:px-8">
 		<h1 class="text-2xl font-semibold">Regions</h1>
 		<Tabs.List class="w-fit max-w-full" aria-label="Region management">
 			<Tabs.Trigger value="areas" class="text-base">Geographic areas</Tabs.Trigger>

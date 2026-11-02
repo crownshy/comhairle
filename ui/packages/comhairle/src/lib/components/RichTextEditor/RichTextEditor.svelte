@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import TableInsertControls from './TableInsertControls.svelte';
@@ -11,6 +10,7 @@
 	import { SourceDocument } from './extensions/sourceDocument';
 	import { MarkdownTablePaste } from './extensions/markdownTablePaste';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { Snippet } from 'svelte';
 	import './editor-content.css';
 
 	type Props = {
@@ -29,6 +29,8 @@
 		 * non-empty list is what turns the control on (used on the conversation report editor).
 		 */
 		reportEmbedSteps?: EmbeddableStep[];
+		/** Extra controls pinned to the right end of the toolbar, such as the translate button. */
+		toolbarActions?: Snippet;
 	};
 
 	let {
@@ -41,19 +43,15 @@
 		onChange,
 		availableDocuments = [],
 		conversationId,
-		reportEmbedSteps = []
+		reportEmbedSteps = [],
+		toolbarActions
 	}: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
-	let containerElement = $state<HTMLElement>();
 	let editor = $state<Editor>();
-	let containerWidth = $state(1000);
 
 	let isInitializing = $state(true);
-	let menuExpanded = $state(false);
 	let previousValue = $state<string>();
-
-	let isCompact = $derived(containerWidth < 600);
 
 	let activeStates = $state<ActiveStates>({
 		bold: false,
@@ -69,16 +67,6 @@
 		heading: 'p' as 'p' | '1' | '2' | '3',
 		textAlign: 'left' as 'left' | 'center' | 'right' | 'justify'
 	});
-
-	useResizeObserver(
-		() => containerElement,
-		(entries) => {
-			const entry = entries[0];
-			if (entry) {
-				containerWidth = entry.contentRect.width;
-			}
-		}
-	);
 
 	function buildDocMap(docs: ComhairleDocument[]) {
 		const map: Record<string, { name: string; size: number }> = {};
@@ -226,21 +214,16 @@
 	});
 </script>
 
-<div
-	bind:this={containerElement}
-	class={width ? 'overflow-hidden' : ''}
-	style={width ? `width: ${width}` : ''}
->
+<div class={width ? 'overflow-hidden' : ''} style={width ? `width: ${width}` : ''}>
 	{#if editor}
+		<EditorToolbar
+			{editor}
+			{activeStates}
+			documents={availableDocuments}
+			disabled={!editable}
+			actions={toolbarActions}
+		/>
 		<fieldset disabled={!editable} class="contents">
-			<EditorToolbar
-				{editor}
-				{activeStates}
-				documents={availableDocuments}
-				{menuExpanded}
-				compact={isCompact}
-				onToggleMenu={() => (menuExpanded = !menuExpanded)}
-			/>
 			<TableInsertControls {editor} />
 			{#if reportEmbedSteps.length > 0}
 				<ReportEmbedControls {editor} steps={reportEmbedSteps} />

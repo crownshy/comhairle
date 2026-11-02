@@ -7,3 +7,5 @@ allowBuilds:
     '@carbon/colors': true
     '@carbon/utils-position': true
     msw: true
+minimumReleaseAgeExclude:
+  - driver.js@1.10.2

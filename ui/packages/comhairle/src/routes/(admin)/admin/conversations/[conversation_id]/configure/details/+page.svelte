@@ -19,6 +19,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
 	import { Image, Trash2 } from '@lucide/svelte';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
@@ -31,6 +32,15 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { permissions } from '$lib/permissions.svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { Autosave } from '../autosave.svelte';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
+	import { onDestroy } from 'svelte';
+	import AccessSettings from './AccessSettings.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { detailsConfigTour } from './tour';
+
+	useTour(() => detailsConfigTour);
 
 	const { data } = $props();
 	const { conversation, streamedMedia } = $derived(data);
@@ -54,7 +64,8 @@
 		{
 			title: data.conversation.title,
 			shortDescription: data.conversation.shortDescription,
-			description: data.conversation.description
+			description: data.conversation.description,
+			slug: data.conversation.slug ?? ''
 		},
 		{
 			validators: zodClient(detailsSchema),
@@ -243,16 +254,53 @@
 			}
 
 			notifications.send({ message: 'Conversation deleted', priority: 'INFO' });
-			await goto('/admin', { invalidate: [key('admin/conversations')] });
+			await goto(resolve('/admin'), { invalidate: [key('admin/conversations')] });
 		});
 	}
+
+	const isValidSlug = (slug: string) => detailsSchema.shape.slug.safeParse(slug).success;
+
+	async function saveSlug() {
+		const slug = $form.slug;
+		if (!canEdit) return;
+		if (!isValidSlug(slug)) throw new Error('Invalid URL slug');
+
+		const result = await tryCatchAsync(() =>
+			apiClient.UpdateConversation({ slug }, { params: { conversation_id: conversation.id } })
+		);
+
+		if (result.err !== null) {
+			notifications.send({
+				message:
+					result.err?.response?.status === 409
+						? `The URL slug "${slug}" is already taken`
+						: 'Failed to update URL slug',
+				priority: 'ERROR'
+			});
+			return;
+		}
+	}
+
+	const slugAutosave = new Autosave(saveSlug);
+	guardUnsavedChanges(() => slugAutosave.dirty);
+	onDestroy(() => {
+		slugAutosave.flush();
+		slugAutosave.settled().then(() => {
+			if (slugAutosave.hasSaved) invalidate(key('admin/conversation'));
+		});
+	});
 </script>
 
-<PageHeader title="Details" description="Title, description, language and banner." />
+<PageHeader
+	data-tour="page-header"
+	level="h2"
+	title="Details"
+	description="Title, description, language, banner and who can take part."
+/>
 
 <!-- One superForm still backs every field (its inline validation + $form binding); there is
 	 no submit — every field autosaves (see ADR-0004), so this is a plain container. -->
-<div class="flex flex-col">
+<div data-tour="details-fields" class="flex flex-col">
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
@@ -268,6 +316,7 @@
 							source={titleSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('title')}
+							onRejected={(value) => ($form.title = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputProps={props}
@@ -296,6 +345,7 @@
 							source={shortDescriptionSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('shortDescription')}
+							onRejected={(value) => ($form.shortDescription = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputType="textarea"
@@ -325,11 +375,38 @@
 							source={descriptionSource}
 							disabled={!canEdit}
 							canSave={requiredFieldValidator('description')}
+							onRejected={(value) => ($form.description = value)}
 							{primaryLocale}
 							{supportedLanguages}
 							inputType="textarea"
 							placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation."
 							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- Slug -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="slug" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<FieldLabel
+						label="URL slug"
+						info="Final segment of the URL path, e.g. /my-conversation"
+					/>
+					<div class="flex-1">
+						<Input
+							{...props}
+							bind:value={$form.slug}
+							oninput={() => slugAutosave.schedule()}
+							placeholder="Enter URL slug"
+							disabled={!canEdit}
 						/>
 						<Form.FieldErrors />
 					</div>
@@ -413,6 +490,12 @@
 			</div>
 		</div>
 	</div>
+
+	<AccessSettings
+		{conversation}
+		workflow={data.workflows[0]}
+		previewPasswordStatus={data.previewPasswordStatus}
+	/>
 
 	{#if canDelete}
 		<div class="border-destructive/30 my-6 flex flex-col gap-4 rounded-lg border p-6">

@@ -62,8 +62,8 @@
 						<VoteBarChart data={overall} showLabels={false} />
 						<div class="mt-0.5 flex gap-1 text-[10px] leading-none">
 							<span class="text-teal-700">{Math.round(overall.agreed)}%</span>
-							<span class="text-red-500">{Math.round(overall.disagreed)}%</span>
 							<span class="text-gray-500">{Math.round(overall.passed)}%</span>
+							<span class="text-red-500">{Math.round(overall.disagreed)}%</span>
 						</div>
 					</td>
 					{#each groupPercents as gp (gp.group_id)}
@@ -71,8 +71,8 @@
 							<VoteBarChart data={gp} showLabels={false} />
 							<div class="mt-0.5 flex gap-1 text-[10px] leading-none">
 								<span class="text-teal-700">{Math.round(gp.agreed)}%</span>
-								<span class="text-red-500">{Math.round(gp.disagreed)}%</span>
 								<span class="text-gray-500">{Math.round(gp.passed)}%</span>
+								<span class="text-red-500">{Math.round(gp.disagreed)}%</span>
 							</div>
 						</td>
 					{/each}

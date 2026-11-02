@@ -1,13 +1,7 @@
-export const TOOL_NAME="polis"
+export const TOOL_NAME = 'polis';
 
-import PolisEmbed from './PolisEmbed.svelte'
-import PolisReport from './PolisReport.svelte'
-import PolisModerate from './PolisModerate.svelte'
-import PolisManage from './PolisManage.svelte'
+import PolisEmbed from './PolisEmbed.svelte';
+import PolisReport from './PolisReport.svelte';
+import PolisManage from './PolisManage.svelte';
 
-export{
- PolisEmbed as UserUI,
- PolisModerate as ModerationUI,
- PolisManage as ManageUI,
- PolisReport as ReportUI
-}
+export { PolisEmbed as UserUI, PolisManage as ManageUI, PolisReport as ReportUI };

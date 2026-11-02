@@ -59,6 +59,7 @@
 	<button
 		type="button"
 		onclick={() => onOpenChange(true)}
+		aria-label="{editable ? 'Edit' : 'View'} {label.toLowerCase()}"
 		class="bg-card border-border hover:border-primary/60 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left"
 	>
 		<div class="text-foreground line-clamp-3 w-full text-sm">

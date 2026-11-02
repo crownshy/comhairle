@@ -17,7 +17,7 @@ describe('conversationPrimaryStripSkeleton', () => {
 
 	it('resolves nested routes to their section skeleton', () => {
 		expect(conversationPrimaryStripSkeleton(`${base}/design/step/abc`, id)?.leadingIcon).toBe(
-			true
+			false
 		);
 		expect(
 			conversationPrimaryStripSkeleton(`${base}/events/some-event-id`, id)?.leadingIcon

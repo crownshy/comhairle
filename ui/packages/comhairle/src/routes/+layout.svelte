@@ -2,6 +2,7 @@
 	import type { LayoutProps } from './$types';
 	import CookieConsent from '$lib/cookies/cookieconsent.svelte';
 	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
+	import RouteProgress from '$lib/components/RouteProgress.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { browser } from '$app/environment';
 	import '../app.css';
@@ -9,7 +10,7 @@
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
 
 	let { children, data }: LayoutProps = $props();
-	let { themeName, isCommunity } = data;
+	let { themeName } = data;
 
 	import { UmamiAnalytics, status } from '@lukulent/svelte-umami';
 	import { env } from '$env/dynamic/public';
@@ -31,7 +32,7 @@
 	});
 
 	// Theme name is always determined by the PUBLIC_THEME env var
-	if (browser && themeName) {
+	if (themeName) {
 		themeStore.initFromServer(themeName);
 	}
 
@@ -67,6 +68,7 @@
 
 <ThemeProvider>
 	<div class="bg-background w-full">
+		<RouteProgress />
 		<CookieConsent />
 		<NotificationsToaster closeButton />
 		{@render children()}

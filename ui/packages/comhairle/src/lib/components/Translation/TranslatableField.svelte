@@ -38,6 +38,8 @@
 		 * correct for optional fields.
 		 */
 		canSave?: (value: string) => boolean;
+		/** Called with the value `canSave` rejected, so the caller can show its validation error. */
+		onRejected?: (value: string) => void;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
 		/** Forwarded to the inline rich editor to enable the "Embed report component" control. */
@@ -68,6 +70,7 @@
 		dialogTitle = 'Content Translation',
 		inputProps = {},
 		canSave,
+		onRejected,
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = []
@@ -80,6 +83,7 @@
 	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 	let hasTranslations = $derived(otherLanguages.length > 0);
 	let saveState = $derived(source.saveState);
+	let rejected = $state(false);
 
 	registerAutosaveSource(() => source);
 
@@ -94,7 +98,12 @@
 
 	function saveSource(content: string) {
 		if (disabled) return;
-		if (!canSave || canSave(content)) source.saveSource(content);
+		rejected = !!canSave && !canSave(content);
+		if (rejected) {
+			onRejected?.(content);
+			return;
+		}
+		source.saveSource(content);
 	}
 
 	function handlePlainInput(e: Event) {
@@ -120,31 +129,34 @@
 </script>
 
 <!-- Inline field -->
+{#snippet translateAction()}
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon"
+		class="size-8"
+		title="Translate"
+		aria-label="Translate"
+		onclick={() => openDialog()}
+	>
+		<Languages class="size-4" />
+	</Button>
+{/snippet}
+
 <div class="flex flex-col gap-2">
 	{#if editorType === 'rich'}
-		<div class="relative">
-			<RichTextEditor
-				{value}
-				editable={!disabled}
-				onChange={handleRichChange}
-				{placeholder}
-				{minHeight}
-				{maxHeight}
-				{availableDocuments}
-				{conversationId}
-				{reportEmbedSteps}
-			/>
-			{#if hasTranslations}
-				<Button
-					type="button"
-					variant="link"
-					class="absolute top-2 right-2 z-10"
-					onclick={() => openDialog()}
-				>
-					<Languages class="h-4 w-4" />
-				</Button>
-			{/if}
-		</div>
+		<RichTextEditor
+			{value}
+			editable={!disabled}
+			onChange={handleRichChange}
+			{placeholder}
+			{minHeight}
+			{maxHeight}
+			{availableDocuments}
+			{conversationId}
+			{reportEmbedSteps}
+			toolbarActions={hasTranslations ? translateAction : undefined}
+		/>
 	{:else}
 		<div class="relative">
 			{#if inputType === 'textarea'}
@@ -181,9 +193,14 @@
 		</div>
 	{/if}
 
-	{#if hasTranslations || saveState !== 'idle'}
+	{#if hasTranslations || rejected || saveState !== 'idle'}
 		<div class="flex flex-wrap items-center gap-2">
-			{#if saveState === 'saving'}
+			{#if rejected}
+				<span class="text-destructive inline-flex items-center gap-1 text-xs">
+					<TriangleAlert class="h-3 w-3" />
+					Not saved
+				</span>
+			{:else if saveState === 'saving'}
 				<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
 					<LoaderCircle class="h-3 w-3 animate-spin" />
 					Saving

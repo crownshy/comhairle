@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from './utils/testing';
 import { login } from './utils/auth';
 import Conversation from './utils/navigation/Conversation';
 
@@ -9,6 +10,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('has title', async ({ page }) => {
-	await page.pause();
-	expect(true).toBe(true);
+	await expect(
+		page.getByRole('main').getByRole('heading', { name: 'Events', level: 1 })
+	).toBeVisible();
 });

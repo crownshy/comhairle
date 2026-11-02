@@ -17,7 +17,7 @@
 </script>
 
 <div
-	class="chequered-background container aspect-video min-h-48 cursor-pointer items-center overflow-hidden rounded-lg"
+	class="chequered-background container aspect-video min-h-48 w-full cursor-pointer items-center overflow-hidden rounded-lg"
 >
 	<div class="justify-self-center overflow-hidden select-none">
 		{#snippet placeholder(Icon: ComponentType<Icon>)}

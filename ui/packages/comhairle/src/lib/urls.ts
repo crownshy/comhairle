@@ -6,6 +6,10 @@ export function conversation_url(conversation_id: string, isPreview: boolean = f
 	return `/conversations/${conversation_id}${isPreview ? '/preview' : ''}`;
 }
 
+export function shareable_conversation_url(origin: string, conversation_id: string) {
+	return `${origin}${conversation_url(conversation_id)}`;
+}
+
 export function manage_conversation_url(conversation_id: string) {
 	return `/admin/conversations/${conversation_id}/configure`;
 }

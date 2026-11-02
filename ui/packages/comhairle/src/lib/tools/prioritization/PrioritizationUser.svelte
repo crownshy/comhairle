@@ -4,11 +4,10 @@
 	import { Portal } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { ArrowLeft, ArrowRight, CheckCircle2, Info, LoaderCircle } from 'lucide-svelte';
+	import { CheckCircle2, Info, LoaderCircle } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
@@ -21,6 +20,8 @@
 		WorkflowStepInput
 	} from './types';
 	import { SvelteSet } from 'svelte/reactivity';
+	import type { OnSequenceChange, ToolSequence } from '$lib/tools/toolSequence';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		workflowStep: WorkflowStepInput;
@@ -30,6 +31,7 @@
 		/** Drives the host step's top-nav "Next": true once the participant has
 		 * reviewed the minimum number of proposals. Mirrors Polis / Thinking Space. */
 		onCanContinueChange?: (canContinue: boolean) => void;
+		onSequenceChange?: OnSequenceChange;
 	};
 
 	let {
@@ -37,7 +39,8 @@
 		conversation,
 		participantId = '',
 		onDone,
-		onCanContinueChange
+		onCanContinueChange,
+		onSequenceChange
 	}: Props = $props();
 
 	const stepId = $derived(workflowStep.id);
@@ -225,6 +228,8 @@
 	 * first, so a participant with nothing to change moves on without scrolling
 	 * past the whole list to reach a Continue button. */
 	let reviewingAnswers = $state(false);
+	/** True when Back on the thanks card has reopened the submitted proposals. */
+	let browsingProposals = $state(false);
 
 	let answeredCountLine = $derived(
 		proposals.length === 1
@@ -308,6 +313,8 @@
 			onDone();
 		} catch (e) {
 			reviewError = e instanceof Error ? e.message : 'Failed to save your changes.';
+			// The thanks card can also save, so show the error next to the edits.
+			reviewingAnswers = true;
 		} finally {
 			savingReview = false;
 		}
@@ -330,7 +337,7 @@
 	}
 
 	async function submitAndAdvance() {
-		if (currentSubmitted) return;
+		if (currentSubmitted || submitting || showSubmitted) return;
 		/** Surface which required fields are missing rather than silently doing nothing. */
 		if (!isComplete) {
 			submitAttempted = true;
@@ -351,15 +358,73 @@
 	}
 
 	function goBack() {
-		if (currentIndex > 0) {
+		if (currentIndex > 0 && !submitting) {
 			submitAttempted = false;
 			currentIndex -= 1;
 		}
 	}
 
-	let progressPercent = $derived(
-		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
-	);
+	function goForward() {
+		submitAttempted = false;
+		currentIndex += 1;
+	}
+
+	function reviewMoreReason(count: number): string {
+		if (count === 1) return m.prioritization_review_one_more_to_continue();
+		return m.prioritization_review_more_to_continue({ count });
+	}
+
+	let isLastProposal = $derived(currentIndex === proposals.length - 1);
+
+	function browseLastProposal() {
+		browsingProposals = true;
+		currentIndex = proposals.length - 1;
+	}
+
+	function returnToThanksCard() {
+		browsingProposals = false;
+	}
+
+	// The pager walks the proposals, then the thanks card and review list (ADR-0047). Forward
+	// on the thanks card saves any review edits, then completes the step through the gate.
+	// Back on the thanks card reopens the last proposal.
+	function proposalForward(): (() => void) | undefined {
+		if (!currentSubmitted) return submitAndAdvance;
+		if (isLastProposal) return allDone ? returnToThanksCard : undefined;
+		return goForward;
+	}
+
+	let sequence = $derived.by<ToolSequence>(() => {
+		if (loadState.kind !== 'ready' || proposals.length === 0) return {};
+		if (allDone && reviewingAnswers) {
+			return {
+				next: dirtyIds.size > 0 ? () => void saveReviewEditsAndContinue() : undefined,
+				previous: () => (reviewingAnswers = false),
+				progress: 1
+			};
+		}
+		if (allDone && !browsingProposals) {
+			return {
+				next: dirtyIds.size > 0 ? () => void saveReviewEditsAndContinue() : undefined,
+				previous: browseLastProposal,
+				progress: 1
+			};
+		}
+		return {
+			next: proposalForward(),
+			previous: currentIndex > 0 ? goBack : undefined,
+			blockedReason: canContinue ? undefined : reviewMoreReason(reviewsRemaining),
+			progress: submittedIds.size / proposals.length,
+			position: m.prioritization_proposal_x_of_y({
+				current: currentIndex + 1,
+				total: proposals.length
+			})
+		};
+	});
+
+	$effect(() => {
+		onSequenceChange?.(sequence);
+	});
 
 	function formatAnswer(question: Question<string>, value: number | string | undefined): string {
 		if (value === undefined || value === null || value === '') return '—';
@@ -375,9 +440,6 @@
 </script>
 
 <div class="mx-auto w-full max-w-200">
-	{#snippet continueToNextStepLabel()}
-		Continue to next step <ArrowRight class="ml-2 h-4 w-4" />
-	{/snippet}
 	{#if loadState.kind === 'loading'}
 		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
 			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
@@ -397,38 +459,32 @@
 				<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 			</Card.Content>
 		</Card.Root>
-	{:else if allDone && !reviewingAnswers}
+	{:else if allDone && !reviewingAnswers && !browsingProposals}
 		<Card.Root>
 			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
 				<CheckCircle2 class="text-primary size-10" />
 				<div class="space-y-1">
 					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
 					<p class="text-muted-foreground text-base">
-						{answeredCountLine} Review your answers if you'd like to make any changes, or
-						continue to the next step.
+						{answeredCountLine}
+						{m.prioritization_review_or_continue()}
 					</p>
 				</div>
-				<div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-					<Button
-						variant="outline"
-						class="w-full sm:w-auto"
-						onclick={() => (reviewingAnswers = true)}
-					>
-						Review my answers
-					</Button>
-					<Button class="w-full sm:w-auto" onclick={onDone}>
-						{@render continueToNextStepLabel()}
-					</Button>
-				</div>
+				<Button
+					variant="outline"
+					class="w-full sm:w-auto"
+					onclick={() => (reviewingAnswers = true)}
+				>
+					{m.prioritization_review_my_answers()}
+				</Button>
 			</Card.Content>
 		</Card.Root>
-	{:else if allDone}
+	{:else if allDone && reviewingAnswers}
 		<div class="space-y-6">
 			<div class="space-y-1 text-center">
 				<h2 class="mt-5 text-lg font-semibold">Your answers</h2>
 				<p class="text-foreground text-sm">
-					Tap a proposal to review or adjust your answers. Changes are saved when you
-					continue.
+					{m.prioritization_review_hint()}
 				</p>
 			</div>
 
@@ -512,38 +568,18 @@
 				{/each}
 			</Accordion.Root>
 
-			<div
-				class="bg-background/90 sticky bottom-0 z-10 flex flex-col gap-2 border-t py-3 backdrop-blur"
-			>
-				{#if reviewError}
-					<p class="text-destructive text-right text-sm">{reviewError}</p>
-				{/if}
-				<Button
-					onclick={() => void saveReviewEditsAndContinue()}
-					disabled={savingReview}
-					class="w-full sm:w-auto sm:self-end"
-				>
-					{#if savingReview}
-						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-					{/if}
-					{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
-				</Button>
-			</div>
+			{#if savingReview}
+				<p class="text-muted-foreground flex items-center justify-end gap-2 text-base">
+					<LoaderCircle class="h-4 w-4 animate-spin" />
+					{m.prioritization_saving_changes()}
+				</p>
+			{/if}
+			{#if reviewError}
+				<p class="text-destructive text-right text-base">{reviewError}</p>
+			{/if}
 		</div>
 	{:else if current}
 		<div class="space-y-6">
-			<div class="space-y-2">
-				<div class="flex items-center justify-between gap-3 text-sm">
-					<span class="text-muted-foreground">
-						Proposal {currentIndex + 1} of {proposals.length}
-					</span>
-					<span class="text-muted-foreground">
-						{submittedIds.size} of {proposals.length} done
-					</span>
-				</div>
-				<Progress value={progressPercent} />
-			</div>
-
 			<Card.Root>
 				<Card.Header>
 					<div class="pile">
@@ -630,50 +666,18 @@
 				</Card.Content>
 			</Card.Root>
 
-			<div class="flex items-center justify-between">
-				<Button
-					variant="ghost"
-					onclick={goBack}
-					disabled={currentIndex === 0 || submitting}
-				>
-					<ArrowLeft class="mr-2 h-4 w-4" /> Previous
-				</Button>
-
-				{#if currentSubmitted}
-					{#if currentIndex < proposals.length - 1}
-						<Button
-							onclick={() => {
-								submitAttempted = false;
-								currentIndex += 1;
-							}}
-						>
-							Next <ArrowRight class="ml-2 h-4 w-4" />
-						</Button>
-					{:else}
-						<Button onclick={onDone}>Finish</Button>
-					{/if}
-				{:else}
-					<Button
-						variant={isComplete ? 'default' : 'secondary'}
-						onclick={submitAndAdvance}
-						disabled={submitting}
-					>
-						{#if submitting}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
-						{/if}
-						{currentIndex < proposals.length - 1 ? 'Submit & continue' : 'Submit'}
-						{#if !submitting}<ArrowRight class="ml-2 h-4 w-4" />{/if}
-					</Button>
-				{/if}
-			</div>
-			{#if canContinue}
+			{#if submitting}
+				<p class="text-muted-foreground flex items-center justify-end gap-2 text-base">
+					<LoaderCircle class="h-4 w-4 animate-spin" />
+					{m.prioritization_submitting()}
+				</p>
+			{/if}
+			{#if canContinue && !allDone}
 				<div
 					class="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
 				>
 					<p class="text-muted-foreground text-base">
-						Click the 'Submit &amp; continue' button above to review the next principle.
-						If you'd like to move on rather than reviewing any more principles, click
-						'Skip this step'.
+						{m.prioritization_submit_or_skip_hint()}
 					</p>
 					<Button
 						variant="outline"
@@ -684,7 +688,7 @@
 						Skip this step
 					</Button>
 				</div>
-			{:else if requiredReviews > 0}
+			{:else if !canContinue && requiredReviews > 0}
 				<p class="text-muted-foreground text-right text-base">
 					Reviewed {submittedIds.size} of {requiredReviews}. Review {reviewsRemaining} more
 					proposal{reviewsRemaining > 1 ? 's' : ''} to continue to the next step.

@@ -190,6 +190,10 @@ If you copy a block a second time, stop and extract it.
   such as a shared class string or a limit, reads as a constant when it's named like one:
   `VOTE_BUTTON_CLASS`, not `voteButtonClass`. Keep it next to where it's used; if only one
   template block needs it, a `{@const}` inside that block is fine.
+- **Say what kind of constant it is.** A Tailwind class string ends in `_CLASS`
+  (`PAGER_BUTTON_CLASS`), so nobody mistakes it for a component or a type. A number carries
+  its unit (`BAR_GAP_PX`). When several files in a route folder share class strings, put
+  them in a colocated `styles.ts`, not a file named after one constant.
 - **Name the props type; don't inline the annotation.** Declare a `type Props = { … }`
   (or `interface Props`) above the destructure and annotate with it, rather than inlining
   a large object literal after `}:`.
@@ -313,8 +317,9 @@ If you copy a block a second time, stop and extract it.
 - **Tailwind v4 utilities, inline.** No custom classes in `<style>` blocks: if you need
   CSS, it's a utility. (Complex keyframe/`@container` work is the rare exception and must
   be justified in a comment.)
-- **Never smaller than `text-base` for content.** `text-sm` only for small labels;
-  nothing below `text-sm`, ever. This is enforced on desktop.
+- **Never smaller than `text-base` for content.** `text-sm` and `text-xs` are for small
+  labels, metadata, and navigation that packs many rows into a narrow space, like the
+  admin sidebar.
 - Use the **flat shadcn design tokens** (`bg-card`, `text-muted-foreground`, …). When
   translating from Figma, map its doubled token names to the flat token in markup.
 

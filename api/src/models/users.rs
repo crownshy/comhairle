@@ -565,7 +565,8 @@ pub async fn list_by_organization_id(
         .from(UserIden::Table)
         .and_where(Expr::cust_with_values(
             "id IN (SELECT user_id FROM user_group_member JOIN organization
-            ON organization.user_group_id = user_group_member.group_id WHERE organization.id = $1)",
+            ON organization.user_group_id = user_group_member.group_id
+            OR organization.admin_group_id = user_group_member.group_id WHERE organization.id = $1)",
             [*organization_id],
         ))
         .build_sqlx(PostgresQueryBuilder);
@@ -718,10 +719,9 @@ pub struct UserFilterOptions {
 }
 
 impl UserFilterOptions {
-    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+    fn try_apply(&self, mut query: SelectStatement) -> Result<SelectStatement, ComhairleError> {
         if let Some(is_admin) = self.is_admin {
-            let mut admin_subquery = permissions::permission_select(Some("system"))
-                .expect("System permission tables are defined");
+            let mut admin_subquery = permissions::permission_select(Some("system"))?;
             admin_subquery.and_where(Expr::col(ResourcePermissionIden::RoleName).eq(SystemRole::Admin.as_ref()))
                 .and_where(Expr::col(ResourcePermissionIden::ResourceId).eq(permissions::SYSTEM_RESOURCE_ID))
                 .and_where(Expr::cust("(user_id = comhairle_user.id OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = comhairle_user.id))"));
@@ -735,7 +735,7 @@ impl UserFilterOptions {
             }
         }
 
-        query
+        Ok(query)
     }
 }
 
@@ -771,7 +771,7 @@ pub async fn list(
 ) -> Result<PaginatedResults<User>, ComhairleError> {
     let query = Query::select().from(UserIden::Table).to_owned();
 
-    let query = filter_options.apply(query);
+    let query = filter_options.try_apply(query)?;
     let query = order_options.apply(query);
 
     let users = page_options.fetch_paginated_results(db, query).await?;

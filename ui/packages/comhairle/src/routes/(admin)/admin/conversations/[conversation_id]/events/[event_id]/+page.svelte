@@ -48,6 +48,10 @@
 	import { snakeToStartCase } from '$lib/utils/casingUtils.js';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { permissions } from '$lib/permissions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { eventTour } from './tour';
+
+	useTour(() => eventTour);
 
 	let url = $derived(page.url);
 	let { data } = $props();
@@ -180,7 +184,8 @@
 		try {
 			const eventParams = {
 				...eventData,
-				custom_event_link: eventData.custom_event_link?.trim() || '',
+				custom_event_link:
+					eventData.format === 'online' ? eventData.custom_event_link?.trim() || '' : '',
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
@@ -339,8 +344,8 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="mb-6 flex flex-row items-center gap-4">
-	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
+<div data-tour="page-header" class="mb-6 flex flex-row items-center gap-4">
+	<h2 class="text-xl font-bold">Event: {event?.name}</h2>
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}
@@ -588,13 +593,16 @@
 							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>
 							<span>Custom event link</span>
-							<span class="font-normal">Override default Jitsi meeting link</span>
+							<span class="font-normal"
+								>For meetings on Zoom, Teams or Google Meet. Paste the full link,
+								starting with https://. Leave empty to use the built-in meeting.</span
+							>
 						</Form.Label>
 						<div class="flex-1">
 							<Input
 								{...props}
 								bind:value={$form.custom_event_link}
-								placeholder={`/conversations/${conversation.id}/events/${event.id}/live`}
+								placeholder="https://meet.example.com/your-room"
 								disabled={!canEdit || $form.format !== 'online'}
 							/>
 							<Form.FieldErrors />
