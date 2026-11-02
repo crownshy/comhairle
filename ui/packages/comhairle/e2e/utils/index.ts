@@ -1,6 +1,7 @@
-import type { Locator } from '@playwright/test';
+import { expect, Locator } from '@playwright/test';
 import { Second } from '../../src/lib/utils/units';
 import { Page } from './types';
+import { eventually } from './testing';
 
 export const exists = async (locator: Locator): Promise<boolean> => !!(await locator.count());
 
@@ -18,8 +19,12 @@ export const sleep = async (seconds: number): Promise<true> =>
  */
 export async function testWithRefresh(page: Page, tests: () => Promise<void>) {
 	await tests();
-	await sleep(1.5);
 	await page.reload();
 	await sleep(1.5);
 	await tests();
+}
+
+export async function find(locator: Locator) {
+	await eventually(() => expect(locator).toBeVisible());
+	return locator;
 }

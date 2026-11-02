@@ -73,6 +73,18 @@ async fn require_conversation_document_access(
         return Ok(());
     }
 
+    if crate::models::permissions::can_perform_action(
+        state,
+        conversation_id,
+        crate::models::permissions::conversation::Action::Read,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?
+    {
+        return Ok(());
+    }
+
     Err(ComhairleError::UserNotAuthorized)
 }
 

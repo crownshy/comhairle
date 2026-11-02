@@ -560,6 +560,7 @@
 						</div>
 						<Button
 							variant="ghost"
+							title="Delete recording entry"
 							size="sm"
 							onclick={() => removeRow(row.key)}
 							disabled={isUploading || rows.length === 1}
