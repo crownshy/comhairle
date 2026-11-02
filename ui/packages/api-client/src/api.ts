@@ -2790,6 +2790,10 @@ export const ReportImpactDto = z
   })
   .passthrough();
 export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
+export const CreateImpactDTO = z
+  .object({ details: z.string(), kind: z.string(), title: z.string() })
+  .passthrough();
+export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
 export const PartialReportImpact = z
   .object({
     created_at: z.union([z.string(), z.null()]),
@@ -2804,10 +2808,6 @@ export const PartialReportImpact = z
   .partial()
   .passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
-export const CreateImpactDTO = z
-  .object({ details: z.string(), kind: z.string(), title: z.string() })
-  .passthrough();
-export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
 export const FeedbackDto = z
   .object({
     content: z.string(),
@@ -4161,8 +4161,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmbeddedSectionBlock,
   ReportEmbedsDto,
   ReportImpactDto,
-  PartialReportImpact,
   CreateImpactDTO,
+  PartialReportImpact,
   FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
@@ -5666,20 +5666,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: z.array(ReportImpactDto),
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/report/:report_id/impacts",
-    alias: "UpdateImpact",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialReportImpact,
-      },
-    ],
-    response: ReportImpactDto,
-  },
-  {
     method: "post",
     path: "/conversation/:conversation_id/report/:report_id/impacts",
     alias: "CreateImpact",
@@ -5692,6 +5678,27 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ReportImpactDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/report/:report_id/impacts/:impact_id",
+    alias: "UpdateImpact",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialReportImpact,
+      },
+    ],
+    response: ReportImpactDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/report/:report_id/impacts/:impact_id",
+    alias: "DeleteImpact",
+    requestFormat: "json",
+    response: z.void(),
   },
   {
     method: "get",
