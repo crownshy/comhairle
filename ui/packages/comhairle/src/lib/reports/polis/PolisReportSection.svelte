@@ -15,7 +15,7 @@
 	/**
 	 * Renders a single embeddable Polis section block. This is the unit the embed dialog
 	 * freezes to HTML (mount → read innerHTML) and, later, could mount live. It mirrors the
-	 * relevant slices of `PolisInsights` so an embed looks identical to the Insights tab.
+	 * relevant slices of `PolisInsights` so an embed looks identical to the step's Insights page.
 	 */
 	let {
 		componentType,
