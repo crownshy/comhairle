@@ -95,7 +95,7 @@
 						<Button
 							variant="outline"
 							icon={SquarePen}
-							onclick={() => (bulkEdit = true)}
+							onclick={() => void (bulkEdit = true)}
 						>
 							{m.edit()}
 						</Button>
@@ -108,7 +108,7 @@
 						>
 							{m.delete()}
 						</Button>
-						<Button variant="outline" icon={X} onclick={() => (bulkEdit = false)}>
+						<Button variant="outline" icon={X} onclick={() => void (bulkEdit = false)}>
 							{m.cancel()}
 						</Button>
 					{/if}
@@ -118,10 +118,22 @@
 
 		<Dialog id="delete-media" title="Are you sure?">
 			{#snippet PrimaryAction()}
-				<Submit text="Delete" icon={Trash2} variant="destructive" {isSubmitting} />
+				<Submit
+					text={m.delete()}
+					icon={Trash2}
+					variant="destructive"
+					{isSubmitting}
+					command="close-dialog:delete-media"
+				/>
 			{/snippet}
-			{#snippet SecondaryAction({ close })}
-				<Button variant="outline" onclick={close} disabled={isSubmitting}>Cancel</Button>
+			{#snippet SecondaryAction()}
+				<Button
+					variant="outline"
+					command="close-dialog:delete-media"
+					disabled={isSubmitting}
+				>
+					{m.cancel()}
+				</Button>
 			{/snippet}
 		</Dialog>
 

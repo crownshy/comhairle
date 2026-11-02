@@ -9,23 +9,19 @@
 		onclick?: () => void;
 	};
 
-	type SnippetArgs = {
-		close: () => void;
-	};
-
 	type Props = {
 		id: string;
 		ref?: HTMLDialogElement | null;
 		title?: string;
 		class?: string;
-		children?: Snippet<[SnippetArgs]>;
+		children?: Snippet<[]>;
 		actions?: {
 			primary?: Action;
 			secondary?: Action;
 		};
-		HeaderActions?: Snippet<[SnippetArgs]>;
-		PrimaryAction?: Snippet<[SnippetArgs]>;
-		SecondaryAction?: Snippet<[SnippetArgs]>;
+		HeaderActions?: Snippet<[]>;
+		PrimaryAction?: Snippet<[]>;
+		SecondaryAction?: Snippet<[]>;
 		// If true, clicking outside of the Dialog won't dismiss it
 		onlyHardDismiss?: boolean;
 	};
@@ -71,7 +67,7 @@
 				<span class="shrink-0 grow text-3xl font-medium">{title}</span>
 				<span class="shrink grow-0">
 					{#if HeaderActions}
-						{@render HeaderActions({ close })}
+						{@render HeaderActions()}
 					{/if}
 				</span>
 			</header>
@@ -79,12 +75,12 @@
 			<header></header>
 		{/if}
 		<section>
-			{@render children?.({ close })}
+			{@render children?.()}
 		</section>
 		{#if PrimaryAction || actions?.primary}
 			<footer class="flex flex-row justify-end gap-x-2">
 				{#if SecondaryAction}
-					{@render SecondaryAction({ close })}
+					{@render SecondaryAction()}
 				{:else if actions?.secondary}
 					<Button
 						onclick={() => {
@@ -97,7 +93,7 @@
 					</Button>
 				{/if}
 				{#if PrimaryAction}
-					{@render PrimaryAction({ close })}
+					{@render PrimaryAction()}
 				{:else if actions?.primary}
 					<Button
 						onclick={() => {
