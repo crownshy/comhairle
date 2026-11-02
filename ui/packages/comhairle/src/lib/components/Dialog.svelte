@@ -115,12 +115,13 @@
 
 <style>
 	dialog {
-		--_distance: 25px;
-		--_duration: 400ms;
+		--_distance: 15px;
+		--_duration: 300ms;
+		--_shrink: 0.95;
 
 		opacity: 0;
 		translate: 0 0;
-		scale: 0.95;
+		scale: var(--_shrink);
 		transition: opacity, display, overlay, translate, scale;
 		transition-behavior: allow-discrete;
 		transition-duration: var(--_duration);
