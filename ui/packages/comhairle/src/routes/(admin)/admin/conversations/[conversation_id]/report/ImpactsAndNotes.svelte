@@ -1,0 +1,232 @@
+<script lang="ts">
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Select from '$lib/components/ui/select';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Separator } from '$lib/components/ui/separator';
+	import Edit from 'lucide-svelte/icons/edit';
+	import Delete from 'lucide-svelte/icons/delete';
+	import { apiClient } from '@crownshy/api-client/client';
+	import type { FullReportDto } from '@crownshy/api-client/api';
+	import { invalidate } from '$app/navigation';
+	import { notifications } from '$lib/notifications.svelte.js';
+	import { m } from '$lib/paraglide/messages';
+	import { key } from '$lib/utils/invalidationKey.js';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+
+	// Moved as-is from the report page. Neither is part of the public report.
+	type Props = { report: FullReportDto; canEdit: boolean };
+	let { report, canEdit }: Props = $props();
+
+	let newImpact = $state({
+		title: '',
+		details: '',
+		kind: 'policy'
+	});
+
+	let newFeedback = $state({
+		title: '',
+		details: ''
+	});
+
+	let impactOpen = $state(false);
+	let feedbackOpen = $state(false);
+
+	async function createFeedback() {}
+
+	async function createImpact() {
+		if (!canEdit) return;
+		const result = await tryCatchAsync(() =>
+			apiClient.CreateImpact(newImpact, {
+				params: { report_id: report.id, conversation_id: report.conversationId }
+			})
+		);
+		if (result.err !== null) {
+			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
+			return;
+		}
+		invalidate(key('admin/conversation/report'));
+		impactOpen = false;
+		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
+	}
+</script>
+
+<div class="flex flex-col gap-4">
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Impacts</Card.Title>
+			<Card.Description>What impacts has this conversation had?</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			{#each report.impacts as impact (impact.id)}
+				<div class="flex w-full flex-row items-center justify-between">
+					<p class="">{impact.title}</p>
+					{#if canEdit}
+						<div class="flex flex-row">
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Edit Impact</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
+
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Delete" variant="ghost"
+											><Delete /></Button
+										>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Delete Impact</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
+						</div>
+					{/if}
+				</div>
+				<Separator class="my-4" />
+			{/each}
+			{#if canEdit}
+				<Card.Footer class="flex w-full justify-end">
+					<Dialog.Root bind:open={impactOpen}>
+						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
+							>Add Impact</Dialog.Trigger
+						>
+
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Add an impact</Dialog.Title>
+								<Dialog.Description
+									>Record an impact that this report has had</Dialog.Description
+								>
+							</Dialog.Header>
+							<div class="grid gap-4 py-4">
+								<div class="flex flex-col gap-4">
+									<Label for="title">Title</Label>
+									<Input bind:value={newImpact.title} id="title" />
+									<Label for="title">Details</Label>
+									<Textarea
+										id="details"
+										placeholder="Describe in detail the impact."
+										bind:value={newImpact.details}
+										class="col-span-3"
+									/>
+									<Label for="title">Impact Type</Label>
+									<Select.Root
+										required
+										onSelectedChange={(v) => {
+											if (v?.value) {
+												newImpact.kind = v.value;
+											}
+										}}
+									>
+										<Select.Trigger>
+											<Select.Value placeholder="Select an impact type" />
+										</Select.Trigger>
+										<Select.Content class="w-56">
+											<Select.Item value="policy" label="Policy" />
+											<Select.Item value="debate" label="Debate" />
+											<Select.Item
+												value="followup_conversation"
+												label="Followup Conversation"
+											/>
+										</Select.Content>
+									</Select.Root>
+								</div>
+							</div>
+							<Dialog.Footer>
+								<Button onclick={createImpact} type="submit">{m.submit()}</Button>
+							</Dialog.Footer>
+						</Dialog.Content>
+					</Dialog.Root>
+				</Card.Footer>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Facilitator Notes</Card.Title>
+			<Card.Description>Notes gathered by facilitators</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			{#each report.facilitatorFeedback as impact (impact.id)}
+				<div class="flex w-full flex-row items-center justify-between">
+					<p class="">{impact.title}</p>
+					{#if canEdit}
+						<div class="flex flex-row">
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Edit Feedback</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
+
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button aria-label="Delete" variant="ghost"
+											><Delete /></Button
+										>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Delete Feedback</p>
+									</Tooltip.Content>
+								</Tooltip.Root></Tooltip.Provider
+							>
+						</div>
+					{/if}
+				</div>
+				<Separator class="my-4" />
+			{/each}
+			{#if canEdit}
+				<Card.Footer class="flex w-full justify-end">
+					<Dialog.Root bind:open={feedbackOpen}>
+						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
+							>Add Feedback</Dialog.Trigger
+						>
+
+						<Dialog.Content class="sm:max-w-[425px]">
+							<Dialog.Header>
+								<Dialog.Title>Add feedback</Dialog.Title>
+								<Dialog.Description
+									>Record some feedback or notes from facilitators</Dialog.Description
+								>
+							</Dialog.Header>
+							<div class="grid gap-4 py-4">
+								<div class="flex flex-col gap-4">
+									<Label for="title">Title</Label>
+									<Input bind:value={newFeedback.title} id="title" />
+									<Label for="title">Details</Label>
+									<Textarea
+										id="details"
+										placeholder="Describe in detail the impact."
+										bind:value={newFeedback.details}
+										class="col-span-3"
+									/>
+								</div>
+							</div>
+							<Dialog.Footer>
+								<Button onclick={createFeedback} type="submit">{m.submit()}</Button>
+							</Dialog.Footer>
+						</Dialog.Content>
+					</Dialog.Root>
+				</Card.Footer>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+</div>
