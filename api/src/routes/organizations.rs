@@ -5,7 +5,6 @@ use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
 use axum::extract::{FromRequestParts, Json, Path, Query, State};
 use axum::http::StatusCode;
-use minijinja::context;
 use schemars::JsonSchema;
 use tracing::instrument;
 use uuid::Uuid;
@@ -141,36 +140,6 @@ struct OrganizationTeamResponseDto {
     members: Vec<OrganizationTeamUserDto>,
 }
 
-fn group_label(group: OrganizationGroup) -> &'static str {
-    match group {
-        OrganizationGroup::Members => "member",
-        OrganizationGroup::Admins => "administrator",
-    }
-}
-
-fn notify_team_addition(
-    state: &Arc<ComhairleState>,
-    recipient_email: &str,
-    organization_name: &str,
-    group: OrganizationGroup,
-) {
-    let subject = "You were added to an organization on Comhairle";
-    let admin_sign_in_link = format!("{}/auth/login?backTo=/admin", state.config.domain);
-
-    let _ = state.mailer.send_email(
-        recipient_email,
-        subject,
-        "organization_team_onboarding.html",
-        context! {
-            subject,
-            organization_name,
-            role_label => group_label(group),
-            admin_sign_in_link,
-        },
-        None,
-    );
-}
-
 async fn resolve_or_create_user_by_email(
     state: &Arc<ComhairleState>,
     email: &str,
@@ -278,8 +247,14 @@ async fn add_member(
     let group = payload.group.unwrap_or(OrganizationGroup::Members);
 
     let updated_user = resolved_user;
-    user_group::add_organization_member(&state, organization_id, group, updated_user.id, user.id)
-        .await?;
+    let newly_added = user_group::add_organization_member(
+        &state,
+        organization_id,
+        group,
+        updated_user.id,
+        user.id,
+    )
+    .await?;
     if created_account {
         let token = generate_jwt()
             .user(&updated_user)
@@ -303,9 +278,9 @@ async fn add_member(
             .is_ok();
     }
 
-    if let Some(email) = updated_user.email.as_deref() {
-        let organization = organization::get_by_id(&state.db, &organization_id).await?;
-        notify_team_addition(&state, email, &organization.name, group);
+    if newly_added {
+        user_group::notify_organization_addition(&state, organization_id, updated_user.id, group)
+            .await;
     }
 
     let groups =
@@ -337,7 +312,12 @@ async fn add_group_member(
     }): Path<OrganizationGroupMemberPath>,
     RequiredUser(user): RequiredUser,
 ) -> Result<StatusCode, ComhairleError> {
-    user_group::add_organization_member(&state, organization_id, group, user_id, user.id).await?;
+    let newly_added =
+        user_group::add_organization_member(&state, organization_id, group, user_id, user.id)
+            .await?;
+    if newly_added {
+        user_group::notify_organization_addition(&state, organization_id, user_id, group).await;
+    }
 
     Ok(StatusCode::OK)
 }
@@ -1025,6 +1005,69 @@ mod tests {
             .get(&app, &format!("/organizations/{organization_id}/team"))
             .await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn existing_users_are_emailed_when_added_to_an_organization(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use std::sync::Mutex;
+
+        use axum::body::Body;
+
+        use crate::mailer::{MockComhairleMailer, SentEmail};
+        use crate::models::model_test_helpers::{
+            get_random_organization_id, setup_app_and_session_with_state,
+        };
+        use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
+
+        let sent: Arc<Mutex<Vec<SentEmail>>> = Arc::default();
+        let state = Arc::new(
+            test_state()
+                .db(pool)
+                .mailer(Arc::new(MockComhairleMailer::recording(sent.clone())))
+                .call()?,
+        );
+        let (app, mut creator) = setup_app_and_session_with_state(state).await?;
+        let organization_id = get_random_organization_id(&app, &mut creator).await?;
+        let mut colleague = UserSession::new("colleague", TEST_PASSWORD, "colleague@example.com");
+        colleague.signup(&app).await?;
+        let colleague_id = colleague.id.ok_or("missing colleague id")?;
+        let url = |group: &str| {
+            format!("/organizations/{organization_id}/groups/{group}/members/{colleague_id}")
+        };
+        let added_emails = || {
+            sent.lock()
+                .unwrap()
+                .iter()
+                .filter(|email| email.template == "organization_team_onboarding.html")
+                .map(|email| {
+                    (
+                        email.to.clone(),
+                        email.subject.clone(),
+                        email.context.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let (status, _, _) = creator.put(&app, &url("members"), Body::empty()).await?;
+        assert_eq!(status, StatusCode::OK);
+        let emails = added_emails();
+        assert_eq!(emails.len(), 1);
+        assert_eq!(emails[0].0, "colleague@example.com");
+        assert!(emails[0].1.starts_with("You have been added to "));
+        assert!(emails[0].2.contains("member"));
+
+        creator.put(&app, &url("members"), Body::empty()).await?;
+        assert_eq!(added_emails().len(), 1, "already a member, so no email");
+
+        let (status, _, _) = creator.put(&app, &url("admins"), Body::empty()).await?;
+        assert_eq!(status, StatusCode::OK);
+        let emails = added_emails();
+        assert_eq!(emails.len(), 2, "promotion to administrator is an addition");
+        assert!(emails[1].2.contains("administrator"));
         Ok(())
     }
 }
