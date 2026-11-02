@@ -25,7 +25,7 @@
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
 <!-- Back and Next only, the same corners as the step pager (ADR-0047, ADR-0048). The middle
 	says where the reader is in the section and is not a control. -->
-<div class="bg-background/80 sticky bottom-0 backdrop-blur">
+<div class="bg-background/80 sticky bottom-0 z-10 backdrop-blur">
 	<progress
 		class="bg-border [&::-webkit-progress-bar]:bg-border [&::-webkit-progress-value]:bg-primary [&::-moz-progress-bar]:bg-primary block h-1.5 w-full appearance-none border-0"
 		value={progress}
