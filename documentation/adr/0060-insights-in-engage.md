@@ -14,4 +14,5 @@ Insights stays per-Step. The conversation-level view is still the Report.
 ## Consequences
 
 - Insights follows the Engage rules in ADR-0052: it stays locked until launch.
-- Insights on preview data before launch (#1556) can't use this entry while Engage is locked. That needs its own decision: unlock this one entry before launch, or show preview Insights somewhere in Set up.
+- There are no preview Insights before launch (#1556). The team agreed it's fine to lose what preview clicks would show there. Admins who want to learn to monitor or moderate before launch use a playground conversation.
+- Only the sidebar entry is locked. The pages still load from a direct URL before launch, using the preview tool config. Nothing links there, but we left it working as a workaround for anyone who needs to look.
