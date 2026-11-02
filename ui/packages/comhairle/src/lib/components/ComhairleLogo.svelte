@@ -6,6 +6,7 @@
 	import ScotGovLogo from '$lib/assets/scot-gov-logo-white-text.svg';
 	import ScotGovLogoDark from '$lib/assets/scot-gov-logo-dark-text.webp';
 	import { themeStore } from '$lib/stores/theme.svelte';
+	import type { ThemeName } from '$lib/types/theme';
 	import { cn } from '$lib/utils';
 
 	type Props = {
@@ -16,8 +17,11 @@
 		logoSize?: 'sm' | 'md' | 'lg';
 		color?: string;
 		class?: string;
-		/** What the logo sits on, so brand logos with fixed colours pick the readable version. */
-		surface?: 'dark' | 'light';
+		/**
+		 * What the logo sits on, so brand logos with fixed colours pick the readable version.
+		 * `page` is the page background, which follows light and dark mode.
+		 */
+		surface?: 'dark' | 'light' | 'page';
 	};
 
 	let {
@@ -48,33 +52,55 @@
 		lg: 'h-12 w-12'
 	};
 
-	let customLogoUrl = env.PUBLIC_LOGO_URL;
-	let isWaves = $derived(!customLogoUrl && themeStore.name === 'waves');
-	let isScotGov = $derived(!customLogoUrl && themeStore.name === 'scot-gov');
-	let scotGovSrc = $derived(surface === 'light' ? ScotGovLogoDark : ScotGovLogo);
+	/** An image logo with a version for light surfaces (dark text) and one for dark surfaces. */
+	type BrandLogo = { light: string; dark: string; alt: string; fit: 'box' | 'height' };
+
+	/** The configured logo is the light surface one, which emails use too. */
+	function configuredLogo(): BrandLogo | undefined {
+		const light = env.PUBLIC_LOGO_URL;
+		if (!light) return undefined;
+		return { light, dark: env.PUBLIC_LOGO_URL_DARK_SURFACE || light, alt: 'Logo', fit: 'box' };
+	}
+
+	function themeLogo(theme: ThemeName): BrandLogo | undefined {
+		if (theme === 'scot-gov') {
+			return {
+				light: ScotGovLogoDark,
+				dark: ScotGovLogo,
+				alt: 'Scottish Government',
+				fit: 'height'
+			};
+		}
+		if (theme === 'waves') {
+			return { light: WavesLogo, dark: WavesLogo, alt: 'Logo', fit: 'box' };
+		}
+		return undefined;
+	}
+
+	const configured = configuredLogo();
+	let brand = $derived(configured ?? themeLogo(themeStore.name));
 	let logoSrc = $derived(showText ? FullLogo : IconLogo);
 	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
+	let brandClass = $derived(
+		brand?.fit === 'height'
+			? `w-auto ${brandHeightMap[logoSize]}`
+			: `overflow-hidden object-contain ${sizeClass}`
+	);
 </script>
 
+{#snippet brandImage(src: string, extraClass = '')}
+	<img {src} alt={brand?.alt} class={cn('inline-block shrink-0', brandClass, extraClass)} />
+{/snippet}
+
 {#snippet logoContent()}
-	{#if customLogoUrl}
-		<img
-			src={customLogoUrl}
-			alt="Logo"
-			class="inline-block h-12 shrink-0 overflow-hidden object-contain {sizeClass}"
-		/>
-	{:else if isScotGov}
-		<img
-			src={scotGovSrc}
-			alt="Scottish Government"
-			class="inline-block w-auto shrink-0 {brandHeightMap[logoSize]}"
-		/>
-	{:else if isWaves}
-		<img
-			src={WavesLogo}
-			alt="Logo"
-			class="inline-block h-12 shrink-0 overflow-hidden object-contain {sizeClass}"
-		/>
+	{#if brand}
+		{#if surface === 'page' && brand.light !== brand.dark}
+			<!-- Both render so the server markup is right before the client knows the mode. -->
+			{@render brandImage(brand.light, 'dark:hidden')}
+			{@render brandImage(brand.dark, 'hidden dark:inline-block')}
+		{:else}
+			{@render brandImage(surface === 'dark' ? brand.dark : brand.light)}
+		{/if}
 	{:else}
 		<span
 			role="img"
