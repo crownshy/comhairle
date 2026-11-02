@@ -7,7 +7,7 @@
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
-	import { Form, Input, Submit, type HandleSubmission } from '$lib/components/EasyForm';
+	import { Form, Input, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media';
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -29,7 +29,7 @@
 
 	const media = new Media();
 
-	const handleSubmission: HandleSubmission = async (formData) => {
+	const onSubmit: OnSubmit = async (formData) => {
 		const response = await media.upload('/api/media', formData, {
 			schema: MediaSchema
 		});
@@ -67,7 +67,7 @@
 </Button>
 
 <Dialog id="upload-media" ref={dialog} --max-width="35rem" --min-width="20rem">
-	<Form enctype="multipart/form-data" class="flex flex-col" {handleSubmission}>
+	<Form enctype="multipart/form-data" class="flex flex-col" {onSubmit}>
 		<FileInput
 			{...MediaSchema.media}
 			bind:this={fileInput}

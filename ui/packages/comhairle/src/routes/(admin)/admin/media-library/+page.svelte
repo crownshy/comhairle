@@ -14,7 +14,7 @@
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { mediaLibraryTour } from './tour';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
-	import { Form, Submit, type HandleSubmission } from '$lib/components/EasyForm';
+	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -33,7 +33,7 @@
 	let details = $state.raw<MediaDto | undefined>(undefined);
 	let filter = $state<HTMLMediaElement | null>(null);
 
-	const handleDelete: HandleSubmission = async (formData) => {
+	const deleteMedia: OnSubmit = async (formData) => {
 		const media = formData.getAll('media') as string[];
 
 		const results = await tryCatchAsync(async () => {
@@ -79,8 +79,8 @@
 	</label>
 {/snippet}
 
-<Form handleSubmission={handleDelete}>
-	{#snippet children(isSubmitting)}
+<Form onSubmit={deleteMedia}>
+	{#snippet children({ isSubmitting })}
 		<SectionHeader
 			content={{
 				eyebrow: 'Library',
