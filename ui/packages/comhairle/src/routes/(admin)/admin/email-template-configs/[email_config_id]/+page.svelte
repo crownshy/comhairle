@@ -136,18 +136,33 @@
 		}
 	}, 300);
 
+	const isConversationEmailTemplate = $derived(emailConfig.emailType === 'conversation_invite');
+	const isEventEmailTemplate = $derived(
+		emailConfig.emailType === 'event_registration_invite' ||
+			emailConfig.emailType === 'event_registration_confirmation' ||
+			emailConfig.emailType === 'event_reminder'
+	);
+
 	const headerTitle = () => {
 		let title = snakeToStartCase(emailConfig.emailType);
 
 		if (
-			emailConfig.emailType === 'conversation_invite' &&
+			isConversationEmailTemplate &&
 			emailConfig.conversationId &&
 			emailConfig.conversationTitle
 		) {
 			title = title.concat(` (${emailConfig.conversationTitle})`);
 		}
 
-		if (emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId) {
+		if (isConversationEmailTemplate && !emailConfig.conversationId) {
+			title = title.concat(' (Fallback)');
+		}
+
+		if (isEventEmailTemplate && emailConfig.eventId && emailConfig.eventTitle) {
+			title = title.concat(` (${emailConfig.eventTitle})`);
+		}
+
+		if (isEventEmailTemplate && !emailConfig.eventId) {
 			title = title.concat(' (Fallback)');
 		}
 

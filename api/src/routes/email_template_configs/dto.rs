@@ -54,6 +54,8 @@ pub struct EmailTemplateConfigWithScopeDto {
     pub subject: Option<String>,
     pub conversation_id: Option<Uuid>,
     pub conversation_title: Option<String>,
+    pub event_id: Option<Uuid>,
+    pub event_title: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -68,6 +70,8 @@ impl From<EmailTemplateConfigWithScope> for EmailTemplateConfigWithScopeDto {
             subject: value.config.subject,
             conversation_id: value.config.conversation_id,
             conversation_title: value.conversation_title,
+            event_id: value.config.event_id,
+            event_title: value.event_title,
             created_at: value.config.created_at,
         }
     }

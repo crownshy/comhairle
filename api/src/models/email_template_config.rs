@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
-    Alias, Cond, Expr, Func, JoinType, Order, PostgresQueryBuilder, Query, SelectStatement,
-    SimpleExpr, enum_def,
+    Alias, Cond, Expr, Func, IntoColumnRef, JoinType, Order, PostgresQueryBuilder, Query,
+    SelectStatement, SimpleExpr, enum_def,
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::conversation::ConversationIden;
+use crate::models::event::EventIden;
 use crate::models::translations::{TextContentIden, TextTranslationIden};
 use crate::models::{SqlxResultExt, users};
 
@@ -671,25 +672,14 @@ pub struct EmailTemplateConfigWithScope {
     #[sqlx(flatten)]
     pub config: EmailTemplateConfig,
     pub conversation_title: Option<String>,
+    pub event_title: Option<String>,
 }
 
-/// Selects email template configs joined with the title of the conversation
-/// they are scoped to, in `locale` with a fallback to the conversation's
-/// primary locale.
+/// Selects email template configs joined with the title of the conversation or
+/// event they are scoped to, in `locale` with a fallback to its primary locale.
 fn select_with_scope(locale: &str) -> SelectStatement {
-    let tc = Alias::new("tc_title");
-    let tt = Alias::new("tt_title");
-    let tt_primary = Alias::new("tt_primary_title");
-
-    Query::select()
+    let mut query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EmailTemplateConfigIden::Table, col)))
-        .expr_as(
-            Func::coalesce([
-                Expr::col((tt.clone(), TextTranslationIden::Content)).into(),
-                Expr::col((tt_primary.clone(), TextTranslationIden::Content)).into(),
-            ]),
-            Alias::new("conversation_title"),
-        )
         .from(EmailTemplateConfigIden::Table)
         .left_join(
             ConversationIden::Table,
@@ -699,12 +689,55 @@ fn select_with_scope(locale: &str) -> SelectStatement {
             ))
             .equals((ConversationIden::Table, ConversationIden::Id)),
         )
+        .left_join(
+            EventIden::Table,
+            Expr::col((
+                EmailTemplateConfigIden::Table,
+                EmailTemplateConfigIden::EventId,
+            ))
+            .equals((EventIden::Table, EventIden::Id)),
+        )
+        .to_owned();
+
+    let conversation_title = join_localized_text(
+        &mut query,
+        (ConversationIden::Table, ConversationIden::Title),
+        "conversation",
+        locale,
+    );
+
+    let event_title = join_localized_text(
+        &mut query,
+        (EventIden::Table, EventIden::Name),
+        "event",
+        locale,
+    );
+
+    query
+        .expr_as(conversation_title, Alias::new("conversation_title"))
+        .expr_as(event_title, Alias::new("event_title"))
+        .to_owned()
+}
+
+/// Left joins the translation of `text_content_id` in `locale`, falling back to
+/// its primary locale, and returns the expression selecting it. `prefix` keeps
+/// the join aliases unique when called more than once on the same query.
+fn join_localized_text(
+    query: &mut SelectStatement,
+    text_content_id: impl IntoColumnRef,
+    prefix: &str,
+    locale: &str,
+) -> SimpleExpr {
+    let tc = Alias::new(format!("tc_{prefix}"));
+    let tt = Alias::new(format!("tt_{prefix}"));
+    let tt_primary = Alias::new(format!("tt_primary_{prefix}"));
+
+    query
         .join_as(
             JoinType::LeftJoin,
             TextContentIden::Table,
             tc.clone(),
-            Expr::col((ConversationIden::Table, ConversationIden::Title))
-                .equals((tc.clone(), TextContentIden::Id)),
+            Expr::col(text_content_id).equals((tc.clone(), TextContentIden::Id)),
         )
         .join_as(
             JoinType::LeftJoin,
@@ -724,8 +757,13 @@ fn select_with_scope(locale: &str) -> SelectStatement {
                     Expr::col((tt_primary.clone(), TextTranslationIden::Locale))
                         .equals((tc.clone(), TextContentIden::PrimaryLocale)),
                 ),
-        )
-        .to_owned()
+        );
+
+    Func::coalesce([
+        Expr::col((tt, TextTranslationIden::Content)).into(),
+        Expr::col((tt_primary, TextTranslationIden::Content)).into(),
+    ])
+    .into()
 }
 
 /// Gets a single [`EmailTemplateConfig`] by `id`, paired with the title of the
@@ -1816,37 +1854,77 @@ mod tests {
         let (_, user, _) = session.current_user(&app).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let conversation = conversation::get_localised_by_id(&pool, &conversation_id, "en").await?;
+        let event_id = create_test_event(&pool, conversation_id).await?;
+        let event = event::get_localized_by_id(&pool, &event_id, "en").await?;
 
-        let scoped = create(
+        let convo_scoped = create(
             &pool,
             user.id,
             &conversation_invite_params(Some(conversation_id)),
+        )
+        .await?;
+        let event_scoped = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Event(event_id)),
+        )
+        .await?;
+        let default_event_reminder = create(
+            &pool,
+            user.id,
+            &event_reminder_params(EmailTemplateScope::Owner),
         )
         .await?;
         let unscoped = create(&pool, user.id, &conversation_invite_params(None)).await?;
 
         let configs = list_with_scope(&pool, user.id, Default::default(), "en").await?;
 
-        assert_eq!(configs.len(), 2, "incorrect total");
+        assert_eq!(configs.len(), 4, "incorrect total");
 
-        let scoped_result = configs
+        let convo_scoped_result = configs
             .iter()
-            .find(|c| c.config.id == scoped.id)
-            .ok_or("missing scoped config")?;
+            .find(|c| c.config.id == convo_scoped.id)
+            .ok_or("missing conversation scoped config")?;
         assert_eq!(
-            scoped_result.conversation_title.as_deref(),
+            convo_scoped_result.conversation_title.as_deref(),
             Some(conversation.title.as_str()),
             "incorrect conversation_title"
+        );
+
+        let event_scoped_result = configs
+            .iter()
+            .find(|c| c.config.id == event_scoped.id)
+            .ok_or("missing event scoped config")?;
+        assert_eq!(
+            event_scoped_result.event_title.as_deref(),
+            Some(event.name.as_str()),
+            "incorrect event_title"
         );
 
         let unscoped_result = configs
             .iter()
             .find(|c| c.config.id == unscoped.id)
-            .ok_or("missing scoped config")?;
-        assert_eq!(
-            unscoped_result.conversation_title.as_deref(),
-            None,
+            .ok_or("missing unscoped config")?;
+        assert!(
+            unscoped_result.conversation_title.is_none(),
             "unscoped config should have no conversation_title"
+        );
+        assert!(
+            unscoped_result.event_title.is_none(),
+            "unscoped config should have no event_title"
+        );
+
+        let default_event_reminder_result = configs
+            .iter()
+            .find(|c| c.config.id == default_event_reminder.id)
+            .ok_or("missing default_event_reminder config")?;
+        assert!(
+            default_event_reminder_result.conversation_title.is_none(),
+            "default_event_reminder config should have no conversation_title"
+        );
+        assert!(
+            default_event_reminder_result.event_title.is_none(),
+            "default_event_reminder config should have no event_title"
         );
 
         Ok(())

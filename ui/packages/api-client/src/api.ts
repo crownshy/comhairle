@@ -3412,6 +3412,8 @@ export const EmailTemplateConfigWithScopeDto = z
     conversationTitle: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
+    eventId: z.union([z.string(), z.null()]).optional(),
+    eventTitle: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
