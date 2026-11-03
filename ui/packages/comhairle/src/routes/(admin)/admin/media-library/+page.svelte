@@ -3,7 +3,6 @@
 	import { SquarePen, Trash2, X } from 'lucide-svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import DetailsDialog from './DetailsDialog.svelte';
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
@@ -27,7 +26,7 @@
 	const { data } = $props();
 
 	let bulkEdit = $state<boolean>(false);
-	let selected = $state([]);
+	let selected = $state.raw([]);
 	let details = $state.raw<MediaDto | undefined>(undefined);
 	let filter = $state<HTMLMediaElement | null>(null);
 
@@ -158,33 +157,17 @@
 						{@render FilterButton('image')}
 						{@render FilterButton('video')}
 					</div>
-					<MediaLibrary data={items}>
-						{#snippet media(type, media)}
-							{#if bulkEdit}
-								<label>
-									<input
-										type="checkbox"
-										name="media"
-										value={media.id.toString()}
-										class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-										bind:group={selected}
-									/>
-									<MediaItem {type} {...media} />
-								</label>
-							{:else}
-								<Button
-									class="block aspect-video h-full w-full"
-									command="open-dialog:media-details"
-									plain
-									onclick={() => {
-										details = media;
-									}}
-								>
-									<MediaItem {type} {...media} />
-								</Button>
-							{/if}
-						{/snippet}
-					</MediaLibrary>
+					{#if !bulkEdit}
+						<MediaLibrary
+							media={items}
+							mode="view"
+							onDetailsOpen={(media) => {
+								details = media;
+							}}
+						/>
+					{:else}
+						<MediaLibrary media={items} mode="multi-select" bind:selected />
+					{/if}
 				{/if}
 			{/await}
 		</TabContent>
@@ -196,9 +179,3 @@
 	media={details}
 	type={htmlFromMediaType(details?.contentType ?? 'image/jpeg')}
 />
-
-<style>
-	input:checked + * {
-		filter: opacity(50%);
-	}
-</style>

@@ -11,7 +11,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import Dialog from '$lib/components/Dialog.svelte';
@@ -40,8 +39,7 @@
 	}
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
-
-	let selectedMedia = $state<MediaDto | null>(null);
+	let selected = $state.raw<MediaDto | null>(null);
 </script>
 
 <Button
@@ -77,10 +75,10 @@
 			icon={SquareArrowOutUpLeft}
 		/>
 		<Button
-			disabled={!selectedMedia}
+			disabled={!selected}
 			onclick={() => {
-				if (!selectedMedia) return;
-				onconfirm(selectedMedia);
+				if (!selected) return;
+				onconfirm(selected);
 			}}
 			command="close-dialog:media-library"
 		>
@@ -95,24 +93,7 @@
 			{#if data.err !== null}
 				<ErrorMessage>{data.err}</ErrorMessage>
 			{:else}
-				<MediaLibrary data={data.ok}>
-					{#snippet media(type, media)}
-						<label>
-							<input
-								type="radio"
-								name="selected"
-								value={media}
-								bind:group={selectedMedia}
-								class="hidden"
-							/>
-							<MediaItem
-								{type}
-								{...media}
-								--selected={selectedMedia?.url === media.url && 'var(--ring)'}
-							/>
-						</label>
-					{/snippet}
-				</MediaLibrary>
+				<MediaLibrary media={data.ok} mode="single-select" bind:selected />
 			{/if}
 		{/await}
 	{/if}
