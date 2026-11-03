@@ -16,7 +16,7 @@
 		ref?: HTMLFormElement | null;
 		onsubmit: OnSubmit;
 		closeOnSubmit?: string;
-		resetOnSubmit?: boolean;
+		noReset?: boolean;
 		invalidate?: InputKey;
 	};
 
@@ -25,7 +25,7 @@
 		ref = $bindable(),
 		onsubmit,
 		closeOnSubmit,
-		resetOnSubmit = true,
+		noReset = false,
 		invalidate: ik,
 		...props
 	}: Props = $props();
@@ -48,7 +48,7 @@
 		cancel();
 		await onsubmit(formData);
 
-		if (resetOnSubmit) {
+		if (!noReset) {
 			ref?.reset();
 		}
 

@@ -53,7 +53,7 @@
 		transition: translate 150ms ease-out;
 		translate: 0px 0px;
 
-		&:is(:focus, :hover) {
+		&:is(:focus-visible, :hover) {
 			translate: 0px -3px;
 		}
 	}

@@ -68,7 +68,6 @@
 		{onsubmit}
 		invalidate="admin/media"
 		closeOnSubmit="upload-media"
-		resetOnSubmit
 	>
 		{#snippet children({ isSubmitting })}
 			<FileInput
