@@ -17,6 +17,8 @@
 		onsubmit: OnSubmit;
 		closeOnSubmit?: string;
 		noReset?: boolean;
+		// Additional reset function if a form reset doesn't completely reset it
+		additionalReset?: () => void;
 		invalidate?: InputKey;
 	};
 
@@ -26,6 +28,7 @@
 		onsubmit,
 		closeOnSubmit,
 		noReset = false,
+		additionalReset,
 		invalidate: ik,
 		...props
 	}: Props = $props();
@@ -50,6 +53,7 @@
 
 		if (!noReset) {
 			ref?.reset();
+			additionalReset?.();
 		}
 
 		if (closeOnSubmit) {

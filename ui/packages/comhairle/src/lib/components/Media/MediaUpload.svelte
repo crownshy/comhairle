@@ -23,6 +23,7 @@
 	let file = $state<File | null>(null);
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
+	let removeFileButton = $state.raw<HTMLElement | null>(null);
 
 	const media = new Media();
 
@@ -68,6 +69,9 @@
 		{onsubmit}
 		invalidate="admin/media"
 		closeOnSubmit="upload-media"
+		additionalReset={() => {
+			removeFileButton?.click();
+		}}
 	>
 		{#snippet children({ isSubmitting })}
 			<FileInput
@@ -93,6 +97,7 @@
 						</span>
 						<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span>
 						<Button
+							bind:ref={removeFileButton}
 							title="Remove file"
 							aria-label="Remove file"
 							variant="ghost"
