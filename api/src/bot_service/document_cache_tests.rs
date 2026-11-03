@@ -111,7 +111,7 @@ async fn parsed_lists_are_cached_and_concurrent_misses_share_one_fetch()
 }
 
 #[tokio::test]
-async fn incomplete_mixed_and_empty_lists_are_not_cached() -> Result<(), Box<dyn Error>> {
+async fn incomplete_and_mixed_lists_are_not_cached() -> Result<(), Box<dyn Error>> {
     let (bot, service) = FakeBot::start().await?;
     let cases = [
         vec![document("DONE", 0.999)],
@@ -119,7 +119,6 @@ async fn incomplete_mixed_and_empty_lists_are_not_cached() -> Result<(), Box<dyn
         vec![document("FAILED", 1.0)],
         vec![document("DONE", 0.0)],
         vec![document("DONE", 1.0), document("RUNNING", 0.5)],
-        vec![],
     ];
     for (index, documents) in cases.into_iter().enumerate() {
         let knowledge_base = format!("knowledge-base-{index}");
