@@ -23,6 +23,25 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 RUN git clone https://github.com/avstack/gst-meet.git
 WORKDIR /build/gst-meet
+
+# gst-meet's CLI unconditionally sends a ReceiverVideoConstraints Colibri
+# message right after joining and bails the whole process (.await?) if that
+# fails - irrelevant to an audio-only recv-pipeline, but fatal if the
+# server's Colibri WebSocket is ever unavailable/broken (observed: JVB's
+# bundled Jetty 500s every colibri-ws request with a classpath mismatch,
+# NoSuchMethodError on AuthenticationState). Patch it to log and continue
+# instead of dying, so recording doesn't hard-depend on that channel.
+RUN sed -i '/send_colibri_message(ColibriMessage::ReceiverVideoConstraints/,/\.await?;/{s/\.await?;/.await.ok();/}' gst-meet/src/main.rs
+
+# lib-gst-meet *also* opens the Colibri channel automatically right after
+# every session-accept (lib-gst-meet/src/conference.rs, in the XMPP read
+# loop's IQ-result handler) with the same unconditional `?`, independent of
+# the CLI-level call above - this is the one that actually kills every
+# session a short way in. Make it non-fatal: log and skip the
+# colibri-dependent setup (video type message, periodic stats) for this IQ
+# instead of propagating the error out of the read loop.
+RUN perl -0777 -pi -e 's/let colibri_channel =\s*\n(\s*)ColibriChannel::new\(&colibri_url, self\.tls_insecure\)\.await\?;/let colibri_channel = match ColibriChannel::new(&colibri_url, self.tls_insecure).await {\n$1  Ok(c) => c,\n$1  Err(e) => {\n$1    warn!("Failed to connect Colibri WebSocket, continuing without it: {e:?}");\n$1    return Ok(());\n$1  },\n$1};/' lib-gst-meet/src/conference.rs
+
 RUN cargo build --release --bin gst-meet
 
 # Stage 2: Build jisti-recorder
