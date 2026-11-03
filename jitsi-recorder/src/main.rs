@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::os::unix::process::ExitStatusExt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
@@ -434,7 +435,12 @@ async fn monitor_recording_process(
     session.ended_at = Some(end_time);
     session.duration_seconds = Some(duration_seconds);
 
-    if !status.map(|s| s.success()).unwrap_or(false) {
+    // room_destroyed_webhook SIGTERMs gst-meet deliberately once the call ends -
+    // that's the normal, expected way every recording stops, and it always
+    // produces a non-zero/signalled exit status. Only treat exits as failures
+    // when they *aren't* that clean, expected shutdown.
+    let stopped_cleanly = status.as_ref().ok().and_then(|s| s.signal()) == Some(15);
+    if !status.map(|s| s.success()).unwrap_or(false) && !stopped_cleanly {
         error!("Recording process failed for session {}", session_id);
         session.status = RecordingStatus::Failed;
         session.error_message = Some("Recording process exited with non-zero status".to_string());
