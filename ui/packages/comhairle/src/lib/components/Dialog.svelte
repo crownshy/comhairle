@@ -50,10 +50,9 @@
 	style="max-width: var(--max-width, none); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height,  '40vh');"
 	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
-	<!-- Would be ideal for this to just be a plain button but for some reason the invoker commands don't work with plain buttons, no idea why-->
 	<Button
 		class="absolute top-3 right-3 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
-		variant="ghost"
+		plain
 		command={`close-dialog:${id}`}
 		icon={X}
 		title="close"
