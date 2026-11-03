@@ -41,6 +41,11 @@ services:
       # Recording Configuration
       GST_MEET_PATH: /usr/local/bin/gst-meet
       RECORDINGS_DIR: /tmp/jitsi-recordings
+
+      # Auto-trigger via Prosody event_sync webhooks
+      EVENT_SYNC_TOKEN: ${EVENT_SYNC_TOKEN}
+      DEFAULT_S3_BUCKET: ${DEFAULT_S3_BUCKET:-}
+      DEFAULT_WEBHOOK_URL: ${DEFAULT_WEBHOOK_URL:-}
     volumes:
       # Mount for temporary recordings (optional - useful for debugging)
       - recordings:/tmp/jitsi-recordings
