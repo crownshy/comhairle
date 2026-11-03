@@ -19,8 +19,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidate } from '$app/navigation';
-	import { key } from '$lib/utils/invalidationKey';
 	import PageSpinner from '$lib/components/PageSpinner.svelte';
 	import Dialog from '$lib/components/Dialog.svelte';
 
@@ -49,7 +47,7 @@
 			});
 		}
 
-		await invalidate(key('admin/media'));
+		bulkEdit = false;
 	};
 </script>
 
@@ -79,7 +77,7 @@
 	</label>
 {/snippet}
 
-<Form onSubmit={deleteMedia}>
+<Form onsubmit={deleteMedia} invalidate="admin/media">
 	{#snippet children({ isSubmitting })}
 		<SectionHeader
 			content={{
@@ -108,7 +106,14 @@
 						>
 							{m.delete()}
 						</Button>
-						<Button variant="outline" icon={X} onclick={() => void (bulkEdit = false)}>
+						<Button
+							variant="outline"
+							icon={X}
+							onclick={() => {
+								bulkEdit = false;
+								selected = [];
+							}}
+						>
 							{m.cancel()}
 						</Button>
 					{/if}

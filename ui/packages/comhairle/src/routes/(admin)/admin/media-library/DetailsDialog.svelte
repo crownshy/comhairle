@@ -161,7 +161,7 @@
 				{/if}
 			</div>
 			<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
-				<Form class="flex flex-col" onSubmit={updateMedia}>
+				<Form class="flex flex-col" onsubmit={updateMedia}>
 					<DetailsField
 						label="Name"
 						initialValue={media.name}

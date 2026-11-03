@@ -1,5 +1,5 @@
 type InvalidationKey = `${string}:${string}`;
-type InputKey =
+export type InputKey =
 	| 'admin/conversation'
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidate } from '$app/navigation';
+	import { key, type InputKey } from '$lib/utils/invalidationKey';
 	import type { Snippet } from 'svelte';
 	import type { HTMLFormAttributes } from 'svelte/elements';
 
@@ -9,14 +11,24 @@
 		isSubmitting: boolean;
 	};
 
-	type Props = Omit<HTMLFormAttributes, 'children' | 'onSubmit'> & {
+	type Props = Omit<HTMLFormAttributes, 'children' | 'onsubmit'> & {
 		children: Snippet<[SnippetArgs]>;
 		ref?: HTMLFormElement | null;
-		onSubmit: OnSubmit;
+		onsubmit: OnSubmit;
+		closeOnSubmit?: string;
 		resetOnSubmit?: boolean;
+		invalidate?: InputKey;
 	};
 
-	let { children, ref = $bindable(), onSubmit, resetOnSubmit = true, ...props }: Props = $props();
+	let {
+		children,
+		ref = $bindable(),
+		onsubmit,
+		closeOnSubmit,
+		resetOnSubmit = true,
+		invalidate: ik,
+		...props
+	}: Props = $props();
 
 	let isSubmitting = $state<boolean>(false);
 	let Form = $state<HTMLFormElement | null>(null);
@@ -34,15 +46,27 @@
 		isSubmitting = true;
 
 		cancel();
-		await onSubmit(formData);
+		await onsubmit(formData);
+
+		if (resetOnSubmit) {
+			ref?.reset();
+		}
+
+		if (closeOnSubmit) {
+			const dialog = document.getElementById(closeOnSubmit) as HTMLDialogElement | null;
+			if (dialog) {
+				dialog.close();
+			}
+		}
+
+		if (ik) {
+			await invalidate(key(ik));
+		}
+
 		isSubmitting = false;
 
 		return async ({ update }) => {
 			await update();
-			isSubmitting = false;
-			if (resetOnSubmit) {
-				Form?.reset();
-			}
 		};
 	}}
 >

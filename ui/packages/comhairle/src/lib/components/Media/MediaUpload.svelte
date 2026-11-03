@@ -13,8 +13,6 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';
 	import Dialog from '$lib/components/Dialog.svelte';
-	import { invalidate } from '$app/navigation';
-	import { key } from '$lib/utils/invalidationKey';
 
 	type Props = Omit<ComponentProps<typeof Button>, 'onclick'> & {
 		clientSide?: boolean;
@@ -22,14 +20,13 @@
 	};
 	const { oncomplete, ...props }: Props = $props();
 
-	let dialog = $state<HTMLDialogElement | null>(null);
 	let file = $state<File | null>(null);
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
 
 	const media = new Media();
 
-	const onSubmit: OnSubmit = async (formData) => {
+	const onsubmit: OnSubmit = async (formData) => {
 		const response = await media.upload('/api/media', formData, {
 			schema: MediaSchema
 		});
@@ -56,18 +53,23 @@
 			priority: 'SUCCESS'
 		});
 
-		dialog?.close();
 		oncomplete?.(mediaDto.ok as MediaDto);
-		await invalidate(key('admin/media'));
 	};
 </script>
 
-<Button {...props} type="button" icon={Upload} command="open-dialog:upload-media">
+<Button {...props} icon={Upload} command="open-dialog:upload-media">
 	{m.upload()}
 </Button>
 
-<Dialog id="upload-media" ref={dialog} --max-width="35rem" --min-width="20rem">
-	<Form enctype="multipart/form-data" class="flex flex-col" {onSubmit} resetOnSubmit>
+<Dialog id="upload-media" --max-width="35rem" --min-width="20rem">
+	<Form
+		enctype="multipart/form-data"
+		class="flex flex-col"
+		{onsubmit}
+		invalidate="admin/media"
+		closeOnSubmit="upload-media"
+		resetOnSubmit
+	>
 		{#snippet children({ isSubmitting })}
 			<FileInput
 				{...MediaSchema.media}
@@ -110,12 +112,7 @@
 			{/if}
 			<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" />
 			<Input {...MediaSchema.alt} label="Alt" placeholder="e.g. Company logo" />
-			<Submit
-				class="mt-7 self-end"
-				text="Upload"
-				command="close-dialog:upload-media"
-				{isSubmitting}
-			/>
+			<Submit class="mt-7 self-end" text="Upload" {isSubmitting} />
 		{/snippet}
 	</Form>
 </Dialog>
