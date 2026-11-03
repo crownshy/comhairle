@@ -1110,13 +1110,16 @@ export type PrioritizationInsightsResponse = z.infer<
 >;
 export const ConversationRequest2 = z
   .object({
-    history: z.string(),
     question_intent: z.string(),
-    starting_question: z.string(),
+    root_question_id: z.string().uuid(),
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
 export type ConversationRequest2 = z.infer<typeof ConversationRequest2>;
+export const ConverseResponseDto = z
+  .object({ questions: z.array(z.string()) })
+  .passthrough();
+export type ConverseResponseDto = z.infer<typeof ConverseResponseDto>;
 export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
 export type AnswerStatus = z.infer<typeof AnswerStatus>;
 export const status = z.union([AnswerStatus, z.null()]).optional();
@@ -1162,6 +1165,7 @@ export type GenerateThinkingSpaceSummary = z.infer<
 export const ThinkingSpaceSummaryDto = z
   .object({
     aiGeneratedSummary: z.union([z.string(), z.null()]).optional(),
+    areasOfUncertainty: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     isAiGenerated: z.boolean(),
     summary: z.string(),
@@ -3800,6 +3804,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RankedProposal,
   PrioritizationInsightsResponse,
   ConversationRequest2,
+  ConverseResponseDto,
   AnswerStatus,
   status,
   ThinkingSpaceAnswerDto,
@@ -7748,13 +7753,8 @@ Create a response for prioritization tool proposal
   {
     method: "post",
     path: "/tools/thinking_space",
-    alias: "postToolsthinking_space",
-    description: `
-Streamed LLM response.
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.
-`,
+    alias: "ConverseThinkingSpace",
+    description: `Generate candidate follow-up questions for a thinking space root answer`,
     requestFormat: "json",
     parameters: [
       {
@@ -7763,7 +7763,7 @@ Use a raw HTTP request and process the response body incrementally.
         schema: ConversationRequest2,
       },
     ],
-    response: z.void(),
+    response: ConverseResponseDto,
   },
   {
     method: "get",
