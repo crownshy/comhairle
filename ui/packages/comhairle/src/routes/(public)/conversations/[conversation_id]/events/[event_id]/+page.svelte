@@ -7,6 +7,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { lobbyHref } from './lobbyHref';
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
@@ -46,24 +48,9 @@
 		return 'live' as const;
 	});
 
-	let isToday = $derived.by(() => {
-		if (!event) return false;
-		const start = new Date(event.startTime);
-		const now = new Date();
-		return (
-			start.getFullYear() === now.getFullYear() &&
-			start.getMonth() === now.getMonth() &&
-			start.getDate() === now.getDate()
-		);
-	});
-
+	let isInviteOnly = $derived(event?.signupMode === 'invite');
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
-	let liveHref = $derived.by(() => {
-		if (event?.format === 'online' && event?.customEventLink) {
-			return event.customEventLink;
-		}
-		return `/conversations/${conversationId}/events/${event?.id}/live`;
-	});
+	let liveHref = $derived(event ? lobbyHref(conversationId, event) : undefined);
 
 	let canStartMeeting = $derived(
 		userAttendance?.role === 'moderator' || userAttendance?.role === 'facilitator'
@@ -102,23 +89,24 @@
 		if (!event || !user) return;
 		joining = true;
 		error = null;
-		try {
+		const eventId = event.id;
+		const registered = await tryCatchAsync(async () => {
 			await apiClient.CreateEventAttendance(
 				{ role: 'participant' },
 				{
 					params: {
 						conversation_id: conversationId,
-						event_id: event.id
+						event_id: eventId
 					}
 				}
 			);
 			// Reload to refresh attendance data
 			await invalidate(key('public/event'));
-		} catch (e: any) {
-			error = e?.message || 'Failed to register';
-		} finally {
-			joining = false;
+		});
+		if (registered.err !== null) {
+			error = registered.err instanceof Error ? registered.err.message : 'Failed to register';
 		}
+		joining = false;
 	}
 </script>
 
@@ -272,7 +260,10 @@
 				>
 					<Info class="text-primary mt-0.5 h-4 w-4 shrink-0" />
 					<span>
-						{#if user}
+						{#if isInviteOnly}
+							You need an invite to join this event. Please use the link in your
+							invite.
+						{:else if user}
 							Register below to join this event when it goes live.
 						{:else}
 							Log in and register to join this event when it goes live.
@@ -300,6 +291,10 @@
 					You can wait in the lobby. The meeting will begin when the facilitator starts
 					it.
 				</p>
+			{:else if !userAttendance && user && status !== 'past' && isInviteOnly}
+				<p class="text-muted-foreground text-base">
+					This event is invite only. Please use the link in your invite to register.
+				</p>
 			{:else if !userAttendance && user && status !== 'past'}
 				<Button
 					variant="primaryDark"
@@ -321,7 +316,11 @@
 			{/if}
 
 			{#if !user && status !== 'past'}
-				<p class="text-muted-foreground text-sm">Log in to register for this event.</p>
+				<p class="text-muted-foreground text-sm">
+					{isInviteOnly
+						? 'This event is invite only. Please use the link in your invite to register.'
+						: 'Log in to register for this event.'}
+				</p>
 			{/if}
 
 			{#if error}

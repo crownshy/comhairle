@@ -11,7 +11,7 @@
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import MinusIcon from '@lucide/svelte/icons/minus';
 	import PlusIcon from '@lucide/svelte/icons/plus';
-	import type { PdfHighlight } from './highlights';
+	import { firstHighlightTop, type PdfHighlight } from './highlights';
 	import { HttpStatus } from '$lib/utils/constants';
 
 	pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -46,6 +46,8 @@
 	const FIT_GUTTER = 24;
 	// Backing-store width of a thumbnail, before devicePixelRatio.
 	const THUMB_WIDTH = 116;
+	// Space left above a cited passage when the viewer opens on it.
+	const PASSAGE_TOP_MARGIN = 48;
 	// Open filling the available width, so the page is fully visible and centered
 	// with no horizontal scroll at any dialog or screen size (the capped dialog
 	// keeps this from overshooting on wide desktops).
@@ -242,6 +244,23 @@
 		pageWrappers[pageNumber - 1]?.scrollIntoView({ behavior, block: 'start' });
 	}
 
+	// Lands the cited passage near the top of the viewport, with some of the text
+	// above it showing. The browser clamps scrollTop, which covers a passage near
+	// the bottom of the last page.
+	function goToPassage(pageNumber: number) {
+		const wrapper = pageWrappers[pageNumber - 1];
+		const highlightTop = firstHighlightTop(highlights, pageNumber);
+		if (!wrapper || !scrollContainer || highlightTop === null) {
+			goToPage(pageNumber, 'auto');
+			return;
+		}
+		const pageTop =
+			wrapper.getBoundingClientRect().top -
+			scrollContainer.getBoundingClientRect().top +
+			scrollContainer.scrollTop;
+		scrollContainer.scrollTop = pageTop + highlightTop * renderedScale - PASSAGE_TOP_MARGIN;
+	}
+
 	function setZoom(value: string) {
 		zoom = value === 'fit-width' || value === 'fit-page' ? value : Number(value);
 	}
@@ -395,7 +414,7 @@
 		const key = `${src}:${targetPage ?? 'none'}`;
 		if (jumpedFor === key) return;
 		jumpedFor = key;
-		if (targetPage) goToPage(targetPage, 'auto');
+		if (targetPage) goToPassage(targetPage);
 		revealed = true;
 	});
 

@@ -70,6 +70,7 @@
 		onSequenceChange?: OnSequenceChange;
 		topic?: string | null;
 		strictModeration?: boolean | null;
+		showOnboarding?: boolean;
 	};
 
 	let {
@@ -83,7 +84,8 @@
 		onDone,
 		onSequenceChange,
 		topic,
-		strictModeration
+		strictModeration,
+		showOnboarding = false
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -104,9 +106,8 @@
 	// First-timer onboarding (ADR-0062): one instruction or one vote on screen at a time.
 	const onboardingScope = `${user_id}-${voteScopeKey}`;
 	const initialData = getVoteData(user_id, voteScopeKey);
-	let stage = $state<Stage>(
-		initialData.totalVotes > 0 || hasSeenOnboarding(onboardingScope) ? 'done' : 'deciding'
-	);
+	const isFirstTimer = initialData.totalVotes === 0 && !hasSeenOnboarding(onboardingScope);
+	let stage = $state<Stage>(showOnboarding && isFirstTimer ? 'deciding' : 'done');
 	let practicePick = $state<PracticePick>({ seed: undefined, participant: undefined });
 	let seedVote = $state<Vote | undefined>(undefined);
 	let participantVote = $state<Vote | undefined>(undefined);

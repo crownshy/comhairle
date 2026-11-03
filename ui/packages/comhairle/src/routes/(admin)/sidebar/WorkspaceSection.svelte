@@ -17,7 +17,7 @@
 	{#each groups as group (group.label ?? '')}
 		<div class="flex flex-col gap-0.5">
 			{#if group.label}
-				<h2 class="text-sidebar-foreground/60 px-2 pb-1 text-sm font-medium">
+				<h2 class="text-sidebar-foreground/60 px-2 pb-1 text-xs font-medium">
 					{group.label}
 				</h2>
 			{/if}

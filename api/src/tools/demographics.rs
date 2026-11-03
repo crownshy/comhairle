@@ -59,6 +59,9 @@ impl ToolConfigSanitize for DemographicFormToolConfig {
 #[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct DemographicReport;
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct DemographicExIm;
+
 pub type DemographicQuestionToolSetup = DemographicQuestionToolConfig;
 pub type DemographicFormToolSetup = DemographicFormToolConfig;
 
@@ -69,6 +72,7 @@ impl ToolImpl for DemographicQuestionTool {
     type Config = DemographicQuestionToolConfig;
     type Setup = DemographicQuestionToolSetup;
     type Report = DemographicReport;
+    type ExportImport = DemographicExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -88,6 +92,21 @@ impl ToolImpl for DemographicQuestionTool {
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
     }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
 }
 
 pub struct DemographicFormTool;
@@ -97,6 +116,7 @@ impl ToolImpl for DemographicFormTool {
     type Config = DemographicFormToolConfig;
     type Setup = DemographicFormToolSetup;
     type Report = DemographicReport;
+    type ExportImport = DemographicExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -115,5 +135,20 @@ impl ToolImpl for DemographicFormTool {
 
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 }

@@ -3,6 +3,7 @@
 	import CookieConsent from '$lib/cookies/cookieconsent.svelte';
 	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
 	import RouteProgress from '$lib/components/RouteProgress.svelte';
+	import SocialMeta from '$lib/components/SocialMeta.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { browser } from '$app/environment';
 	import '../app.css';
@@ -32,7 +33,7 @@
 	});
 
 	// Theme name is always determined by the PUBLIC_THEME env var
-	if (browser && themeName) {
+	if (themeName) {
 		themeStore.initFromServer(themeName);
 	}
 
@@ -61,6 +62,8 @@
 		<script async defer src={umamiRecorderSrcURL} data-website-id={umamiWebsiteID}></script>
 	{/if}
 </svelte:head>
+
+<SocialMeta {themeName} />
 
 {#if umamiEnabled}
 	<UmamiAnalytics websiteID={umamiWebsiteID!} srcURL={umamiSrcURL!} />

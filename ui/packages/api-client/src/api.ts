@@ -1580,6 +1580,7 @@ export const ToolConfig = z.union([
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
+      show_onboarding: z.boolean().optional().default(false),
       show_remaining_statements: z.boolean().optional().default(true),
       strict_moderation: z
         .union([z.boolean(), z.null()])
@@ -1807,6 +1808,7 @@ export const ToolConfigWithTranslations = z.union([
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
+      show_onboarding: z.boolean().optional().default(false),
       show_remaining_statements: z.boolean().optional().default(true),
       strict_moderation: z
         .union([z.boolean(), z.null()])
@@ -1967,6 +1969,7 @@ export const LocalizedToolConfig = z.union([
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
+      show_onboarding: z.boolean().optional().default(false),
       show_remaining_statements: z.boolean().optional().default(true),
       strict_moderation: z
         .union([z.boolean(), z.null()])
@@ -2178,7 +2181,7 @@ export const ToolSetup = z.union([
     .passthrough(),
 ]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
-export const CreateWorkflowStep = z
+export const CreateWorkflowStepRequest = z
   .object({
     activation_rule: ActivationRule,
     description: z.string(),
@@ -2189,7 +2192,9 @@ export const CreateWorkflowStep = z
     tool_setup: ToolSetup,
   })
   .passthrough();
-export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
+export type CreateWorkflowStepRequest = z.infer<
+  typeof CreateWorkflowStepRequest
+>;
 export const WorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
@@ -2225,6 +2230,35 @@ export const PartialWorkflowStep = z
   .partial()
   .passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const ToolExIm = z.union([
+  z.object({ type: z.literal("polis") }).passthrough(),
+  z
+    .object({ fields: z.array(FormField), type: z.literal("heyform") })
+    .passthrough(),
+  z.object({ type: z.literal("learn") }).passthrough(),
+  z.object({ type: z.literal("stories") }).passthrough(),
+  z.object({ type: z.literal("elicitationbot") }).passthrough(),
+  z.object({ type: z.literal("prioritization") }).passthrough(),
+  z.object({ type: z.literal("thinkingspace") }).passthrough(),
+  z.object({ type: z.literal("demographicquestion") }).passthrough(),
+  z.object({ type: z.literal("demographicform") }).passthrough(),
+]);
+export type ToolExIm = z.infer<typeof ToolExIm>;
+export const ExImWorkflowStep = z
+  .object({
+    activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
+    data_protocol: z.union([z.string(), z.null()]).optional(),
+    description: z.string(),
+    is_offline: z.boolean(),
+    name: z.string(),
+    preview_tool_config: ToolExIm,
+    primary_locale: z.string(),
+    request_user_share_permission: z.boolean(),
+    required: z.boolean(),
+  })
+  .passthrough();
+export type ExImWorkflowStep = z.infer<typeof ExImWorkflowStep>;
 export const CreateThemeCollection = z
   .object({
     context: z.string(),
@@ -4032,9 +4066,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SetupQuestion,
   ThinkingSpaceSetupQuestion,
   ToolSetup,
-  CreateWorkflowStep,
+  CreateWorkflowStepRequest,
   WorkflowStepDto,
   PartialWorkflowStep,
+  ToolExIm,
+  ExImWorkflowStep,
   CreateThemeCollection,
   StatementDto,
   ThemeDto,
@@ -5205,7 +5241,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "body",
         type: "Body",
-        schema: CreateWorkflowStep,
+        schema: CreateWorkflowStepRequest,
       },
     ],
     response: WorkflowStepDto,
@@ -5236,6 +5272,31 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
     alias: "DeleteEventWorkflowStep",
     requestFormat: "json",
+    response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/export",
+    alias: "ExportEventWorkflowStep",
+    description: `Export a workflow step to JSON`,
+    requestFormat: "json",
+    response: ExImWorkflowStep,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/import",
+    alias:
+      "postConversationConversation_ideventsEvent_idworkflowsWorkflow_idworkflow_stepsimport",
+    description: `This endpoint requires multipart/form-data.Generated API clients may not support file uploads.Use FormData and a raw HTTP request.`,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
     response: WorkflowStepDto,
   },
   {
@@ -5828,7 +5889,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       {
         name: "body",
         type: "Body",
-        schema: CreateWorkflowStep,
+        schema: CreateWorkflowStepRequest,
       },
     ],
     response: WorkflowStepDto,
@@ -5860,6 +5921,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/export",
+    alias: "ExportConversationWorkflowStep",
+    description: `Export a workflow step to JSON`,
+    requestFormat: "json",
+    response: ExImWorkflowStep,
   },
   {
     method: "get",
@@ -6012,6 +6081,23 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ThemeCollectionDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/import",
+    alias:
+      "postConversationConversation_idworkflowWorkflow_idworkflow_stepimport",
+    description: `This endpoint requires multipart/form-data.Generated API clients may not support file uploads.Use FormData and a raw HTTP request.`,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: WorkflowStepDto,
   },
   {
     method: "get",

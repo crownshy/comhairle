@@ -14,7 +14,10 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::translations::{
+    ResolveWithTranslations, TextContentId, TextFormat, get_text_content_with_translations,
+    new_translation,
+};
 use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
 use crate::models::users::UserIden;
 use crate::models::{SqlxResultExt, demographics, moderation_policy};
@@ -176,9 +179,17 @@ pub async fn launch(
     let (primary_locale, supported_languages) =
         conversation_locales(state, &workflow_step.workflow_id).await?;
 
-    // When a Polis poll goes live, seed the aux statement table from the new
-    // live poll so moderation/theming has rows to work with immediately.
+    // When a Polis poll goes live, clear the preview poll's aux rows (comhairle's
+    // per-statement moderation and theme metadata) and seed the
+    // table from the new live poll so moderation/theming has rows to work with
+    // immediately.
     if let ToolConfig::Polis(config) = &new_live_config {
+        crate::models::polis_statement_aux::delete_for_step_except_poll(
+            &state.db,
+            workflow_step_id,
+            &config.poll_id,
+        )
+        .await?;
         crate::tools::polis::sync_statement_aux_inner(
             state,
             workflow_step_id,
@@ -296,39 +307,6 @@ impl WorkflowStep {
     pub fn sanatize(&mut self) {
         self.preview_tool_config = self.preview_tool_config.sanitize();
         self.tool_config = self.tool_config.clone().map(|s| s.sanitize());
-    }
-}
-
-#[derive(Partial, Debug, Deserialize, Serialize, Clone, JsonSchema)]
-pub struct CreateWorkflowStep {
-    pub name: String,
-    pub step_order: i32,
-    pub activation_rule: ActivationRule,
-    pub description: String,
-    pub is_offline: bool,
-    pub tool_setup: ToolSetup,
-    pub required: bool,
-}
-
-impl CreateWorkflowStep {
-    pub fn columns(&self) -> Vec<WorkflowStepIden> {
-        vec![
-            WorkflowStepIden::StepOrder,
-            WorkflowStepIden::ActivationRule,
-            WorkflowStepIden::IsOffline,
-            WorkflowStepIden::Required,
-        ]
-    }
-
-    pub fn try_values(&self) -> Result<Vec<sea_query::SimpleExpr>, ComhairleError> {
-        let activation_rule = serde_json::to_value(self.activation_rule.clone())?.into();
-
-        Ok(vec![
-            self.step_order.into(),
-            activation_rule,
-            self.is_offline.into(),
-            self.required.into(),
-        ])
     }
 }
 
@@ -575,11 +553,65 @@ pub async fn list_with_translations(
     locale: &str,
 ) -> Result<Vec<WorkflowStepWithTranslations>, ComhairleError> {
     let workflow_steps = list(db, workflow_id).await?;
-    let mut steps_with_translations = Vec::new();
-    for step in workflow_steps {
-        let step_with_trans = WorkflowStepWithTranslations::from_original(db, step, locale).await?;
-        steps_with_translations.push(step_with_trans);
+
+    let mut text_content_ids = Vec::with_capacity(workflow_steps.len() * 2);
+    for step in &workflow_steps {
+        text_content_ids.push(step.name);
+        text_content_ids.push(step.description);
+        if let Some(data_protocol) = step.data_protocol {
+            text_content_ids.push(data_protocol);
+        }
     }
+
+    let translations_map = get_text_content_with_translations(db, text_content_ids).await?;
+
+    let steps_with_translations = workflow_steps
+        .into_iter()
+        .map(|step| {
+            let name = step
+                .name
+                .resolve_with_translations(&translations_map, locale);
+            let description = step
+                .description
+                .resolve_with_translations(&translations_map, locale);
+            let data_protocol = step
+                .data_protocol
+                .resolve_with_translations(&translations_map, locale);
+
+            WorkflowStepWithTranslations {
+                id: step.id,
+                workflow_id: step.workflow_id,
+                name: name.localized,
+                step_order: step.step_order,
+                activation_rule: step.activation_rule,
+                description: description.localized,
+                is_offline: step.is_offline,
+                required: step.required,
+                can_revisit: step.can_revisit,
+                tool_config: step.tool_config,
+                preview_tool_config: step.preview_tool_config,
+                request_user_share_permission: step.request_user_share_permission,
+                data_protocol: data_protocol.as_ref().map(|d| d.localized.clone()),
+                created_at: step.created_at,
+                updated_at: step.updated_at,
+                translations: WorkflowStepTranslations {
+                    name: Translation {
+                        text_content: name.translations.text_content,
+                        text_translations: name.translations.text_translations,
+                    },
+                    description: Translation {
+                        text_content: description.translations.text_content,
+                        text_translations: description.translations.text_translations,
+                    },
+                    data_protocol: data_protocol.map(|d| Translation {
+                        text_content: d.translations.text_content,
+                        text_translations: d.translations.text_translations,
+                    }),
+                },
+            }
+        })
+        .collect();
+
     Ok(steps_with_translations)
 }
 
@@ -593,6 +625,59 @@ pub async fn setup_tool(
         warn!("Tool setup error {err:#?}");
         err
     })
+}
+
+#[derive(Debug)]
+pub struct CreateWorkflowStep {
+    pub name: String,
+    pub description: String,
+    pub tool_config: ToolConfig,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: Option<bool>,
+    pub request_user_share_permission: Option<bool>,
+    pub data_protocol: Option<String>,
+}
+
+impl CreateWorkflowStep {
+    pub fn columns(&self) -> Vec<WorkflowStepIden> {
+        let mut columns = vec![
+            WorkflowStepIden::StepOrder,
+            WorkflowStepIden::ActivationRule,
+            WorkflowStepIden::IsOffline,
+            WorkflowStepIden::Required,
+        ];
+
+        if self.can_revisit.is_some() {
+            columns.push(WorkflowStepIden::CanRevisit);
+        }
+        if self.request_user_share_permission.is_some() {
+            columns.push(WorkflowStepIden::RequestUserSharePermission);
+        }
+
+        columns
+    }
+
+    pub fn try_values(&self) -> Result<Vec<sea_query::SimpleExpr>, ComhairleError> {
+        let activation_rule = serde_json::to_value(self.activation_rule.clone())?.into();
+        let mut values = vec![
+            self.step_order.into(),
+            activation_rule,
+            self.is_offline.into(),
+            self.required.into(),
+        ];
+
+        if let Some(value) = self.can_revisit {
+            values.push(value.into());
+        }
+        if let Some(value) = self.request_user_share_permission {
+            values.push(value.into());
+        }
+
+        Ok(values)
+    }
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -630,23 +715,34 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    let preview_tool_config =
-        setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
-
     let mut conn = state.db.acquire().await?;
-    demographics::steps::validate_tool_config(&mut conn, organization_id, &preview_tool_config)
-        .await?;
+    demographics::steps::validate_tool_config(
+        &mut conn,
+        organization_id,
+        &new_workflow_step.tool_config,
+    )
+    .await?;
     drop(conn);
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
 
     columns.push(WorkflowStepIden::PreviewToolConfig);
-    values.push(serde_json::to_value(&preview_tool_config)?.into());
+    values.push(serde_json::to_value(&new_workflow_step.tool_config)?.into());
+
+    if let Some(data_protocol) = &new_workflow_step.data_protocol {
+        let dp_translation =
+            new_translation(&state.db, primary_locale, data_protocol, TextFormat::Rich).await?;
+        columns.push(WorkflowStepIden::DataProtocol);
+        values.push(dp_translation.id.into());
+    }
 
     if is_live {
-        let live_tool_config =
-            demographics::steps::freeze_tool_config(&state.db, preview_tool_config.clone()).await?;
+        let live_tool_config = demographics::steps::freeze_tool_config(
+            &state.db,
+            new_workflow_step.tool_config.clone(),
+        )
+        .await?;
         columns.push(WorkflowStepIden::ToolConfig);
         values.push(serde_json::to_value(&live_tool_config)?.into());
     }
@@ -656,7 +752,6 @@ pub async fn create(
     // Check to see if there is already a
     // workflow set at this order no and if there
     // is make space for the new one
-
     shift_steps_if_in_conflict(
         &mut transaction,
         &workflow_id,
@@ -797,11 +892,77 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
+    use crate::models::translations::get_text_translation_by_content_and_locale;
     use crate::models::user_progress::UpdateUserProgress;
     use crate::models::{self, workflow};
     use crate::routes::auth::SignupRequest;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::routes::workflows::dto::WorkflowDto;
+    use crate::setup_server;
+    use crate::test_helpers::{UserSession, test_state};
+    use crate::tools::heyform::HeyFormToolConfig;
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_create_new_step_for_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(Arc::clone(&state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+
+        let tool_config = ToolConfig::HeyForm(HeyFormToolConfig {
+            survey_id: "123".to_string(),
+            survey_url: "/test-survey".to_string(),
+            admin_user: "admin_user".to_string(),
+            admin_password: "admin_pw".to_string(),
+            workspace_id: "123".to_string(),
+            project_id: "123".to_string(),
+            server_url: "http://test.com".to_string(),
+        });
+
+        let payload = CreateWorkflowStep {
+            name: "test heyform step".to_string(),
+            description: "test heyform step".to_string(),
+            tool_config,
+            step_order: 1,
+            activation_rule: ActivationRule::Manual,
+            is_offline: false,
+            required: true,
+            can_revisit: Some(true),
+            request_user_share_permission: Some(true),
+            data_protocol: None,
+        };
+
+        let step = create(
+            &Arc::clone(&state),
+            &payload,
+            workflow.id,
+            "en",
+            false,
+            None,
+        )
+        .await?;
+        let name = get_text_translation_by_content_and_locale(&state.db, &step.name, "en").await?;
+
+        assert!(
+            matches!(step.preview_tool_config, ToolConfig::HeyForm(_)),
+            "wrong tool_config type"
+        );
+        assert_eq!(name.content, "test heyform step", "incorrect name");
+        assert!(step.can_revisit, "incorrect can_revisit");
+        assert!(
+            step.request_user_share_permission,
+            "incorrect request_user_share_permission"
+        );
+
+        Ok(())
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_step_for_live_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {

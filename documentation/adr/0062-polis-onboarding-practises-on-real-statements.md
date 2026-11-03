@@ -70,6 +70,8 @@ when there are groups to show.
 
 **6. First-timer means no votes on this step.** Onboarding shows when the server and local vote
 counts are both zero and it has not been dismissed on this device, keyed per user and step.
+It only runs on steps where the admin has turned on "Guide first-time voters" (`show_onboarding`,
+#1648). That is off by default, so steps set up before onboarding keep their voting flow.
 
 **7. The third vote option is "Neutral", not "Pass/Unsure".** It is a position, not a skip.
 

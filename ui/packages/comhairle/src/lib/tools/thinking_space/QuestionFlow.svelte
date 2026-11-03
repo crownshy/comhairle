@@ -15,6 +15,8 @@
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { cn } from '$lib/utils';
+	import { MAX_ANSWER_WORDS } from './wordLimit';
 
 	type Props = {
 		workflowStepId: string;
@@ -67,6 +69,7 @@
 	let continueEl = $state<HTMLElement | null>(null);
 	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let overWordLimit = $derived(flow.draftWordCount > MAX_ANSWER_WORDS);
 
 	async function scrollToFocus() {
 		await tick();
@@ -222,7 +225,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitRootAnswer()}
 								disabled={!flow.currentState.rootAnswer.trim() || flow.submitting}
@@ -485,7 +493,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitFollowUp()}
 								disabled={!flow.currentState.currentPickAnswer.trim() ||

@@ -78,6 +78,25 @@ pub async fn create(
         .await?
         .ok_or(ComhairleError::ResourceNotFound("Event".to_string()))?;
 
+    // Checked before capacity, so an existing attendee of a full event is told
+    // they are registered rather than that the event is full.
+    let (sql, values) = Query::select()
+        .expr(Expr::col(EventAttendanceIden::Id).count())
+        .from(EventAttendanceIden::Table)
+        .and_where(Expr::col(EventAttendanceIden::EventId).eq(new_event_attendance.event_id))
+        .and_where(Expr::col(EventAttendanceIden::UserId).eq(new_event_attendance.user_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let existing_attendance: i64 = sqlx::query_scalar_with(&sql, values)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    if existing_attendance > 0 {
+        return Err(ComhairleError::UserAlreadyRegisteredForEvent(
+            new_event_attendance.event_id.to_string(),
+        ));
+    }
+
     let (sql, values) = Query::select()
         .expr(Expr::col(EventAttendanceIden::Id).count())
         .from(EventAttendanceIden::Table)
@@ -571,6 +590,39 @@ mod tests {
         let attendance = create(&pool, &create_attendance_3).await?;
 
         assert_eq!(attendance.role, "facilitator".to_string(), "incorrect role");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn existing_attendee_of_a_full_event_is_told_they_are_registered(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
+            capacity: Some(1),
+            signup_mode: SignupMode::Invite,
+            ..Default::default()
+        };
+        let new_event = event::create(&pool, &conversation_id, &create_event).await?;
+
+        let create_attendance = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id,
+            role: "participant".to_string(),
+        };
+
+        let _ = create(&pool, &create_attendance).await?;
+        let repeat = create(&pool, &create_attendance).await.unwrap_err();
+
+        assert!(
+            matches!(repeat, ComhairleError::UserAlreadyRegisteredForEvent(_)),
+            "incorrect error: {repeat}"
+        );
 
         Ok(())
     }

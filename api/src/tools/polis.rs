@@ -35,7 +35,8 @@ use crate::models::{self, polis_statement_aux};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::wiki_poll_service::polis_service::WikiPollReport;
 use crate::wiki_poll_service::{
-    ModerationStatus, ReportScope, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
+    ModerationStatus, ReportScope, WikiPoll, WikiPollComment, WikiPollConfigUpdate, WikiPollLogin,
+    WikiPollService,
 };
 
 #[derive(Deserialize)]
@@ -171,6 +172,10 @@ pub struct PolisToolConfig {
     pub required_votes: Option<i32>,
     #[serde(default = "default_true")]
     pub show_remaining_statements: bool,
+    /// Off by default so steps set up before first-timer onboarding (ADR-0062)
+    /// keep their voting flow unchanged.
+    #[serde(default)]
+    pub show_onboarding: bool,
     // Mirror of the Polis conversation config. These are written through to
     // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
     // them (Polis exposes no read path for topic/description/is_active/
@@ -183,8 +188,8 @@ pub struct PolisToolConfig {
     pub is_active: Option<bool>,
     #[serde(default)]
     pub strict_moderation: Option<bool>,
-    // Reasons offered when rejecting a statement. None means the built-in
-    // defaults in models::moderation_policy::DEFAULT_REASONS.
+    /// Reasons offered when rejecting a statement. None means the built-in
+    /// defaults in models::moderation_policy::DEFAULT_REASONS.
     #[serde(default)]
     pub moderation_policy_id: Option<Uuid>,
     #[serde(default = "default_true")]
@@ -204,6 +209,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             poll_id: self.poll_id.clone(),
             required_votes: self.required_votes,
             show_remaining_statements: self.show_remaining_statements,
+            show_onboarding: self.show_onboarding,
             topic: self.topic.clone(),
             description: self.description.clone(),
             is_active: self.is_active,
@@ -225,6 +231,9 @@ pub struct PolisToolSetup {
 #[derive(PartialEq, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PolisExIm;
+
 /// Zero-sized marker type for Polis tool implementation
 pub struct PolisTool;
 
@@ -233,6 +242,7 @@ impl ToolImpl for PolisTool {
     type Config = PolisToolConfig;
     type Setup = PolisToolSetup;
     type Report = PolisReport;
+    type ExportImport = PolisExIm;
 
     async fn setup(
         setup: &Self::Setup,
@@ -280,6 +290,21 @@ impl ToolImpl for PolisTool {
             .await?;
 
         Ok(())
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
@@ -1958,9 +1983,7 @@ pub async fn launch(
         })
         .await?;
 
-    // TODO: filter seed statements.
-
-    for comment in seed_statements {
+    for comment in statements_to_carry_over(seed_statements) {
         client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id, &live_auth_cookies)
             .await?;
@@ -1968,8 +1991,25 @@ pub async fn launch(
 
     Ok(PolisToolConfig {
         moderation_policy_id: preview_config.moderation_policy_id,
+        show_onboarding: preview_config.show_onboarding,
         ..live_poll_config
     })
+}
+
+/// Statements from the preview poll that go into the live poll at launch: the
+/// seeds, minus any rejected in preview. Statements submitted while testing in
+/// preview stay behind.
+fn statements_to_carry_over(comments: Vec<WikiPollComment>) -> Vec<WikiPollComment> {
+    comments
+        .into_iter()
+        .filter(|comment| {
+            comment.is_seed
+                && !matches!(
+                    ModerationStatus::try_from(comment.moderation),
+                    Ok(ModerationStatus::Rejected)
+                )
+        })
+        .collect()
 }
 
 /// Polis conversation settings written straight after the poll is created.
@@ -2027,6 +2067,7 @@ async fn polis_setup(
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
         show_remaining_statements: setup.show_remaining_statements,
+        show_onboarding: false,
         // Mirror what the poll now holds so the Setup tab reflects reality
         // before the admin edits anything.
         topic: settings.topic.clone(),
@@ -2788,6 +2829,7 @@ mod tests {
             admin_password: "pw".into(),
             required_votes: Some(5),
             show_remaining_statements: false,
+            show_onboarding: true,
             topic: Some("Transport".into()),
             description: Some("Buses and trains".into()),
             is_active: Some(true),
@@ -2813,6 +2855,7 @@ mod tests {
         .await?;
 
         assert_eq!(config.strict_moderation, Some(true));
+        assert!(!config.show_onboarding);
         let updates = updates.lock().unwrap();
         assert_eq!(updates.len(), 1);
         assert_eq!(updates[0].0, "live_poll");
@@ -2832,6 +2875,7 @@ mod tests {
         assert_eq!(live.description, preview.description);
         assert_eq!(live.required_votes, preview.required_votes);
         assert!(!live.show_remaining_statements);
+        assert!(live.show_onboarding);
         assert_eq!(live.moderation_policy_id, preview.moderation_policy_id);
 
         let updates = updates.lock().unwrap();
@@ -2853,6 +2897,82 @@ mod tests {
 
         assert_eq!(live.strict_moderation, Some(true));
         assert_eq!(updates.lock().unwrap()[0].1.strict_moderation, Some(true));
+        Ok(())
+    }
+
+    #[test]
+    fn config_saved_before_onboarding_flag_has_onboarding_off() -> Result<(), Box<dyn Error>> {
+        let config: PolisToolConfig = serde_json::from_value(serde_json::json!({
+            "server_url": "polis.test",
+            "poll_id": "poll",
+            "admin_user": "u@mock.com",
+            "admin_password": "pw",
+            "required_votes": 10
+        }))?;
+
+        assert!(!config.show_onboarding);
+        Ok(())
+    }
+
+    fn preview_comment(text: &str, is_seed: bool, status: ModerationStatus) -> WikiPollComment {
+        let moderation = match status {
+            ModerationStatus::Accepted => 1,
+            ModerationStatus::Rejected => -1,
+            ModerationStatus::Pending => 0,
+        };
+        WikiPollComment {
+            txt: text.into(),
+            is_seed,
+            moderation,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn launch_carries_over_only_unrejected_seeds() -> Result<(), Box<dyn Error>> {
+        let posted = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("live_poll".to_string()) }));
+        service
+            .expect_update_poll_config()
+            .returning(|_, _, _| Box::pin(async { Ok(WikiPoll::default()) }));
+        service.expect_get_comments().returning(|_| {
+            Box::pin(async {
+                Ok(vec![
+                    preview_comment("Accepted seed", true, ModerationStatus::Accepted),
+                    preview_comment("Rejected seed", true, ModerationStatus::Rejected),
+                    preview_comment("Pending seed", true, ModerationStatus::Pending),
+                    preview_comment(
+                        "Statement from preview testing",
+                        false,
+                        ModerationStatus::Accepted,
+                    ),
+                ])
+            })
+        });
+        let recorded = posted.clone();
+        service
+            .expect_post_seed_comment()
+            .returning(move |text, _, _| {
+                recorded.lock().unwrap().push(text.to_string());
+                Box::pin(async { Ok(Default::default()) })
+            });
+        let service: Arc<dyn WikiPollService> = Arc::new(service);
+
+        launch(&preview_config(), &service).await?;
+
+        assert_eq!(
+            *posted.lock().unwrap(),
+            vec!["Accepted seed".to_string(), "Pending seed".to_string()]
+        );
         Ok(())
     }
 }

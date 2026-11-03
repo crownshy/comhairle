@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validateUrl } from '$lib/utils/urlValidation';
 
 const EventSchema = z
 	.object({
@@ -25,6 +26,15 @@ const EventSchema = z
 		custom_event_link: z.string().optional()
 	})
 	.superRefine((data, ctx) => {
+		const customLink = data.custom_event_link?.trim();
+		if (data.format === 'online' && customLink && !validateUrl(customLink)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ['custom_event_link'],
+				message: 'Enter a full URL starting with https://'
+			});
+		}
+
 		if (data.start_time && data.end_time && data.end_time <= data.start_time) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,

@@ -63,6 +63,12 @@ pub enum ComhairleError {
     #[error("Email content type error: {0}")]
     EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
 
+    #[error("Invalid header: {0}")]
+    InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] axum::http::Error),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -326,6 +332,9 @@ pub enum ComhairleError {
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
 
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
@@ -402,6 +411,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
+            ComhairleError::InviteExpired => StatusCode::GONE,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
@@ -424,12 +434,14 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
             | ComhairleError::ParticipantSealed
+            | ComhairleError::EventInvalidSignupMode
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            ComhairleError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             ComhairleError::PolisError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::WikiPollServiceError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::TranslationError(ref err) => Into::<StatusCode>::into(err),
