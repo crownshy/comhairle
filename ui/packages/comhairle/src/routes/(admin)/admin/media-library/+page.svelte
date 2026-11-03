@@ -120,7 +120,7 @@
 			{/snippet}
 		</SectionHeader>
 
-		<Dialog id="delete-media" title="Are you sure?">
+		<Dialog id="delete-media" title="Are you sure?" --min-width="30vw">
 			{#snippet PrimaryAction()}
 				<Submit
 					text={m.delete()}
