@@ -36,7 +36,7 @@
 
 		const results = await tryCatchAsync(async () => {
 			for (const id of media) {
-				apiClient.DeleteMedia(undefined, { params: { media_id: id } });
+				await apiClient.DeleteMedia(undefined, { params: { media_id: id } });
 			}
 		});
 
