@@ -63,6 +63,31 @@ full-stack change deferred to #736.)
   fights the natural "enable, then add documents" flow and reads as an unexplained dead control. An
   inline hint gives the same feedback without blocking.
 
+### Document listing cache (November 2026)
+
+The RAGFlow bot service caches a non-empty document list only when every document
+has `parse_status == "DONE"` and `parse_progress == 1.0`. Incomplete, mixed, empty,
+and failed lists are not cached, so polling continues to observe parsing progress.
+The response is never filtered or otherwise changed.
+
+The existing `moka` dependency retains frequently used lists, keyed by knowledge
+base and every query parameter. There are at most 128 knowledge bases with 16 query
+variants each. Lists expire after five minutes, and knowledge bases after 30 minutes
+idle. This is process-local, as with the Polis report cache in ADR-0043.
+
+Uploads, deletes, updates, parse starts/stops, and knowledge-base deletion invalidate
+all query variants for the affected knowledge base before calling RAGFlow. This also
+covers Learn-content replacement and mutations that succeed upstream but fail in a
+later step. Per-knowledge-base locking serializes fills and mutations, preventing
+an in-flight fetch from restoring an invalidated list and coalescing concurrent
+cacheable misses.
+
+Caching lives below the route rather than in `axum-response-cache` middleware:
+document access and preview authorization still run on every request, including cache
+hits, and all mutation paths share the same invalidation logic. A second API replica
+would have its own cache; mutations on another replica or directly in RAGFlow become
+visible when the five-minute TTL expires.
+
 ## Consequences
 
 - **Enabling the assistant with an empty knowledge base is now a silent no-op for participants** (by
