@@ -374,7 +374,6 @@ async fn start_gst_meet_process(
         .arg(room_name)
         .arg("--nick")
         .arg(nickname)
-        .arg("--verbose")
         .arg("--recv-pipeline")
         .arg(&recv_pipeline);
 
@@ -382,9 +381,14 @@ async fn start_gst_meet_process(
         cmd.arg("--xmpp-jwt").arg(token);
     }
 
+    // stdout/stderr are never read anywhere in this process. With Stdio::piped()
+    // (and --verbose, now dropped) gst-meet fills the kernel pipe buffer and
+    // blocks on its next write - freezing the whole process, XMPP pings
+    // included, until the server kicks it for inactivity ~60-70s later. This
+    // was silently killing every recording a short way in.
     let child = cmd
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .spawn()
         .context("Failed to spawn gst-meet process")?;
 
