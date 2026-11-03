@@ -356,7 +356,8 @@ impl ComhairleMailer for Mailer {
                 .unwrap_or_else(|| conversation.id.to_string()),
             invite_id
         );
-
+        let conversation_title = conversation.title.clone();
+        let conversation_image_url = conversation.image_url.clone();
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
@@ -385,6 +386,8 @@ impl ComhairleMailer for Mailer {
 
         let context = context! {
             invite_link,
+            conversation_title,
+            conversation_image_url,
             domain => state.config.domain,
             banner_image => conversation.image_url,
             organization_name => organization.map(|org| org.name),
@@ -805,10 +808,12 @@ impl ComhairleMailer for Mailer {
     ) -> Result<String, ComhairleError> {
         let context = match variables_map {
             Some(var_map) => {
-                let local_context = context! { ..var_map };
+                let local_context = context! { ..var_map.clone() };
                 let rendered_map = self.resolve_slots_map(&local_context, &slots_map)?;
 
-                context! { ..rendered_map }
+                // The layout can use the sample variables directly too (the invite's title,
+                // banner and Take part link), not only inside the slots.
+                context! { ..rendered_map, ..var_map }
             }
             None => context! { ..slots_map },
         };

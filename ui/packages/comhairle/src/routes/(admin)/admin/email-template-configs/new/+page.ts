@@ -1,21 +1,19 @@
-import type { PageLoad } from '../../$types';
+import type { PageLoad } from './$types';
+import { redirect } from '@sveltejs/kit';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 export const load: PageLoad = async ({ parent }) => {
 	const { api } = await parent();
 
-	try {
-		const schemas = await api.ListEmailTemplateSchemas();
-		const conversations = await api.GetOwnedConversations({ queries: { limit: 1000 } });
-		const emailConfigs = await api.ListEmailTemplateConfigs();
+	const result = await tryCatchAsync(() =>
+		Promise.all([
+			api.ListEmailTemplateSchemas(),
+			api.GetOwnedConversations({ queries: { limit: 1000 } }),
+			api.ListEmailTemplateConfigs()
+		])
+	);
+	if (result.err !== null) redirect(302, '/admin/email-template-configs');
 
-		return { schemas, conversations: conversations.records, emailConfigs };
-	} catch (e) {
-		console.error(e);
-
-		return {
-			schemas: [],
-			conversations: [],
-			error: e.response?.data?.err || 'Something went wrong loading email schemas'
-		};
-	}
+	const [schemas, conversations, emailConfigs] = result.ok;
+	return { schemas, conversations: conversations.records, emailConfigs };
 };
