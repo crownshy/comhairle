@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
     gstreamer1.0-tools \
+    gstreamer1.0-nice \
     libnice10 \
     libsrtp2-1 \
     libssl3 \
@@ -81,18 +82,18 @@ USER recorder
 WORKDIR /home/recorder
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Environment variables (can be overridden)
 ENV RUST_LOG=info \
-    PORT=3000 \
+    PORT=3001 \
     JITSI_WEBSOCKET_URL=wss://jitsi.comhairle.scot/xmpp-websocket \
     GST_MEET_PATH=/usr/local/bin/gst-meet \
     RECORDINGS_DIR=/tmp/jitsi-recordings
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/recordings || exit 1
+    CMD curl -f http://localhost:3001/recordings || exit 1
 
 # Run the application
 CMD ["/usr/local/bin/jisti-recorder"]
