@@ -19,12 +19,12 @@
 	type SingleSelectMode = {
 		mode: 'single-select';
 		onDetailsOpen?: undefined;
-		selected: MediaDto | null;
+		selected: MediaDto['id'] | null;
 	};
 	type MultiSelectMode = {
 		mode: 'multi-select';
 		onDetailsOpen?: undefined;
-		selected: MediaDto[];
+		selected: MediaDto['id'][];
 	};
 	type Props = BaseProps & (ViewMode | SingleSelectMode | MultiSelectMode);
 

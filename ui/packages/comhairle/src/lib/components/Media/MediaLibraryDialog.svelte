@@ -39,7 +39,7 @@
 	}
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
-	let selected = $state.raw<MediaDto | null>(null);
+	let selected = $state<MediaDto['id'] | null>(null);
 </script>
 
 <Button
@@ -76,9 +76,11 @@
 		/>
 		<Button
 			disabled={!selected}
-			onclick={() => {
-				if (!selected) return;
-				onconfirm(selected);
+			onclick={async () => {
+				if (!selected || !dataRequest) return;
+				const media = (await dataRequest).ok?.find((m) => m.id === selected);
+				if (!media) return;
+				onconfirm(media);
 			}}
 			command="close-dialog:media-library"
 		>
