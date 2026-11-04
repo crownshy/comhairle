@@ -245,7 +245,7 @@ mod tests {
 
     use super::*;
     use crate::mailer::MockComhairleMailer;
-    use crate::models::email_template_config::{DefaultEmailSlots, EmailType};
+    use crate::models::email_template_config::{DefaultEmailSlots, EmailTemplateScope, EmailType};
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::setup_server;
     use crate::test_helpers::{UserSession, test_state};
@@ -264,7 +264,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let (_, value, _) = session
@@ -300,7 +300,7 @@ mod tests {
         let params = CreateEmailTemplateConfig {
             slots: create_slots,
             subject: Some("A custom conversation template".to_string()),
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let (_, value, _) = session
@@ -349,7 +349,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let (_, value, _) = session
@@ -388,7 +388,7 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
         session
             .post(
@@ -401,7 +401,7 @@ mod tests {
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
         session
             .post(
@@ -443,7 +443,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let (_, value, _) = session
@@ -493,7 +493,7 @@ mod tests {
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
             subject: Some("A custom conversation template".to_string()),
-            conversation_id: None,
+            scope: EmailTemplateScope::Owner,
         };
 
         let (_, value, _) = session
