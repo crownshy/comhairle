@@ -1,14 +1,9 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { SquarePen, Trash2, X } from 'lucide-svelte';
-	import DeleteDialog from './DeleteDialog.svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import type { MediaDto } from '@crownshy/api-client/api';
 	import DetailsDialog from './DetailsDialog.svelte';
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import { Badge } from '$lib/components/ui/badge';
@@ -17,33 +12,49 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { mediaLibraryTour } from './tour';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
+	import type { MediaDto } from '@crownshy/api-client/api';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { notifications } from '$lib/notifications.svelte';
+	import PageSpinner from '$lib/components/PageSpinner.svelte';
+	import Dialog from '$lib/components/Dialog.svelte';
 
 	useTour(() => mediaLibraryTour);
 
 	const { data } = $props();
 
-	let deleteForm: HTMLFormElement | undefined;
 	let bulkEdit = $state<boolean>(false);
-	let selected = $state([]);
-	let details = $state<MediaDto | null>(null);
+	let selected = $state.raw([]);
+	let details = $state.raw<MediaDto | undefined>(undefined);
 	let filter = $state<HTMLMediaElement | null>(null);
 
-	let items = $derived.by(() => {
-		if (!data.media) {
-			return [];
+	const deleteMedia: OnSubmit = async (formData) => {
+		const media = formData.getAll('media') as string[];
+
+		const results = await tryCatchAsync(async () => {
+			for (const id of media) {
+				await apiClient.DeleteMedia(undefined, { params: { media_id: id } });
+			}
+		});
+
+		if (results.err !== null) {
+			notifications.addFlash({
+				message: 'Failed to delete some media, please try again',
+				priority: 'ERROR'
+			});
 		}
-		if (filter === null) {
-			return data.media;
-		}
-		return data.media.filter((m) => htmlFromMediaType(m.contentType) === filter);
-	});
+
+		bulkEdit = false;
+	};
 </script>
 
 <svelte:head>
 	<title>Media library - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet filterButton(type: HTMLMediaElement)}
+{#snippet FilterButton(type: HTMLMediaElement)}
 	<label class="cursor-pointer">
 		<input
 			type="radio"
@@ -59,93 +70,112 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
-<SectionHeader
-	content={{
-		eyebrow: 'Library',
-		title: 'Media library',
-		description: 'Images, audio and video you can use across your conversations.'
-	}}
->
-	{#snippet actions()}
-		<div class="flex flex-col gap-4 md:flex-row">
-			{#if !bulkEdit}
-				<MediaUpload />
-				<Button variant="outline" onclick={() => (bulkEdit = true)}>
-					<SquarePen class="h-4 w-4" />{m.edit()}
-				</Button>
-			{:else}
-				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
-					<Button variant="destructive" disabled={selected.length === 0}>
-						<Trash2 class="h-4 w-4" />{m.delete()}
-					</Button>
-				</DeleteDialog>
-				<Button variant="outline" onclick={() => (bulkEdit = false)}>
-					<X class="h-4 w-4" />{m.cancel()}
-				</Button>
-			{/if}
-		</div>
-	{/snippet}
-</SectionHeader>
 
-<TabContent>
-	<div data-tour="media-filters" class="flex flex-row gap-4">
-		{@render filterButton('audio')}
-		{@render filterButton('image')}
-		{@render filterButton('video')}
-	</div>
-	<div class="mt-5">
-		<Dialog.Root
-			onOpenChange={(open) => {
-				if (!open) {
-					details = null;
-				}
+<Form onsubmit={deleteMedia} invalidate="admin/media">
+	{#snippet children({ isSubmitting })}
+		<SectionHeader
+			content={{
+				eyebrow: 'Library',
+				title: 'Media library',
+				description: 'Images, audio and video you can use across your conversations.'
 			}}
 		>
-			<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-				<MediaLibrary data={items}>
-					{#snippet media(type, media)}
-						{#if bulkEdit}
-							<label>
-								<input
-									type="checkbox"
-									name="media"
-									value={media.id.toString()}
-									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-									bind:group={selected}
-								/>
-								<span class="block w-full">
-									<MediaItem {type} {...media} />
-								</span>
-							</label>
-						{:else}
-							<Dialog.Trigger
-								class="block aspect-video h-full w-full"
-								onclick={() => (details = media)}
-							>
-								<MediaItem {type} {...media} alt="" />
-							</Dialog.Trigger>
-						{/if}
-					{/snippet}
-				</MediaLibrary>
-			</form>
-			{#if details !== null}
-				<DetailsDialog
-					{...details}
-					type={htmlFromMediaType(details.contentType)}
-					close={() => (details = null)}
-				/>
-			{/if}
-		</Dialog.Root>
-	</div>
-</TabContent>
+			{#snippet actions()}
+				<div class="flex flex-col gap-4 md:flex-row">
+					{#if !bulkEdit}
+						<MediaUpload />
+						<Button
+							variant="outline"
+							icon={SquarePen}
+							onclick={() => void (bulkEdit = true)}
+						>
+							{m.edit()}
+						</Button>
+					{:else}
+						<Button
+							variant="destructive"
+							disabled={selected.length === 0}
+							icon={Trash2}
+							command="open-dialog:delete-media"
+						>
+							{m.delete()}
+						</Button>
+						<Button
+							variant="outline"
+							icon={X}
+							onclick={() => {
+								bulkEdit = false;
+								selected = [];
+							}}
+						>
+							{m.cancel()}
+						</Button>
+					{/if}
+				</div>
+			{/snippet}
+		</SectionHeader>
 
-<style>
-	input:checked + * {
-		filter: opacity(50%);
-	}
-</style>
+		<Dialog id="delete-media" title="Are you sure?" --min-width="30vw">
+			{#snippet PrimaryAction()}
+				<Submit
+					text={m.delete()}
+					icon={Trash2}
+					variant="destructive"
+					{isSubmitting}
+					command="close-dialog:delete-media"
+				/>
+			{/snippet}
+			{#snippet SecondaryAction()}
+				<Button
+					variant="outline"
+					command="close-dialog:delete-media"
+					disabled={isSubmitting}
+				>
+					{m.cancel()}
+				</Button>
+			{/snippet}
+		</Dialog>
+
+		<TabContent>
+			{#await data.streamedMedia}
+				<PageSpinner subject="media" />
+			{:then media}
+				{#if media.err !== null}
+					<ErrorMessage>Could not load media, please try again</ErrorMessage>
+				{:else}
+					{@const items = (() => {
+						if (filter === null) return media.ok;
+						return media.ok.filter((m) => htmlFromMediaType(m.contentType) === filter);
+					})()}
+					<div data-tour="media-filters" class="flex flex-row gap-4">
+						{@render FilterButton('audio')}
+						{@render FilterButton('image')}
+						{@render FilterButton('video')}
+					</div>
+					{#if !bulkEdit}
+						<MediaLibrary
+							media={items}
+							mode="view"
+							onDetailsOpen={(media) => {
+								details = media;
+							}}
+						/>
+					{:else}
+						<MediaLibrary media={items} mode="multi-select" bind:selected />
+					{/if}
+				{/if}
+			{/await}
+		</TabContent>
+	{/snippet}
+</Form>
+
+<DetailsDialog
+	id="media-details"
+	media={details}
+	type={htmlFromMediaType(details?.contentType ?? 'image/jpeg')}
+/>

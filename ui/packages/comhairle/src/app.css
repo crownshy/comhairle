@@ -5,6 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Add padding for scrollbar even when scrollbar is hidden, prevents content jumping when the scrollbar pops in and out */
+html {
+	scrollbar-gutter: stable;
+}
+
+/* Prevent page scrolling when a dialog is open */
+html:has(dialog[open]) {
+	overflow: hidden;
+}
+
 html,
 body {
 	width: 100%;
@@ -30,6 +40,7 @@ body {
 	outline-offset: 0;
 	box-shadow: 0 0 0 4px var(--focus-ring-outer);
 }
+
 /* For controls inside a scrolling strip, which clips anything drawn outside them:
    draw the same two bands just inside the edge instead. */
 .focus-inset:focus-visible {
@@ -152,6 +163,7 @@ a {
 		from {
 			opacity: 0;
 		}
+
 		to {
 			opacity: 1;
 		}
@@ -161,6 +173,7 @@ a {
 		from {
 			transform: translateX(-100%);
 		}
+
 		to {
 			transform: translateX(350%);
 		}

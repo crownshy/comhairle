@@ -1,5 +1,7 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { Icon as LucideIcon } from 'lucide-svelte';
+	import type { ComponentType } from 'svelte';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
@@ -37,10 +39,18 @@
 	export type ButtonVariant = VariantProps<typeof buttonVariants>['variant'];
 	export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
 
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
+	type DialogId = string;
+
+	// Using "," to have multiple dialogs be affected
+	type Command = `open-dialog:${DialogId}` | `close-dialog:${DialogId}`;
+
+	export type ButtonProps = Omit<WithElementRef<HTMLButtonAttributes>, 'command'> &
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			icon?: ComponentType<LucideIcon>;
+			plain?: boolean;
+			command?: Command;
 		};
 </script>
 
@@ -49,10 +59,14 @@
 		class: className,
 		variant = 'default',
 		size = 'default',
-		ref = $bindable(null),
+		ref = $bindable(),
 		href = undefined,
 		type = 'button',
 		disabled,
+		command,
+		icon: Icon,
+		plain,
+		onclick,
 		children,
 		...restProps
 	}: ButtonProps = $props();
@@ -62,24 +76,52 @@
 	<a
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={plain ? className : cn(buttonVariants({ variant, size }), className)}
 		href={disabled ? undefined : href}
 		aria-disabled={disabled}
 		role={disabled ? 'link' : undefined}
 		tabindex={disabled ? -1 : undefined}
+		{onclick}
 		{...restProps}
 	>
+		{#if Icon}
+			<Icon class="h-4 w-4" />
+		{/if}
 		{@render children?.()}
 	</a>
 {:else}
 	<button
 		bind:this={ref}
 		data-slot="button"
-		class={cn(buttonVariants({ variant, size }), className)}
+		class={plain ? className : cn(buttonVariants({ variant, size }), className)}
 		{type}
 		{disabled}
+		onclick={(e) => {
+			onclick?.(e);
+			if (command) {
+				const [cmd, idStr] = command.split(':');
+				const ids = idStr.split(',');
+
+				for (const id of ids) {
+					const Dialog = document.getElementById(id) as HTMLDialogElement | null;
+					if (!Dialog) {
+						return;
+					}
+					switch (cmd) {
+						case 'open-dialog':
+							Dialog.showModal();
+							break;
+						case 'close-dialog':
+							Dialog.close();
+					}
+				}
+			}
+		}}
 		{...restProps}
 	>
+		{#if Icon}
+			<Icon class="h-4 w-4" />
+		{/if}
 		{@render children?.()}
 	</button>
 {/if}
