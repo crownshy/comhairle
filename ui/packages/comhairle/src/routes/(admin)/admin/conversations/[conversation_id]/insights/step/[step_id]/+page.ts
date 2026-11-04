@@ -1,15 +1,17 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
 import type { PageLoad } from './$types';
 import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
 import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
 import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insights-loader';
 import { surveyInsightsLoader } from '$lib/reports/survey/insights-loader';
+import { hasInsights } from '$lib/reports/insightsTools';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { HttpStatus } from '$lib/utils/constants';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async (event) => {
-	const { api, toolConfig, step } = await event.parent();
+	const { api, conversation, workflowSteps } = await event.parent();
 	const { step_id, conversation_id } = event.params;
 
 	// TODO: change to tool-agnostic
@@ -18,12 +20,21 @@ export const load: PageLoad = async (event) => {
 	event.depends(key('admin/polis/summary'));
 	event.depends(key('admin/polis/theme-collection'));
 
+	const step = workflowSteps.find((s) => s.id === step_id);
+	const toolConfig = step && (conversation.isLive ? step.toolConfig : step.previewToolConfig);
+	if (!step || !hasInsights(toolConfig?.type)) {
+		redirect(
+			HttpStatus.TemporaryRedirect,
+			resolve('/(admin)/admin/conversations/[conversation_id]/insights', { conversation_id })
+		);
+	}
+
 	const response = await tryCatchAsync(async () => {
 		switch (toolConfig?.type) {
 			case 'polis':
 				return await polisInsightsLoader(api, {
 					conversationId: conversation_id,
-					workflowId: step?.workflowId ?? '',
+					workflowId: step.workflowId,
 					workflowStepId: step_id
 				});
 			case 'prioritization':
@@ -32,19 +43,14 @@ export const load: PageLoad = async (event) => {
 				return await thinkingSpaceInsightsLoader(api, step_id);
 			case 'heyform':
 				return await surveyInsightsLoader(api, step_id);
-			case 'learn':
-			case 'stories':
-			case 'elicitationbot':
-				throw Error('Not yet implemented');
+			default:
+				throw Error('This step has no Insights');
 		}
 	});
 
 	if (response.err !== null) {
-		redirect(
-			HttpStatus.TemporaryRedirect,
-			`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/setup`
-		);
+		error(HttpStatus.BadGateway, `Could not load Insights for ${step.name}.`);
 	}
 
-	return response.ok;
+	return { step, toolConfig, ...response.ok };
 };

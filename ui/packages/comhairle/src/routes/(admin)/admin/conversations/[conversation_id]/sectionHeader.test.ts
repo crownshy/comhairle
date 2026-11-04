@@ -34,6 +34,7 @@ describe('sectionHeader', () => {
 		expect(at('notifications')?.content.eyebrow).toBe('Engage');
 		expect(at('moderate')?.content.eyebrow).toBe('Engage');
 		expect(at('moderate/step/s1')?.content.eyebrow).toBe('Engage');
+		expect(at('insights/step/s1')?.content.eyebrow).toBe('Engage');
 		expect(at('report')?.content.eyebrow).toBe('Results');
 	});
 
@@ -58,6 +59,7 @@ describe('sectionHeader', () => {
 		expect(at('configure/content')?.content.title).toBe('Configure');
 		expect(at('events/e1')?.content.eyebrow).toBe('Set up');
 		expect(at('moderate/step/s1')?.content.title).toBe('Moderate');
+		expect(at('insights/step/s1')?.content.title).toBe('Insights');
 	});
 
 	it('links a tab to its own topic when it has one', () => {
@@ -78,6 +80,9 @@ describe('sectionHeader', () => {
 		);
 		expect(guideHref('moderate/step/s1')).toBe(
 			'/admin/info/how-to/manage-a-conversation/moderate'
+		);
+		expect(guideHref('insights/step/s1')).toBe(
+			'/admin/info/how-to/manage-a-conversation/see-insights'
 		);
 	});
 
@@ -115,7 +120,7 @@ describe('sectionHeader', () => {
 	it('gives every page a real Handbook topic', () => {
 		const paths = [
 			...conversationSections.map((s) => s.path),
-			'design/step/s1/insights',
+			'insights/step/s1',
 			'launch',
 			'close'
 		];
