@@ -27,6 +27,8 @@
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
 	import { permissions } from '$lib/permissions.svelte';
+	import { publicResultsByStep } from '$lib/reports/embeds';
+	import PublicResultsSummary from './PublicResultsSummary.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { reportTour } from './tour';
@@ -69,6 +71,16 @@
 		refresh: () => invalidate(key('admin/conversation/report')),
 		ensureTextContentId: upsertBodyTranslation
 	});
+
+	const publicResults = $derived(
+		publicResultsByStep(
+			[
+				...Object.values(summaryTranslationSource.contents),
+				...Object.values(bodyTranslationSource.contents)
+			],
+			data.reportEmbedSteps
+		)
+	);
 
 	async function upsertBodyTranslation(content: string): Promise<string | undefined> {
 		const textContentRes = await tryCatchAsync(() =>
@@ -136,6 +148,8 @@
 		<Label for="published">Publish Report</Label>
 		<Switch name="published" value={report.isPublic} disabled={!canEdit} />
 	</div>
+
+	<PublicResultsSummary results={publicResults} reportIsPublic={report.isPublic} />
 
 	<Card.Root>
 		<Card.Header>

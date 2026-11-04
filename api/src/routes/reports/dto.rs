@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::models::report::{LocalizedReport, Report, ReportSectionConfigs};
 use crate::models::translations::TextContentId;
+use crate::tools::public_report_data::embeds::EmbeddedSectionBlock;
 
 /// Data transfer object (public API representation) for a Report.
 ///
@@ -72,4 +73,13 @@ impl From<LocalizedReport> for LocalizedReportDto {
             created_at: r.created_at,
         }
     }
+}
+
+/// What the conversation's report embeds, for the step pages that say which of a step's results
+/// are public.
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportEmbedsDto {
+    pub is_public: bool,
+    pub section_blocks: Vec<EmbeddedSectionBlock>,
 }
