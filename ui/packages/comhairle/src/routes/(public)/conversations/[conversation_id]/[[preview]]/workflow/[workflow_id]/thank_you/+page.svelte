@@ -21,6 +21,7 @@
 	let isGuest = $derived(user.authType === 'guest');
 	let showReturnInstructions = $derived(conversation.showThankYouPageAnnonInstructions);
 	let showGuestId = $derived(isGuest && showReturnInstructions && !!user.guestCode);
+	let showNextSteps = $derived(conversation.showThankYouPageNextSteps);
 
 	let nextSteps = $derived.by(() => {
 		const steps = [m.thank_you_next_still_open(), m.thank_you_next_organiser_reviews()];
@@ -78,28 +79,32 @@
 		<ParticipationCount {participantCount} />
 	{/if}
 
-	<section
-		aria-labelledby="next-steps-heading"
-		class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-4"
-	>
-		<div class="flex flex-col gap-5">
-			<h2 id="next-steps-heading" class="text-2xl font-semibold">
-				{m.thank_you_next_heading()}
-			</h2>
-			<ol class="list-decimal space-y-1 ps-6 text-base md:text-lg">
-				{#each nextSteps as step (step)}
-					<li>{step}</li>
-				{/each}
-			</ol>
-		</div>
-		{#if conversation.enableSignupPrompts}
-			<ProjectUpdatesDialog
-				{user}
-				conversationId={conversation.id}
-				class={ACTION_BUTTON_CLASS}
-			/>
-		{/if}
-	</section>
+	{#if showNextSteps || conversation.enableSignupPrompts}
+		<section
+			aria-labelledby={showNextSteps ? 'next-steps-heading' : undefined}
+			class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:px-4"
+		>
+			{#if showNextSteps}
+				<div class="flex flex-col gap-5">
+					<h2 id="next-steps-heading" class="text-2xl font-semibold">
+						{m.thank_you_next_heading()}
+					</h2>
+					<ol class="list-decimal space-y-1 ps-6 text-base md:text-lg">
+						{#each nextSteps as step (step)}
+							<li>{step}</li>
+						{/each}
+					</ol>
+				</div>
+			{/if}
+			{#if conversation.enableSignupPrompts}
+				<ProjectUpdatesDialog
+					{user}
+					conversationId={conversation.id}
+					class={ACTION_BUTTON_CLASS}
+				/>
+			{/if}
+		</section>
+	{/if}
 
 	{#if revisitableSteps.length > 0}
 		<section

@@ -42,6 +42,7 @@
 			autoLogin: workflow?.autoLogin ?? false,
 			enableSignupPrompts: conversation.enableSignupPrompts,
 			showThankYouPageAnnonInstructions: conversation.showThankYouPageAnnonInstructions,
+			showThankYouPageNextSteps: conversation.showThankYouPageNextSteps,
 			showThankyouPageFeedbackButton: conversation.showThankyouPageFeedbackButton,
 			allowRevisitAfterFinishing: conversation.allowRevisitAfterFinishing
 		},
@@ -179,6 +180,12 @@
 					'Enable signup prompts',
 					'Shows prompts encouraging participants to create an account on the thank-you page after they finish.',
 					'Toggle whether to display signup prompts on thank you page.'
+				)}
+				{@render toggleRow(
+					'showThankYouPageNextSteps',
+					'Show thank you page next steps',
+					'On the thank-you page, shows the "What happens next" list explaining that the conversation is still open and the organiser will review the results. The project updates button stays either way.',
+					'Display the "What happens next" list on the thank you page.'
 				)}
 				{@render toggleRow(
 					'showThankYouPageAnnonInstructions',
