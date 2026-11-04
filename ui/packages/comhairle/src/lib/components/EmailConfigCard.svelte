@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { isConversationEmail, isEventEmail } from '$lib/email-template-configs';
 	import { snakeToStartCase } from '$lib/utils/casingUtils';
 	import type { EmailTemplateConfigDto } from '@crownshy/api-client/api';
 
@@ -8,12 +9,8 @@
 
 	let { emailConfig }: Props = $props();
 
-	const isConversationEmailTemplate = $derived(emailConfig.emailType === 'conversation_invite');
-	const isEventEmailTemplate = $derived(
-		emailConfig.emailType === 'event_registration_invite' ||
-			emailConfig.emailType === 'event_registration_confirmation' ||
-			emailConfig.emailType === 'event_reminder'
-	);
+	const isConversation = $derived(isConversationEmail(emailConfig.emailType));
+	const isEvent = $derived(isEventEmail(emailConfig.emailType));
 </script>
 
 {#snippet scopeTitle(content: string, heading?: string)}
@@ -32,13 +29,13 @@
 				<span class="text-sm">Email type:</span>
 				<p class="text-lg font-bold">{snakeToStartCase(emailConfig.emailType)}</p>
 			</div>
-			{#if isConversationEmailTemplate && !emailConfig.conversationId}
+			{#if isConversation && !emailConfig.conversationId}
 				{@render scopeTitle('Fallback for all conversations')}
-			{:else if isConversationEmailTemplate && emailConfig.conversationTitle}
+			{:else if isConversation && emailConfig.conversationTitle}
 				{@render scopeTitle(emailConfig.conversationTitle, 'Conversation:')}
-			{:else if isEventEmailTemplate && !emailConfig.eventId}
+			{:else if isEvent && !emailConfig.eventId}
 				{@render scopeTitle('Fallback for all events')}
-			{:else if isEventEmailTemplate && emailConfig.eventTitle}
+			{:else if isEvent && emailConfig.eventTitle}
 				{@render scopeTitle(emailConfig.eventTitle, 'Event:')}
 			{/if}
 		</div>

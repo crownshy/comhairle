@@ -19,6 +19,7 @@
 	import { LocalizedConversationDto, LocalizedEventDto } from '@crownshy/api-client/api';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { newEmailTemplateConfigTour } from './tour';
+	import { isConversationEmail, isEventEmail } from '$lib/email-template-configs';
 
 	useTour(() => newEmailTemplateConfigTour);
 
@@ -40,20 +41,14 @@
 		)
 	);
 	let selectedConversation = $state<LocalizedConversationDto | null>(null);
-	const isConversationEmailTemplate = $derived(
-		selectedSchema.email_type === 'conversation_invite'
-	);
+	const isConversationTemplate = $derived(isConversationEmail(selectedSchema.email_type));
 
 	/** Scoped events */
 	let filteredEvents = $derived(
 		events.filter((event) => !emailConfigs.find((config) => config.eventId === event.id))
 	);
 	let selectedEvent = $state<LocalizedEventDto | null>(null);
-	const isEventEmailTemplate = $derived(
-		selectedSchema.email_type === 'event_registration_invite' ||
-			selectedSchema.email_type === 'event_registration_confirmation' ||
-			selectedSchema.email_type === 'event_reminder'
-	);
+	const isEventTemplate = $derived(isEventEmail(selectedSchema.email_type));
 
 	let formState = $derived.by(() => {
 		const output: FormState = {
@@ -112,11 +107,11 @@
 				},
 				...(formState.subject && { subject: formState.subject }),
 				...(selectedConversation &&
-					isConversationEmailTemplate && {
+					isConversationTemplate && {
 						scope: { type: 'conversation', id: selectedConversation.id }
 					}),
 				...(selectedEvent &&
-					isEventEmailTemplate && {
+					isEventTemplate && {
 						scope: { type: 'event', id: selectedEvent.id }
 					}),
 				...(!selectedEvent &&
@@ -219,7 +214,7 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-		{#if isConversationEmailTemplate && filteredConversations.length > 0}
+		{#if isConversationTemplate && filteredConversations.length > 0}
 			<div class="flex flex-col items-end gap-2">
 				<h2 class="text-xl font-semibold">Scoped Conversation</h2>
 				<Select.Root
@@ -241,7 +236,7 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-		{:else if isEventEmailTemplate && filteredEvents.length > 0}
+		{:else if isEventTemplate && filteredEvents.length > 0}
 			<div class="flex flex-col items-end gap-2">
 				<h2 class="text-xl font-semibold">Scoped Event</h2>
 				<Select.Root
