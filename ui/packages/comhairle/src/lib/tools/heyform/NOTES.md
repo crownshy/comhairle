@@ -8,18 +8,21 @@ cross-origin iframe. We cannot reach into its document, so everything below goes
 
 Every message the fork posts is tagged `source: 'HEYFORM'` (see its `sendMessageToParent`):
 
-| Message            | Payload            | Meaning                                  |
-| ------------------ | ------------------ | ---------------------------------------- |
-| `FORM_RESIZE`      | `{ height: <px> }` | height the frame needs for this question |
-| `FORM_STEP_CHANGE` | `{}`               | a new question became active             |
-| `HIDE_EMBED_MODAL` | `{}`               | the form finished                        |
+| Message                 | Payload                             | Meaning                                  |
+| ----------------------- | ----------------------------------- | ---------------------------------------- |
+| `FORM_RESIZE`           | `{ height: <px> }`                  | height the frame needs for this question |
+| `FORM_STEP_CHANGE`      | `{}`                                | a new question became active             |
+| `HIDE_EMBED_MODAL`      | `{}`                                | the form finished                        |
+| `FORM_NAVIGATION_STATE` | `{ canGoPrevious, isLastQuestion }` | what our pager's arrows should do        |
 
 Messages we send are tagged `source: 'COMHAIRLE'`:
 
-| Message          | Payload                               | Meaning                                |
-| ---------------- | ------------------------------------- | -------------------------------------- |
-| `REQUEST_RESIZE` | `{}`                                  | asks the fork to re-emit `FORM_RESIZE` |
-| `SET_THEME`      | `{ theme: { <colour>: <hex>, ... } }` | repaints the form in our palette       |
+| Message             | Payload                               | Meaning                                |
+| ------------------- | ------------------------------------- | -------------------------------------- |
+| `REQUEST_RESIZE`    | `{}`                                  | asks the fork to re-emit `FORM_RESIZE` |
+| `SET_THEME`         | `{ theme: { <colour>: <hex>, ... } }` | repaints the form in our palette       |
+| `NAVIGATE_NEXT`     | `{}`                                  | submits the active question            |
+| `NAVIGATE_PREVIOUS` | `{}`                                  | goes back one question                 |
 
 We post with target origin `'*'` rather than the survey base URL. The fork gates on
 `source: 'COMHAIRLE'`, and a survey origin that redirects would silently drop a message
@@ -94,3 +97,18 @@ Only solid hex tokens are sent. The fork derives its hover and disabled shades b
 the channels apart and reassembling them at a fixed opacity, so a token that already
 carries alpha (`--border` and `--input` are `#ffffff19` in dark) would come out wrong.
 Such tokens are dropped rather than sent.
+
+## Navigation
+
+The URL carries `hideNavigation=true`, so the fork hides its own up/down arrows and our
+step pager pages the form instead (ADR-0047). The fork posts `FORM_NAVIGATION_STATE`
+whenever going back becomes possible or the last question is reached, and again in reply
+to `REQUEST_RESIZE` in case the first one was missed. We turn that into the `next` and
+`previous` we report through `onSequenceChange`.
+
+`NAVIGATE_NEXT` submits the active question the same way pressing Enter in the form does,
+so a required question still has to be answered. On the last question it submits the whole
+form and forward reads Submit. The step itself still completes on `HIDE_EMBED_MODAL`.
+
+A fork without this never posts `FORM_NAVIGATION_STATE` and ignores `hideNavigation`, so
+its own arrows stay and our forward stays blocked until the participant submits.
