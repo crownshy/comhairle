@@ -145,6 +145,8 @@
 	}
 
 	function retryLoad() {
+		formNavigation = undefined;
+		reportSequence();
 		loadFailed = false;
 		ready = false;
 		firstLoad = true;
@@ -153,8 +155,39 @@
 		startLoadTimer();
 	}
 
+	// The form pages itself from our pager once it reports where it is (NOTES.md, "Navigation").
+	// An older fork never reports, so forward stays blocked until the participant submits in it.
+	type FormNavigation = { canGoPrevious: boolean; isLastQuestion: boolean };
+	let formNavigation: FormNavigation | undefined;
+	let sequenceProgress = 0;
+
+	function postToForm(eventName: 'NAVIGATE_NEXT' | 'NAVIGATE_PREVIOUS') {
+		// '*' for the same reason as the resize ping.
+		iframeEl?.contentWindow?.postMessage({ source: 'COMHAIRLE', eventName }, '*');
+	}
+
+	function reportSequence() {
+		onSequenceChange?.({
+			progress: sequenceProgress,
+			blockedReason: m.heyform_submit_to_continue(),
+			next: formNavigation ? () => postToForm('NAVIGATE_NEXT') : undefined,
+			nextLabel: formNavigation?.isLastQuestion ? m.submit() : undefined,
+			previous: formNavigation?.canGoPrevious
+				? () => postToForm('NAVIGATE_PREVIOUS')
+				: undefined
+		});
+	}
+
+	function updateNavigation(canGoPrevious: unknown, isLastQuestion: unknown) {
+		if (typeof canGoPrevious !== 'boolean' || typeof isLastQuestion !== 'boolean') return;
+		// Once the form is submitted the step is completing, so a late report must not reopen forward.
+		if (doneTimer) return;
+		formNavigation = { canGoPrevious, isLastQuestion };
+		reportSequence();
+	}
+
 	onMount(() => {
-		onSequenceChange?.({ progress: 0, blockedReason: m.heyform_submit_to_continue() });
+		reportSequence();
 		startLoadTimer();
 		return () => clearTimeout(loadTimer);
 	});
@@ -185,10 +218,8 @@
 	// typing, not paging. An older fork sends no numbers.
 	function reportProgress(index: unknown, total: unknown) {
 		if (typeof index !== 'number' || typeof total !== 'number' || total <= 1) return;
-		onSequenceChange?.({
-			progress: Math.min(1, Math.max(0, index / (total - 1))),
-			blockedReason: m.heyform_submit_to_continue()
-		});
+		sequenceProgress = Math.min(1, Math.max(0, index / (total - 1)));
+		reportSequence();
 	}
 
 	function onFrameMessage(e: MessageEvent) {
@@ -204,6 +235,7 @@
 
 		switch (data.eventName) {
 			case 'HIDE_EMBED_MODAL':
+				formNavigation = undefined;
 				onSequenceChange?.({ progress: 1 });
 				doneTimer = setTimeout(() => onDone(), DONE_DELAY_MS);
 				break;
@@ -217,6 +249,9 @@
 			case 'FORM_STEP_CHANGE':
 				requestFrameTopAlign();
 				reportProgress(data.index, data.total);
+				break;
+			case 'FORM_NAVIGATION_STATE':
+				updateNavigation(data.canGoPrevious, data.isLastQuestion);
 				break;
 		}
 	}
@@ -260,6 +295,7 @@
 			hideAfterSubmit: 'true',
 			autoClose: '1',
 			hostScroll: 'true',
+			hideNavigation: 'true',
 			locale: toHeyFormLocale(getLocale()),
 			...bootPalette,
 			...extraSurveyParams
