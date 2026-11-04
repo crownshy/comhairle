@@ -5,7 +5,7 @@ use rig_agent::extractor::ExtractorBuilder;
 use rig_core::DynModel;
 use rig_core::operation::Completion;
 use schemars::JsonSchema;
-use sensemakar_types::thinking_space::{Question, QuestionChain};
+use sensemakar_types::thinking_space::{FollowUpQuestion, QuestionChain};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -28,10 +28,11 @@ pub struct SummaryGenerator {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
-/// The list of followupquestions
 pub struct FollowUpQuestions {
-    questions: Vec<Question>,
+    /// A list of the follow up questions
+    questions: Vec<FollowUpQuestion>,
 }
+
 #[derive(Error, Debug)]
 pub enum ThinkingSpaceError {
     #[error("Template Error {0}")]
@@ -47,14 +48,18 @@ impl FollowUpQuestionGenerator {
         &self,
         question_chain: QuestionChain,
         model: impl Into<DynModel<Completion>>,
-    ) -> Result<Vec<Question>, ThinkingSpaceError> {
+    ) -> Result<Vec<FollowUpQuestion>, ThinkingSpaceError> {
         let template = self.render()?;
         let extractor = ExtractorBuilder::<FollowUpQuestions>::new(model)
             .append_preamble(&template)
             .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
-        let follow_ups = extractor.extract(question_list).await.map_err(Box::new)?.output;
+        let follow_ups = extractor
+            .extract(question_list)
+            .await
+            .map_err(Box::new)?
+            .output;
 
         Ok(follow_ups.questions)
     }
@@ -82,7 +87,11 @@ impl SummaryGenerator {
             .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
-        let summary = extractor.extract(question_list).await.map_err(Box::new)?.output;
+        let summary = extractor
+            .extract(question_list)
+            .await
+            .map_err(Box::new)?
+            .output;
 
         Ok(summary)
     }
@@ -90,12 +99,111 @@ impl SummaryGenerator {
 
 #[cfg(test)]
 mod tests {
+    use askama::Template;
     use sensemakar_types::thinking_space::{Answer, Question, QuestionChain, QuestionWithAnswer};
 
     use crate::{
         test_helpers::test_model,
-        thinking_space::{FollowUpQuestionGenerator, SummaryGenerator},
+        thinking_space::{FollowUpQuestionGenerator, FollowUpQuestions, SummaryGenerator},
     };
+
+    #[test]
+    fn regression_follow_up_prompt_example_matches_output_type() {
+        let generator = FollowUpQuestionGenerator::builder()
+            .topic("Community participation".into())
+            .build();
+        let prompt = generator.render().unwrap();
+        let example = prompt
+            .split_once("```json\n")
+            .unwrap()
+            .1
+            .split_once("\n```")
+            .unwrap()
+            .0;
+        let output: FollowUpQuestions = serde_json::from_str(example).unwrap();
+
+        assert_eq!(output.questions.len(), 1);
+        let question = &output.questions[0];
+        assert!(!question.question.is_empty());
+        assert_eq!(question.question_type, "Adaptive Questions");
+        assert!(prompt.contains("exactly 5 question objects"));
+        assert!(prompt.contains("Do not return an array of strings"));
+        assert!(prompt.contains("submit function arguments"));
+    }
+
+    #[test]
+    fn regression_follow_up_output_rejects_bare_question_strings() {
+        let result = serde_json::from_value::<FollowUpQuestions>(serde_json::json!({
+            "questions": ["Why does flexible timing matter to you?"]
+        }));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn regression_follow_up_output_preserves_question_metadata() {
+        let questions = (0..5)
+            .map(|index| {
+                serde_json::json!({
+                    "question": format!("Question {index}?"),
+                    "question_type": "Adaptive Questions"
+                })
+            })
+            .collect::<Vec<_>>();
+        let output: FollowUpQuestions = serde_json::from_value(serde_json::json!({
+            "questions": questions
+        }))
+        .unwrap();
+
+        assert_eq!(output.questions.len(), 5);
+        for (index, question) in output.questions.iter().enumerate() {
+            assert_eq!(question.question, format!("Question {index}?"));
+            assert_eq!(question.question_type, "Adaptive Questions");
+        }
+    }
+
+    #[test]
+    fn regression_follow_up_output_requires_question_and_type() {
+        for question in [
+            serde_json::json!({"question": "Why does flexible timing matter to you?"}),
+            serde_json::json!({"question_type": "Adaptive Questions"}),
+        ] {
+            let result = serde_json::from_value::<FollowUpQuestions>(serde_json::json!({
+                "questions": [question]
+            }));
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn regression_follow_up_schema_matches_requested_contract() {
+        let schema = serde_json::to_value(schemars::schema_for!(FollowUpQuestions)).unwrap();
+
+        assert_eq!(schema["required"], serde_json::json!(["questions"]));
+        assert_eq!(
+            schema["properties"],
+            serde_json::json!({
+                "questions": {
+                    "description": "A list of the follow up questions",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {
+                                "description": "the text of the generated question",
+                                "type": "string"
+                            },
+                            "question_type": {
+                                "description": "The type of the question as defined in the prompt",
+                                "type": "string"
+                            }
+                        },
+                        "required": ["question_type", "question"]
+                    }
+                }
+            })
+        );
+    }
 
     #[tokio::test]
     async fn test_question_followup() {
