@@ -168,7 +168,7 @@
 		type="video"
 		allowLocalSelection
 		onSubmit={(url) => {
-			editor?.chain().focus().setIframe({ src: url }).run();
+			editor?.chain().focus().setVideo({ src: url }).run();
 		}}
 	>
 		{@render button({ title: 'Add Video', active: false, Icon: Video })}
