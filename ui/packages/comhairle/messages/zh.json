@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"$language": "中国人",
+	"$language": "中文",
 	"already_have_an_account_login": "已有账户？登录",
 	"anonymous_id": "访客 ID",
 	"anonymous_id_tooltip": "您可以通过以访客身份注册来生成一个",
@@ -399,7 +399,7 @@
 	"thank_you_early_participant": "您是最早参与的人之一。",
 	"thank_you_early_participant_body": "感谢您带头参与。",
 	"thank_you_guest_id_label": "您的访客 ID",
-	"thank_you_guest_id_body": "您当前以访客身份登录。请保存此 ID，以便回来查看结果。",
+	"thank_you_guest_id_body": "您当前以访客身份登录。请保存此 ID，以便回到对话或查看结果（如果结果会公布）。",
 	"thank_you_copy_id": "复制 ID",
 	"thank_you_id_copied": "已复制",
 	"thank_you_download_id": "下载",

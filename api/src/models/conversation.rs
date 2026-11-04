@@ -83,6 +83,7 @@ pub struct Conversation {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub show_thank_you_page_next_steps: bool,
     pub show_thankyou_page_feedback_button: bool,
     /// Whether a participant may return to the workflow's steps after finishing (i.e. once
     /// every step is done). False seals them: no step is reachable and their step writes are
@@ -96,7 +97,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 32] = [
+const DEFAULT_COLUMNS: [ConversationIden; 33] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -126,6 +127,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 32] = [
     ConversationIden::CallToAction,
     ConversationIden::EnableSignupPrompts,
     ConversationIden::ShowThankYouPageAnnonInstructions,
+    ConversationIden::ShowThankYouPageNextSteps,
     ConversationIden::ShowThankyouPageFeedbackButton,
     ConversationIden::AllowRevisitAfterFinishing,
     ConversationIden::Metadata,
@@ -212,6 +214,9 @@ impl PartialConversation {
                 ConversationIden::ShowThankYouPageAnnonInstructions,
                 (*value).into(),
             ))
+        };
+        if let Some(value) = &self.show_thank_you_page_next_steps {
+            values.push((ConversationIden::ShowThankYouPageNextSteps, (*value).into()))
         };
         if let Some(value) = &self.show_thankyou_page_feedback_button {
             values.push((

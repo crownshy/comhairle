@@ -80,27 +80,20 @@
 		}
 	}
 
+	// Typing replaces the whole question state object, so the effect keys off this string
+	// instead. A $derived string only notifies when its value changes, not on every keystroke.
+	let flowPosition = $derived(
+		`${flow.currentState.phase}:${flow.currentState.followUps.length}:${flow.currentQuestionIndex}:${flow.currentState.wantsMore}`
+	);
+
 	$effect(() => {
-		// Re-scroll when current phase, follow-up count, or deepen choice changes
-		const _ =
-			flow.currentState.phase +
-			':' +
-			flow.currentState.followUps.length +
-			':' +
-			flow.currentQuestionIndex +
-			':' +
-			flow.currentState.wantsMore;
-		untrack(() => {
-			scrollToFocus();
-		});
-		// Focus textareas
+		void flowPosition;
 		untrack(async () => {
-			await tick();
-			if (flow.currentState.phase === 'root') rootTextareaEl?.focus();
-			if (flow.currentState.phase === 'answering') followUpTextareaEl?.focus();
+			await scrollToFocus();
+			if (flow.currentState.phase === 'root') rootTextareaEl?.focus({ preventScroll: true });
+			if (flow.currentState.phase === 'answering')
+				followUpTextareaEl?.focus({ preventScroll: true });
 		});
-		// reference _ to satisfy linter
-		void _;
 	});
 
 	onMount(() => {

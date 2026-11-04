@@ -6,6 +6,7 @@ export const accessSchema = z.object({
 	autoLogin: z.boolean(),
 	enableSignupPrompts: z.boolean(),
 	showThankYouPageAnnonInstructions: z.boolean(),
+	showThankYouPageNextSteps: z.boolean(),
 	showThankyouPageFeedbackButton: z.boolean(),
 	allowRevisitAfterFinishing: z.boolean()
 });

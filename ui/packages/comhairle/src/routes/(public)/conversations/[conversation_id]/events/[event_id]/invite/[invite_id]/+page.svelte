@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { apiErrorStatus, tryCatchAsync } from '$lib/utils/errorHandling';
 	import { key } from '$lib/utils/invalidationKey';
 	import { resolve } from '$app/paths';
@@ -75,11 +75,11 @@
 			return;
 		}
 
+		await invalidate(key('user'));
 		await finishRegistration();
 	}
 
 	onMount(() => {
-		// TODO: after accepting the invite do we send them an email with a link to the email, just redirect or both?
 		if (user) {
 			acceptInviteAndRegisterForEvent();
 		} else {

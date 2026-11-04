@@ -19,6 +19,7 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { emailTemplateConfigTour } from './tour';
+	import { isConversationEmail, isEventEmail } from '$lib/email-template-configs';
 
 	useTour(() => emailTemplateConfigTour);
 
@@ -136,19 +137,25 @@
 		}
 	}, 300);
 
+	const isConversationTemplate = $derived(isConversationEmail(emailConfig.emailType));
+	const isEventTemplate = $derived(isEventEmail(emailConfig.emailType));
+
 	const headerTitle = () => {
 		let title = snakeToStartCase(emailConfig.emailType);
 
 		if (
-			emailConfig.emailType === 'conversation_invite' &&
-			emailConfig.conversationId &&
-			emailConfig.conversationTitle
+			(isConversationTemplate && !emailConfig.conversationId) ||
+			(isEventTemplate && !emailConfig.eventId)
 		) {
+			title = title.concat(' (Fallback)');
+		}
+
+		if (isConversationTemplate && emailConfig.conversationId && emailConfig.conversationTitle) {
 			title = title.concat(` (${emailConfig.conversationTitle})`);
 		}
 
-		if (emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId) {
-			title = title.concat(' (Fallback)');
+		if (isEventTemplate && emailConfig.eventId && emailConfig.eventTitle) {
+			title = title.concat(` (${emailConfig.eventTitle})`);
 		}
 
 		return title;

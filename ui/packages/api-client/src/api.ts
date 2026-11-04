@@ -182,6 +182,7 @@ export const LocalizedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -231,6 +232,7 @@ export const PermittedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -249,6 +251,81 @@ export const PaginatedResults_for_PermittedConversationDto = z
   .passthrough();
 export type PaginatedResults_for_PermittedConversationDto = z.infer<
   typeof PaginatedResults_for_PermittedConversationDto
+>;
+export const CapacityStatus = z.enum(["full", "available"]);
+export type CapacityStatus = z.infer<typeof CapacityStatus>;
+export const capacity_status = z.union([CapacityStatus, z.null()]).optional();
+export type capacity_status = z.infer<typeof capacity_status>;
+export const TimeStatus = z.enum(["past", "future"]);
+export type TimeStatus = z.infer<typeof TimeStatus>;
+export const time_status = z.union([TimeStatus, z.null()]).optional();
+export type time_status = z.infer<typeof time_status>;
+export const BasicEventAgendaItem = z
+  .object({
+    description: z.string(),
+    estimated_time: z.number().int().gte(0),
+    title: z.string(),
+  })
+  .passthrough();
+export type BasicEventAgendaItem = z.infer<typeof BasicEventAgendaItem>;
+export const BreakoutRoomAgendaItem = z
+  .object({
+    estimated_time: z.number().int().gte(0),
+    instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
+    prompt: z.string(),
+    time_limit: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
+export const EventAgendaItem = z.union([
+  z.object({ Basic: BasicEventAgendaItem }),
+  z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
+]);
+export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
+export const EventFormat = z.enum(["online", "in_person"]);
+export type EventFormat = z.infer<typeof EventFormat>;
+export const EventLocation = z
+  .object({
+    address_line_1: z.string(),
+    address_line_2: z.union([z.string(), z.null()]).optional(),
+    address_line_3: z.union([z.string(), z.null()]).optional(),
+    city: z.string(),
+    country_code: z.string(),
+    postal_code: z.string(),
+    state_province: z.string(),
+    venue_name: z.string(),
+  })
+  .passthrough();
+export type EventLocation = z.infer<typeof EventLocation>;
+export const SignupMode = z.enum(["invite", "open"]);
+export type SignupMode = z.infer<typeof SignupMode>;
+export const LocalizedEventDto = z
+  .object({
+    agenda: z.array(EventAgendaItem),
+    capacity: z.union([z.number(), z.null()]).optional(),
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    currentAttendance: z.union([z.number(), z.null()]).optional(),
+    customEventLink: z.union([z.string(), z.null()]).optional(),
+    description: z.string(),
+    endTime: z.string().datetime({ offset: true }),
+    format: EventFormat,
+    id: z.string().uuid(),
+    location: z.union([EventLocation, z.null()]).optional(),
+    metadata: z.unknown().optional(),
+    name: z.string(),
+    signupMode: SignupMode,
+    startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
+export const PaginatedResults_for_LocalizedEventDto = z
+  .object({ records: z.array(LocalizedEventDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_LocalizedEventDto = z.infer<
+  typeof PaginatedResults_for_LocalizedEventDto
 >;
 export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export type OrganizationType = z.infer<typeof OrganizationType>;
@@ -1272,6 +1349,7 @@ export const ConversationDto = z
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -1328,6 +1406,7 @@ export const ConversationWithTranslations = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -1370,6 +1449,7 @@ export const PartialConversation = z
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
     show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
+    show_thank_you_page_next_steps: z.union([z.boolean(), z.null()]),
     show_thankyou_page_feedback_button: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
@@ -2609,6 +2689,17 @@ export const ReportDto = z
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const EmbeddedSectionBlock = z
+  .object({ sectionBlock: z.string(), workflowStepId: z.string().uuid() })
+  .passthrough();
+export type EmbeddedSectionBlock = z.infer<typeof EmbeddedSectionBlock>;
+export const ReportEmbedsDto = z
+  .object({
+    isPublic: z.boolean(),
+    sectionBlocks: z.array(EmbeddedSectionBlock),
+  })
+  .passthrough();
+export type ReportEmbedsDto = z.infer<typeof ReportEmbedsDto>;
 export const ReportImpactDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -2841,81 +2932,6 @@ export const Order = z.enum(["asc", "desc"]);
 export type Order = z.infer<typeof Order>;
 export const created_at = z.union([Order, z.null()]).optional();
 export type created_at = z.infer<typeof created_at>;
-export const CapacityStatus = z.enum(["full", "available"]);
-export type CapacityStatus = z.infer<typeof CapacityStatus>;
-export const capacity_status = z.union([CapacityStatus, z.null()]).optional();
-export type capacity_status = z.infer<typeof capacity_status>;
-export const TimeStatus = z.enum(["past", "future"]);
-export type TimeStatus = z.infer<typeof TimeStatus>;
-export const time_status = z.union([TimeStatus, z.null()]).optional();
-export type time_status = z.infer<typeof time_status>;
-export const BasicEventAgendaItem = z
-  .object({
-    description: z.string(),
-    estimated_time: z.number().int().gte(0),
-    title: z.string(),
-  })
-  .passthrough();
-export type BasicEventAgendaItem = z.infer<typeof BasicEventAgendaItem>;
-export const BreakoutRoomAgendaItem = z
-  .object({
-    estimated_time: z.number().int().gte(0),
-    instructions: z.string(),
-    max_per_room: z.union([z.number(), z.null()]).optional(),
-    prompt: z.string(),
-    time_limit: z.union([z.number(), z.null()]).optional(),
-  })
-  .passthrough();
-export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
-export const EventAgendaItem = z.union([
-  z.object({ Basic: BasicEventAgendaItem }),
-  z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
-]);
-export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
-export const EventFormat = z.enum(["online", "in_person"]);
-export type EventFormat = z.infer<typeof EventFormat>;
-export const EventLocation = z
-  .object({
-    address_line_1: z.string(),
-    address_line_2: z.union([z.string(), z.null()]).optional(),
-    address_line_3: z.union([z.string(), z.null()]).optional(),
-    city: z.string(),
-    country_code: z.string(),
-    postal_code: z.string(),
-    state_province: z.string(),
-    venue_name: z.string(),
-  })
-  .passthrough();
-export type EventLocation = z.infer<typeof EventLocation>;
-export const SignupMode = z.enum(["invite", "open"]);
-export type SignupMode = z.infer<typeof SignupMode>;
-export const LocalizedEventDto = z
-  .object({
-    agenda: z.array(EventAgendaItem),
-    capacity: z.union([z.number(), z.null()]).optional(),
-    conversationId: z.string().uuid(),
-    createdAt: z.string().datetime({ offset: true }),
-    currentAttendance: z.union([z.number(), z.null()]).optional(),
-    customEventLink: z.union([z.string(), z.null()]).optional(),
-    description: z.string(),
-    endTime: z.string().datetime({ offset: true }),
-    format: EventFormat,
-    id: z.string().uuid(),
-    location: z.union([EventLocation, z.null()]).optional(),
-    metadata: z.unknown().optional(),
-    name: z.string(),
-    signupMode: SignupMode,
-    startTime: z.string().datetime({ offset: true }),
-    videoMeetingId: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
-export const PaginatedResults_for_LocalizedEventDto = z
-  .object({ records: z.array(LocalizedEventDto), total: z.number().int() })
-  .passthrough();
-export type PaginatedResults_for_LocalizedEventDto = z.infer<
-  typeof PaginatedResults_for_LocalizedEventDto
->;
 export const CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
@@ -3515,6 +3531,8 @@ export const EmailTemplateConfigWithScopeDto = z
     conversationTitle: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     emailType: EmailType,
+    eventId: z.union([z.string(), z.null()]).optional(),
+    eventTitle: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
@@ -3525,9 +3543,17 @@ export const EmailTemplateConfigWithScopeDto = z
 export type EmailTemplateConfigWithScopeDto = z.infer<
   typeof EmailTemplateConfigWithScopeDto
 >;
+export const EmailTemplateScope = z.union([
+  z.object({ type: z.literal("owner") }).passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("conversation") })
+    .passthrough(),
+  z.object({ id: z.string().uuid(), type: z.literal("event") }).passthrough(),
+]);
+export type EmailTemplateScope = z.infer<typeof EmailTemplateScope>;
 export const CreateEmailTemplateConfig = z
   .object({
-    conversation_id: z.union([z.string(), z.null()]).optional(),
+    scope: EmailTemplateScope,
     slots: EmailTemplateSlots,
     subject: z.union([z.string(), z.null()]).optional(),
   })
@@ -3885,6 +3911,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedConversationDto,
   PermittedConversationDto,
   PaginatedResults_for_PermittedConversationDto,
+  CapacityStatus,
+  capacity_status,
+  TimeStatus,
+  time_status,
+  BasicEventAgendaItem,
+  BreakoutRoomAgendaItem,
+  EventAgendaItem,
+  EventFormat,
+  EventLocation,
+  SignupMode,
+  LocalizedEventDto,
+  PaginatedResults_for_LocalizedEventDto,
   OrganizationType,
   LocalizedOrganizationDto,
   UserOrganizationAccess,
@@ -4115,6 +4153,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FullReportDto,
   PartialReport,
   ReportDto,
+  EmbeddedSectionBlock,
+  ReportEmbedsDto,
   ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
@@ -4146,18 +4186,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnContentResponse,
   Order,
   created_at,
-  CapacityStatus,
-  capacity_status,
-  TimeStatus,
-  time_status,
-  BasicEventAgendaItem,
-  BreakoutRoomAgendaItem,
-  EventAgendaItem,
-  EventFormat,
-  EventLocation,
-  SignupMode,
-  LocalizedEventDto,
-  PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
   BreakoutSeat,
@@ -4229,6 +4257,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   email_type,
   EmailTemplateSlots,
   EmailTemplateConfigWithScopeDto,
+  EmailTemplateScope,
   CreateEmailTemplateConfig,
   EmailTemplateConfigDto,
   UpdateEmailTemplateConfig,
@@ -5692,6 +5721,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ConversationDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/report/embeds",
+    alias: "GetReportEmbeds",
+    requestFormat: "json",
+    response: ReportEmbedsDto,
   },
   {
     method: "get",
@@ -8614,6 +8650,41 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: PaginatedResults_for_LocalizedConversationDto,
+  },
+  {
+    method: "get",
+    path: "/user/owned_events",
+    alias: "GetOwnedEvents",
+    description: `Gets a list of the events a user owns`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "capacity_status",
+        type: "Query",
+        schema: capacity_status,
+      },
+      {
+        name: "conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "time_status",
+        type: "Query",
+        schema: time_status,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_LocalizedEventDto,
   },
   {
     method: "get",

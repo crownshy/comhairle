@@ -235,7 +235,6 @@ impl ComhairleBotService for ComhairleRagBotService {
         let documents: Vec<ComhairleDocument> = documents.into_iter().map(Into::into).collect();
 
         if status.is_success()
-            && !documents.is_empty()
             && documents
                 .iter()
                 .all(|document| document.parse_status == "DONE" && document.parse_progress >= 1.0)
