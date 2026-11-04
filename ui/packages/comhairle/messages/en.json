@@ -479,7 +479,7 @@
 	"thank_you_early_participant": "You're one of the first people to take part.",
 	"thank_you_early_participant_body": "Thank you for getting things started.",
 	"thank_you_guest_id_label": "Your guest ID",
-	"thank_you_guest_id_body": "You are signed in as a guest. Keep this ID to come back and see the result.",
+	"thank_you_guest_id_body": "You are signed in as a guest. Keep this ID to return to the conversation or view results (in engagements where they are published).",
 	"thank_you_copy_id": "Copy ID",
 	"thank_you_id_copied": "Copied",
 	"thank_you_download_id": "Download",
