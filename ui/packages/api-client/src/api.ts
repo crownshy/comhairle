@@ -179,6 +179,7 @@ export const LocalizedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -228,6 +229,7 @@ export const PermittedConversationDto = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -1344,6 +1346,7 @@ export const ConversationDto = z
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -1400,6 +1403,7 @@ export const ConversationWithTranslations = z
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     showThankYouPageAnnonInstructions: z.boolean(),
+    showThankYouPageNextSteps: z.boolean(),
     showThankyouPageFeedbackButton: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -1442,6 +1446,7 @@ export const PartialConversation = z
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
     show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
+    show_thank_you_page_next_steps: z.union([z.boolean(), z.null()]),
     show_thankyou_page_feedback_button: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
@@ -2581,6 +2586,17 @@ export const ReportDto = z
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const EmbeddedSectionBlock = z
+  .object({ sectionBlock: z.string(), workflowStepId: z.string().uuid() })
+  .passthrough();
+export type EmbeddedSectionBlock = z.infer<typeof EmbeddedSectionBlock>;
+export const ReportEmbedsDto = z
+  .object({
+    isPublic: z.boolean(),
+    sectionBlocks: z.array(EmbeddedSectionBlock),
+  })
+  .passthrough();
+export type ReportEmbedsDto = z.infer<typeof ReportEmbedsDto>;
 export const ReportImpactDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -3943,6 +3959,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   FullReportDto,
   PartialReport,
   ReportDto,
+  EmbeddedSectionBlock,
+  ReportEmbedsDto,
   ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
@@ -5475,6 +5493,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ReportImpactDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/report/embeds",
+    alias: "GetReportEmbeds",
+    requestFormat: "json",
+    response: ReportEmbedsDto,
   },
   {
     method: "get",
