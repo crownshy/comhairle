@@ -23,13 +23,6 @@ export const stepConfigureTour: Tour = {
 			side: 'top'
 		},
 		{
-			element: '[data-tour="step-switches"]',
-			title: 'Required and revisitable',
-			description:
-				'Required stops participants skipping it. Revisitable lets them come back to it while still working through the conversation.',
-			side: 'top'
-		},
-		{
 			element: '[data-tour="step-danger-zone"]',
 			title: 'Deleting a step',
 			description:
