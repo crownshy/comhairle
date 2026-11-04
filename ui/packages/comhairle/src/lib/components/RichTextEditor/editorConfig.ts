@@ -7,6 +7,7 @@ import { TableKit, TableCell, TableHeader } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Color } from '@tiptap/extension-color';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
+import { Video } from '$lib/components/RichTextEditor/extensions/video';
 import { ListItem } from '@tiptap/extension-list-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
@@ -83,6 +84,7 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 			HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image
 		}),
 		Iframe,
+		Video,
 		Audio,
 		SourceDocument,
 		// Embedded report components (live, ADR-0012). The editor node view and the published
