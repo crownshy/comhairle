@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { LayoutProps } from './$types';
 	import CookieConsent from '$lib/cookies/cookieconsent.svelte';
 	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
@@ -9,6 +10,7 @@
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
+	import { ws } from '$lib/api/websockets.svelte';
 
 	let { children, data }: LayoutProps = $props();
 	let { themeName } = data;
@@ -30,6 +32,15 @@
 	$effect(() => {
 		if ($status !== 'loaded') return;
 		window.umami?.identify(userId ? String(userId) : null);
+	});
+
+	// The websockets backend authenticates by session cookie, so open it per
+	// logged-in user and reopen whenever the user changes (e.g. redirected by
+	// client-side navigation following OTP login).
+	$effect(() => {
+		if (!userId) return;
+		untrack(() => ws.connect());
+		return () => ws.disconnect();
 	});
 
 	// Theme name is always determined by the PUBLIC_THEME env var

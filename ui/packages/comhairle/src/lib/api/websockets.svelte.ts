@@ -39,7 +39,17 @@ export class WSConnection {
 	private reconnectDelay = 1000;
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
 
+	/** Explicit (re)connect, e.g. after login. Starts a fresh retry budget */
 	connect() {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout);
+			this.reconnectTimeout = null;
+		}
+		this.reconnectAttempts = 0;
+		this.open();
+	}
+
+	private open() {
 		if (!browser) {
 			console.log('WebSocket only available in browser');
 			return;
@@ -116,6 +126,8 @@ export class WSConnection {
 		}
 		this.stopPingInterval();
 		if (this.socket) {
+			// A deliberate close must not trigger the auto-reconnect in onclose.
+			this.socket.onclose = null;
 			this.socket.close();
 			this.socket = null;
 		}
@@ -133,7 +145,7 @@ export class WSConnection {
 		console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimeout = setTimeout(() => {
-			this.connect();
+			this.open();
 		}, delay);
 	}
 
@@ -193,8 +205,3 @@ export class WSConnection {
 
 // Singleton instance - available everywhere
 export const ws = new WSConnection();
-
-// Auto-connect in browser
-if (browser) {
-	ws.connect();
-}
