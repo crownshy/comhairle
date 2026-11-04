@@ -1,9 +1,10 @@
 //! The only types a public report-data response may contain (ADR-0061).
 //!
 //! A response type is declared with [`public_report_data!`], which refuses to compile if any
-//! field isn't [`PublicReportData`]. Ids, pids, emails and raw strings never are, so they can't
-//! reach a public endpoint by accident. Adding a new building block here needs a reviewer to
-//! agree it can't identify a person.
+//! field isn't [`PublicReportData`]. Ids, pids, emails and any string read from the database or a
+//! request never are, so they can't reach a public endpoint by accident. Fixed text from our own
+//! code goes in a [`Label`]. Adding a new building block here needs a reviewer to agree it can't
+//! identify a person.
 #![cfg_attr(
     not(test),
     expect(
@@ -33,6 +34,12 @@ pub mod sealed {
 #[serde(transparent)]
 pub struct Count(pub u64);
 
+/// Fixed text written in our code, such as a group's letter. It holds a `&'static str` so it
+/// can't be filled from the database or a request.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Label(pub &'static str);
+
 /// A proportion between 0 and 1, such as the share of a group that agreed.
 #[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq)]
 #[serde(transparent)]
@@ -60,7 +67,7 @@ macro_rules! building_blocks {
     };
 }
 
-building_blocks!(Count, Share, ModeratedText, bool, &'static str);
+building_blocks!(Count, Label, Share, ModeratedText, bool);
 
 impl<T: PublicReportData> sealed::Sealed for Option<T> {}
 impl<T: PublicReportData> PublicReportData for Option<T> {}
@@ -113,7 +120,7 @@ mod tests {
             participants: Count,
             agreed: Option<Share>,
             statements: Vec<ModeratedText>,
-            group: &'static str,
+            group: Label,
         }
     }
 
@@ -123,7 +130,7 @@ mod tests {
             participants: Count(12),
             agreed: Some(Share(0.5)),
             statements: vec![ModeratedText::from_accepted("More buses".into())],
-            group: "A",
+            group: Label("A"),
         };
 
         assert_eq!(
