@@ -34,10 +34,15 @@ export class WSConnection {
 
 	private messageHandlers: Set<MessageHandler> = new Set();
 	private typedHandlers: Map<string, Set<TypedMessageHandler<any>>> = new Map();
+	private openHandlers: Set<() => void> = new Set();
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000;
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
+
+	get isOpen(): boolean {
+		return this.socket?.readyState === WebSocket.OPEN;
+	}
 
 	/** Explicit (re)connect, e.g. after login. Starts a fresh retry budget */
 	connect() {
@@ -81,6 +86,7 @@ export class WSConnection {
 			this.connectionStatus = 'connected';
 			this.reconnectAttempts = 0;
 			this.startPingInterval();
+			this.openHandlers.forEach((handler) => handler());
 		};
 
 		this.socket.onmessage = (event) => {
@@ -174,6 +180,12 @@ export class WSConnection {
 	onMessage(handler: MessageHandler): () => void {
 		this.messageHandlers.add(handler);
 		return () => this.messageHandlers.delete(handler);
+	}
+
+	/** Runs on every successful open, including reconnects. */
+	onOpen(handler: () => void): () => void {
+		this.openHandlers.add(handler);
+		return () => this.openHandlers.delete(handler);
 	}
 
 	// Subscribe to specific message types
