@@ -14,6 +14,15 @@ pub struct QuestionWithAnswer {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[schemars(inline)]
+pub struct FollowUpQuestion {
+    /// The type of the question as defined in the prompt
+    pub question_type: String,
+    /// the text of the generated question
+    pub question: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Question {
     /// The question being asked
     pub text: String,

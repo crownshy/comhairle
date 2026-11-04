@@ -529,7 +529,7 @@ async fn converse(
     Ok((
         StatusCode::OK,
         Json(ConverseResponseDto {
-            questions: questions.into_iter().map(|q| q.text).collect(),
+            questions: questions.into_iter().map(|q| q.question).collect(),
         }),
     ))
 }
