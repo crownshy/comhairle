@@ -99,6 +99,15 @@ pub enum ComhairleError {
     #[error("Ragflow error: {0}")]
     RagflowError(#[from] RagflowError),
 
+    #[error("No sensemaker model configured")]
+    NoSensemakerModelConfigured,
+
+    #[error("Sensemaker model config error: {0}")]
+    SensemakarConfigError(String),
+
+    #[error("Thinking space generation error: {0}")]
+    ThinkingSpaceGenerationError(#[from] sensemakar::thinking_space::ThinkingSpaceError),
+
     #[error("Multipart form parse error: {0}")]
     MultipartParseForm(#[from] MultipartError),
 

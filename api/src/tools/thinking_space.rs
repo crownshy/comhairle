@@ -1,24 +1,21 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use aide::OperationIo;
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with, put_with};
 use async_trait::async_trait;
-use axum::body::Body;
 use axum::extract::{Json, Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
+use sensemakar::thinking_space::{FollowUpQuestionGenerator, SummaryGenerator};
+use sensemakar_types::thinking_space::{Answer, Question, QuestionChain, QuestionWithAnswer};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
-use crate::bot_service::AgentConversationRequest;
-use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::thinking_space_answer::{
     self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer, ThinkingSpaceAnswerFilterOptions,
     UpdateAnswer,
@@ -36,7 +33,14 @@ use crate::models::translations::{
 use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
 use crate::routes::translations::LocaleExtractor;
-use crate::{ComhairleError, ComhairleState};
+use crate::{ComhairleError, ComhairleState, sensemakar_service};
+
+/// Mirrors MAX_SUMMARY_WORDS in
+/// ui/packages/comhairle/src/lib/tools/thinking_space/wordLimit.ts, which caps
+/// how many words a participant can type when editing a summary — generated
+/// drafts are asked to stay under the same budget so they don't immediately
+/// land over that limit.
+const MAX_SUMMARY_WORDS: usize = 300;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
@@ -162,39 +166,9 @@ impl ToolImpl for ThinkingSpaceTool {
 
     async fn delete(
         _config: &Self::Config,
-        state: &Arc<ComhairleState>,
-        workflow_step_id: &Uuid,
+        _state: &Arc<ComhairleState>,
+        _workflow_step_id: &Uuid,
     ) -> Result<(), ComhairleError> {
-        let sessions = bot_service_user_session::list_by_workflow_step_id_and_context(
-            &state.db,
-            workflow_step_id,
-            BotServiceSessionContext::ThinkingSpace,
-        )
-        .await?;
-
-        if sessions.is_empty() {
-            return Ok(());
-        }
-
-        let bot_service = state.required_bot_service()?;
-        let bot_service_config = state
-            .config
-            .bot_service
-            .as_ref()
-            .ok_or(ComhairleError::NoBotServiceConfigured)?;
-
-        for session in &sessions {
-            bot_service
-                .delete_agent_session(
-                    &session.bot_service_session_id,
-                    &bot_service_config.thinking_space_agent_id,
-                )
-                .await?;
-        }
-
-        let session_ids: Vec<Uuid> = sessions.into_iter().map(|session| session.id).collect();
-        bot_service_user_session::delete_by_ids(&state.db, &session_ids).await?;
-
         Ok(())
     }
 
@@ -218,17 +192,14 @@ impl ToolImpl for ThinkingSpaceTool {
             .api_route(
                 "/thinking_space",
                 post_with(converse, |op| {
-                    op.tag("Tools")
+                    op.id("ConverseThinkingSpace")
+                        .tag("Tools")
                         .summary("Converse with thinking space")
-                        .security_requirement("JWT")
                         .description(
-                            "
-Streamed LLM response.
-⚠️ This endpoint returns a streaming response on success.
-Generated API clients are NOT suitable for consuming this endpoint.
-Use a raw HTTP request and process the response body incrementally.
-",
+                            "Generate candidate follow-up questions for a thinking space root answer",
                         )
+                        .security_requirement("JWT")
+                        .response::<200, Json<ConverseResponseDto>>()
                 }),
             )
             .api_route(
@@ -390,6 +361,7 @@ pub struct ThinkingSpaceSummaryDto {
     pub summary: String,
     pub is_ai_generated: bool,
     pub ai_generated_summary: Option<String>,
+    pub areas_of_uncertainty: Option<String>,
 }
 
 impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
@@ -401,6 +373,7 @@ impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
             summary: s.summary,
             is_ai_generated: s.is_ai_generated,
             ai_generated_summary: s.ai_generated_summary,
+            areas_of_uncertainty: s.areas_of_uncertainty,
         }
     }
 }
@@ -444,20 +417,60 @@ async fn get_localized_topic(
 #[derive(Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct ConversationRequest {
     pub workflow_step_id: Uuid,
-    pub history: String,
-    pub starting_question: String,
+    pub root_question_id: Uuid,
     pub question_intent: String,
 }
 
-// Wrapper struct required as a workaround to generate documentation for handlers
-// that return `axum::body::Body` for streamed responses.
-#[derive(OperationIo)]
-pub struct StreamBody(Body);
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConverseResponseDto {
+    pub questions: Vec<String>,
+}
 
-impl IntoResponse for StreamBody {
-    fn into_response(self) -> Response {
-        self.0.into_response()
-    }
+/// Builds the structured Q&A chain sensemakar needs from this user's stored
+/// answers: the root answer identified by `root_question_id`, plus whatever
+/// follow-ups have already been answered under it, oldest first.
+fn build_question_chain(
+    answers: &[ThinkingSpaceAnswer],
+    root_question_id: Uuid,
+    asking_reasion: String,
+) -> Result<QuestionChain, ComhairleError> {
+    let root = answers
+        .iter()
+        .find(|a| a.id == root_question_id)
+        .ok_or_else(|| ComhairleError::ResourceNotFound("ThinkingSpaceAnswer".to_string()))?;
+
+    let mut follow_ups: Vec<&ThinkingSpaceAnswer> = answers
+        .iter()
+        .filter(|a| a.root_question_id == Some(root_question_id))
+        .collect();
+    follow_ups.sort_by_key(|a| a.created_at);
+
+    Ok(QuestionChain {
+        base_interaction: QuestionWithAnswer {
+            question: Question {
+                text: root.question.clone(),
+                asking_reasion,
+                ai_generated: false,
+            },
+            answer: Answer {
+                text: root.answer.clone(),
+            },
+        },
+        follow_ups: follow_ups
+            .into_iter()
+            .map(|a| QuestionWithAnswer {
+                question: Question {
+                    text: a.question.clone(),
+                    asking_reasion: String::new(),
+                    ai_generated: true,
+                },
+                answer: Answer {
+                    text: a.answer.clone(),
+                },
+            })
+            .collect(),
+    })
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -466,14 +479,7 @@ async fn converse(
     RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<ConversationRequest>,
-) -> Result<StreamBody, ComhairleError> {
-    let bot_service = state.required_bot_service()?;
-    let bot_service_config = state
-        .config
-        .bot_service
-        .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
-
+) -> Result<(StatusCode, Json<ConverseResponseDto>), ComhairleError> {
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
 
     // TODO: think more creafully how we handle this in preview mode
@@ -488,35 +494,44 @@ async fn converse(
         }
     };
 
-    let session = bot_service_user_session::get_or_create(
-        &state,
-        BotServiceSessionContext::ThinkingSpace,
-        &user.id,
-        None,
-        Some(&payload.workflow_step_id),
+    let topic = get_localized_topic(&state.db, &tool_config, &locale).await?;
+
+    let answers = thinking_space_answer::list(
+        &state.db,
+        &payload.workflow_step_id,
+        ThinkingSpaceAnswerFilterOptions {
+            user_id: Some(user.id),
+            ..Default::default()
+        },
     )
     .await?;
 
-    let topic = get_localized_topic(&state.db, &tool_config, &locale).await?;
+    let question_chain =
+        build_question_chain(&answers, payload.root_question_id, payload.question_intent)?;
 
-    let params = AgentConversationRequest {
-        question: payload.history.clone(),
-        topic: Some(topic),
-        history: Some(payload.history),
-        starting_question: Some(payload.starting_question),
-        question_intent: Some(payload.question_intent),
-        ..Default::default()
+    let model_cfg = state
+        .config
+        .sensemaker_model
+        .as_ref()
+        .ok_or(ComhairleError::NoSensemakerModelConfigured)?;
+    let model_config = sensemakar_service::build_model_config(model_cfg)
+        .map_err(ComhairleError::SensemakarConfigError)?;
+    let model = sensemakar::model_config::build_model(&model_config);
+
+    let generator = FollowUpQuestionGenerator {
+        context: None,
+        additional_instructions: None,
+        reading_age_target: None,
+        topic,
     };
-    let stream = bot_service
-        .converse_with_agent(
-            Some(&session.bot_service_session_id),
-            &bot_service_config.thinking_space_agent_id,
-            params,
-        )
-        .await?;
+    let questions = generator.run_with_model(question_chain, model).await?;
 
-    let body = Body::from_stream(stream);
-    Ok(StreamBody(body))
+    Ok((
+        StatusCode::OK,
+        Json(ConverseResponseDto {
+            questions: questions.into_iter().map(|q| q.question).collect(),
+        }),
+    ))
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
@@ -588,26 +603,6 @@ struct GenerateThinkingSpaceSummary {
     workflow_step_id: Uuid,
 }
 
-#[derive(Serialize, JsonSchema, Debug)]
-struct ThinkingSpaceSummaryQa {
-    question: String,
-    answer: String,
-}
-
-impl From<ThinkingSpaceAnswer> for ThinkingSpaceSummaryQa {
-    fn from(a: ThinkingSpaceAnswer) -> Self {
-        Self {
-            answer: a.answer,
-            question: a.question,
-        }
-    }
-}
-
-#[derive(Deserialize)]
-struct ThinkingSpaceContentSummary {
-    summary: String,
-}
-
 #[instrument(err(Debug), skip(state))]
 async fn generate_thinking_space_summary(
     State(state): State<Arc<ComhairleState>>,
@@ -615,13 +610,6 @@ async fn generate_thinking_space_summary(
     LocaleExtractor(locale): LocaleExtractor,
     Json(payload): Json<GenerateThinkingSpaceSummary>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
-    let bot_service = state.required_bot_service()?;
-    let bot_service_config = state
-        .config
-        .bot_service
-        .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
-
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
 
     // TODO: think more creafully how we handle this in preview mode
@@ -636,65 +624,70 @@ async fn generate_thinking_space_summary(
         }
     };
 
+    let topic = get_localized_topic(&state.db, &tool_config, &locale).await?;
+
     let filter_options = ThinkingSpaceAnswerFilterOptions {
         user_id: Some(user.id),
         ..Default::default()
     };
-    let answers: Vec<ThinkingSpaceSummaryQa> =
-        thinking_space_answer::list(&state.db, &payload.workflow_step_id, filter_options)
-            .await?
-            .into_iter()
-            .map(Into::into)
-            .collect();
-    let answers_json = serde_json::json!(answers).to_string();
+    let answers =
+        thinking_space_answer::list(&state.db, &payload.workflow_step_id, filter_options).await?;
 
-    let topic = get_localized_topic(&state.db, &tool_config, &locale).await?;
-
-    let params = AgentConversationRequest {
-        question: "".to_string(),
-        topic: Some(topic),
-        survey_responses: Some(answers_json),
-        ..Default::default()
-    };
-
-    // Create a dedicated session per request so concurrent summary generations
-    // from different users cannot share bot-service session state.
-    let (_, agent_session) = bot_service
-        .create_agent_session(&bot_service_config.thinking_space_summary_agent_id)
-        .await?;
-
-    let stream = bot_service
-        .converse_with_agent(
-            Some(&agent_session.id),
-            &bot_service_config.thinking_space_summary_agent_id,
-            params,
-        )
-        .await?;
-
-    // // Parse SSE stream to get final event with complete summary
-    let sse_events = bot_service.parse_sse_stream_to_events(stream).await?;
-
-    let final_event = sse_events
+    let root_ids: Vec<Uuid> = answers
         .iter()
-        .rfind(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
-        .ok_or_else(|| {
-            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
-        })?;
+        .filter(|a| !a.is_follow_up)
+        .map(|a| a.id)
+        .collect();
 
-    let summary_event = final_event
-        .content
-        .as_deref()
-        .ok_or_else(|| {
-            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
-        })
-        .and_then(|content| {
-            serde_json::from_str::<ThinkingSpaceContentSummary>(content)
-                .map_err(|e| ComhairleError::CorruptedData(format!("Invalid summary payload: {e}")))
-        })?;
+    if root_ids.is_empty() {
+        return Err(ComhairleError::CorruptedData(
+            "No thinking space answers to summarize".to_string(),
+        ));
+    }
+
+    let model_cfg = state
+        .config
+        .sensemaker_model
+        .as_ref()
+        .ok_or(ComhairleError::NoSensemakerModelConfigured)?;
+    let model_config = sensemakar_service::build_model_config(model_cfg)
+        .map_err(ComhairleError::SensemakarConfigError)?;
+    let model = sensemakar::model_config::build_model(&model_config);
+
+    // A step can have multiple root questions, each answered independently.
+    // sensemakar summarizes one base-question-plus-follow-ups chain at a
+    // time, so each root gets its own call and the resulting narratives are
+    // joined into one overall summary. The per-root budget keeps that joined
+    // total near the participant-facing edit limit (see MAX_SUMMARY_WORDS in
+    // ui/packages/comhairle/src/lib/tools/thinking_space/wordLimit.ts).
+    let per_root_word_limit = MAX_SUMMARY_WORDS / root_ids.len().max(1);
+    let word_limit_instruction = Some(format!(
+        "Write the summary in no more than {per_root_word_limit} words."
+    ));
+
+    let mut summaries = Vec::with_capacity(root_ids.len());
+    let mut uncertainties = Vec::with_capacity(root_ids.len());
+    for root_id in root_ids {
+        let question_chain = build_question_chain(&answers, root_id, String::new())?;
+
+        let generator = SummaryGenerator {
+            context: None,
+            additional_instructions: word_limit_instruction.clone(),
+            reading_age_target: None,
+            topic: topic.clone(),
+        };
+        let result = generator
+            .run_with_model(question_chain, model.clone())
+            .await?;
+
+        summaries.push(result.summary);
+        uncertainties.push(result.areas_of_uncertainty);
+    }
 
     let create_summary = CreateSummary {
-        summary: summary_event.summary,
+        summary: summaries.join("\n\n"),
         is_ai_generated: Some(true),
+        areas_of_uncertainty: Some(uncertainties.join("\n\n")),
     };
     let summary = thinking_space_summary::create(
         &state.db,
@@ -761,6 +754,7 @@ async fn update_or_create_thinking_space_summary(
             let create_summary = CreateSummary {
                 summary: payload.summary,
                 is_ai_generated: Some(false),
+                areas_of_uncertainty: None,
             };
             let summary = thinking_space_summary::create(
                 &state.db,

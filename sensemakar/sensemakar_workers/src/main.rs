@@ -14,12 +14,12 @@ use sensemakar::{
 use sensemakar_jobs::{
     ThinkingSpaceNextQuestionJob, ThinkingSpaceSummaryJob, WikiPollSummaryJob, redis_conn,
 };
-use sensemakar_types::{WikiPollReportResult, thinking_space::Question};
+use sensemakar_types::{WikiPollReportResult, thinking_space::FollowUpQuestion};
 
 async fn handle_thinking_space_next_question_generator(
     job: ThinkingSpaceNextQuestionJob,
     model: Data<DynModel<Completion>>,
-) -> Result<Vec<Question>, ThinkingSpaceError> {
+) -> Result<Vec<FollowUpQuestion>, ThinkingSpaceError> {
     let extractor = FollowUpQuestionGenerator {
         context: job.context,
         additional_instructions: job.additional_instructions,

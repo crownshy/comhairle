@@ -88,3 +88,22 @@ The follow-up questions should help participants develop and deepen their thinki
     </AdditionalInstructions>
 {%endif%}
 
+<output-format>
+Call the submit function with an object containing a "questions" array of exactly 5 question objects.
+Do not return an array of strings. Every question object must contain both fields:
+- "question": the text of the generated question to show the participant.
+- "question_type": the type of the question as defined above. Use one of "Adaptive Questions", "Grounding Questions", "Open Questions", "View-Expanding Questions", "Decision-Relevant Questions", or "Critical Questions".
+
+The following example shows the structure of one question object. Generate 5 such objects, adapted to the participant's answers:
+```json
+{
+  "questions": [
+    {
+      "question": "You mentioned flexible timing. Why does that matter to you?",
+      "question_type": "Adaptive Questions"
+    }
+  ]
+}
+```
+Use this structure in the submit function arguments, not as prose or a fenced code block in your response.
+</output-format>

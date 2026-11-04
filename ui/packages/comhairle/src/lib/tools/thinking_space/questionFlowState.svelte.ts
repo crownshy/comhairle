@@ -200,21 +200,6 @@ export class QuestionFlowState {
 		}));
 	}
 
-	// Build the running Q/A history the agent uses to generate follow-ups.
-	private buildHistory(questionIndex: number): string {
-		const state = this.states[questionIndex];
-		const lines: string[] = [];
-		let turn = 1;
-		lines.push(`Q${turn}: ${this.questions[questionIndex].text}`);
-		lines.push(`A${turn}: ${state.rootAnswer}`);
-		for (const followUp of state.followUps) {
-			turn++;
-			lines.push(`Q${turn}: ${followUp.question}`);
-			lines.push(`A${turn}: ${followUp.answer}`);
-		}
-		return lines.join('\n');
-	}
-
 	// Participant has opted to keep going deeper after meeting the minimum.
 	// Reveals the picker; loads it if it isn't already in flight or cached.
 	chooseMore() {
@@ -242,6 +227,18 @@ export class QuestionFlowState {
 	}
 
 	async loadPicker(questionIndex: number) {
+		const rootAnswerId = this.states[questionIndex].rootAnswerId;
+		if (!rootAnswerId) {
+			console.error('loadPicker called before the root answer was submitted');
+			this.states[questionIndex] = {
+				...this.states[questionIndex],
+				picker: [],
+				pickerLoading: false,
+				pickerError: true
+			};
+			return;
+		}
+
 		this.states[questionIndex] = {
 			...this.states[questionIndex],
 			pickerLoading: true,
@@ -249,13 +246,11 @@ export class QuestionFlowState {
 		};
 		try {
 			const question = this.questions[questionIndex];
-			const followUps = await fetchFollowUps({
+			const picker = await fetchFollowUps({
 				workflowStepId: this.workflowStepId,
-				startingQuestion: question.text,
-				questionIntent: question.intent,
-				history: this.buildHistory(questionIndex)
+				rootQuestionId: rootAnswerId,
+				questionIntent: question.intent
 			});
-			const picker = followUps.map((followUp) => followUp.question);
 			this.states[questionIndex] = {
 				...this.states[questionIndex],
 				picker,
@@ -266,12 +261,12 @@ export class QuestionFlowState {
 			// audit trail required to resume a participant later. Fire-and-forget:
 			// failure must not block the picker UI. Skips when the root answer id
 			// is missing (shouldn't happen post-root-submit, but defensive).
-			const rootAnswerId = this.states[questionIndex].rootAnswerId;
-			if (rootAnswerId && picker.length > 0) {
+			const persistRootAnswerId = this.states[questionIndex].rootAnswerId;
+			if (persistRootAnswerId && picker.length > 0) {
 				apiClient
 					.CreateThinkingSpaceFollowUpQuestions({
 						workflow_step_id: this.workflowStepId,
-						root_question_id: rootAnswerId,
+						root_question_id: persistRootAnswerId,
 						follow_up_questions: picker
 					})
 					.catch((err) => {

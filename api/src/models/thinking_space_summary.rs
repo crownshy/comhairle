@@ -23,17 +23,19 @@ pub struct ThinkingSpaceSummary {
     pub summary: String,
     pub ai_generated_summary: Option<String>,
     pub is_ai_generated: bool,
+    pub areas_of_uncertainty: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 8] = [
+const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 9] = [
     ThinkingSpaceSummaryIden::Id,
     ThinkingSpaceSummaryIden::WorkflowStepId,
     ThinkingSpaceSummaryIden::UserId,
     ThinkingSpaceSummaryIden::Summary,
     ThinkingSpaceSummaryIden::IsAiGenerated,
     ThinkingSpaceSummaryIden::AiGeneratedSummary,
+    ThinkingSpaceSummaryIden::AreasOfUncertainty,
     ThinkingSpaceSummaryIden::CreatedAt,
     ThinkingSpaceSummaryIden::UpdatedAt,
 ];
@@ -42,6 +44,7 @@ const DEFAULT_COLUMNS: [ThinkingSpaceSummaryIden; 8] = [
 pub struct CreateSummary {
     pub summary: String,
     pub is_ai_generated: Option<bool>,
+    pub areas_of_uncertainty: Option<String>,
 }
 
 impl CreateSummary {
@@ -49,6 +52,9 @@ impl CreateSummary {
         let mut columns = vec![ThinkingSpaceSummaryIden::Summary];
         if self.is_ai_generated.is_some() {
             columns.push(ThinkingSpaceSummaryIden::IsAiGenerated);
+        }
+        if self.areas_of_uncertainty.is_some() {
+            columns.push(ThinkingSpaceSummaryIden::AreasOfUncertainty);
         }
 
         columns
@@ -58,6 +64,9 @@ impl CreateSummary {
         let mut values = vec![self.summary.clone().into()];
         if let Some(value) = &self.is_ai_generated {
             values.push((*value).into());
+        }
+        if let Some(value) = &self.areas_of_uncertainty {
+            values.push(value.clone().into());
         }
 
         values
@@ -317,6 +326,7 @@ mod tests {
         let create_summary = CreateSummary {
             summary: "Some summary text".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
 
         let summary = create(&pool, user_id, workflow_step_id, &create_summary).await?;
@@ -369,6 +379,7 @@ mod tests {
         let create_summary = CreateSummary {
             summary: "Some summary text".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
 
         let created_summary = create(&pool, user_id, workflow_step_id, &create_summary).await?;
@@ -395,21 +406,25 @@ mod tests {
         let params_b = CreateSummary {
             summary: "Summary_b".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         create(&pool, user_a_id, workflow_step_id, &params_b).await?;
         let params_c = CreateSummary {
             summary: "Summary_c".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         create(&pool, user_a_id, workflow_step_id, &params_c).await?;
         let params_d = CreateSummary {
             summary: "Summary_d".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         create(&pool, user_a_id, workflow_step_id, &params_d).await?;
         let params_e = CreateSummary {
             summary: "Summary_e".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
         let summary_e = create(&pool, user_b.id, workflow_step_id, &params_e).await?;
 
@@ -512,6 +527,7 @@ mod tests {
         let create_summary = CreateSummary {
             summary: "Some summary text".to_string(),
             is_ai_generated: Some(true),
+            ..Default::default()
         };
 
         let summary = create(&pool, user_id, workflow_step_id, &create_summary).await?;
