@@ -411,6 +411,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
+            ComhairleError::InviteExpired => StatusCode::GONE,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
@@ -433,6 +434,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
             | ComhairleError::ParticipantSealed
+            | ComhairleError::EventInvalidSignupMode
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch

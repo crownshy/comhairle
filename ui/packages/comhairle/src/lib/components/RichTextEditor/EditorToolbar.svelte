@@ -158,7 +158,7 @@
 	<UrlInputPopover
 		type="image"
 		allowLocalSelection
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setImage({ src: url }).run();
 		}}
 	>
@@ -167,8 +167,14 @@
 	<UrlInputPopover
 		type="video"
 		allowLocalSelection
-		onSubmit={(url) => {
-			editor?.chain().focus().setIframe({ src: url }).run();
+		onSubmit={({ from, url }) => {
+			switch (from) {
+				case 'library':
+					editor?.chain().focus().setVideo({ src: url }).run();
+					break;
+				case 'external-url':
+					editor?.chain().focus().setIframe({ src: url }).run();
+			}
 		}}
 	>
 		{@render button({ title: 'Add Video', active: false, Icon: Video })}
@@ -176,7 +182,7 @@
 	<UrlInputPopover
 		type="audio"
 		allowLocalSelection
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setAudio({ src: url, autoplay: false, controls: true }).run();
 		}}
 	>

@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::conversation::{ConversationFilterOptions, ConversationOrderOptions};
+use crate::models::event::{EventFilterOptions, EventOrderOptions};
 use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::organization::{self, OrganizationFilterOptions, OrganizationOrderOptions};
 use crate::models::pagination::{OrderParams, PageOptions, PaginatedResults};
@@ -25,6 +26,7 @@ use crate::models::permissions::{
 use crate::models::users::{UpdateUserRequest, UpgradeAccountRequest};
 use crate::models::{self};
 use crate::routes::conversations::dto::{LocalizedConversationDto, PermittedConversationDto};
+use crate::routes::events::dto::LocalizedEventDto;
 use crate::routes::organizations::dto::LocalizedOrganizationDto;
 use crate::routes::user::dto::UserDto;
 
@@ -118,6 +120,29 @@ pub async fn get_user_permitted_conversations(
     };
 
     Ok((StatusCode::OK, Json(permitted)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_user_owned_events(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    OrderParams(order_options): OrderParams<EventOrderOptions>,
+    Query(filter_options): Query<EventFilterOptions>,
+    Query(page_options): Query<PageOptions>,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedEventDto>>), ComhairleError> {
+    let results = models::event::list_owned(
+        &state.db,
+        user.id,
+        page_options,
+        filter_options,
+        order_options,
+        &locale,
+    )
+    .await?
+    .into();
+
+    Ok((StatusCode::OK, Json(results)))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
@@ -471,6 +496,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Gets a list of the conversations a user is permitted access to")
                     .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<PermittedConversationDto>>>()
+            }),
+        )
+        .api_route(
+            "/owned_events",
+            get_with(get_user_owned_events, |op| {
+                op.id("GetOwnedEvents")
+                    .tag("User")
+                    .description("Gets a list of the events a user owns")
+                    .security_requirement("JWT")
+                    .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
             }),
         )
         .api_route(

@@ -1,6 +1,6 @@
 import { getContext, setContext } from 'svelte';
 
-// The Find out more drawer renders in the workflow layout but its phone trigger sits in the
+// The Find out more drawer renders in the workflow layout but its trigger sits in the
 // NavBar, which the public layout renders above it, so the two share the open state here.
 export type SupportTab = 'learningAssistant' | 'faqs' | 'privacyPolicy';
 

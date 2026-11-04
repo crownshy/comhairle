@@ -7,7 +7,7 @@ use comhairle_macros::{DbJsonBEnum, Translatable};
 use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
@@ -18,6 +18,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
+use crate::models::conversation::ConversationIden;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::models::scheduled_email::{
     self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
@@ -803,6 +804,38 @@ pub async fn list(
     Ok(events)
 }
 
+/// List all events owned by a user
+#[instrument(err(Debug), skip(db))]
+pub async fn list_owned(
+    db: &PgPool,
+    user_id: Uuid,
+    page_options: PageOptions,
+    filter_options: EventFilterOptions,
+    order_options: EventOrderOptions,
+    locale: &str,
+) -> Result<PaginatedResults<LocalizedEvent>, ComhairleError> {
+    let query = Query::select()
+        .from(EventIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
+        .join(
+            JoinType::InnerJoin,
+            ConversationIden::Table,
+            Expr::col((ConversationIden::Table, ConversationIden::Id))
+                .equals((EventIden::Table, EventIden::ConversationId)),
+        )
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+        .to_owned();
+
+    let query = LocalizedEvent::query_to_localisation(query, locale);
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply_to_localized(query);
+
+    let events = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(events)
+}
+
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let query = Query::select()
@@ -880,12 +913,40 @@ mod tests {
     use std::error::Error;
 
     use chrono::Duration;
+    use fake::{Fake, Faker};
 
     use super::*;
     use crate::models::event_attendance::{self, CreateEventAttendance};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
+    use crate::models::users;
+
+    async fn create_named_event(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        name: &str,
+    ) -> Result<Uuid, Box<dyn Error>> {
+        let new_event = CreateEvent {
+            name: name.to_string(),
+            signup_mode: SignupMode::Invite,
+            ..Default::default()
+        };
+        Ok(create(pool, &conversation_id, &new_event).await?.id)
+    }
+
+    async fn reassign_conversation_owner(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        owner_id: Uuid,
+    ) -> Result<(), Box<dyn Error>> {
+        sqlx::query("UPDATE conversation SET owner_id = $1 WHERE id = $2")
+            .bind(owner_id)
+            .bind(conversation_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
 
     #[test]
     fn custom_event_link_must_be_blank_or_https() {
@@ -1484,6 +1545,101 @@ mod tests {
             available_results.records[1].current_attendance, 0,
             "incorrect available attendance [1]"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_owned_events_across_conversations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+
+        let conversation_a = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_b = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation = get_random_conversation_id(&app, &mut session).await?;
+        reassign_conversation_owner(&pool, other_conversation, other_user.id).await?;
+
+        let event_a = create_named_event(&pool, conversation_a, "event_a").await?;
+        let event_b = create_named_event(&pool, conversation_b, "event_b").await?;
+        let other_event = create_named_event(&pool, other_conversation, "other_event").await?;
+
+        let results = list_owned(
+            &pool,
+            user.id,
+            PageOptions::default(),
+            EventFilterOptions::default(),
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        let ids: Vec<Uuid> = results.records.iter().map(|e| e.id).collect();
+        assert_eq!(results.total, 2, "incorrect number of owned events");
+        assert!(ids.contains(&event_a), "missing event from conversation a");
+        assert!(ids.contains(&event_b), "missing event from conversation b");
+        assert!(
+            !ids.contains(&other_event),
+            "included another owner's event"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_filter_owned_events_by_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_a = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_b = get_random_conversation_id(&app, &mut session).await?;
+
+        let event_a = create_named_event(&pool, conversation_a, "event_a").await?;
+        create_named_event(&pool, conversation_b, "event_b").await?;
+
+        let results = list_owned(
+            &pool,
+            user.id,
+            PageOptions::default(),
+            EventFilterOptions {
+                conversation_id: Some(conversation_a),
+                ..Default::default()
+            },
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        assert_eq!(results.total, 1, "incorrect number of events");
+        assert_eq!(results.records[0].id, event_a, "incorrect event");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_no_owned_events_for_user_without_conversations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_event(&pool, conversation_id, "event").await?;
+
+        let results = list_owned(
+            &pool,
+            other_user.id,
+            PageOptions::default(),
+            EventFilterOptions::default(),
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        assert_eq!(results.total, 0, "expected no events");
+        assert!(results.records.is_empty(), "expected no records");
 
         Ok(())
     }

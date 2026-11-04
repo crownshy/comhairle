@@ -55,6 +55,11 @@ export type ToolMeta = {
 	/** Whether the step uses an AI model, so participants get a pointer to the AI FAQ. */
 	usesAI: boolean;
 	/** What participants read about how their data is used when the admin leaves it blank. */
+	/**
+	 * False when participants can't come back to this step once they've done it, such as a
+	 * submitted survey. Leave out for tools that can be revisited.
+	 */
+	revisitable?: false;
 	dataProtocolDefault: () => string;
 	/**
 	 * Hardcoded typical duration in minutes shown on the "Estimated time" pill.
@@ -152,6 +157,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'heyform',
 		creationKey: 'Survey',
 		usesAI: false,
+		revisitable: false,
 		dataProtocolDefault: m.data_protocol_default_heyform,
 		estimatedMinutes: 9,
 		description: 'Ask participants a series of pre-planned questions.',
@@ -293,4 +299,9 @@ export function toolMeta(type: string | undefined | null): ToolMeta | undefined 
 export function toolInfoUrl(type: string | undefined | null): ResolvedPathname {
 	const meta = toolMeta(type);
 	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
+}
+
+/** Whether a step of this tool can be marked revisitable. */
+export function canRevisitTool(type: ToolType | undefined): boolean {
+	return toolMeta(type)?.revisitable !== false;
 }
