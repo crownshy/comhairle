@@ -46,16 +46,25 @@ export const Video = Node.create<VideoOptions>({
 			{
 				tag: 'video',
 				getAttrs: (node) => ({
-					src: node.getAttribute('src'),
 					controls: node.getAttribute('controls'),
 					autoplay: node.getAttribute('autoplay')
+				})
+			},
+			{
+				tag: 'source',
+				getAttrs: (node) => ({
+					src: node.getAttribute('src')
 				})
 			}
 		];
 	},
 
 	renderHTML({ HTMLAttributes }) {
-		return ['video', HTMLAttributes, 0];
+		return [
+			'video',
+			{ autoplay: HTMLAttributes['autoplay'], controls: HTMLAttributes['controls'] },
+			['source', { src: HTMLAttributes['src'], type: 'video/mp4' }, 0]
+		];
 	},
 
 	addCommands() {
