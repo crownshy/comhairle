@@ -38,6 +38,8 @@ const handleTheme: Handle = async ({ event, resolve }) => {
 /// Sets up security headers for the app
 /// Allow some paths to be embded but not others
 const EMBEDDABLE_PATHS = ['/conversations'];
+const JITSI_ORIGIN = `https://${process.env.PUBLIC_JITSI_DOMAIN ?? 'jitsi.comhairle.scot'}`;
+const PERMISSIONS_POLICY = `geolocation=(), camera=(self "${JITSI_ORIGIN}"), microphone=(self "${JITSI_ORIGIN}")`;
 
 const handleHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
@@ -47,11 +49,6 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 		// Allow any site to embed these paths
 		response.headers.set('Content-Security-Policy', 'frame-ancestors *');
 		response.headers.delete('X-Frame-Options'); // XFO has no wildcard, so it must go
-		// Allow jitsi iframes to access camera / microphone on embeddable paths
-		response.headers.set(
-			'Permissions-Policy',
-			'geolocation=(), camera=(self, https://jitsi.comhairle.scot), microphone=(self, https://jitsi.comhairle.scot)'
-		);
 	} else {
 		// Deny framing everywhere else except ummami if active
 		const umami_url = env.PUBLIC_UMAMI_SRC;
@@ -67,7 +64,7 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 		const frameAncestors = "frame-ancestors 'self' " + umami_domain;
 		response.headers.set('Content-Security-Policy', frameAncestors);
 		response.headers.set('X-Frame-Options', 'DENY');
-		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
+		response.headers.set('Permissions-Policy', PERMISSIONS_POLICY);
 	}
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
