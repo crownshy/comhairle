@@ -40,7 +40,7 @@ use crate::{ComhairleError, ComhairleState, sensemakar_service};
 /// how many words a participant can type when editing a summary — generated
 /// drafts are asked to stay under the same budget so they don't immediately
 /// land over that limit.
-const MAX_SUMMARY_WORDS: usize = 500;
+const MAX_SUMMARY_WORDS: usize = 300;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
