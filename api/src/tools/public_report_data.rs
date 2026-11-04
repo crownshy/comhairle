@@ -15,11 +15,11 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::{event, report, workflow, workflow_step};
-use crate::tools::ToolConfig;
+use crate::tools::{ToolConfig, ToolImpl};
 
-/// Serve one section block's public data. `for_tool` narrows the step's config to the endpoint's
-/// own tool, for example `|config| match config { ToolConfig::Polis(polis) => Some(polis), _ =>
-/// None }`, and `build` turns that config into the response.
+/// Serve one section block's public data from a step running `Tool`, for example
+/// `serve_public_report_data::<PolisTool, _>(..)`. `build` turns that tool's config into the
+/// response.
 ///
 /// Returns `ResourceNotFound` when the step doesn't exist, its conversation's report isn't
 /// published, the report doesn't embed this section block for this step, or the step runs a
@@ -31,23 +31,27 @@ use crate::tools::ToolConfig;
         reason = "first caller is the Polis public endpoints (#1253)"
     )
 )]
-pub async fn serve_public_report_data<Config, Data: PublicReportData>(
+pub async fn serve_public_report_data<Tool: ToolImpl, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
-    for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
-    build: impl AsyncFnOnce(Config) -> Result<Data, ComhairleError>,
-) -> Result<Data, ComhairleError> {
-    let config = public_tool_config(db, workflow_step_id, section_block, for_tool).await?;
+    build: impl AsyncFnOnce(Tool::Config) -> Result<Data, ComhairleError>,
+) -> Result<Data, ComhairleError>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
+    let config = public_tool_config::<Tool>(db, workflow_step_id, section_block).await?;
     build(config).await
 }
 
-async fn public_tool_config<Config>(
+async fn public_tool_config<Tool: ToolImpl>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
-    for_tool: impl FnOnce(ToolConfig) -> Option<Config>,
-) -> Result<Config, ComhairleError> {
+) -> Result<Tool::Config, ComhairleError>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
     let not_found = || {
         ComhairleError::ResourceNotFound(format!(
             "Report data for workflow step {workflow_step_id}"
@@ -85,7 +89,10 @@ async fn public_tool_config<Config>(
         return Err(not_found());
     }
 
-    for_tool(step.tool_config.unwrap_or(step.preview_tool_config)).ok_or_else(not_found)
+    step.tool_config
+        .unwrap_or(step.preview_tool_config)
+        .try_into()
+        .map_err(|_| not_found())
 }
 
 /// Event workflows have no `conversation_id` of their own, only through their event.
@@ -117,8 +124,8 @@ mod tests {
     };
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
     use crate::routes::workflows::dto::WorkflowDto;
-    use crate::tools::learn::LearnToolConfig;
-    use crate::tools::polis::PolisToolConfig;
+    use crate::tools::learn::LearnTool;
+    use crate::tools::polis::PolisTool;
 
     const EMBEDDED: &str = "polis-key-stats";
     const NOT_EMBEDDED: &str = "polis-opinion-groups";
@@ -150,44 +157,45 @@ mod tests {
         let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
 
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
             "step was served with no report",
         );
 
         report::create_for_conversation(&pool, conversation_id, "en").await?;
         embed_in_summary(&pool, conversation_id, &step.id, EMBEDDED).await?;
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
             "step was served from an unpublished report",
         );
 
         set_published(&pool, conversation_id, true).await?;
-        let config = public_tool_config(&pool, &step.id, EMBEDDED, learn).await?;
+        let config = public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await?;
         assert_eq!(
             Some(ToolConfig::Learn(config)),
             step.tool_config.or(Some(step.preview_tool_config)),
             "wrong tool config served"
         );
-        let served = serve_public_report_data(&pool, &step.id, EMBEDDED, learn, async |_| {
-            Ok(ExampleSectionBlock {
-                participants: Count(3),
+        let served =
+            serve_public_report_data::<LearnTool, _>(&pool, &step.id, EMBEDDED, async |_| {
+                Ok(ExampleSectionBlock {
+                    participants: Count(3),
+                })
             })
-        })
-        .await?;
+            .await?;
         assert_eq!(served.participants, Count(3), "built data not returned");
 
         assert_not_found(
-            public_tool_config(&pool, &step.id, NOT_EMBEDDED, learn).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, NOT_EMBEDDED).await,
             "a section block the report doesn't embed was served",
         );
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, polis).await,
+            public_tool_config::<PolisTool>(&pool, &step.id, EMBEDDED).await,
             "step was served to another tool's endpoint",
         );
 
         set_published(&pool, conversation_id, false).await?;
         assert_not_found(
-            public_tool_config(&pool, &step.id, EMBEDDED, learn).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
             "step was still served after the report was unpublished",
         );
 
@@ -246,19 +254,5 @@ mod tests {
             matches!(result, Err(ComhairleError::ResourceNotFound(_))),
             "{message}"
         );
-    }
-
-    fn learn(config: ToolConfig) -> Option<LearnToolConfig> {
-        match config {
-            ToolConfig::Learn(learn) => Some(learn),
-            _ => None,
-        }
-    }
-
-    fn polis(config: ToolConfig) -> Option<PolisToolConfig> {
-        match config {
-            ToolConfig::Polis(polis) => Some(polis),
-            _ => None,
-        }
     }
 }
