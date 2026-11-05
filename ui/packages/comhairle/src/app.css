@@ -5,11 +5,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* On phones 100vh is the height with the browser toolbars hidden, so a body sized to it
+   always scrolls by a toolbar's height. dvh matches what is on screen and what the
+   participant step page uses. */
 html,
 body {
 	width: 100%;
 	max-width: 100dvw;
-	height: 100vh;
+	height: 100dvh;
+}
+
+/* Stops the rubber band at either end from dragging the fixed step chrome off screen. */
+html {
+	overscroll-behavior-y: none;
 }
 
 @layer base {
