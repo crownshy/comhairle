@@ -1075,7 +1075,7 @@
 							disabled={disabled || !polisReady}
 							onclick={() => doVote('pass')}
 						>
-							{m.polis_neutral()}
+							{m.polis_pass_unsure()}
 						</Button>
 					</div>
 				{/if}

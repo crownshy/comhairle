@@ -21,6 +21,7 @@
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
 	import { groupLabel } from '$lib/tools/polis/report';
+	import { m } from '$lib/paraglide/messages';
 	import * as Card from '$lib/components/ui/card';
 	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
@@ -67,10 +68,10 @@
 	// Legend swatches map to the same tokens VoteBar renders with. `border` flags the
 	// not-voted swatch so its (near-white) fill stays visible on the card.
 	const legend = [
-		{ label: '%Agreed', color: 'var(--vote-agreed)', border: false },
-		{ label: '%Neutral', color: 'var(--vote-passed)', border: false },
-		{ label: '%not voted', color: 'var(--vote-not-voted)', border: true },
-		{ label: '%Disagreed', color: 'var(--vote-disagreed)', border: false }
+		{ label: `%${m.vote_bar_agreed()}`, color: 'var(--vote-agreed)', border: false },
+		{ label: `%${m.vote_bar_pass_unsure()}`, color: 'var(--vote-passed)', border: false },
+		{ label: `%${m.vote_bar_not_voted()}`, color: 'var(--vote-not-voted)', border: true },
+		{ label: `%${m.vote_bar_disagreed()}`, color: 'var(--vote-disagreed)', border: false }
 	];
 </script>
 
