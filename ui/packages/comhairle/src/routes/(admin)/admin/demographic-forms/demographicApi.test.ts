@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { QuestionDto } from '@crownshy/api-client/api';
 import { createApiClient } from '@crownshy/api-client/client';
 import { persistQuestion, questionFromDto } from './demographicApi';
-import { blankQuestion, duplicateQuestionDraft, nextVersionNumber } from './demographicModel';
+import { createNewQuestion, duplicateQuestionDraft, nextVersionNumber } from './demographicModel';
 
 const organizationId = '00000000-0000-0000-0000-000000000001';
 const questionId = '00000000-0000-0000-0000-000000000002';
@@ -34,7 +34,7 @@ describe('default demographic questions', () => {
 	it('identifies defaults from ownership, not question text or version', () => {
 		expect(questionFromDto(questionDto(null)).isDefault).toBe(true);
 		expect(questionFromDto(questionDto(organizationId)).isDefault).toBe(false);
-		expect(blankQuestion().isDefault).toBe(false);
+		expect(createNewQuestion().isDefault).toBe(false);
 	});
 
 	it('duplicates content without identity, ownership or version state', () => {

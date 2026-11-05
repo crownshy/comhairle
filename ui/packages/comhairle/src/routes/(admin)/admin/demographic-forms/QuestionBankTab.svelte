@@ -17,26 +17,15 @@
 		canEdit: boolean;
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
-		highlightId?: string | null;
 	};
 
-	let { questions, canEdit, onEdit, onDuplicate, highlightId = null }: Props = $props();
-
-	$effect(() => {
-		if (!highlightId) return;
-		const id = highlightId;
-		const timer = setTimeout(() => {
-			document
-				.querySelector(`[data-row-id="${id}"]`)
-				?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-		}, 50);
-		return () => clearTimeout(timer);
-	});
+	let { questions, canEdit, onEdit, onDuplicate }: Props = $props();
 
 	let search = $state('');
 	let filter = $state<string | null>(null);
 
 	const tagNames = (question: SavedQuestion) => question.tags.map((tag) => tag.name);
+
 	const matchesFilter = (question: SavedQuestion, option: string) =>
 		option === SPECIAL_CATEGORY_TAG
 			? question.specialCategory
@@ -110,12 +99,7 @@
 			</Table.Header>
 			<Table.Body>
 				{#each visible as question (question.id)}
-					<Table.Row
-						data-row-id={question.id}
-						class={question.id === highlightId
-							? 'bg-primary/15 hover:bg-primary/15'
-							: ''}
-					>
+					<Table.Row>
 						<Table.Cell class="text-muted-foreground font-mono text-sm leading-8">
 							{shortId('Q', question.id)}
 						</Table.Cell>

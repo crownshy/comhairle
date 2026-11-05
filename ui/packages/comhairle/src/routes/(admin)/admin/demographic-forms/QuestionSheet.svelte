@@ -147,7 +147,7 @@
 </script>
 
 <Sheet.Root open onOpenChange={(open) => !open && onClose()}>
-	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-[64rem]">
+	<Sheet.Content side="right" class="flex w-full flex-col gap-0 p-0 sm:max-w-none lg:w-5xl">
 		<div class="grid min-h-0 flex-1 gap-6 p-6 lg:grid-cols-[20rem_1fr]">
 			<div class="-mx-2 flex min-h-0 flex-col gap-6 overflow-y-auto px-2">
 				<Sheet.Header class="border-border border-b p-0 pb-4">

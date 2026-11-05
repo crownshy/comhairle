@@ -20,7 +20,7 @@
 	} from './demographicApi';
 	import {
 		blankForm,
-		blankQuestion,
+		createNewQuestion,
 		duplicateQuestionDraft,
 		formsUsingQuestion,
 		type DemographicForm,
@@ -43,8 +43,6 @@
 	let tab = $state('forms');
 	let formEdit = $state<FormEdit | null>(null);
 	let questionEdit = $state<QuestionEdit | null>(null);
-	// Id of the row saved most recently. Shown highlighted until the next thing the user does.
-	let highlightId = $state<string | null>(null);
 
 	const reload = () => invalidate(key('admin/demographic-forms'));
 
@@ -56,7 +54,6 @@
 	function selectOrganization(organizationId: string) {
 		formEdit = null;
 		questionEdit = null;
-		highlightId = null;
 		const url = new URL(page.url);
 		url.searchParams.set('organization', organizationId);
 		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
@@ -73,10 +70,6 @@
 
 	function notifyError(message: string) {
 		notifications.send({ priority: 'ERROR', message });
-	}
-
-	function clearHighlight() {
-		highlightId = null;
 	}
 
 	function newForm() {
@@ -117,7 +110,6 @@
 			notifyError('Could not save the form. Try again.');
 			return;
 		}
-		if (form.id === null) highlightId = result.ok;
 		formEdit = null;
 		await reload();
 	}
@@ -156,7 +148,12 @@
 	}
 
 	function newQuestion(addsToForm: boolean) {
-		questionEdit = { question: blankQuestion(), isNew: true, addsToForm, focusConsent: false };
+		questionEdit = {
+			question: createNewQuestion(),
+			isNew: true,
+			addsToForm,
+			focusConsent: false
+		};
 	}
 
 	function editQuestion(questionId: string, focusConsent = false) {
@@ -217,7 +214,6 @@
 				text: question.text.trim()
 			});
 		}
-		if (toPersist.id === null) highlightId = result.ok;
 		questionEdit = null;
 		await reload();
 	}
@@ -248,8 +244,6 @@
 		return result.ok;
 	}
 </script>
-
-<svelte:window onpointerdown={clearHighlight} onkeydown={clearHighlight} />
 
 <svelte:head>
 	<title>Demographic forms - Comhairle Admin</title>
@@ -322,7 +316,6 @@
 						forms={data.forms}
 						questions={data.questions}
 						canEdit={data.canEdit}
-						{highlightId}
 						onNew={newForm}
 						onEdit={editForm}
 						onCopy={copyForm}
@@ -332,7 +325,6 @@
 					<QuestionBankTab
 						questions={data.questions}
 						canEdit={data.canEdit}
-						{highlightId}
 						onEdit={editQuestion}
 						onDuplicate={duplicateQuestion}
 					/>

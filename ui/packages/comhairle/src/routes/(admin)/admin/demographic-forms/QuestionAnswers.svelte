@@ -11,7 +11,7 @@
 		type Answer
 	} from './demographicAnswers';
 	import {
-		defaultPlaceholder,
+		getPlaceholder,
 		isChoiceKind,
 		selectionHint,
 		type DemographicQuestion
@@ -34,7 +34,7 @@
 		...(question.preferNotToSay ? [PREFER_NOT_TO_SAY] : [])
 	]);
 	const declined = $derived(answer.selected.includes(PREFER_NOT_TO_SAY));
-	const placeholder = $derived(defaultPlaceholder(question.kind, question.datePrecision));
+	const placeholder = $derived(getPlaceholder(question.kind, question.datePrecision));
 
 	function pick(choice: string) {
 		onAnswer(toggleChoice(answer, choice, question.kind, question.maxSelections));
@@ -69,7 +69,7 @@
 						question.maxSelections
 					)}
 					onclick={() => pick(choice)}
-					class="flex h-[3.125rem] w-full items-center justify-between rounded-lg border px-4 text-left text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 {selected
+					class="flex h-12.5 w-full items-center justify-between rounded-lg border px-4 text-left text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 {selected
 						? 'border-primary bg-primary/10'
 						: 'border-border bg-card hover:bg-muted'}"
 				>
@@ -80,7 +80,7 @@
 				</button>
 				{#if choice === OTHER_CHOICE && selected}
 					<Input
-						class="mt-2 h-[3.125rem] px-4 text-base"
+						class="mt-2 h-12.5 px-4 text-base"
 						placeholder="Please specify"
 						aria-label="Other, please specify"
 						value={answer.otherText}
@@ -104,7 +104,7 @@
 			/>
 		{:else}
 			<Input
-				class="h-[3.125rem] px-4 text-base"
+				class="h-12.5 px-4 text-base"
 				type={question.kind === 'number' ? 'number' : 'text'}
 				{placeholder}
 				aria-label="Your answer"
@@ -118,7 +118,7 @@
 				type="button"
 				aria-pressed={declined}
 				onclick={toggleDeclined}
-				class="flex h-[3.125rem] w-full items-center justify-between rounded-lg border px-4 text-left text-sm transition-colors {declined
+				class="flex h-12.5 w-full items-center justify-between rounded-lg border px-4 text-left text-sm transition-colors {declined
 					? 'border-primary bg-primary/10'
 					: 'border-border bg-card hover:bg-muted'}"
 			>

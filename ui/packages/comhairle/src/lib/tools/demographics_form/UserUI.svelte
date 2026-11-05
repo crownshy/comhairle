@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import type {
-		ConversationDto,
-		MyDemographicAnswer,
-		QuestionDto,
-		QuestionType2
+	import {
+		ConsentState,
+		type ConversationDto,
+		type MyDemographicAnswer,
+		type QuestionDto,
+		type QuestionType2
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { onMount } from 'svelte';
@@ -14,6 +15,7 @@
 	import { Form, Input, SelectList, Submit, type Option } from '$lib/components/EasyForm';
 	import Formatter from './Formatter';
 	import Demographics from '$lib/interfaces/Demographics';
+	import { typed } from '$lib/utils/types';
 
 	type Props = {
 		organizationId: ConversationDto['organizationId'];
@@ -40,7 +42,7 @@
 		}
 
 		const type = formData.get('question_type') as QuestionType2;
-		const consent = formData.get('consent') as 'accepted' | null;
+		const consent = typed<ConsentState | null>(formData.get('consent') as 'granted' | null);
 		const value = formData.getAll(question.id ?? '') as string[] | null;
 		if (!value || (value.length === 1 && value[0] === '')) {
 			return;
@@ -50,8 +52,15 @@
 
 		cache.set(question.id, processedValue);
 
-		if (value.length > 0 && question.latest_published?.special_category && consent === null) {
-			// TODO: Add in error saying need to accept special consent
+		if (
+			value.length > 0 &&
+			question.latest_published?.special_category &&
+			consent !== 'granted'
+		) {
+			notifications.addFlash({
+				message: 'Special consent is needed for this question',
+				priority: 'ERROR'
+			});
 			return;
 		}
 
@@ -188,7 +197,7 @@
 						name="consent"
 						type="checkbox"
 						required
-						value="accepted"
+						value={typed<ConsentState>('granted')}
 					/>
 					<label for="special-consent" class="pl-3">
 						{q.consent_text ??

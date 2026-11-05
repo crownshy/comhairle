@@ -29,22 +29,37 @@ export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
 	year: 'Year (YYYY)'
 };
 
-const DATE_PLACEHOLDERS: Record<DatePrecision, string> = {
-	day: 'YYYY/MM/DD',
-	month: 'YYYY/MM',
-	year: 'YYYY'
-};
-
-const DEFAULT_PLACEHOLDERS: Record<Exclude<QuestionKind, 'date'>, string> = {
-	single_choice: '',
-	multiple_choice: '',
-	number: 'Enter a number',
-	open_text: 'Type your answer',
-	postcode: 'Enter your postcode',
-	lat_long: 'Enter latitude and longitude',
-	country: 'Enter your country',
-	custom: 'Type your answer'
-};
+export function getPlaceholder(kind: QuestionKind, datePrecision: DatePrecision): string {
+	switch (kind) {
+		case 'single_choice':
+			return '';
+		case 'multiple_choice':
+			return '';
+		case 'number':
+			return 'Enter a number';
+		case 'date':
+			switch (datePrecision) {
+				case 'day':
+					return 'YYYY/MM/DD';
+				case 'month':
+					return 'YYYY/MM';
+				case 'year':
+				default:
+					return 'YYYY';
+			}
+		case 'open_text':
+			return 'Type your answer';
+		case 'postcode':
+			return 'Enter your postcode';
+		case 'lat_long':
+			return 'Enter latitude and longitude';
+		case 'country':
+			return 'Enter your country';
+		case 'custom':
+		default:
+			return 'Type your answer';
+	}
+}
 
 export const isChoiceKind = (kind: QuestionKind) =>
 	kind === 'single_choice' || kind === 'multiple_choice';
@@ -55,24 +70,11 @@ export const selectionHint = (kind: QuestionKind, maxSelections: number | null) 
 	return maxSelections === 1 ? 'Select one' : `Select up to ${maxSelections}`;
 };
 
-export const defaultPlaceholder = (kind: QuestionKind, datePrecision: DatePrecision) =>
-	kind === 'date' ? DATE_PLACEHOLDERS[datePrecision] : DEFAULT_PLACEHOLDERS[kind];
-
-const TAG_COLOR_CLASSES: Record<string, string> = {
-	Age: 'bg-blue-100 text-blue-900 outline-blue-300 dark:bg-blue-950 dark:text-blue-100',
-	Gender: 'bg-purple-100 text-purple-900 outline-purple-300 dark:bg-purple-950 dark:text-purple-100',
-	Ethnicity:
-		'bg-amber-100 text-amber-900 outline-amber-300 dark:bg-amber-950 dark:text-amber-100',
-	Postcode: 'bg-green-100 text-green-900 outline-green-300 dark:bg-green-950 dark:text-green-100',
-	Custom: 'bg-slate-100 text-slate-800 outline-slate-300 dark:bg-slate-800 dark:text-slate-100',
-	'Special category': 'bg-red-100 text-red-900 outline-red-300 dark:bg-red-950 dark:text-red-100'
-};
-
 export const SPECIAL_CATEGORY_TAG = 'Special category';
+export type TagName =
+	'Age' | 'Gender' | 'Ethnicity' | 'Postcode' | 'Custom' | typeof SPECIAL_CATEGORY_TAG;
 
-export const tagColorClass = (tag: string) => TAG_COLOR_CLASSES[tag] ?? TAG_COLOR_CLASSES.Custom;
-
-export type Tag = { id: string; name: string };
+export type Tag = { id: string; name: TagName };
 
 export type DemographicQuestion = {
 	id: string | null;
@@ -120,7 +122,7 @@ export const shortId = (prefix: 'F' | 'Q', id: string | null) =>
 export const formsUsingQuestion = (questionId: string, forms: SavedForm[]) =>
 	forms.filter((form) => form.questions.some((q) => q.questionId === questionId));
 
-export const blankQuestion = (): DemographicQuestion => ({
+export const createNewQuestion = (): DemographicQuestion => ({
 	id: null,
 	isDefault: false,
 	text: '',

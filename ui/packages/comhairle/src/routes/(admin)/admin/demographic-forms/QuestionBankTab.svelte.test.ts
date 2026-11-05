@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import QuestionBankTab from './QuestionBankTab.svelte';
-import { blankQuestion, type SavedQuestion } from './demographicModel';
+import { createNewQuestion, type SavedQuestion } from './demographicModel';
 
 let component: ReturnType<typeof mount> | undefined;
 
@@ -14,8 +14,8 @@ afterEach(async () => {
 
 function renderBank(canEdit = true) {
 	const questions: SavedQuestion[] = [
-		{ ...blankQuestion(), id: 'default', text: 'Default age question', isDefault: true },
-		{ ...blankQuestion(), id: 'owned', text: 'Organisation age question' }
+		{ ...createNewQuestion(), id: 'default', text: 'Default age question', isDefault: true },
+		{ ...createNewQuestion(), id: 'owned', text: 'Organisation age question' }
 	];
 	const onEdit = vi.fn();
 	const onDuplicate = vi.fn();
