@@ -7,10 +7,8 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { key } from '$lib/utils/invalidationKey';
-	import FormSheet from './FormSheet.svelte';
 	import FormsTab from './FormsTab.svelte';
 	import QuestionBankTab from './QuestionBankTab.svelte';
-	import QuestionSheet from './QuestionSheet.svelte';
 	import {
 		archiveForm,
 		archiveQuestion,

@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { HttpStatus } from '$lib/utils/constants';
@@ -9,7 +9,7 @@ type Organization = {
 	name: string;
 };
 
-export const load: PageLoad = async ({ parent, depends, url }) => {
+export const load: LayoutLoad = async ({ parent, depends, url }) => {
 	depends(key('admin/demographic-forms'));
 	const { api, userOrganizations } = await parent();
 

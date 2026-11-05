@@ -41,7 +41,6 @@
 		onClose: () => void;
 	};
 
-
 	let addOpen = $state(false);
 	let publishOpen = $state(false);
 	let consents = $state<Record<string, boolean>>({});
@@ -152,13 +151,13 @@
 		}
 	}
 
-		bind:form={formEdit.form}
-		isNew={formEdit.isNew}
-		questions={data.questions}
-		onEditQuestion={editQuestion}
-		hasChanges={formHasChanges}
-		onSaveDraft={() => saveForm(false)}
-		onPublish={() => saveForm(true)}
+	// bind:form={formEdit.form}
+	// isNew={formEdit.isNew}
+	// questions={data.questions}
+	// onEditQuestion={editQuestion}
+	// hasChanges={formHasChanges}
+	// onSaveDraft={() => saveForm(false)}
+	// onPublish={() => saveForm(true)}
 
 	type Row = { id: string; question: SavedQuestion; required: boolean };
 
