@@ -1,4 +1,4 @@
-import type { DatePrecision } from '@crownshy/api-client/api';
+import type { DatePrecision, DemographicFormDto } from '@crownshy/api-client/api';
 
 export type QuestionKind =
 	| 'single_choice'
@@ -115,10 +115,6 @@ export const nextVersionNumber = (item: {
 	publishedVersion: number | null;
 }) => item.draftVersion ?? (item.publishedVersion ?? 0) + 1;
 
-/** Short human reference shown alongside a question or form, derived from its id. */
-export const shortId = (prefix: 'F' | 'Q', id: string | null) =>
-	id ? `${prefix}-${id.slice(0, 8).toUpperCase()}` : `${prefix}-NEW`;
-
 export const formsUsingQuestion = (questionId: string, forms: SavedForm[]) =>
 	forms.filter((form) => form.questions.some((q) => q.questionId === questionId));
 
@@ -162,6 +158,7 @@ export const blankForm = (): DemographicForm => ({
 	draftVersion: null
 });
 
-export const specialCategoryCount = (form: DemographicForm, questions: DemographicQuestion[]) =>
-	form.questions.filter((fq) => questions.find((q) => q.id === fq.questionId)?.specialCategory)
-		.length;
+export const specialCategoryCount = (form: DemographicFormDto, questions: DemographicQuestion[]) =>
+	form.latest_published?.entries.filter(
+		(fq) => questions.find((q) => q.id === fq.questionId)?.specialCategory
+	).length;

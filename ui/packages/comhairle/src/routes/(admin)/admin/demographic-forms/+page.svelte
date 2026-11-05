@@ -21,6 +21,7 @@
 		createNewQuestion,
 		duplicateQuestionDraft,
 		formsUsingQuestion,
+		specialCategoryCount,
 		type DemographicForm,
 		type DemographicQuestion,
 		type Tag
@@ -57,14 +58,14 @@
 		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
 	}
 
-	const usedInFormList = $derived(
-		questionEdit?.question.id
-			? formsUsingQuestion(questionEdit.question.id, data.forms).map((form) => ({
-					id: form.id,
-					name: form.name
-				}))
-			: []
-	);
+	// const usedInFormList = $derived(
+	// 	questionEdit?.question.id
+	// 		? formsUsingQuestion(questionEdit.question.id, data.forms).map((form) => ({
+	// 				id: form.id,
+	// 				name: form.name
+	// 			}))
+	// 		: []
+	// );
 
 	function notifyError(message: string) {
 		notifications.send({ priority: 'ERROR', message });
@@ -94,12 +95,12 @@
 		formEdit = { form, original: $state.snapshot(form), isNew: true };
 	}
 
-	const formHasChanges = $derived(
-		formEdit !== null &&
-			(formEdit.isNew ||
-				JSON.stringify(formEdit.original) !==
-					JSON.stringify($state.snapshot(formEdit.form)))
-	);
+	// const formHasChanges = $derived(
+	// 	formEdit !== null &&
+	// 		(formEdit.isNew ||
+	// 			JSON.stringify(formEdit.original) !==
+	// 				JSON.stringify($state.snapshot(formEdit.form)))
+	// );
 
 	async function commitForm(form: DemographicForm, publish: boolean) {
 		if (data.organizationId === null) return;
@@ -112,38 +113,38 @@
 		await reload();
 	}
 
-	function saveForm(publish: boolean) {
-		if (!formEdit) return;
-		return commitForm($state.snapshot(formEdit.form), publish);
-	}
+	// function saveForm(publish: boolean) {
+	// 	if (!formEdit) return;
+	// 	return commitForm($state.snapshot(formEdit.form), publish);
+	// }
 
-	function saveFormAsNew() {
-		if (!formEdit) return;
-		const draft = $state.snapshot(formEdit.form);
-		const unchangedName = draft.name === formEdit.original.name;
-		return commitForm(
-			{
-				...draft,
-				id: null,
-				name: unchangedName ? `${draft.name} (copy)` : draft.name,
-				publishedVersion: null,
-				draftVersion: null
-			},
-			false
-		);
-	}
+	// function saveFormAsNew() {
+	// 	if (!formEdit) return;
+	// 	const draft = $state.snapshot(formEdit.form);
+	// 	const unchangedName = draft.name === formEdit.original.name;
+	// 	return commitForm(
+	// 		{
+	// 			...draft,
+	// 			id: null,
+	// 			name: unchangedName ? `${draft.name} (copy)` : draft.name,
+	// 			publishedVersion: null,
+	// 			draftVersion: null
+	// 		},
+	// 		false
+	// 	);
+	// }
 
-	async function deleteForm() {
-		const id = formEdit?.form.id;
-		if (!id || data.organizationId === null) return;
-		const result = await archiveForm(apiClient, data.organizationId, id);
-		if (result.err !== null) {
-			notifyError('Could not delete the form. Try again.');
-			return;
-		}
-		formEdit = null;
-		await reload();
-	}
+	// async function deleteForm() {
+	// 	const id = formEdit?.form.id;
+	// 	if (!id || data.organizationId === null) return;
+	// 	const result = await archiveForm(apiClient, data.organizationId, id);
+	// 	if (result.err !== null) {
+	// 		notifyError('Could not delete the form. Try again.');
+	// 		return;
+	// 	}
+	// 	formEdit = null;
+	// 	await reload();
+	// }
 
 	function newQuestion(addsToForm: boolean) {
 		questionEdit = {
@@ -182,65 +183,65 @@
 		};
 	}
 
-	async function saveQuestion(question: DemographicQuestion, options: QuestionSaveOptions) {
-		if (data.organizationId === null) return;
-		const addsToForm = questionEdit?.addsToForm ?? false;
-		const original = data.questions.find((q) => q.id === question.id);
-		const unchangedText =
-			original !== undefined && question.text.trim() === original.text.trim();
-		const toPersist: DemographicQuestion = options.asNew
-			? {
-					...question,
-					id: null,
-					text: unchangedText ? `${question.text.trim()} (copy)` : question.text
-				}
-			: question;
-		const result = await persistQuestion(
-			apiClient,
-			data.organizationId,
-			toPersist,
-			options.publish
-		);
-		if (result.err !== null) {
-			notifyError('Could not save the question. Try again.');
-			return;
-		}
-		if (addsToForm && options.publish && formEdit) {
-			formEdit.form.entries.push({
-				questionId: result.ok,
-				required: false,
-				text: question.text.trim()
-			});
-		}
-		questionEdit = null;
-		await reload();
-	}
+	// async function saveQuestion(question: DemographicQuestion, options: QuestionSaveOptions) {
+	// 	if (data.organizationId === null) return;
+	// 	const addsToForm = questionEdit?.addsToForm ?? false;
+	// 	const original = data.questions.find((q) => q.id === question.id);
+	// 	const unchangedText =
+	// 		original !== undefined && question.text.trim() === original.text.trim();
+	// 	const toPersist: DemographicQuestion = options.asNew
+	// 		? {
+	// 				...question,
+	// 				id: null,
+	// 				text: unchangedText ? `${question.text.trim()} (copy)` : question.text
+	// 			}
+	// 		: question;
+	// 	const result = await persistQuestion(
+	// 		apiClient,
+	// 		data.organizationId,
+	// 		toPersist,
+	// 		options.publish
+	// 	);
+	// 	if (result.err !== null) {
+	// 		notifyError('Could not save the question. Try again.');
+	// 		return;
+	// 	}
+	// 	if (addsToForm && options.publish && formEdit) {
+	// 		formEdit.form.entries.push({
+	// 			questionId: result.ok,
+	// 			required: false,
+	// 			text: question.text.trim()
+	// 		});
+	// 	}
+	// 	questionEdit = null;
+	// 	await reload();
+	// }
 
-	async function deleteQuestion() {
-		const id = questionEdit?.question.id;
-		if (!id || data.organizationId === null) return;
-		const result = await archiveQuestion(apiClient, data.organizationId, id);
-		if (result.err !== null) {
-			notifyError('Could not delete the question. Try again.');
-			return;
-		}
-		if (formEdit) {
-			formEdit.form.entries = formEdit.form.questions.filter((q) => q.questionId !== id);
-		}
-		questionEdit = null;
-		await reload();
-	}
+	// async function deleteQuestion() {
+	// 	const id = questionEdit?.question.id;
+	// 	if (!id || data.organizationId === null) return;
+	// 	const result = await archiveQuestion(apiClient, data.organizationId, id);
+	// 	if (result.err !== null) {
+	// 		notifyError('Could not delete the question. Try again.');
+	// 		return;
+	// 	}
+	// 	if (formEdit) {
+	// 		formEdit.form.entries = formEdit.form.questions.filter((q) => q.questionId !== id);
+	// 	}
+	// 	questionEdit = null;
+	// 	await reload();
+	// }
 
-	async function createTag(name: string): Promise<Tag | null> {
-		if (data.organizationId === null) return null;
-		const result = await createDemographicTag(apiClient, data.organizationId, name);
-		if (result.err !== null) {
-			notifyError('Could not create the category. Try again.');
-			return null;
-		}
-		await reload();
-		return result.ok;
-	}
+	// async function createTag(name: string): Promise<Tag | null> {
+	// 	if (data.organizationId === null) return null;
+	// 	const result = await createDemographicTag(apiClient, data.organizationId, name);
+	// 	if (result.err !== null) {
+	// 		notifyError('Could not create the category. Try again.');
+	// 		return null;
+	// 	}
+	// 	await reload();
+	// 	return result.ok;
+	// }
 </script>
 
 <svelte:head>
@@ -312,7 +313,7 @@
 				<Tabs.Content value="forms" class="mt-6">
 					<FormsTab
 						forms={data.forms}
-						questions={data.questions}
+						specialCategoryCount={specialCategoryCount(data.forms, data.questions)}
 						canEdit={data.canEdit}
 						onNew={newForm}
 						onEdit={editForm}
@@ -331,34 +332,3 @@
 		{/if}
 	</div>
 </div>
-
-{#if formEdit}
-	<FormSheet
-		bind:form={formEdit.form}
-		isNew={formEdit.isNew}
-		questions={data.questions}
-		onEditQuestion={editQuestion}
-		onCreateQuestion={() => newQuestion(true)}
-		hasChanges={formHasChanges}
-		onSaveDraft={() => saveForm(false)}
-		onPublish={() => saveForm(true)}
-		onSaveAsNew={saveFormAsNew}
-		onDelete={deleteForm}
-		onClose={() => (formEdit = null)}
-	/>
-{/if}
-
-{#if questionEdit}
-	<QuestionSheet
-		question={questionEdit.question}
-		isNew={questionEdit.isNew}
-		addsToForm={questionEdit.addsToForm}
-		focusConsent={questionEdit.focusConsent}
-		tags={data.tags}
-		{usedInFormList}
-		onCreateTag={createTag}
-		onSave={saveQuestion}
-		onDelete={deleteQuestion}
-		onClose={() => (questionEdit = null)}
-	/>
-{/if}

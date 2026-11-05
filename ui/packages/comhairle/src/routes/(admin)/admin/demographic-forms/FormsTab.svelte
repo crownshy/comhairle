@@ -5,25 +5,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
-	import {
-		SPECIAL_CATEGORY_TAG,
-		shortId,
-		specialCategoryCount,
-		type SavedForm,
-		type SavedQuestion
-	} from './demographicModel';
+	import { SPECIAL_CATEGORY_TAG } from './demographicModel';
+	import type { DemographicFormDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		forms: SavedForm[];
+		forms: DemographicFormDto[];
 		canEdit: boolean;
-		questions: SavedQuestion[];
-		highlightId?: string | null;
+		specialCategoryCount: number;
 		onNew: () => void;
 		onEdit: (formId: string) => void;
 		onCopy: (formId: string) => void;
 	};
 
-	let { forms, questions, canEdit, highlightId = null, onNew, onEdit, onCopy }: Props = $props();
+	let { forms, specialCategoryCount, canEdit, onNew, onEdit, onCopy }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-8">
@@ -55,9 +49,9 @@
 						</DropdownMenu.Trigger>
 						<DropdownMenu.Content align="start">
 							{#each forms as form (form.id)}
-								<DropdownMenu.Item onSelect={() => onCopy(form.id)}
-									>{form.name}</DropdownMenu.Item
-								>
+								<DropdownMenu.Item onSelect={() => onCopy(form.id)}>
+									{form.name}
+								</DropdownMenu.Item>
 							{/each}
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
@@ -74,26 +68,18 @@
 			<Table.Root>
 				<Table.Header class="bg-muted">
 					<Table.Row>
-						<Table.Head>ID</Table.Head>
 						<Table.Head>Form</Table.Head>
 						<Table.Head>Questions</Table.Head>
 						<Table.Head>Status</Table.Head>
-						{#if canEdit}<Table.Head class="w-24"
-								><span class="sr-only">Actions</span></Table.Head
-							>{/if}
+						{#if canEdit}
+							<Table.Head class="w-24">
+								<span class="sr-only">Actions</span>
+							</Table.Head>{/if}
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each forms as form (form.id)}
-						{@const special = specialCategoryCount(form, questions)}
-						<Table.Row
-							class={form.id === highlightId
-								? 'bg-primary/15 hover:bg-primary/15'
-								: ''}
-						>
-							<Table.Cell class="text-muted-foreground font-mono text-sm">
-								{shortId('F', form.id)}
-							</Table.Cell>
+						<Table.Row>
 							<Table.Cell>
 								{#if form.publishedVersion === null}
 									<button
@@ -105,16 +91,20 @@
 										{form.name}
 									</button>
 								{:else}
-									<span class="text-base font-medium">{form.name}</span>
+									<span class="text-base font-medium">
+										{form.latest_published?.name}
+									</span>
 								{/if}
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col items-start gap-1">
-									<span class="text-base">{form.questions.length} questions</span>
-									{#if special > 0}
+									<span class="text-base">
+										{form.latest_published?.entries.length} questions
+									</span>
+									{#if specialCategoryCount > 0}
 										<TagBadge
 											tag={SPECIAL_CATEGORY_TAG}
-											label="{special} special category"
+											label="{specialCategoryCount} special category"
 										/>
 									{/if}
 								</div>

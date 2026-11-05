@@ -5,15 +5,11 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
-	import {
-		QUESTION_KIND_LABELS,
-		shortId,
-		SPECIAL_CATEGORY_TAG,
-		type SavedQuestion
-	} from './demographicModel';
+	import { QUESTION_KIND_LABELS, SPECIAL_CATEGORY_TAG } from './demographicModel';
+	import type { QuestionDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		questions: SavedQuestion[];
+		questions: QuestionDto[];
 		canEdit: boolean;
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
@@ -24,9 +20,9 @@
 	let search = $state('');
 	let filter = $state<string | null>(null);
 
-	const tagNames = (question: SavedQuestion) => question.tags.map((tag) => tag.name);
+	const tagNames = (question: QuestionDto) => question.tags.map((tag) => tag.name);
 
-	const matchesFilter = (question: SavedQuestion, option: string) =>
+	const matchesFilter = (question: QuestionDto, option: string) =>
 		option === SPECIAL_CATEGORY_TAG
 			? question.specialCategory
 			: tagNames(question).includes(option);
@@ -38,7 +34,8 @@
 		questions.filter((question) => {
 			const passesFilter = filter === null || matchesFilter(question, filter);
 			return (
-				passesFilter && question.text.toLowerCase().includes(search.trim().toLowerCase())
+				passesFilter &&
+				question.latest_published?.text.toLowerCase().includes(search.trim().toLowerCase())
 			);
 		})
 	);
@@ -87,28 +84,24 @@
 		<Table.Root>
 			<Table.Header class="bg-muted">
 				<Table.Row>
-					<Table.Head>ID</Table.Head>
 					<Table.Head>Question</Table.Head>
 					<Table.Head>Question type</Table.Head>
 					<Table.Head>Version</Table.Head>
 					<Table.Head>Demographic category</Table.Head>
-					{#if canEdit}<Table.Head class="w-24"
-							><span class="sr-only">Actions</span></Table.Head
-						>{/if}
+					{#if canEdit}
+						<Table.Head>Actions</Table.Head>
+					{/if}
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each visible as question (question.id)}
 					<Table.Row>
-						<Table.Cell class="text-muted-foreground font-mono text-sm leading-8">
-							{shortId('Q', question.id)}
+						<Table.Cell class="text-base leading-8 font-medium">
+							{question.latest_published?.text}
 						</Table.Cell>
-						<Table.Cell class="text-base leading-8 font-medium"
-							>{question.text}</Table.Cell
-						>
-						<Table.Cell class="text-muted-foreground text-sm leading-8"
-							>{QUESTION_KIND_LABELS[question.kind]}</Table.Cell
-						>
+						<Table.Cell class="text-muted-foreground text-sm leading-8">
+							{QUESTION_KIND_LABELS[question.kind]}
+						</Table.Cell>
 						<Table.Cell>
 							<Badge
 								variant={question.publishedVersion === null ? 'draft' : 'primary'}
