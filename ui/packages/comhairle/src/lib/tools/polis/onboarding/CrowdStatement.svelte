@@ -15,7 +15,11 @@
 
 	const source = $derived(statementSourceOf(statement.is_seed));
 	const bar = $derived(crowdBar(statement, ownVote));
-	const voteLabel = { agree: m.polis_agree, disagree: m.polis_disagree, pass: m.polis_neutral };
+	const voteLabel = {
+		agree: m.polis_agree,
+		disagree: m.polis_disagree,
+		pass: m.polis_pass_unsure
+	};
 	const othersVoted = $derived((bar?.voters ?? 0) > 1);
 	const legend = $derived(
 		bar && [
@@ -26,7 +30,7 @@
 				muted: false
 			},
 			{
-				label: m.polis_neutral(),
+				label: m.polis_pass_unsure(),
 				percent: bar.passed,
 				color: 'var(--vote-passed)',
 				muted: true
