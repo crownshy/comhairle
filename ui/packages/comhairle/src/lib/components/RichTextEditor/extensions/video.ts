@@ -1,4 +1,9 @@
 import { Node } from '@tiptap/core';
+import {
+	isVideoFileUrl,
+	withFirstFrameThumbnail,
+	withoutFirstFrameThumbnail
+} from '$lib/utils/videoUrl';
 
 export interface VideoOptions {
 	src: string;
@@ -12,6 +17,11 @@ declare module '@tiptap/core' {
 			setVideo: (options: VideoOptions) => ReturnType;
 		};
 	}
+}
+
+function readVideoSrc(element: HTMLElement): string {
+	const src = element.getAttribute('src') ?? element.querySelector('source')?.getAttribute('src');
+	return withoutFirstFrameThumbnail(src ?? '');
 }
 
 export const Video = Node.create<VideoOptions>({
@@ -30,40 +40,47 @@ export const Video = Node.create<VideoOptions>({
 	addAttributes() {
 		return {
 			src: {
-				default: ''
+				default: '',
+				parseHTML: readVideoSrc
 			},
 			controls: {
-				default: true
+				default: true,
+				parseHTML: (element) => element.hasAttribute('controls')
 			},
 			autoplay: {
-				default: null
+				default: false,
+				parseHTML: (element) => element.hasAttribute('autoplay')
 			}
 		};
 	},
 
 	parseHTML() {
 		return [
+			{ tag: 'video' },
+			// Videos added before this node existed were stored as iframes pointing at the file,
+			// which browsers autoplay. Read them back as video nodes so old content is fixed too.
 			{
-				tag: 'video',
-				getAttrs: (node) => ({
-					controls: node.getAttribute('controls'),
-					autoplay: node.getAttribute('autoplay')
-				})
-			},
-			{
-				tag: 'source',
-				getAttrs: (node) => ({
-					src: node.getAttribute('src')
-				})
+				tag: 'iframe',
+				priority: 60,
+				getAttrs: (element) => (isVideoFileUrl(element.getAttribute('src')) ? {} : false)
 			}
 		];
 	},
 
-	renderHTML({ HTMLAttributes }) {
+	renderHTML({ node }) {
+		const { src, controls, autoplay } = node.attrs;
+
+		// playsinline stops iPhones forcing fullscreen playback.
 		return [
 			'video',
-			{ autoplay: HTMLAttributes['autoplay'], controls: HTMLAttributes['controls'] },
-			['source', { src: HTMLAttributes['src'], type: 'video/mp4' }, 0]
+			{
+				controls: controls ? '' : null,
+				autoplay: autoplay ? '' : null,
+				playsinline: '',
+				preload: 'metadata',
+				class: 'w-full rounded-lg'
+			},
+			['source', { src: withFirstFrameThumbnail(src) }]
 		];
 	},
 
@@ -73,11 +90,7 @@ export const Video = Node.create<VideoOptions>({
 				(options: VideoOptions) =>
 				({ tr, dispatch }) => {
 					const { selection } = tr;
-
-					const node = this.type.create({
-						...options,
-						autoplay: options.autoplay || null
-					});
+					const node = this.type.create(options);
 
 					if (dispatch) {
 						tr.replaceRangeWith(selection.from, selection.to, node);
