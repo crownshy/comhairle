@@ -785,12 +785,12 @@
 							toolbarButtons: [
 								'microphone',
 								'camera',
-								'desktop',
 								'chat',
 								'raisehand',
 								'tileview',
-								'hangup',
-								'fullscreen'
+								'fullscreen',
+								'settings',
+								'hangup'
 							],
 							prejoinPageEnabled: false,
 							disableDeepLinking: true,
