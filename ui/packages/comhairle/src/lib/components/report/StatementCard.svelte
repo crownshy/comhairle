@@ -2,6 +2,7 @@
 	import type { ReportComment, ReportGroup } from '$lib/types/report';
 	import { computeGroupVotePercents, computeOverallVotePercents } from '$lib/utils/report';
 	import InfoIcon from '@lucide/svelte/icons/info';
+	import { m } from '$lib/paraglide/messages';
 	import VoteBarChart from './VoteBarChart.svelte';
 
 	interface Props {
@@ -104,14 +105,18 @@
 								class="h-2 w-2 rounded"
 								style="background: var(--vote-agreed);"
 							></div>
-							<div class="text-xs leading-4 font-medium text-gray-600">%Agreed</div>
+							<div class="text-xs leading-4 font-medium text-gray-600">
+								%{m.vote_bar_agreed()}
+							</div>
 						</div>
 						<div class="flex items-center gap-0.5">
 							<div
 								class="h-2 w-2 rounded"
 								style="background: var(--vote-passed);"
 							></div>
-							<div class="text-xs leading-4 font-medium text-gray-600">%Neutral</div>
+							<div class="text-xs leading-4 font-medium text-gray-600">
+								%{m.vote_bar_pass_unsure()}
+							</div>
 						</div>
 						<div class="flex items-center gap-0.5">
 							<div
@@ -119,7 +124,7 @@
 								style="background: var(--vote-not-voted); border: 1px solid var(--vote-not-voted-border);"
 							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">
-								%Not voted
+								%{m.vote_bar_not_voted()}
 							</div>
 						</div>
 						<div class="flex items-center gap-0.5">
@@ -128,7 +133,7 @@
 								style="background: var(--vote-disagreed);"
 							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">
-								%Disagreed
+								%{m.vote_bar_disagreed()}
 							</div>
 						</div>
 					</div>
