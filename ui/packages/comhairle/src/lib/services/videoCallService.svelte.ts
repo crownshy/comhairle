@@ -11,6 +11,8 @@ export interface VideoCallParticipant {
 
 export interface BreakoutRoomAssignments {
 	participants: string[];
+	/** The real Jitsi JID for this room, once a client has reported one. */
+	room_jid: string | null;
 }
 
 export interface BreakoutRoomAssistanceRequest {
@@ -252,6 +254,20 @@ export class VideoCallService {
 	endBreakoutSession(eventId: string) {
 		ws.sendCustom('video_call:end_breakout_session', {
 			event_id: eventId
+		});
+	}
+
+	/**
+	 * Report a breakout room's real Jitsi JID, the first time this client observes one
+	 * (Jitsi only creates the underlying room once someone actually joins it). Any
+	 * participant's client can be first to see it; the backend only acts on the first
+	 * report for a given room, so duplicate reports from other clients are harmless.
+	 */
+	reportBreakoutRoomLive(eventId: string, roomIndex: number, roomJid: string) {
+		ws.sendCustom('video_call:breakout_room_live', {
+			event_id: eventId,
+			room_index: roomIndex,
+			room_jid: roomJid
 		});
 	}
 

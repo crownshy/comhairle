@@ -39,6 +39,15 @@ export class JitsiRoom {
 	}
 
 	/**
+	 * The real Jitsi jid for the room at `roomIndex`, or null if Jitsi hasn't reported
+	 * one yet. Same index/ordering `joinBreakout` uses, so a caller that gets a jid back
+	 * here can hand it to the backend as that room's identity.
+	 */
+	jidForIndex(roomIndex: number): string | null {
+		return getJitsiBreakoutRoomId(this._rooms, roomIndex);
+	}
+
+	/**
 	 * Recheck `ready` against the number of rooms the session expects. Pass null when no
 	 * breakout session is running, which drops it back to false.
 	 */

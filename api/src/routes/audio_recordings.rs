@@ -14,6 +14,7 @@ use aide::axum::routing::{delete_with, get_with, post_with};
 use axum::extract::{Json, Path, State};
 use axum::http::StatusCode;
 use hyper::HeaderMap;
+use serde::Deserialize;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -25,9 +26,12 @@ use crate::models::event;
 use crate::models::job::{self, CreateJob};
 use crate::routes::audio_recordings::dto::{
     AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
-    ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
+    ProcessRecordingResponse, RecorderWebhookResponse, RecordingDetailResponse,
+    RecordingDownloadUrls, SubmitReportResponse,
 };
-use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
+use crate::routes::auth::{
+    RequiredAdminUser, derive_recorder_webhook_secret, verify_webhook_signature,
+};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
@@ -326,6 +330,164 @@ async fn submit_report(
     ))
 }
 
+/// Status reported by jitsi-recorder's completion webhook. Mirrors
+/// `RecordingStatus` in the recorder's own source, lowercased the same way.
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+enum RecorderWebhookStatus {
+    Recording,
+    Uploading,
+    Completed,
+    Failed,
+}
+
+/// Payload jitsi-recorder POSTs when a recording session ends. `download_url`
+/// is a presigned S3 GET URL for the uploaded file — fetched here and
+/// re-uploaded into this tenant's own bulk storage bucket, rather than
+/// granting the (shared, multi-tenant) recorder's IAM role access to every
+/// tenant's bucket.
+#[derive(Deserialize, Debug)]
+struct RecorderWebhookPayload {
+    status: RecorderWebhookStatus,
+    #[serde(default)]
+    download_url: Option<String>,
+}
+
+/// Webhook receiver for a jitsi-recorder session's completion.
+///
+/// Authenticated by an HMAC signature over a secret derived from this
+/// recording's id (not an admin JWT, and not a config-wide secret — the
+/// recorder is a single deployment shared by many tenants, so it only ever
+/// sees this request-scoped derived value; see
+/// `crate::jitsi_recorder::trigger_recording`).
+///
+/// On success, downloads the recording and feeds it into the same
+/// transcription pipeline the manual "Process" button
+/// ([`process_recording`]) uses.
+///
+/// # Errors
+/// * `ComhairleError::AuthWebhookSignatureError` if the signature is missing or invalid.
+/// * `ComhairleError::ResourceNotFound` if the recording/event does not match the path.
+/// * `ComhairleError::NoJitsiRecorderConfigured` if no jitsi-recorder is configured.
+#[instrument(err(Debug), skip(state))]
+async fn recorder_webhook(
+    State(state): State<Arc<ComhairleState>>,
+    headers: HeaderMap,
+    Path((conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    payload: String,
+) -> Result<(StatusCode, Json<RecorderWebhookResponse>), ComhairleError> {
+    let webhook_secret = derive_recorder_webhook_secret(
+        &state.required_jitsi_recorder_config()?.webhook_secret,
+        &recording_id,
+    )?;
+
+    let webhook_timestamp = headers
+        .get("X-Webhook-Timestamp")
+        .ok_or(ComhairleError::AuthWebhookSignatureError(
+            "Missing X-Webhook-Timestamp".to_string(),
+        ))?
+        .to_str()
+        .map_err(|_| {
+            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Timestamp".to_string())
+        })?;
+    let webhook_signature = headers
+        .get("X-Webhook-Signature")
+        .ok_or(ComhairleError::AuthWebhookSignatureError(
+            "Missing X-Webhook-Signature".to_string(),
+        ))?
+        .to_str()
+        .map_err(|_| {
+            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
+        })?;
+
+    if !verify_webhook_signature(
+        webhook_signature,
+        webhook_timestamp,
+        &payload,
+        &webhook_secret,
+    )? {
+        return Err(ComhairleError::AuthWebhookSignatureError(
+            "Invalid X-Webhook-Signature".to_string(),
+        ));
+    }
+
+    let event = event::get_by_id(&state.db, &event_id).await?;
+    if event.conversation_id != conversation_id {
+        return Err(ComhairleError::ResourceNotFound(format!(
+            "No event {event_id} found for conversation {conversation_id}"
+        )));
+    }
+    let recording =
+        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let body: RecorderWebhookPayload = serde_json::from_str(&payload)?;
+
+    let download_url = match (body.status, body.download_url) {
+        (RecorderWebhookStatus::Completed, Some(url)) => url,
+        _ => {
+            audio_recording::update_status(
+                &state.db,
+                &recording.id,
+                audio_recording::AudioRecordingStatus::TranscriptionFailed,
+            )
+            .await?;
+            return Ok((
+                StatusCode::OK,
+                Json(RecorderWebhookResponse { success: false }),
+            ));
+        }
+    };
+
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+    let worker_service = state.required_worker_service()?;
+
+    let bytes = reqwest::get(&download_url)
+        .await
+        .map_err(|e| ComhairleError::JitsiRecorderError(e.to_string()))?
+        .bytes()
+        .await
+        .map_err(|e| ComhairleError::JitsiRecorderError(e.to_string()))?;
+
+    let extension = recording.file_extension.extension();
+    let path = format!("{}/recording.{extension}", recording.s3_key_prefix);
+    let metadata = FileMetadata {
+        is_public: false,
+        content_type: format!("audio/{extension}"),
+    };
+    bulk_storage_service
+        .upload_file(&path, bytes.to_vec(), metadata)
+        .await?;
+
+    let job = job::create(
+        &state.db,
+        CreateJob {
+            progress: Some(0.0),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    worker_service
+        .push_transcription_job(TranscribeRecording {
+            event_id,
+            conversation_id,
+            recording_id,
+            job_id: job.id,
+        })
+        .await?;
+
+    audio_recording::update_status(
+        &state.db,
+        &recording.id,
+        audio_recording::AudioRecordingStatus::Transcribing,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(RecorderWebhookResponse { success: true }),
+    ))
+}
+
 pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
         .api_route(
@@ -391,6 +553,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .summary("Categorization report webhook")
                     .description("Webhook for the categorization service to submit a recording's report. Authenticated by HMAC signature headers.")
                     .response::<201, Json<SubmitReportResponse>>()
+            }),
+        )
+        .api_route(
+            "/{recording_id}/recorder_webhook",
+            post_with(recorder_webhook, |op| {
+                op.id("RecorderWebhook")
+                    .tag("Audio Recordings")
+                    .summary("jitsi-recorder completion webhook")
+                    .description("Webhook jitsi-recorder calls when a triggered recording session ends. Authenticated by an HMAC signature derived from the recording id.")
+                    .response::<200, Json<RecorderWebhookResponse>>()
             }),
         )
 }
@@ -816,6 +988,205 @@ mod tests {
         assert_eq!(
             refreshed.status,
             audio_recording::AudioRecordingStatus::Complete
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_recorder_webhook_marks_transcribing_and_enqueues_job(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::str::FromStr;
+
+        use axum::body::Body;
+        use axum::http::{HeaderName, HeaderValue};
+        use chrono::Utc;
+        use tokio::net::TcpListener;
+
+        use crate::bulk_storage_service::UploadResult;
+        use crate::config::JitsiRecorderConfig;
+        use crate::routes::auth::{build_webhook_signature, derive_recorder_webhook_secret};
+
+        // Fake "presigned S3 URL" server serving fixed bytes, standing in for
+        // jitsi-recorder's actual S3 bucket.
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let fake_s3 = axum::Router::new().fallback(|| async { "FAKE_RECORDING_BYTES" });
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, fake_s3).await;
+        });
+        let download_url = format!("http://{address}/recording.wav");
+
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        storage_service
+            .expect_upload_file()
+            .times(1)
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok(UploadResult {
+                        url: "https://s3.example.com/recording.wav".to_string(),
+                    })
+                })
+            });
+
+        let mut worker_service = crate::worker_service::MockWorkerService::new();
+        worker_service
+            .expect_push_transcription_job()
+            .times(1)
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        config.jitsi_recorder = Some(JitsiRecorderConfig {
+            base_url: "http://unused.invalid".to_string(),
+            main_muc_domain: "muc.meet.jitsi".to_string(),
+            webhook_secret: "test_master_secret".to_string(),
+        });
+
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .worker_service(Arc::new(worker_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let recording = audio_recording::create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Main room".to_string(),
+                s3_key_prefix: format!("events/{}/recordings/{}", event.id, Uuid::new_v4()),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        let webhook_secret = derive_recorder_webhook_secret("test_master_secret", &recording.id)?;
+        let body = serde_json::json!({
+            "status": "completed",
+            "download_url": download_url,
+        })
+        .to_string();
+        let timestamp = Utc::now().timestamp().to_string();
+        let signature = build_webhook_signature(&timestamp, &body, &webhook_secret)?;
+
+        let (status, _resp, _) = session
+            .post_with_headers(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/{}/recorder_webhook",
+                    conversation.id, event.id, recording.id
+                ),
+                Body::from(body),
+                &[
+                    (
+                        HeaderName::from_str("X-Webhook-Timestamp")?,
+                        HeaderValue::from_str(&timestamp)?,
+                    ),
+                    (
+                        HeaderName::from_str("X-Webhook-Signature")?,
+                        HeaderValue::from_str(&signature)?,
+                    ),
+                ],
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
+        assert_eq!(
+            refreshed.status,
+            audio_recording::AudioRecordingStatus::Transcribing
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_recorder_webhook_rejects_bad_signature(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::str::FromStr;
+
+        use axum::body::Body;
+        use axum::http::{HeaderName, HeaderValue};
+        use chrono::Utc;
+
+        use crate::config::JitsiRecorderConfig;
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        config.jitsi_recorder = Some(JitsiRecorderConfig {
+            base_url: "http://unused.invalid".to_string(),
+            main_muc_domain: "muc.meet.jitsi".to_string(),
+            webhook_secret: "test_master_secret".to_string(),
+        });
+
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let recording = audio_recording::create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Main room".to_string(),
+                s3_key_prefix: format!("events/{}/recordings/{}", event.id, Uuid::new_v4()),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        let body = serde_json::json!({
+            "status": "completed",
+            "download_url": "http://example.invalid/recording.wav",
+        })
+        .to_string();
+        let timestamp = Utc::now().timestamp().to_string();
+
+        let (status, _resp, _) = session
+            .post_with_headers(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/{}/recorder_webhook",
+                    conversation.id, event.id, recording.id
+                ),
+                Body::from(body),
+                &[
+                    (
+                        HeaderName::from_str("X-Webhook-Timestamp")?,
+                        HeaderValue::from_str(&timestamp)?,
+                    ),
+                    (
+                        HeaderName::from_str("X-Webhook-Signature")?,
+                        HeaderValue::from_str("sha256=not_the_right_signature")?,
+                    ),
+                ],
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        // The recording was left untouched.
+        let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
+        assert_eq!(
+            refreshed.status,
+            audio_recording::AudioRecordingStatus::AwaitingUpload
         );
 
         Ok(())

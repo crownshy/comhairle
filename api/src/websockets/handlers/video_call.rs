@@ -27,9 +27,14 @@ pub struct VideoCallParticipant {
 /// Represents a breakout room assignment with a list of participant UUIDs.
 ///
 /// Used to organize participants into smaller groups during a video call.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BreakoutRoomAssignments {
     pub participants: Vec<Uuid>,
+    /// The real Jitsi JID for this room, once a client has actually seen one
+    /// (breakout rooms aren't created on Jitsi's side until someone joins).
+    /// Reported by the frontend via `video_call:breakout_room_live`; used to
+    /// trigger a jitsi-recorder session for this specific room.
+    pub room_jid: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -71,6 +76,12 @@ pub struct VideoCallState {
     pub current_agenda_step: u32,
     /// Active breakout session with scheduled end time (None when no session is active)
     pub breakout_session: Option<BreakoutSession>,
+    /// Whether a jitsi-recorder session has already been triggered for the
+    /// main room. Set on the first real video join, so a later rejoin by the
+    /// same or another participant doesn't start a second recorder for a
+    /// room that's already being recorded.
+    #[serde(skip)]
+    pub main_room_recording_started: bool,
 }
 
 /// WebSocket message handler for video call events.
@@ -145,6 +156,7 @@ impl VideoCallState {
             current_agenda_step: 0,
             breakout_rooms: vec![],
             breakout_session: None,
+            main_room_recording_started: false,
         }
     }
 }
@@ -232,6 +244,16 @@ struct ExtendBreakoutSessionData {
 #[derive(Serialize, Deserialize, Debug)]
 struct EndBreakoutSessionData {
     pub event_id: Uuid,
+}
+
+/// Data structure for a client reporting that a breakout room now has a real
+/// Jitsi JID (i.e. someone has actually joined it, since Jitsi only creates
+/// the underlying MUC room at that point).
+#[derive(Serialize, Deserialize, Debug)]
+struct BreakoutRoomLiveData {
+    pub event_id: Uuid,
+    pub room_index: usize,
+    pub room_jid: String,
 }
 
 impl VideoCallMessageHandler {
@@ -461,6 +483,7 @@ impl VideoCallMessageHandler {
                     .map(|room| BreakoutRoomAssignments {
                         // Only known users can occupy a live room; reserved
                         // invite placeholders are dropped until they join.
+                        room_jid: None,
                         participants: room
                             .seats
                             .into_iter()
@@ -594,6 +617,11 @@ impl VideoCallMessageHandler {
     /// the Jitsi display name they chose, then broadcasts the updated state. Called when a
     /// client's `videoConferenceJoined` fires (and again on rename) — a reliable,
     /// rename-proof signal of real call presence keyed by the authenticated user id.
+    ///
+    /// The first real join after the main room was empty also triggers a
+    /// jitsi-recorder session for the main room (see `jitsi_recorder::trigger_recording`).
+    /// This is comhairle-api's own replacement for the old Prosody
+    /// room-created webhook, which could never address a specific tenant.
     pub async fn handle_video_joined(
         &self,
         event_id: &Uuid,
@@ -604,19 +632,38 @@ impl VideoCallMessageHandler {
         let joined_data: VideoJoinedData = serde_json::from_value(data.clone())?;
         let user_id = connection.user.id;
 
-        self.with_video_call_state_mut(event_id, |call| {
-            call.in_video_participants.insert(user_id);
-            match joined_data.display_name {
-                Some(name) if !name.trim().is_empty() => {
-                    call.jitsi_display_names.insert(user_id, name);
+        let should_trigger_recording = self
+            .with_video_call_state_mut(event_id, |call| {
+                let was_empty = call.in_video_participants.is_empty();
+                call.in_video_participants.insert(user_id);
+                match joined_data.display_name {
+                    Some(name) if !name.trim().is_empty() => {
+                        call.jitsi_display_names.insert(user_id, name);
+                    }
+                    _ => {
+                        call.jitsi_display_names.remove(&user_id);
+                    }
                 }
-                _ => {
-                    call.jitsi_display_names.remove(&user_id);
+
+                let should_trigger = was_empty && !call.main_room_recording_started;
+                if should_trigger {
+                    call.main_room_recording_started = true;
                 }
-            }
-        })?;
+                should_trigger
+            })?
+            .unwrap_or(false);
 
         self.broadcast_state(event_id, state).await?;
+
+        if should_trigger_recording {
+            let event_id = *event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(err) = trigger_main_room_recording(&event_id, &state).await {
+                    tracing::error!(?err, %event_id, "failed to trigger jitsi-recorder for main room");
+                }
+            });
+        }
 
         Ok(())
     }
@@ -863,6 +910,7 @@ impl VideoCallMessageHandler {
                                         .filter(|id| call.participants.contains_key(id))
                                         .copied()
                                         .collect(),
+                                    room_jid: None,
                                 })
                                 .filter(|room| !room.participants.is_empty())
                                 .collect()
@@ -880,6 +928,7 @@ impl VideoCallMessageHandler {
                                 .chunks(max_users)
                                 .map(|chunk| BreakoutRoomAssignments {
                                     participants: chunk.to_vec(),
+                                    room_jid: None,
                                 })
                                 .collect()
                         };
@@ -1079,6 +1128,56 @@ impl VideoCallMessageHandler {
         Ok(())
     }
 
+    /// Records a breakout room's real Jitsi JID, reported by whichever
+    /// client first observes it, and triggers a jitsi-recorder session for
+    /// that room the first time it's seen. Idempotent: a room's JID is only
+    /// set (and only triggers) once, so duplicate reports from other
+    /// participants' browsers for the same room are harmless no-ops.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - Failed to acquire lock on the call state
+    pub async fn handle_breakout_room_live(
+        &self,
+        event_id: &Uuid,
+        data: &serde_json::Value,
+        _connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let live_data: BreakoutRoomLiveData = serde_json::from_value(data.clone())?;
+
+        let should_trigger = self
+            .with_video_call_state_mut(event_id, |call| {
+                let Some(room) = call.breakout_rooms.get_mut(live_data.room_index) else {
+                    return false;
+                };
+                if room.room_jid.is_some() {
+                    return false;
+                }
+                room.room_jid = Some(live_data.room_jid.clone());
+                true
+            })?
+            .unwrap_or(false);
+
+        if should_trigger {
+            let event_id = *event_id;
+            let room_jid = live_data.room_jid;
+            let room_index = live_data.room_index;
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(err) =
+                    trigger_breakout_room_recording(&event_id, &room_jid, room_index, &state).await
+                {
+                    tracing::error!(?err, %event_id, room_jid, "failed to trigger jitsi-recorder for breakout room");
+                }
+            });
+        }
+
+        Ok(())
+    }
+
     /// Broadcasts the current video call state to all participants.
     ///
     /// This is a convenience method used internally to synchronize state across
@@ -1159,6 +1258,58 @@ impl VideoCallMessageHandler {
 
         Ok(())
     }
+}
+
+/// Looks up the event and starts a jitsi-recorder session for its main room.
+/// Called once, from a spawned task, the first time a real participant joins
+/// an empty main room (see `VideoCallMessageHandler::handle_video_joined`).
+async fn trigger_main_room_recording(
+    event_id: &Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<(), crate::error::ComhairleError> {
+    let event = crate::models::event::get_by_id(&state.db, event_id).await?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(crate::error::ComhairleError::NoVideoMeetingId)?;
+    let recorder_config = state.required_jitsi_recorder_config()?;
+
+    crate::jitsi_recorder::trigger_recording(
+        state,
+        event.conversation_id,
+        *event_id,
+        &video_meeting_id.to_string(),
+        Some(&recorder_config.main_muc_domain),
+        "Main room",
+    )
+    .await
+}
+
+/// Looks up the event and starts a jitsi-recorder session for one breakout
+/// room, given its real JID (`localpart@muc_domain`). Called once, from a
+/// spawned task, the first time any client reports a given room's JID (see
+/// `VideoCallMessageHandler::handle_breakout_room_live`).
+async fn trigger_breakout_room_recording(
+    event_id: &Uuid,
+    room_jid: &str,
+    room_index: usize,
+    state: &Arc<ComhairleState>,
+) -> Result<(), crate::error::ComhairleError> {
+    let event = crate::models::event::get_by_id(&state.db, event_id).await?;
+    let (room_name, muc_domain) = room_jid.split_once('@').ok_or_else(|| {
+        crate::error::ComhairleError::JitsiRecorderError(format!(
+            "breakout room jid {room_jid} is not a full JID"
+        ))
+    })?;
+
+    crate::jitsi_recorder::trigger_recording(
+        state,
+        event.conversation_id,
+        *event_id,
+        room_name,
+        Some(muc_domain),
+        &format!("Breakout room #{}", room_index + 1),
+    )
+    .await
 }
 
 #[async_trait]
@@ -1244,6 +1395,10 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     }
                     "video_call:end_breakout_session" => {
                         self.end_breakout_session(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:breakout_room_live" => {
+                        self.handle_breakout_room_live(&event_id, data, connection, state)
                             .await?
                     }
                     _ => {

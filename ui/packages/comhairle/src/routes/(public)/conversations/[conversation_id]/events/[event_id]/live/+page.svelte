@@ -258,6 +258,18 @@
 		);
 	});
 
+	// Report each breakout room's real Jitsi jid to the backend as soon as it exists, so
+	// it can trigger a recorder for that room. Gated on the backend's own room_jid still
+	// being null, so this naturally stops re-sending once the server broadcasts back that
+	// it has recorded the jid - no separate "already sent" bookkeeping needed.
+	$effect(() => {
+		breakoutRooms.forEach((room, index) => {
+			if (room.room_jid) return;
+			const jid = jitsiRoom.jidForIndex(index);
+			if (jid) videoCallService.reportBreakoutRoomLive(eventId, index, jid);
+		});
+	});
+
 	// Watch for new assistance requests (host only)
 	$effect(() => {
 		if (!isModerator) return;

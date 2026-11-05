@@ -93,6 +93,12 @@ pub enum ComhairleError {
     #[error("No categorization service configured")]
     NoCategorizationServiceConfigured,
 
+    #[error("No jitsi recorder configured")]
+    NoJitsiRecorderConfigured,
+
+    #[error("Jitsi recorder error: {0}")]
+    JitsiRecorderError(String),
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
