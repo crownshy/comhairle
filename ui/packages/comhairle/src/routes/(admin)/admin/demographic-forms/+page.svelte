@@ -208,7 +208,7 @@
 			return;
 		}
 		if (addsToForm && options.publish && formEdit) {
-			formEdit.form.questions.push({
+			formEdit.form.entries.push({
 				questionId: result.ok,
 				required: false,
 				text: question.text.trim()
@@ -227,7 +227,7 @@
 			return;
 		}
 		if (formEdit) {
-			formEdit.form.questions = formEdit.form.questions.filter((q) => q.questionId !== id);
+			formEdit.form.entries = formEdit.form.questions.filter((q) => q.questionId !== id);
 		}
 		questionEdit = null;
 		await reload();
@@ -307,9 +307,9 @@
 			<Tabs.Root bind:value={tab} class="mt-6">
 				<Tabs.List>
 					<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
-					<Tabs.Trigger value="questions"
-						>Question bank ({data.questions.length})</Tabs.Trigger
-					>
+					<Tabs.Trigger value="questions">
+						Question bank ({data.questions.length})
+					</Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="forms" class="mt-6">
 					<FormsTab

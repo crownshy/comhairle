@@ -131,20 +131,6 @@ export function formDraftInput(form: DemographicForm): DemographicFormDraftInput
 	};
 }
 
-export async function loadDemographics(api: ApiClient, organizationId: string) {
-	const queries = { organization: organizationId };
-	const [questions, forms, tags] = await Promise.all([
-		api.ListDemographicQuestions({ queries }),
-		api.ListDemographicForms({ queries }),
-		api.ListDemographicTags({ queries })
-	]);
-	return {
-		questions: questions.map(questionFromDto).filter((q) => !q.archived),
-		forms: forms.map(formFromDto).filter((f) => !f.archived),
-		tags: tags.map((tag): Tag => ({ id: tag.id, name: tag.name }))
-	};
-}
-
 /** Saves the question's draft, starting a new draft from the latest published version when needed. Resolves to the question id. */
 export function persistQuestion(
 	api: ApiClient,
