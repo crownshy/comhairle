@@ -81,10 +81,11 @@
 	let brand = $derived(configured ?? themeLogo(themeStore.name));
 	let logoSrc = $derived(showText ? FullLogo : IconLogo);
 	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
+	// Brand logos have no icon-only version, so they keep the wide box even when showText is off.
 	let brandClass = $derived(
 		brand?.fit === 'height'
 			? `w-auto ${brandHeightMap[logoSize]}`
-			: `overflow-hidden object-contain ${sizeClass}`
+			: `overflow-hidden object-contain ${fullSizeMap[logoSize]}`
 	);
 </script>
 
