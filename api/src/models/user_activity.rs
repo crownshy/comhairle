@@ -14,10 +14,10 @@ use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 
-/// Most active seconds one heartbeat can add. The browser counts its own active time, so a
-/// client bug (a laptop waking from sleep, a counter not reset after a reconnect) could report
-/// far more time than has passed. 45 is the 30 second heartbeat interval plus some slack.
-const MAX_SECONDS_PER_HEARTBEAT: i32 = 45;
+/// Most inactive seconds a pause can subtract. The browser only reports idle
+/// once idle logic has waited out its timeouts so the idle period should be
+/// subtracted.
+const MAX_INACTIVE_SECONDS: i32 = 90;
 
 /// One participant's activity on one workflow step. There is a single row per participant
 /// and step, however many times they visit it. Whether the step is done lives in
@@ -30,26 +30,30 @@ pub struct UserActivity {
     pub workflow_step_id: Uuid,
     /// When the participant first opened the step.
     pub started_at: DateTime<Utc>,
-    /// The last start or heartbeat. Drives "active now" and the idle sweeper.
-    pub last_active_at: DateTime<Utc>,
     /// When the row was last closed. Null while the participant is on the step.
     pub ended_at: Option<DateTime<Utc>>,
-    /// Active time across every visit, added up from heartbeats.
-    pub active_seconds: i32,
-    /// Separate visits to the step. Opening it again after the row was closed counts as one.
-    pub sessions: i32,
     /// Why the row was last closed. Null while it is open.
     pub end_reason: Option<EndReason>,
+    /// Active time across every visit
+    pub active_seconds: i32,
+    /// When `is_active` last changed: the start of the current stretch while
+    /// active or when the participant went idle of left.
+    pub activity_changed_at: DateTime<Utc>,
+    /// Whether the participant is currently active. False once paused or closed.
+    pub is_active: bool,
+    /// Separate visits to the step. Opening it again after the row was closed counts as one.
+    pub sessions: i32,
 }
 
-const DEFAULT_COLUMNS: [UserActivityIden; 9] = [
+const DEFAULT_COLUMNS: [UserActivityIden; 10] = [
     UserActivityIden::Id,
     UserActivityIden::UserId,
     UserActivityIden::WorkflowStepId,
     UserActivityIden::StartedAt,
-    UserActivityIden::LastActiveAt,
     UserActivityIden::EndedAt,
     UserActivityIden::ActiveSeconds,
+    UserActivityIden::ActivityChangedAt,
+    UserActivityIden::IsActive,
     UserActivityIden::Sessions,
     UserActivityIden::EndReason,
 ];
@@ -86,6 +90,10 @@ impl std::fmt::Display for EndReason {
 ///
 /// On a later visit the existing row is reopened. `sessions` only goes up if the row had been
 /// closed, so a reconnect or a second tab during an open visit doesn't count as a return.
+///
+/// Also used to resume after [`pause`]: a paused row starts a new active stretch,
+/// while an already active one keeps its stretch so a reconnect doesn't lose the
+/// time so far.
 #[instrument(err(Debug), skip(db))]
 pub async fn start(
     db: &mut PgConnection,
@@ -113,7 +121,15 @@ pub async fn start(
                 )
                 .value(UserActivityIden::EndedAt, Keyword::Null)
                 .value(UserActivityIden::EndReason, Keyword::Null)
-                .value(UserActivityIden::LastActiveAt, Expr::current_timestamp())
+                .value(
+                    UserActivityIden::ActivityChangedAt,
+                    Expr::case(
+                        existing(UserActivityIden::IsActive).eq(true),
+                        existing(UserActivityIden::ActivityChangedAt),
+                    )
+                    .finally(Expr::current_timestamp()),
+                )
+                .value(UserActivityIden::IsActive, true)
                 .to_owned(),
         )
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -127,33 +143,43 @@ pub async fn start(
     Ok(activity)
 }
 
-/// Closes a user activity record with an `end_reason`.
+/// Ends the current active stretch when the participant goes idle or hides the tab,
+/// adding it to `active_seconds`.
 ///
-/// `ended_at` is the last activity rather than now, so time between the last heartbeat and the
-/// close (a timeout, a dropped connection) isn't counted.
-///
-/// Only an open row is closed: when finishing, the idle sweeper and a disconnect
-/// race, the first reason wins and the rest return `None`, preventing cases
-/// where a user finishes a step then closes their browser tab resulting in
-/// `EndReason::Finished` being overwritten by `EndReason::Disconnected`.
+/// `inactive_seconds` is how long they had already been idle when the browser
+/// noticed, and is left out of the stretch. It's clamped to `0..=MAX_INACTIVE_SECONDS`.
+/// Only an active, open row is paused, so a repeated idle message adds nothing
+/// and returns `None`. [`start`] resumes.
 #[instrument(err(Debug), skip(db))]
-pub async fn close(
+pub async fn pause(
     db: &mut PgConnection,
     user_id: Uuid,
     workflow_step_id: Uuid,
-    end_reason: EndReason,
+    inactive_seconds: i32,
 ) -> Result<Option<UserActivity>, ComhairleError> {
+    let inactive_seconds = inactive_seconds.clamp(0, MAX_INACTIVE_SECONDS);
+
     let (sql, values) = Query::update()
         .table(UserActivityIden::Table)
         .values([
             (
-                UserActivityIden::EndedAt,
-                Expr::col(UserActivityIden::LastActiveAt).into(),
+                UserActivityIden::ActiveSeconds,
+                Expr::cust_with_values(
+                    "active_seconds + GREATEST(0, EXTRACT(EPOCH FROM now() - activity_changed_at)::int - $1)",
+                    [inactive_seconds]
+                )
             ),
-            (UserActivityIden::EndReason, end_reason.into()),
+            (
+                UserActivityIden::ActivityChangedAt,
+                Expr::cust_with_values(
+                    "GREATEST(activity_changed_at, now() - make_interval(secs => $1))", [inactive_seconds]
+                )
+            ),
+            (UserActivityIden::IsActive, false.into()),
         ])
         .and_where(Expr::col(UserActivityIden::UserId).eq(user_id))
         .and_where(Expr::col(UserActivityIden::WorkflowStepId).eq(workflow_step_id))
+        .and_where(Expr::col(UserActivityIden::IsActive).eq(true))
         .and_where(Expr::col(UserActivityIden::EndedAt).is_null())
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -166,38 +192,54 @@ pub async fn close(
     Ok(activity)
 }
 
+/// Closes a user activity record with an `end_reason`.
+///
+/// Only an open row is closed: when finishing, the idle sweeper and a disconnect
+/// race, the first reason wins and the rest return `None`, preventing cases
+/// where a user finishes a step then closes their browser tab resulting in
+/// `EndReason::Finished` being overwritten by `EndReason::Disconnected`.
 #[instrument(err(Debug), skip(db))]
-pub async fn record_heartbeat(
+pub async fn close(
     db: &mut PgConnection,
     user_id: Uuid,
     workflow_step_id: Uuid,
-    reported_seconds: i32,
-) -> Result<UserActivity, ComhairleError> {
-    let credited_seconds = reported_seconds.clamp(0, MAX_SECONDS_PER_HEARTBEAT);
+    end_reason: EndReason,
+) -> Result<Option<UserActivity>, ComhairleError> {
+    let now = Utc::now();
 
-    // set ended_at and end_reason to null in case one browser tab is idle, times
-    // out and closes the record but another tab is reporting heartbeat
     let (sql, values) = Query::update()
         .table(UserActivityIden::Table)
         .values([
             (
                 UserActivityIden::ActiveSeconds,
-                Expr::col(UserActivityIden::ActiveSeconds).add(credited_seconds),
+                Expr::cust_with_values(
+                    "active_seconds + CASE \
+                        WHEN is_active \
+                        THEN GREATEST(0, EXTRACT(EPOCH FROM $1 - activity_changed_at)::int) \
+                        ELSE 0 \
+                        END",
+                    [now],
+                ),
             ),
             (
-                UserActivityIden::LastActiveAt,
-                Expr::current_timestamp().into(),
+                UserActivityIden::ActivityChangedAt,
+                Expr::cust_with_values(
+                    "CASE WHEN is_active THEN $1 ELSE activity_changed_at END",
+                    [now],
+                ),
             ),
-            (UserActivityIden::EndedAt, Expr::cust("NULL")),
-            (UserActivityIden::EndReason, Expr::cust("NULL")),
+            (UserActivityIden::EndedAt, now.into()),
+            (UserActivityIden::EndReason, end_reason.into()),
+            (UserActivityIden::IsActive, false.into()),
         ])
         .and_where(Expr::col(UserActivityIden::UserId).eq(user_id))
         .and_where(Expr::col(UserActivityIden::WorkflowStepId).eq(workflow_step_id))
+        .and_where(Expr::col(UserActivityIden::EndedAt).is_null())
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let activity = query_as_with(&sql, values)
-        .fetch_one(&mut *db)
+        .fetch_optional(&mut *db)
         .await
         .resolve_db_err("User Activity")?;
 
@@ -267,7 +309,7 @@ impl UserActivityFilterOptions {
 #[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct UserActivityOrderOptions {
     pub started_at: Option<Order>,
-    pub last_active_at: Option<Order>,
+    pub activity_changed_at: Option<Order>,
     pub active_seconds: Option<Order>,
 }
 
@@ -278,9 +320,9 @@ impl UserActivityOrderOptions {
                 .order_by(UserActivityIden::StartedAt, order.into())
                 .to_owned();
         }
-        if let Some(order) = &self.last_active_at {
+        if let Some(order) = &self.activity_changed_at {
             query = query
-                .order_by(UserActivityIden::LastActiveAt, order.into())
+                .order_by(UserActivityIden::ActivityChangedAt, order.into())
                 .to_owned();
         }
         if let Some(order) = &self.active_seconds {
@@ -385,8 +427,17 @@ mod tests {
             get_for_user_step(&mut self.conn, self.user_id, self.workflow_step_id).await
         }
 
-        async fn heartbeat(&mut self, seconds: i32) -> Result<UserActivity, ComhairleError> {
-            record_heartbeat(&mut self.conn, self.user_id, self.workflow_step_id, seconds).await
+        async fn pause(
+            &mut self,
+            inactive_seconds: i32,
+        ) -> Result<Option<UserActivity>, ComhairleError> {
+            pause(
+                &mut self.conn,
+                self.user_id,
+                self.workflow_step_id,
+                inactive_seconds,
+            )
+            .await
         }
 
         async fn close(
@@ -396,13 +447,13 @@ mod tests {
             close(&mut self.conn, self.user_id, self.workflow_step_id, reason).await
         }
 
-        /// Moves the last activity into the past, as if the participant stopped sending
-        /// heartbeats `minutes` ago.
-        async fn backdate_last_active(&mut self, minutes: i32) -> sqlx::Result<DateTime<Utc>> {
+        /// Moves `activity_changed_at` into the past, as if the current stretch
+        /// or idle period began `minutes` ago.
+        async fn backdate_activity_change(&mut self, minutes: i32) -> sqlx::Result<DateTime<Utc>> {
             sqlx::query_scalar(
-                "UPDATE user_activity SET last_active_at = now() - make_interval(mins => $1)
+                "UPDATE user_activity SET activity_changed_at = now() - make_interval(mins => $1)
                    WHERE user_id = $2 AND workflow_step_id = $3
-                   RETURNING last_active_at",
+                   RETURNING activity_changed_at",
             )
             .bind(minutes)
             .bind(self.user_id)
@@ -410,6 +461,14 @@ mod tests {
             .fetch_one(&mut *self.conn)
             .await
         }
+    }
+
+    /// Statements run a few milliseconds apart, so elapsed seconds can round either way.
+    fn assert_number_within_margin(actual: i32, expected: i32, message: &str) {
+        assert!(
+            (expected - 2..=expected + 2).contains(&actual),
+            "{message}: expected about {expected}, got {actual}"
+        );
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -446,107 +505,6 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_count_a_return_and_reopen_when_started_after_close(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-
-        let first = fixture.start().await?;
-        fixture.heartbeat(30).await?;
-        fixture.close(EndReason::Navigation).await?;
-        let returned = fixture.start().await?;
-
-        assert_eq!(returned.sessions, 2, "should count the return");
-        assert!(returned.ended_at.is_none(), "should be reopened");
-        assert!(returned.end_reason.is_none(), "end_reason should be None");
-        assert_eq!(
-            returned.started_at, first.started_at,
-            "should keep the first start"
-        );
-        assert_eq!(returned.active_seconds, 30, "should keep earlier time");
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_add_reported_seconds_on_each_heartbeat(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-        fixture.start().await?;
-
-        fixture.heartbeat(30).await?;
-        let activity = fixture.heartbeat(20).await?;
-
-        assert_eq!(activity.active_seconds, 50);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_clamp_reported_seconds(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-        fixture.start().await?;
-
-        let after_negative = fixture.heartbeat(-10).await?;
-        assert_eq!(
-            after_negative.active_seconds, 0,
-            "negative should add nothing"
-        );
-
-        let after_huge = fixture.heartbeat(10_000).await?;
-        assert_eq!(after_huge.active_seconds, MAX_SECONDS_PER_HEARTBEAT);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_mark_active_now_on_heartbeat(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-        fixture.start().await?;
-        let earlier = fixture.backdate_last_active(10).await?;
-
-        let activity = fixture.heartbeat(5).await?;
-
-        assert!(
-            activity.last_active_at > earlier,
-            "should move last_active_at forward"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_reopen_without_a_new_session_on_heartbeat_after_close(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-        fixture.start().await?;
-        fixture.close(EndReason::Disconnected).await?;
-
-        let activity = fixture.heartbeat(10).await?;
-
-        assert!(activity.ended_at.is_none(), "should be reopened");
-        assert!(activity.end_reason.is_none());
-        assert_eq!(activity.sessions, 1);
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_not_find_a_row_for_a_heartbeat_before_start(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut fixture = ActivityFixture::new(&pool).await?;
-
-        let result = fixture.heartbeat(10).await;
-
-        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_record_the_reason_on_close(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut fixutre = ActivityFixture::new(&pool).await?;
         fixutre.start().await?;
@@ -563,20 +521,204 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_end_at_the_last_activity_not_the_close(
+    async fn should_credit_an_active_stretch_on_close(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(5).await?;
+
+        let closed = fixture
+            .close(EndReason::Finished)
+            .await?
+            .ok_or("row not closed")?;
+
+        assert_number_within_margin(closed.active_seconds, 300, "the 5 minute stretch");
+        assert!(!closed.is_active);
+        assert_eq!(Some(closed.activity_changed_at), closed.ended_at);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_keep_current_stretch_when_started_while_active(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let mut fixture = ActivityFixture::new(&pool).await?;
         fixture.start().await?;
-        let last_active = fixture.backdate_last_active(10).await?;
+        let stretch_start = fixture.backdate_activity_change(10).await?;
+
+        let activity = fixture.start().await?;
+
+        assert!(activity.is_active);
+        assert_eq!(activity.activity_changed_at, stretch_start);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_credit_the_stretch_minus_inactive_time(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+
+        let paused = fixture.pause(60).await?.ok_or("row not paused")?;
+
+        assert_number_within_margin(
+            paused.active_seconds,
+            540,
+            "10 minutes less 60 idle seconds",
+        );
+        assert!(!paused.is_active);
+        assert!(paused.ended_at.is_none(), "pausing doesn't close activity");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_clamp_inactive_seconds(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+
+        let after_huge = fixture.pause(10_000).await?.ok_or("row not paused")?;
+
+        assert_number_within_margin(
+            after_huge.active_seconds,
+            600 - MAX_INACTIVE_SECONDS,
+            "should subtract at most MAX_INACTIVE_SECONDS",
+        );
+
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+        let after_negative = fixture.pause(-50).await?.ok_or("row not paused")?;
+
+        assert_number_within_margin(
+            after_negative.active_seconds,
+            after_huge.active_seconds + 600,
+            "negative should add no extract time",
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_count_a_pause_once(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+
+        let first = fixture.pause(0).await?.ok_or("row not paused")?;
+        let second = fixture.pause(0).await?;
+
+        assert!(second.is_none(), "an already paused row shouldn't change");
+        assert_eq!(
+            first.active_seconds,
+            fixture.get().await?.active_seconds,
+            "active seconds don't match"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_resume_without_new_session_after_pause(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+
+        let paused = fixture.pause(0).await?.ok_or("row not paused")?;
+        let resumed = fixture.start().await?;
+
+        assert!(resumed.is_active);
+        assert_eq!(resumed.sessions, 1, "coming back from idle isn't a return");
+        assert_eq!(
+            resumed.active_seconds, paused.active_seconds,
+            "active_seconds don't match"
+        );
+        assert!(resumed.activity_changed_at > paused.activity_changed_at);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_count_new_session_and_reopen_after_close(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        let first = fixture.start().await?;
+        fixture.backdate_activity_change(5).await?;
+        let closed = fixture
+            .close(EndReason::Navigation)
+            .await?
+            .ok_or("row not closed")?;
+
+        let returned = fixture.start().await?;
+
+        assert_eq!(returned.sessions, 2, "should count new session");
+        assert!(returned.is_active);
+        assert!(returned.ended_at.is_none(), "should have re-opened");
+        assert!(returned.end_reason.is_none());
+        assert_eq!(
+            returned.started_at, first.started_at,
+            "should keep same started_at"
+        );
+        assert_eq!(
+            returned.active_seconds, closed.active_seconds,
+            "should not update active seconds on re-open"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_maintain_the_active_time_when_closing_a_paused_row(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.backdate_activity_change(10).await?;
+        let paused = fixture.pause(0).await?.ok_or("row not paused")?;
 
         let closed = fixture
-            .close(EndReason::IdleTimeout)
+            .close(EndReason::Disconnected)
             .await?
-            .ok_or("no activity")?;
+            .ok_or("row not closed")?;
 
-        assert_eq!(closed.ended_at, Some(last_active), "times don't match");
-        assert_eq!(closed.last_active_at, last_active, "closing isn't activity");
+        assert_eq!(
+            closed.active_seconds, paused.active_seconds,
+            "idle time isn't active"
+        );
+        assert_eq!(closed.activity_changed_at, paused.activity_changed_at);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_keep_the_first_reason_when_closed_twice(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+
+        fixture.close(EndReason::Finished).await?;
+        let second = fixture.close(EndReason::Disconnected).await?;
+
+        assert!(second.is_none(), "an already closed row shouldn't change");
+        assert_eq!(fixture.get().await?.end_reason, Some(EndReason::Finished));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_pause_a_closed_row(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+        fixture.start().await?;
+        fixture.close(EndReason::Navigation).await?;
+
+        assert!(fixture.pause(0).await?.is_none());
 
         Ok(())
     }
