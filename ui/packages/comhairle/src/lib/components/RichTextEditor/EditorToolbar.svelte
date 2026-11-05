@@ -7,6 +7,7 @@
 	import { insertDefaultTable } from './tableActions';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { cn } from '$lib/utils';
+	import { isVideoFileUrl } from '$lib/utils/videoUrl';
 
 	import {
 		List,
@@ -109,7 +110,7 @@
 	})}
 	<UrlInputPopover
 		type="link"
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setLink({ href: url }).run();
 		}}
 	>
@@ -168,12 +169,10 @@
 		type="video"
 		allowLocalSelection
 		onSubmit={({ from, url }) => {
-			switch (from) {
-				case 'library':
-					editor?.chain().focus().setVideo({ src: url }).run();
-					break;
-				case 'external-url':
-					editor?.chain().focus().setIframe({ src: url }).run();
+			if (from === 'library' || isVideoFileUrl(url)) {
+				editor?.chain().focus().setVideo({ src: url }).run();
+			} else {
+				editor?.chain().focus().setIframe({ src: url }).run();
 			}
 		}}
 	>
