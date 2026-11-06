@@ -63,14 +63,14 @@ async fn can_view_conversation(
 /// The organization an admin selected in the demographics UI, sent as `?organization=`.
 #[derive(Deserialize, JsonSchema)]
 struct DefaultParams {
-    organization: Option<Uuid>,
+    organization_id: Option<Uuid>,
 }
 
 /// The organization an admin selected in the demographics UI, sent as `?organization=`.
 /// Whether or not to include archived resources in the response, sent as `?include_archived=`.
 #[derive(Deserialize, JsonSchema)]
 struct ListQueryParams {
-    organization: Option<Uuid>,
+    organization_id: Option<Uuid>,
     include_archived: Option<bool>,
 }
 
@@ -116,7 +116,7 @@ async fn list_tags(
     RequiredUser(admin): RequiredUser,
     Query(params): Query<DefaultParams>,
 ) -> Result<Json<Vec<DemographicTag>>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(questions::list_tags(&state.db, org).await?))
 }
 
@@ -127,7 +127,7 @@ async fn create_tag(
     Query(params): Query<DefaultParams>,
     Json(body): Json<CreateTagInput>,
 ) -> Result<(StatusCode, Json<DemographicTag>), ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let tag = questions::create_tag(&state.db, Some(org), &body.name).await?;
     Ok((StatusCode::CREATED, Json(tag)))
 }
@@ -139,7 +139,7 @@ async fn list_questions(
     Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<QuestionDto>>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(
         questions::list_questions(&state.db, org, &locale).await?,
     ))
@@ -152,7 +152,7 @@ async fn list_questions_latest(
     Query(params): Query<ListQueryParams>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<QuestionLatestDto>>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
     let include_archived = params.include_archived.unwrap_or(false);
     let questions = questions::list_questions(&state.db, org, &locale).await?;
 
@@ -197,7 +197,7 @@ async fn create_question(
     LocaleExtractor(locale): LocaleExtractor,
     Json(body): Json<QuestionDraftInput>,
 ) -> Result<(StatusCode, Json<QuestionDto>), ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let question = questions::create_question(&state.db, Some(org), &body, &locale).await?;
     Ok((StatusCode::CREATED, Json(question)))
 }
@@ -210,7 +210,7 @@ async fn get_question(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
     let question = questions::get_question(&state.db, org, question_id, &locale).await?;
     Ok(Json(question))
 }
@@ -223,7 +223,7 @@ async fn get_question_latest(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionLatestDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
     let question = questions::get_question(&state.db, org, question_id, &locale).await?;
 
     let question_latest = QuestionLatestDto {
@@ -256,7 +256,7 @@ async fn start_question_draft(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let question = questions::start_draft(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
@@ -270,7 +270,7 @@ async fn update_question_draft(
     Path(question_id): Path<Uuid>,
     Json(body): Json<QuestionDraftInput>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let question =
         questions::update_draft(&state.db, Some(org), question_id, &body, &locale).await?;
     Ok(Json(question))
@@ -283,7 +283,7 @@ async fn discard_question_draft(
     Query(params): Query<DefaultParams>,
     Path(question_id): Path<Uuid>,
 ) -> Result<StatusCode, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     questions::discard_draft(&state.db, Some(org), question_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -296,7 +296,7 @@ async fn publish_question(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let question = questions::publish_question(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
@@ -309,7 +309,7 @@ async fn archive_question(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let question = questions::archive_question(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
@@ -322,7 +322,7 @@ async fn list_forms(
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<DemographicFormDto>>, ComhairleError> {
     // Forms belong to an organization and there are no system forms, so this is empty without one.
-    let forms = match selected_organization(&state, &admin, params.organization).await? {
+    let forms = match selected_organization(&state, &admin, params.organization_id).await? {
         Some(org) => forms::list_forms(&state.db, org, &locale).await?,
         None => Vec::new(),
     };
@@ -337,7 +337,7 @@ async fn list_forms_latest(
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<DemographicFormLatestDto>>, ComhairleError> {
     // Forms belong to an organization and there are no system forms, so this is empty without one.
-    let forms = match selected_organization(&state, &admin, params.organization).await? {
+    let forms = match selected_organization(&state, &admin, params.organization_id).await? {
         Some(org) => forms::list_forms(&state.db, org, &locale).await?,
         None => Vec::new(),
     };
@@ -382,7 +382,7 @@ async fn create_form(
     LocaleExtractor(locale): LocaleExtractor,
     Json(body): Json<DemographicFormDraftInput>,
 ) -> Result<(StatusCode, Json<DemographicFormDto>), ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     let form = forms::create_form(&state.db, org, &body, &locale).await?;
     Ok((StatusCode::CREATED, Json(form)))
 }
@@ -395,7 +395,7 @@ async fn get_form(
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization)
+    let org = selected_organization(&state, &admin, params.organization_id)
         .await?
         .ok_or_else(|| ComhairleError::ResourceNotFound("demographic form".into()))?;
     Ok(Json(
@@ -411,7 +411,7 @@ async fn get_form_latest(
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormLatestDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, params.organization)
+    let org = selected_organization(&state, &admin, params.organization_id)
         .await?
         .ok_or_else(|| ComhairleError::ResourceNotFound("demographic form".into()))?;
 
@@ -446,7 +446,7 @@ async fn start_form_draft(
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(
         forms::start_form_draft(&state.db, org, form_id, &locale).await?,
     ))
@@ -461,7 +461,7 @@ async fn update_form_draft(
     Path(form_id): Path<Uuid>,
     Json(body): Json<DemographicFormDraftInput>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(
         forms::update_form_draft(&state.db, org, form_id, &body, &locale).await?,
     ))
@@ -474,7 +474,7 @@ async fn discard_form_draft(
     Query(params): Query<DefaultParams>,
     Path(form_id): Path<Uuid>,
 ) -> Result<StatusCode, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     forms::discard_form_draft(&state.db, org, form_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -487,7 +487,7 @@ async fn publish_form(
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(
         forms::publish_form(&state.db, org, form_id, &locale).await?,
     ))
@@ -501,7 +501,7 @@ async fn archive_form(
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization).await?;
+    let org = required_organization(&state, &admin, params.organization_id).await?;
     Ok(Json(
         forms::archive_form(&state.db, org, form_id, &locale).await?,
     ))

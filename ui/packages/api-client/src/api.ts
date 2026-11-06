@@ -6268,7 +6268,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6290,7 +6290,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
         schema: DemographicFormDraftInput,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6304,7 +6304,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6318,7 +6318,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6340,7 +6340,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
         schema: DemographicFormDraftInput,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6354,7 +6354,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6368,7 +6368,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6382,7 +6382,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6396,7 +6396,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6415,7 +6415,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
         schema: is_complete,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6473,7 +6473,7 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6495,7 +6495,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
         schema: QuestionDraftInput,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6509,7 +6509,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6523,7 +6523,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6545,7 +6545,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
         schema: QuestionDraftInput,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6559,7 +6559,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6573,7 +6573,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6587,7 +6587,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6601,7 +6601,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6620,7 +6620,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
         schema: is_complete,
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6641,7 +6641,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     requestFormat: "json",
     parameters: [
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -6660,7 +6660,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
         schema: z.object({ name: z.string() }).passthrough(),
       },
       {
-        name: "organization",
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
