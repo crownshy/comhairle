@@ -46,6 +46,7 @@ pub mod thinking_space_answer;
 pub mod thinking_space_follow_up_question;
 pub mod thinking_space_summary;
 pub mod translations;
+pub mod user_activity;
 pub mod user_conversation_preferences;
 pub mod user_group;
 pub mod user_participation;
