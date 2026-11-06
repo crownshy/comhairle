@@ -1,0 +1,12 @@
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { PageLoad } from './$types';
+
+export const load: PageLoad = async ({ parent, params }) => {
+	const { api } = await parent();
+
+	return {
+		streamedForms: tryCatchAsync(() =>
+			api.ListDemographicFormsLatest({ queries: { organization_id: params.organisation_id } })
+		)
+	};
+};
