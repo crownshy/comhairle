@@ -84,17 +84,14 @@
 		);
 	}
 
-	/** Text answers are optional — completeness only requires likert / continuous. */
-	const requiredQuestions = $derived<Question<string>[]>(
-		toolConfig.questions.filter((q) => q.type.kind !== 'text')
-	);
-	const requiredSectionQuestions = $derived<Question<string>[]>(
-		toolConfig.sectionQuestions.filter((q) => q.type.kind !== 'text')
-	);
-
-	function isAnswered(value: number | string | undefined | null): boolean {
-		return typeof value === 'number' && value !== null;
+	/** Likert and slider answers are always required; free text only when the admin asks for it. */
+	function isRequired(question: Question<string>): boolean {
+		return question.type.kind !== 'text' || question.required;
 	}
+	const requiredQuestions = $derived<Question<string>[]>(toolConfig.questions.filter(isRequired));
+	const requiredSectionQuestions = $derived<Question<string>[]>(
+		toolConfig.sectionQuestions.filter(isRequired)
+	);
 
 	function isSubmittable(value: number | string | undefined): value is number | string {
 		if (typeof value === 'number') return true;
@@ -205,12 +202,12 @@
 		const keys = new SvelteSet<string>();
 		if (!current) return keys;
 		for (const q of requiredQuestions) {
-			if (!isAnswered(currentAnswers[q.id])) keys.add(q.id);
+			if (!isSubmittable(currentAnswers[q.id])) keys.add(q.id);
 		}
 		for (const section of current.sections) {
 			const sa = currentSectionAnswers[section.id] ?? {};
 			for (const q of requiredSectionQuestions) {
-				if (!isAnswered(sa[q.id])) keys.add(sectionKey(section.id, q.id));
+				if (!isSubmittable(sa[q.id])) keys.add(sectionKey(section.id, q.id));
 			}
 		}
 		return keys;
@@ -325,8 +322,8 @@
 		submitting = true;
 		submitError = null;
 		try {
-			/** Include all answered questions (proposal-level + per-section). Required
-			 * (likert/continuous) are blocked by isComplete; text is optional, so blanks are skipped. */
+			/** Include all answered questions (proposal-level + per-section). Required ones
+			 * are blocked by isComplete; optional text left blank is skipped. */
 			await api.submitResponse(current.id, buildResponses(current));
 			submittedIds = new Set([...submittedIds, current.id]);
 		} catch (e) {

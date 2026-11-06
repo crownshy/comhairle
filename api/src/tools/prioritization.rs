@@ -59,6 +59,8 @@ pub struct Question {
     pub text: TextContentId,
     #[translatable]
     pub r#type: QuestionType,
+    #[serde(default)]
+    pub required: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
@@ -121,6 +123,7 @@ impl SetupQuestion {
                 .build_text_translation(db, locale, TextFormat::Plain)
                 .await?,
             r#type: self.r#type.build_with_translations(db, locale).await?,
+            required: false,
         })
     }
 }
