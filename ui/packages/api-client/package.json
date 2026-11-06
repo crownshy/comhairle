@@ -6,7 +6,7 @@
 	"main": "dist/api.js",
 	"types": "dist/api.d.ts",
 	"scripts": {
-		"generateAPI": "openapi-zod-client \"../../../open-api-spec.json\" -o src/api.ts -t src/template.hbs",
+		"generateAPI": "node mergeFlattenedUnions.mjs ../../../open-api-spec.json open-api-spec.generated.json && openapi-zod-client open-api-spec.generated.json -o src/api.ts -t src/template.hbs",
 		"ts": "tsc",
 		"build": "pnpm run generateAPI",
 		"prepublishOnly": "pnpm run build"

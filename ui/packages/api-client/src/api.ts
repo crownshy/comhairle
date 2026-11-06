@@ -1573,8 +1573,14 @@ export const LearnPage = z
   .passthrough();
 export type LearnPage = z.infer<typeof LearnPage>;
 export const LocalizedPage = z
-  .object({ content: z.string(), type: z.literal("markdown") })
-  .passthrough();
+  .object({
+    lang: z.string(),
+    requires_validation: z.boolean().optional().default(true),
+  })
+  .passthrough()
+  .and(
+    z.object({ content: z.string(), type: z.literal("markdown") }).passthrough()
+  );
 export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
@@ -2488,6 +2494,26 @@ export const DailyResponseStats = z
   })
   .passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
+export const FeedbackDto = z
+  .object({
+    content: z.string(),
+    conversationId: z.string().uuid(),
+    id: z.string().uuid(),
+  })
+  .passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
+export const ReportImpactDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    createdBy: z.string().uuid(),
+    details: z.string(),
+    id: z.string().uuid(),
+    kind: z.string(),
+    reportId: z.string().uuid(),
+    title: z.string(),
+  })
+  .passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PolisReport = z.null();
 export type PolisReport = z.infer<typeof PolisReport>;
 export const HeyFormReport = z.null();
@@ -2563,10 +2589,14 @@ export const LocalizedReportDto = z
   })
   .passthrough();
 export type LocalizedReportDto = z.infer<typeof LocalizedReportDto>;
-export const FullReportDto = z.union([
-  ReportWithTranslations,
-  LocalizedReportDto,
-]);
+export const FullReportDto = z
+  .object({
+    facilitatorFeedback: z.array(FeedbackDto),
+    impacts: z.array(ReportImpactDto),
+    participantFeedback: z.array(FeedbackDto),
+  })
+  .passthrough()
+  .and(z.union([ReportWithTranslations, LocalizedReportDto]));
 export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z
   .object({
@@ -2601,18 +2631,6 @@ export const ReportEmbedsDto = z
   })
   .passthrough();
 export type ReportEmbedsDto = z.infer<typeof ReportEmbedsDto>;
-export const ReportImpactDto = z
-  .object({
-    createdAt: z.string().datetime({ offset: true }),
-    createdBy: z.string().uuid(),
-    details: z.string(),
-    id: z.string().uuid(),
-    kind: z.string(),
-    reportId: z.string().uuid(),
-    title: z.string(),
-  })
-  .passthrough();
-export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PartialReportImpact = z
   .object({
     created_at: z.union([z.string(), z.null()]),
@@ -2631,14 +2649,6 @@ export const CreateImpactDTO = z
   .object({ details: z.string(), kind: z.string(), title: z.string() })
   .passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
-export const FeedbackDto = z
-  .object({
-    content: z.string(),
-    conversationId: z.string().uuid(),
-    id: z.string().uuid(),
-  })
-  .passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z
   .object({ content: z.string() })
   .passthrough();
@@ -3947,6 +3957,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateInviteDTO,
   PartialInvite,
   DailyResponseStats,
+  FeedbackDto,
+  ReportImpactDto,
   PolisReport,
   HeyFormReport,
   LearnReport,
@@ -3966,10 +3978,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ReportDto,
   EmbeddedSectionBlock,
   ReportEmbedsDto,
-  ReportImpactDto,
   PartialReportImpact,
   CreateImpactDTO,
-  FeedbackDto,
   CreateFeedbackDTO,
   PartialFeedback,
   ComhairleLlm,
