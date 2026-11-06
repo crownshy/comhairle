@@ -45,7 +45,7 @@
 </script>
 
 {#snippet trailing()}
-	<div class="flex shrink-0 items-center gap-2 self-start">
+	<div class="my-auto flex shrink-0 items-center gap-2 self-start">
 		{@render actions?.()}
 	</div>
 {/snippet}

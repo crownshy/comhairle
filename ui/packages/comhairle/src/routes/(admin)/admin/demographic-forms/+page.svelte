@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import Callout from '$lib/components/Callout.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import TabContent from '$lib/components/TabContent.svelte';
 	// import { apiClient } from '@crownshy/api-client/client';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
@@ -245,35 +248,24 @@
 	<title>Demographic forms - Comhairle Admin</title>
 </svelte:head>
 
-<div class="bg-nav-background min-h-full">
-	<div class="mx-auto w-11/12 max-w-6xl p-10">
-		<header class="flex flex-wrap items-start justify-between gap-4">
-			<div class="flex flex-col gap-2">
-				<h1 class="text-4xl font-bold">Demographic forms</h1>
-				<p class="text-muted-foreground max-w-2xl text-base">
-					Build questions, put them together into forms, then add a form to any
-					conversation as a demographic step.
-				</p>
-			</div>
-			{#if data.canEdit}
-				{#if tab === 'forms'}
-					<Button onclick={newForm}>New form</Button>
-				{:else}
-					<Button onclick={() => newQuestion(false)}>New question</Button>
-				{/if}
-			{/if}
-		</header>
-
-		{#if data.organizations.length > 0}
-			<div class="mt-6 flex flex-wrap items-center gap-3">
-				<span class="text-base font-medium">Organisation</span>
+<SectionHeader
+	content={{
+		eyebrow: 'Forms',
+		title: 'Demographic forms',
+		description:
+			'Build questions, put them together into forms, then add a form to any conversation as a demographic step.'
+	}}
+>
+	{#snippet actions()}
+		<div class="flex flex-row gap-x-5">
+			{#if data.organizations.length > 0}
 				<Select.Root
 					type="single"
 					value={data.organizationId ?? ''}
 					onValueChange={selectOrganization}
 				>
-					<Select.Trigger id="organization-picker" class="w-72">
-						{selectedOrganizationName}
+					<Select.Trigger id="organization-picker">
+						{selectedOrganizationName ?? 'Choose an organisation'}
 					</Select.Trigger>
 					<Select.Content>
 						{#each data.organizations as organization (organization.id)}
@@ -283,49 +275,55 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
-			</div>
-		{/if}
+			{/if}
+			{#if data.canEdit}
+				<Button>Click me!</Button>
+			{/if}
+		</div>
+	{/snippet}
+</SectionHeader>
 
-		{#if data.organizationId === null}
-			<div class="border-border bg-card mt-6 flex flex-col gap-2 rounded-xl border p-8">
-				<h2 class="text-lg font-semibold">
-					{data.organizations.length === 0
-						? 'No organisation yet'
-						: 'Choose an organisation'}
-				</h2>
-				<p class="text-muted-foreground text-base">
-					{data.organizations.length === 0
-						? 'You are not a member of an organisation, so there are no demographic forms to manage yet.'
-						: 'Pick an organisation above to see and manage its demographic forms and question bank.'}
-				</p>
-			</div>
-		{:else}
-			<Tabs.Root bind:value={tab} class="mt-6">
-				<Tabs.List>
-					<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
-					<Tabs.Trigger value="questions">
-						Question bank ({data.questions.length})
-					</Tabs.Trigger>
-				</Tabs.List>
-				<Tabs.Content value="forms" class="mt-6">
-					<FormsTab
-						forms={data.forms}
-						questions={data.questions}
-						canEdit={data.canEdit}
-						onNew={newForm}
-						onEdit={editForm}
-						onCopy={copyForm}
-					/>
-				</Tabs.Content>
-				<Tabs.Content value="questions" class="mt-6">
-					<QuestionBankTab
-						questions={data.questions}
-						canEdit={data.canEdit}
-						onEdit={editQuestion}
-						onDuplicate={duplicateQuestion}
-					/>
-				</Tabs.Content>
-			</Tabs.Root>
-		{/if}
-	</div>
-</div>
+<TabContent>
+	{#if data.organizationId === null}
+		<Callout
+			variant={data.organizations.length === 0 ? 'warning' : 'primary'}
+			class="px-10 py-7"
+		>
+			<h2 class="text-lg font-semibold">
+				{data.organizations.length === 0 ? 'No organisation yet' : 'Choose an organisation'}
+			</h2>
+			<p class="text-muted-foreground text-base">
+				{data.organizations.length === 0
+					? 'You are not a member of an organisation, so there are no demographic forms to manage yet.'
+					: 'Pick an organisation above to see and manage its demographic forms and question bank.'}
+			</p>
+		</Callout>
+	{:else}
+		<Tabs.Root bind:value={tab} class="mt-6">
+			<Tabs.List>
+				<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
+				<Tabs.Trigger value="questions">
+					Question bank ({data.questions.length})
+				</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="forms" class="mt-6">
+				<FormsTab
+					forms={data.forms}
+					questions={data.questions}
+					canEdit={data.canEdit}
+					onNew={newForm}
+					onEdit={editForm}
+					onCopy={copyForm}
+				/>
+			</Tabs.Content>
+			<Tabs.Content value="questions" class="mt-6">
+				<QuestionBankTab
+					questions={data.questions}
+					canEdit={data.canEdit}
+					onEdit={editQuestion}
+					onDuplicate={duplicateQuestion}
+				/>
+			</Tabs.Content>
+		</Tabs.Root>
+	{/if}
+</TabContent>

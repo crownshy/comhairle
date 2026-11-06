@@ -4,7 +4,7 @@
 
 	type Props = {
 		children: Snippet;
-		variant?: 'primary' | 'warning' | 'danger';
+		variant?: 'primary' | 'accent' | 'warning' | 'danger';
 		class?: string;
 	};
 
@@ -16,6 +16,8 @@
 				return 'color-amber-400';
 			case 'danger':
 				return 'color-red-500';
+			case 'accent':
+				return 'color-accent';
 			case 'primary':
 			default:
 				return 'color-primary';
@@ -33,7 +35,7 @@
 
 <style>
 	.callout {
-		border-color: oklch(from var(--_color) l c h);
-		background-color: oklch(from var(--_color) l c h / 0.3);
+		border-color: oklch(from var(--_color) l c h / 0.4);
+		background-color: oklch(from var(--_color) l c h / 0.2);
 	}
 </style>
