@@ -61,6 +61,12 @@ pub struct ThinkingSpaceToolConfig {
     #[translatable]
     pub root_questions: Vec<ThinkingSpaceQuestion>,
     pub follow_up_rounds_count: u8,
+    /// Admin-authored instructions appended to the prompt that generates
+    /// follow-up questions. Never shown to participants.
+    pub question_additional_instructions: Option<String>,
+    /// Admin-authored instructions appended to the prompt that generates
+    /// interview summaries. Never shown to participants.
+    pub summary_additional_instructions: Option<String>,
 }
 
 impl ToolConfigSanitize for ThinkingSpaceToolConfig {
@@ -104,6 +110,8 @@ pub struct ThinkingSpaceToolSetup {
     pub topic: String,
     pub root_questions: Vec<ThinkingSpaceSetupQuestion>,
     pub follow_up_rounds_count: u8,
+    pub question_additional_instructions: Option<String>,
+    pub summary_additional_instructions: Option<String>,
 }
 
 impl ThinkingSpaceToolSetup {
@@ -125,6 +133,8 @@ impl ThinkingSpaceToolSetup {
                 built
             },
             follow_up_rounds_count: self.follow_up_rounds_count,
+            question_additional_instructions: self.question_additional_instructions,
+            summary_additional_instructions: self.summary_additional_instructions,
         })
     }
 }
@@ -313,6 +323,27 @@ impl ToolImpl for ThinkingSpaceTool {
                         .response::<200, Json<ThinkingSpaceInsightsResponse>>()
                 }),
             )
+    }
+}
+
+/// Combines the admin-authored additional instructions from the tool config
+/// with any instructions computed for this specific call (e.g. a word-limit
+/// instruction), so neither source silently overrides the other.
+fn merge_additional_instructions(
+    parts: impl IntoIterator<Item = Option<String>>,
+) -> Option<String> {
+    let merged = parts
+        .into_iter()
+        .flatten()
+        .map(|part| part.trim().to_string())
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    if merged.is_empty() {
+        None
+    } else {
+        Some(merged)
     }
 }
 
@@ -520,7 +551,9 @@ async fn converse(
 
     let generator = FollowUpQuestionGenerator {
         context: None,
-        additional_instructions: None,
+        additional_instructions: merge_additional_instructions([tool_config
+            .question_additional_instructions
+            .clone()]),
         reading_age_target: None,
         topic,
     };
@@ -664,6 +697,10 @@ async fn generate_thinking_space_summary(
     let word_limit_instruction = Some(format!(
         "Write the summary in no more than {per_root_word_limit} words."
     ));
+    let additional_instructions = merge_additional_instructions([
+        tool_config.summary_additional_instructions.clone(),
+        word_limit_instruction,
+    ]);
 
     let mut summaries = Vec::with_capacity(root_ids.len());
     let mut uncertainties = Vec::with_capacity(root_ids.len());
@@ -672,7 +709,7 @@ async fn generate_thinking_space_summary(
 
         let generator = SummaryGenerator {
             context: None,
-            additional_instructions: word_limit_instruction.clone(),
+            additional_instructions: additional_instructions.clone(),
             reading_age_target: None,
             topic: topic.clone(),
         };

@@ -1683,7 +1683,13 @@ export const ToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string().uuid(),
       type: z.literal("thinkingspace"),
     })
@@ -1890,7 +1896,13 @@ export const ToolConfigWithTranslations = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: JsonFieldWithTranslations,
       type: z.literal("thinkingspace"),
     })
@@ -2037,7 +2049,13 @@ export const LocalizedToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(LocalizedThinkingSpaceQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -2164,7 +2182,13 @@ export const ToolSetup = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceSetupQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
