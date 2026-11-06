@@ -11,7 +11,7 @@
 	useTour(() => organizationsTour);
 
 	let props: PageProps = $props();
-	let organizationAccess = $derived(props.data.userOrganizations?.organizations ?? []);
+	let organizationAccess = $derived(props.data.userOrganisations?.organizations ?? []);
 	let canCreateOrganization = $derived(permissions.can('system', 'organization_create'));
 </script>
 

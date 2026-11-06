@@ -35,7 +35,7 @@
 <HostingOrganizationSection
 	conversationId={data.conversation.id}
 	organizationId={data.conversation.organizationId ?? null}
-	organizations={data.userOrganizations.organizations}
+	organizations={data.userOrganisations.organizations}
 />
 
 {#if canTransferOwnership}

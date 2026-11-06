@@ -5,7 +5,7 @@ import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ parent, params, depends }) => {
-	const { api, userOrganizations } = await parent();
+	const { api, userOrganisations } = await parent();
 	depends(key('admin/organization/details'));
 	depends(key('admin/organization/permissions'));
 
@@ -14,7 +14,7 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 			params: { organization_id: params.organization_id }
 		});
 
-		const access = (userOrganizations?.organizations ?? []).find(
+		const access = (userOrganisations?.organizations ?? []).find(
 			(entry) => entry.organization.id === params.organization_id
 		);
 
