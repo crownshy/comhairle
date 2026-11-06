@@ -900,6 +900,7 @@ export const Form = z
     id: z.string(),
     interactiveMode: z.union([z.number(), z.null()]).optional(),
     kind: z.union([z.number(), z.null()]).optional(),
+    logics: z.union([z.array(z.unknown()), z.null()]).optional(),
     name: z.union([z.string(), z.null()]).optional(),
     projectId: z.string(),
     settings: z.union([FormSettings, z.null()]).optional(),
@@ -2247,7 +2248,11 @@ export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const ToolExIm = z.union([
   z.object({ type: z.literal("polis") }).passthrough(),
   z
-    .object({ fields: z.array(FormField), type: z.literal("heyform") })
+    .object({
+      fields: z.array(FormField),
+      logics: z.union([z.array(z.unknown()), z.null()]).optional(),
+      type: z.literal("heyform"),
+    })
     .passthrough(),
   z.object({ type: z.literal("learn") }).passthrough(),
   z.object({ type: z.literal("stories") }).passthrough(),

@@ -79,6 +79,7 @@ impl ToolConfigSanitize for HeyFormToolConfig {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct HeyFormExIm {
     pub fields: Vec<FormField>,
+    pub logics: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
@@ -111,15 +112,19 @@ fn generate_password() -> String {
 pub async fn launch(
     preview_config: &HeyFormToolConfig,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
-    let preview_form_fields = fetch_form_fields(preview_config).await?;
-    let live_config =
-        create_form_with_fields(&preview_config.server_url, preview_form_fields).await?;
+    let preview_form = fetch_form(preview_config).await?;
+    let live_config = create_form(
+        &preview_config.server_url,
+        preview_form.fields.unwrap_or_default(),
+        preview_form.logics,
+    )
+    .await?;
 
     Ok(live_config)
 }
 
 /// Logs in to the source form and returns its fields.
-async fn fetch_form_fields(config: &HeyFormToolConfig) -> Result<Vec<FormField>, ComhairleError> {
+async fn fetch_form(config: &HeyFormToolConfig) -> Result<Form, ComhairleError> {
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
     client
         .login(LoginInput {
@@ -128,13 +133,14 @@ async fn fetch_form_fields(config: &HeyFormToolConfig) -> Result<Vec<FormField>,
         })
         .await?;
     let form = client.get_form(&config.survey_id).await?;
-    Ok(form.fields.unwrap_or_default())
+    Ok(form)
 }
 
 /// Creates a fresh HeyForm account/form and fillsit with the given fields.
-async fn create_form_with_fields(
+async fn create_form(
     server_url: &str,
     fields: Vec<FormField>,
+    logics: Option<Vec<serde_json::Value>>,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
     let config = heyform_setup(&HeyFormToolSetup {
         server_url: server_url.to_string(),
@@ -149,9 +155,11 @@ async fn create_form_with_fields(
         })
         .await?;
 
-    client
-        .update_poll_fields(&config.survey_id, Some(fields))
-        .await?;
+    client.update_poll(&config.survey_id, Some(fields)).await?;
+
+    if let Some(logics) = logics {
+        client.update_poll_logics(&config.survey_id, logics).await?;
+    }
 
     Ok(config)
 }
@@ -302,16 +310,24 @@ impl ToolImpl for HeyFormTool {
     }
 
     async fn export_tool(config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
-        let fields = fetch_form_fields(config).await?;
+        let form = fetch_form(config).await?;
 
-        Ok(Self::ExportImport { fields })
+        Ok(Self::ExportImport {
+            fields: form.fields.unwrap_or_default(),
+            logics: form.logics,
+        })
     }
 
     async fn import_tool(
         config: &Self::ExportImport,
         state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
-        create_form_with_fields(&state.config.heyform_url, config.fields.clone()).await
+        create_form(
+            &state.config.heyform_url,
+            config.fields.clone(),
+            config.logics.clone(),
+        )
+        .await
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
@@ -1163,6 +1179,27 @@ mod tests {
         form_count: Arc<AtomicUsize>,
         /// Every GraphQL payload received, in order, so tests can assert on outgoing calls.
         requests: Arc<Mutex<Vec<serde_json::Value>>>,
+        /// Conditional logic returned by `formDetail`; `None` models a form without logic.
+        form_logics: Option<serde_json::Value>,
+    }
+
+    /// One jump rule and one calculate rule, so differently shaped payloads must pass through unchanged.
+    fn sample_form_logics() -> serde_json::Value {
+        json!([{
+            "fieldId": "report-1",
+            "payloads": [
+                {
+                    "id": "logic-1",
+                    "condition": { "comparison": "is", "expected": "c-red" },
+                    "action": { "kind": "navigate", "fieldId": "report-2" }
+                },
+                {
+                    "id": "logic-2",
+                    "condition": { "comparison": "is_any_of", "expected": ["c-red", "c-blue"] },
+                    "action": { "kind": "calculate", "variable": "score", "operator": "addition", "value": 1 }
+                }
+            ]
+        }])
     }
 
     fn workflow_steps_url(conversation_id: &Uuid, workflow_id: &Uuid) -> String {
@@ -1440,6 +1477,14 @@ mod tests {
             }));
         }
 
+        if operation_name == "updateFormLogics" || query.contains("mutation updateFormLogics(") {
+            return Json(json!({
+                "data": {
+                    "updateFormLogics": true
+                }
+            }));
+        }
+
         if operation_name == "updateForm" || query.contains("mutation updateForm(") {
             return Json(json!({
                 "data": {
@@ -1480,6 +1525,7 @@ mod tests {
                             "hide": null,
                             "frozen": null
                         }],
+                        "logics": state.form_logics,
                         "themeSettings": null,
                         "draft": null,
                         "status": null
@@ -1537,10 +1583,17 @@ mod tests {
 
     async fn start_mock_heyform_server_with_state()
     -> Result<(String, tokio::task::JoinHandle<()>, MockHeyFormState), Box<dyn Error>> {
+        start_mock_heyform_server_with(Some(sample_form_logics())).await
+    }
+
+    async fn start_mock_heyform_server_with(
+        form_logics: Option<serde_json::Value>,
+    ) -> Result<(String, tokio::task::JoinHandle<()>, MockHeyFormState), Box<dyn Error>> {
         let state = MockHeyFormState {
             submission_calls: Arc::new(AtomicUsize::new(0)),
             form_count: Arc::new(AtomicUsize::new(0)),
             requests: Arc::new(Mutex::new(Vec::new())),
+            form_logics,
         };
 
         let app = Router::new()
@@ -1598,18 +1651,22 @@ mod tests {
         })
     }
 
-    #[tokio::test]
-    async fn launch_copies_preview_form_fields_into_new_form() -> Result<(), Box<dyn Error>> {
-        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
-        let preview_config = HeyFormToolConfig {
+    fn preview_config(mock_url: &str) -> HeyFormToolConfig {
+        HeyFormToolConfig {
             survey_id: "preview-form".to_string(),
             survey_url: format!("http://{mock_url}/form/preview-form"),
             admin_user: "preview-admin@comhairle.com".to_string(),
             admin_password: "preview-password".to_string(),
             workspace_id: "preview-team".to_string(),
             project_id: "preview-project".to_string(),
-            server_url: mock_url.clone(),
-        };
+            server_url: mock_url.to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn launch_copies_preview_form_fields_into_new_form() -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
+        let preview_config = preview_config(&mock_url);
 
         let live_config = launch(&preview_config).await?;
 
@@ -1681,6 +1738,135 @@ mod tests {
         assert_eq!(copied_fields.len(), 1);
         assert_eq!(copied_fields[0].id, "report-1");
         assert_eq!(copied_fields[0].title, Some(json!("Favourite colour?")));
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    fn request_position(requests: &[serde_json::Value], operation: &str) -> Option<usize> {
+        requests
+            .iter()
+            .position(|request| request["operationName"] == operation)
+    }
+
+    #[tokio::test]
+    async fn launch_copies_preview_logics_into_new_form() -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
+
+        let live_config = launch(&preview_config(&mock_url)).await?;
+
+        let requests = mock_state
+            .requests
+            .lock()
+            .expect("mock request log poisoned")
+            .clone();
+        let update_schemas =
+            request_position(&requests, "updateFormSchemas").expect("fields were not copied");
+        let update_logics =
+            request_position(&requests, "updateFormLogics").expect("logics were not copied");
+        assert!(
+            update_schemas < update_logics,
+            "logics must be written after the fields they refer to"
+        );
+        let logics_input = &requests[update_logics]["variables"]["input"];
+        assert_eq!(logics_input["formId"], json!(live_config.survey_id));
+        assert_eq!(logics_input["logics"], sample_form_logics());
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn launch_without_preview_logics_skips_logic_update() -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with(None).await?;
+
+        launch(&preview_config(&mock_url)).await?;
+
+        assert_eq!(
+            requests_with_operation(&mock_state, "updateFormSchemas").len(),
+            1
+        );
+        assert!(requests_with_operation(&mock_state, "updateFormLogics").is_empty());
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn launching_conversation_copies_heyform_preview_into_new_live_form(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, conversation, _) = session.create_random_unlaunched_conversation(&app).await?;
+        let conversation_id: Uuid = serde_json::from_value(conversation["id"].clone())?;
+        let workflow_id = get_random_workflow_id(&app, &mut session, &conversation_id).await?;
+        let mut tool_setup = heyform_tool_config();
+        tool_setup["server_url"] = json!(mock_url);
+        let (status, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "Survey step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "<p>Tell us what you think</p>",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": tool_setup,
+                }),
+            )
+            .await?;
+        assert!(
+            status.is_success(),
+            "failed to create heyform step: {value}"
+        );
+        let step: WorkflowStepDto = serde_json::from_value(value)?;
+        assert!(
+            step.tool_config.is_none(),
+            "unlaunched step should have no live config"
+        );
+
+        let (status, value, _) = session
+            .put(
+                &app,
+                &format!("/conversation/{conversation_id}/launch"),
+                axum::body::Body::empty(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "{value}");
+
+        let launched = models::workflow_step::get_by_id(&pool, &step.id).await?;
+        let ToolConfig::HeyForm(preview) = launched.preview_tool_config else {
+            panic!("preview config is not heyform");
+        };
+        let Some(ToolConfig::HeyForm(live)) = launched.tool_config else {
+            panic!("launch did not set a heyform live config");
+        };
+        assert_eq!(
+            preview.survey_id, "form-1",
+            "preview form should be untouched"
+        );
+        assert_eq!(live.survey_id, "form-2", "launch should create a new form");
+        assert_ne!(live.admin_user, preview.admin_user);
+
+        let update_schemas = requests_with_operation(&mock_state, "updateFormSchemas");
+        let live_fields = update_schemas.last().expect("fields were not copied");
+        assert_eq!(live_fields["variables"]["input"]["formId"], "form-2");
+        assert_eq!(
+            live_fields["variables"]["input"]["fields"][0]["id"],
+            "report-1"
+        );
+
+        let update_logics = requests_with_operation(&mock_state, "updateFormLogics");
+        let live_logics = update_logics.last().expect("logics were not copied");
+        assert_eq!(live_logics["variables"]["input"]["formId"], "form-2");
+        assert_eq!(
+            live_logics["variables"]["input"]["logics"],
+            sample_form_logics()
+        );
 
         mock_server.abort();
         Ok(())
@@ -1775,6 +1961,7 @@ mod tests {
                 hide: None,
                 frozen: None,
             }]),
+            logics: None,
             theme_settings: None,
             draft: None,
             status: None,
@@ -1915,6 +2102,7 @@ mod tests {
                 hide: None,
                 frozen: None,
             }]),
+            logics: None,
             theme_settings: None,
             draft: None,
             status: None,
@@ -1990,6 +2178,7 @@ mod tests {
                 hide: None,
                 frozen: None,
             }]),
+            logics: None,
             theme_settings: None,
             draft: None,
             status: None,
@@ -2098,6 +2287,10 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{export}");
         assert_eq!(export["preview_tool_config"]["type"], "heyform");
         assert_eq!(export["preview_tool_config"]["fields"][0]["id"], "report-1");
+        assert_eq!(
+            export["preview_tool_config"]["logics"],
+            sample_form_logics()
+        );
         assert_eq!(export["name"], "Survey step");
         assert_eq!(export["required"], true);
         assert_eq!(export["primary_locale"], "en");
@@ -2118,19 +2311,26 @@ mod tests {
         Ok(())
     }
 
+    /// Imports create forms on `config.heyform_url`, so it must point at the mock.
+    async fn setup_app_with_mock_heyform(
+        pool: &PgPool,
+        mock_url: &str,
+    ) -> Result<(crate::App, UserSession), Box<dyn Error>> {
+        let mut config = test_config()?;
+        config.heyform_url = mock_url.to_string();
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+        Ok((app, session))
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn import_heyform_step_creates_new_form_with_exported_fields(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
-        let mut test_config = test_config()?;
-        test_config.heyform_url = mock_url.clone();
-        let state = Arc::new(test_state().db(pool.clone()).config(test_config).call()?);
-        let app = setup_server(state.clone()).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        // let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (app, mut session) = setup_app_with_mock_heyform(&pool, &mock_url).await?;
 
         let (conversation_id, step) =
             create_heyform_step_with_conversation(&app, &mut session, &mock_url).await?;
@@ -2165,6 +2365,45 @@ mod tests {
             import_update["variables"]["input"]["fields"][0]["id"],
             "report-1"
         );
+
+        let logic_updates = requests_with_operation(&mock_state, "updateFormLogics");
+        let import_logics = logic_updates.last().expect("logics were not copied");
+        assert_eq!(import_logics["variables"]["input"]["formId"], "form-2");
+        assert_eq!(
+            import_logics["variables"]["input"]["logics"],
+            sample_form_logics()
+        );
+
+        mock_server.abort();
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn import_of_export_without_logics_skips_logic_update(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (mock_url, mock_server, mock_state) = start_mock_heyform_server_with_state().await?;
+        let (app, mut session) = setup_app_with_mock_heyform(&pool, &mock_url).await?;
+        let (conversation_id, step) =
+            create_heyform_step_with_conversation(&app, &mut session, &mock_url).await?;
+        let (_, mut export) = export_step(&app, &mut session, &conversation_id, &step).await?;
+        // Files exported before logics were supported have no `logics` key at all.
+        export["preview_tool_config"]
+            .as_object_mut()
+            .expect("tool config is an object")
+            .remove("logics");
+
+        let (status, value) = import_step(
+            &app,
+            &mut session,
+            &conversation_id,
+            &step.workflow_id,
+            &export.to_string(),
+        )
+        .await?;
+
+        assert_eq!(status, StatusCode::CREATED, "{value}");
+        assert!(requests_with_operation(&mock_state, "updateFormLogics").is_empty());
 
         mock_server.abort();
         Ok(())

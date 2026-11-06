@@ -245,11 +245,11 @@ impl HeyFormClient {
         Ok(embed_url)
     }
 
-    pub async fn update_poll(&self, form_id: &str, form: Form) -> Result<bool> {
+    pub async fn update_poll(&self, form_id: &str, fields: Option<Vec<FormField>>) -> Result<bool> {
         let variables = json!({
             "input": {
                 "formId": form_id,
-                "fields": form.fields
+                "fields": fields,
             }
         });
 
@@ -264,27 +264,27 @@ impl HeyFormClient {
         Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
     }
 
-    pub async fn update_poll_fields(
+    pub async fn update_poll_logics(
         &self,
         form_id: &str,
-        fields: Option<Vec<FormField>>,
+        logics: Vec<serde_json::Value>,
     ) -> Result<bool> {
         let variables = json!({
             "input": {
                 "formId": form_id,
-                "fields": fields
+                "logics": logics,
             }
         });
 
         let response: HashMap<String, bool> = self
             .execute_graphql(
-                UPDATE_FORM_SCHEMAS_MUTATION,
+                UPDATE_FORM_LOGICS_MUTATION,
                 variables,
-                Some("updateFormSchemas"),
+                Some("updateFormLogics"),
             )
             .await?;
 
-        Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
+        Ok(response.get("updateFormLogics").copied().unwrap_or(false))
     }
 
     pub async fn delete_poll(&self, form_id: &str) -> Result<bool> {
