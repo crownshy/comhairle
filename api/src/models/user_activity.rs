@@ -86,6 +86,20 @@ impl std::fmt::Display for EndReason {
     }
 }
 
+impl TryFrom<&str> for EndReason {
+    type Error = ComhairleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "idle_timeout" => Ok(EndReason::IdleTimeout),
+            "navigation" => Ok(EndReason::Navigation),
+            "finished" => Ok(EndReason::Finished),
+            "disconnected" => Ok(EndReason::Disconnected),
+            _ => Err(ComhairleError::BadRequest("invalid end_reason".to_string())),
+        }
+    }
+}
+
 /// Records that a participant opened a step, creating their row on the first visit.
 ///
 /// On a later visit the existing row is reopened. `sessions` only goes up if the row had been
