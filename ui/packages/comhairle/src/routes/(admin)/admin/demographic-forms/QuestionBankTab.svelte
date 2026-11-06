@@ -5,11 +5,11 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
-	import { QUESTION_KIND_LABELS, SPECIAL_CATEGORY_TAG } from './demographicModel';
-	import type { QuestionDto } from '@crownshy/api-client/api';
+	import { SPECIAL_CATEGORY_TAG } from './demographicModel';
+	import type { QuestionLatestDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		questions: QuestionDto[];
+		questions: QuestionLatestDto[];
 		canEdit: boolean;
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
@@ -20,9 +20,9 @@
 	let search = $state('');
 	let filter = $state<string | null>(null);
 
-	const tagNames = (question: QuestionDto) => question.tags.map((tag) => tag.name);
+	const tagNames = (question: QuestionLatestDto) => question.tags.map((tag) => tag.name);
 
-	const matchesFilter = (question: QuestionDto, option: string) =>
+	const matchesFilter = (question: QuestionLatestDto, option: string) =>
 		option === SPECIAL_CATEGORY_TAG
 			? question.specialCategory
 			: tagNames(question).includes(option);
@@ -34,8 +34,7 @@
 		questions.filter((question) => {
 			const passesFilter = filter === null || matchesFilter(question, filter);
 			return (
-				passesFilter &&
-				question.latest_published?.text.toLowerCase().includes(search.trim().toLowerCase())
+				passesFilter && question.text.toLowerCase().includes(search.trim().toLowerCase())
 			);
 		})
 	);
@@ -96,20 +95,18 @@
 			<Table.Body>
 				{#each visible as question (question.id)}
 					<Table.Row>
-						<Table.Cell class="text-base leading-8 font-medium">
-							{question.latest_published?.text}
+						<Table.Cell class="font-semibold">
+							{question.text}
 						</Table.Cell>
-						<Table.Cell class="text-muted-foreground text-sm leading-8">
-							{QUESTION_KIND_LABELS[question.kind]}
+						<Table.Cell class="text-muted-foreground text-sm">
+							{question.question_type}
 						</Table.Cell>
 						<Table.Cell>
-							<Badge
-								variant={question.publishedVersion === null ? 'draft' : 'primary'}
-							>
-								{question.publishedVersion === null
+							<Badge variant={question.publishedVersion === 0 ? 'draft' : 'primary'}>
+								{question.publishedVersion === 0
 									? 'Unpublished'
 									: `v${question.publishedVersion}`}
-								{#if question.draftVersion !== null}
+								{#if question.draftVersion !== 0}
 									, draft v{question.draftVersion}
 								{/if}
 							</Badge>

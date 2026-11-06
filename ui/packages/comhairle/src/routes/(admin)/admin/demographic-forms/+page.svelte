@@ -6,7 +6,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { key } from '$lib/utils/invalidationKey';
+	// import { key } from '$lib/utils/invalidationKey';
 	import FormsTab from './FormsTab.svelte';
 	import QuestionBankTab from './QuestionBankTab.svelte';
 	import {} from // archiveForm,
@@ -40,7 +40,7 @@
 	// let formEdit = $state<FormEdit | null>(null);
 	// let questionEdit = $state<QuestionEdit | null>(null);
 
-	const reload = () => invalidate(key('admin/demographic-forms'));
+	// const reload = () => invalidate(key('admin/demographic-forms'));
 
 	const selectedOrganizationName = $derived(
 		data.organizations.find((org) => org.id === data.organizationId)?.name ??

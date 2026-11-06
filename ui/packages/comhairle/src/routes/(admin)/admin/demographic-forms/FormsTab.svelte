@@ -13,7 +13,6 @@
 		forms: DemographicFormLatestDto[];
 		questions: QuestionLatestDto[];
 		canEdit: boolean;
-		specialCategoryCount: number;
 		onNew: () => void;
 		onEdit: (formId: string) => void;
 		onCopy: (formId: string) => void;
