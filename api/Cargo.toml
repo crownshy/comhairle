@@ -23,6 +23,7 @@ path = "src/data_loader/main.rs"
 workspace = true
 
 [dependencies]
+jsonschema = "0.58"
 axum = { version = "0.8.3", features = ["ws", "multipart"] }
 async-trait = { workspace = true }
 config = "0.15.8"

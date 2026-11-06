@@ -12,21 +12,32 @@
 		name: string;
 		/** Option supporting line. */
 		description: string;
+		/** Greys the row out and stops it being selected. */
+		disabled?: boolean;
 		/** Called when the row is clicked. */
 		onSelect: () => void;
 		class?: string;
 	};
 
-	let { selected = false, name, description, onSelect, class: className = '' }: Props = $props();
+	let {
+		selected = false,
+		name,
+		description,
+		disabled = false,
+		onSelect,
+		class: className = ''
+	}: Props = $props();
 </script>
 
 <button
 	type="button"
 	onclick={onSelect}
 	aria-pressed={selected}
+	{disabled}
 	class={cn(
 		'flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors',
 		selected ? 'border-primary bg-accent' : 'border-border bg-card hover:bg-accent/50',
+		disabled && 'hover:bg-card cursor-not-allowed opacity-50',
 		className
 	)}
 >
