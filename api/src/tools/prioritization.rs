@@ -59,8 +59,6 @@ pub struct Question {
     pub text: TextContentId,
     #[translatable]
     pub r#type: QuestionType,
-    /// Only enforced for free-text questions. Likert and slider questions are
-    /// always required, so the flag is ignored for them.
     #[serde(default)]
     pub required: bool,
 }
