@@ -47,7 +47,11 @@ export type Proposal = {
 export type LocalizedProposal = LocalizedProposalDto;
 
 /** Form state for a question being created or edited.  */
-export type DraftFields = { text: DraftTranslatableJsonField; type: DraftQuestionType };
+export type DraftFields = {
+	text: DraftTranslatableJsonField;
+	type: DraftQuestionType;
+	required: boolean;
+};
 
 export type QuestionType<TText> =
 	| { kind: 'text' }
@@ -65,6 +69,8 @@ export type Question<TText> = {
 	id: string;
 	text: TText;
 	type: QuestionType<TText>;
+	/** Only read for free-text questions; likert and slider answers are always required. */
+	required: boolean;
 };
 
 /** Question definitions (from the workflow step's tool config) */

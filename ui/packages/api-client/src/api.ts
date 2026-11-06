@@ -1603,6 +1603,7 @@ export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean().optional().default(false),
     text: z.string().uuid(),
     type: QuestionType,
   })
@@ -1810,6 +1811,7 @@ export type QuestionTypeWithTranslations = z.infer<
 export const QuestionWithTranslations = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean(),
     text: JsonFieldWithTranslations,
     type: QuestionTypeWithTranslations,
   })
@@ -1960,6 +1962,7 @@ export type LocalizedQuestionType = z.infer<typeof LocalizedQuestionType>;
 export const LocalizedQuestion = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean(),
     text: z.string(),
     type: LocalizedQuestionType,
   })

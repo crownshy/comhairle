@@ -75,7 +75,7 @@
 <div class="space-y-3" class:opacity-60={disabled}>
 	<p class="text-base font-medium" class:text-destructive={invalid}>
 		{question.text}
-		{#if question.type.kind === 'text'}
+		{#if question.type.kind === 'text' && !question.required}
 			<span class="text-muted-foreground font-normal">(optional)</span>
 		{/if}
 	</p>
