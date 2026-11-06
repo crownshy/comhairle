@@ -900,6 +900,7 @@ export const Form = z
     id: z.string(),
     interactiveMode: z.union([z.number(), z.null()]).optional(),
     kind: z.union([z.number(), z.null()]).optional(),
+    logics: z.union([z.array(z.unknown()), z.null()]).optional(),
     name: z.union([z.string(), z.null()]).optional(),
     projectId: z.string(),
     settings: z.union([FormSettings, z.null()]).optional(),
@@ -1603,6 +1604,7 @@ export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean().optional().default(false),
     text: z.string().uuid(),
     type: QuestionType,
   })
@@ -1682,7 +1684,13 @@ export const ToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string().uuid(),
       type: z.literal("thinkingspace"),
     })
@@ -1810,6 +1818,7 @@ export type QuestionTypeWithTranslations = z.infer<
 export const QuestionWithTranslations = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean(),
     text: JsonFieldWithTranslations,
     type: QuestionTypeWithTranslations,
   })
@@ -1888,7 +1897,13 @@ export const ToolConfigWithTranslations = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceQuestionWithTranslations),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: JsonFieldWithTranslations,
       type: z.literal("thinkingspace"),
     })
@@ -1960,6 +1975,7 @@ export type LocalizedQuestionType = z.infer<typeof LocalizedQuestionType>;
 export const LocalizedQuestion = z
   .object({
     id: z.string().uuid(),
+    required: z.boolean(),
     text: z.string(),
     type: LocalizedQuestionType,
   })
@@ -2034,7 +2050,13 @@ export const LocalizedToolConfig = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(LocalizedThinkingSpaceQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -2161,7 +2183,13 @@ export const ToolSetup = z.union([
   z
     .object({
       follow_up_rounds_count: z.number().int().gte(0),
+      question_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       root_questions: z.array(ThinkingSpaceSetupQuestion),
+      summary_additional_instructions: z
+        .union([z.string(), z.null()])
+        .optional(),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -2220,7 +2248,11 @@ export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const ToolExIm = z.union([
   z.object({ type: z.literal("polis") }).passthrough(),
   z
-    .object({ fields: z.array(FormField), type: z.literal("heyform") })
+    .object({
+      fields: z.array(FormField),
+      logics: z.union([z.array(z.unknown()), z.null()]).optional(),
+      type: z.literal("heyform"),
+    })
     .passthrough(),
   z.object({ type: z.literal("learn") }).passthrough(),
   z.object({ type: z.literal("stories") }).passthrough(),

@@ -31,29 +31,20 @@ pub enum StatementThemeAssignerError {
 }
 
 impl StatementThemeAssigner {
-    pub async fn run_with_model<S>(
+    /// Runs one group of statements to completion: keeps re-sending whatever the
+    /// model hasn't yet returned an assignment for, since a single call commonly
+    /// comes back missing a few ids rather than the whole batch failing outright.
+    async fn run_group_to_completion(
         &self,
-        statement_list: S,
-        model: impl Into<DynModel<Completion>>,
-    ) -> Result<ThemeAssignmentResult, StatementThemeAssignerError>
-    where
-        S: Into<StatementList>,
-    {
+        statements: &[Statement],
+        extractor: &rig_agent::extractor::Extractor<ThemeAssignmentResult>,
+    ) -> Result<Vec<ThemeAssignment>, StatementThemeAssignerError> {
         let mut all_results: Vec<ThemeAssignment> = vec![];
-
-        let template = self.render()?;
-        let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
-            .append_preamble(&template)
-            .retries(2)
-            .build();
-
-        let list: StatementList = statement_list.into();
         let mut pending_ids: HashSet<String> =
-            list.statements.iter().map(|s| s.id.clone()).collect();
+            statements.iter().map(|s| s.id.clone()).collect();
 
         while !pending_ids.is_empty() {
-            let filtered_statement_list: Vec<Statement> = list
-                .statements
+            let filtered_statement_list: Vec<Statement> = statements
                 .iter()
                 .filter(|statement| pending_ids.contains(&statement.id))
                 .cloned()
@@ -72,8 +63,57 @@ impl StatementThemeAssigner {
             all_results.extend(result.statement_assignments);
         }
 
+        Ok(all_results)
+    }
+
+    pub async fn run_with_model<S>(
+        &self,
+        statement_list: S,
+        model: impl Into<DynModel<Completion>>,
+    ) -> Result<ThemeAssignmentResult, StatementThemeAssignerError>
+    where
+        S: Into<StatementList>,
+    {
+        let template = self.render()?;
+        let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
+            .append_preamble(&template)
+            .retries(2)
+            .build();
+
+        let list: StatementList = statement_list.into();
+        let statement_assignments = self
+            .run_group_to_completion(&list.statements, &extractor)
+            .await?;
+
         Ok(ThemeAssignmentResult {
-            statement_assignments: all_results,
+            statement_assignments,
+        })
+    }
+
+    pub async fn run_in_batches_with_model<S>(
+        &self,
+        statement_list: S,
+        model: impl Into<DynModel<Completion>>,
+        batch_size: usize,
+    ) -> Result<ThemeAssignmentResult, StatementThemeAssignerError>
+    where
+        S: Into<StatementList>,
+    {
+        let template = self.render()?;
+        let extractor = ExtractorBuilder::<ThemeAssignmentResult>::new(model)
+            .append_preamble(&template)
+            .retries(2)
+            .build();
+
+        let list: StatementList = statement_list.into();
+        let mut statement_assignments: Vec<ThemeAssignment> = vec![];
+
+        for chunk in list.statements.chunks(batch_size) {
+            statement_assignments.extend(self.run_group_to_completion(chunk, &extractor).await?);
+        }
+
+        Ok(ThemeAssignmentResult {
+            statement_assignments,
         })
     }
 }
@@ -107,6 +147,32 @@ mod tests {
             .build();
 
         let statements_with_themes = classifier.run_with_model(statements, model).await;
+        assert!(statements_with_themes.is_ok(), "Should run ok");
+
+        let statements_with_themes = statements_with_themes.unwrap();
+        assert_eq!(
+            no_statements,
+            statements_with_themes.statement_assignments.len(),
+            "Should get back as many as we sent"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_statement_assignment_batches() {
+        let model = test_model();
+        let statements = test_statements();
+        let themes = test_themes();
+
+        let no_statements = statements.len();
+
+        let classifier = StatementThemeAssigner::builder()
+            .context("These statements are part of a survey about issues in a council area".into())
+            .themes(themes.into())
+            .build();
+
+        let statements_with_themes = classifier
+            .run_in_batches_with_model(statements, model, 2)
+            .await;
         assert!(statements_with_themes.is_ok(), "Should run ok");
 
         let statements_with_themes = statements_with_themes.unwrap();

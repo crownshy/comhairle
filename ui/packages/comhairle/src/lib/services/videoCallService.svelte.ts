@@ -46,6 +46,8 @@ export class VideoCallService {
 	/** Latest agenda pushed over WS (overrides the SSR-loaded agenda when set). */
 	private _agenda = $state<EventAgendaItem[] | null>(null);
 	private isListening = false;
+	private joinedEventId: string | null = null;
+	private videoPresence: { displayName: string | null } | null = null;
 
 	constructor() {
 		this.setupListeners();
@@ -116,6 +118,27 @@ export class VideoCallService {
 				this.handleAgendaUpdate(payload.data as EventAgendaItem[]);
 			}
 		});
+
+		ws.onOpen(() => this.resendPresence());
+	}
+
+	private resendPresence() {
+		if (!this.joinedEventId) return;
+		this.sendUserJoined(this.joinedEventId);
+		if (this.videoPresence) {
+			this.sendVideoJoined(this.joinedEventId, this.videoPresence.displayName);
+		}
+	}
+
+	private sendUserJoined(eventId: string) {
+		ws.sendCustom('video_call:user_joined', { event_id: eventId });
+	}
+
+	private sendVideoJoined(eventId: string, displayName: string | null) {
+		ws.sendCustom('video_call:video_joined', {
+			event_id: eventId,
+			display_name: displayName ?? null
+		});
 	}
 
 	private handleStateUpdate(state: VideoCallState) {
@@ -131,15 +154,16 @@ export class VideoCallService {
 	}
 
 	joinCall(eventId: string) {
-		ws.sendCustom('video_call:user_joined', {
-			event_id: eventId
-		});
+		this.joinedEventId = eventId;
+		if (ws.isOpen) this.sendUserJoined(eventId);
 	}
 
 	leaveCall(eventId: string) {
 		ws.sendCustom('video_call:user_left', {
 			event_id: eventId
 		});
+		this.joinedEventId = null;
+		this.videoPresence = null;
 		this._currentCallState = null;
 		this._agenda = null;
 	}
@@ -147,14 +171,13 @@ export class VideoCallService {
 	/** Report that this client has actually joined the Jitsi video (rename-proof presence),
 	 *  along with the Jitsi display name it chose. Re-send on rename to update the name. */
 	reportVideoJoined(eventId: string, displayName?: string) {
-		ws.sendCustom('video_call:video_joined', {
-			event_id: eventId,
-			display_name: displayName ?? null
-		});
+		this.videoPresence = { displayName: displayName ?? null };
+		if (ws.isOpen) this.sendVideoJoined(eventId, this.videoPresence.displayName);
 	}
 
 	/** Report that this client has left the Jitsi video. */
 	reportVideoLeft(eventId: string) {
+		this.videoPresence = null;
 		ws.sendCustom('video_call:video_left', {
 			event_id: eventId
 		});
