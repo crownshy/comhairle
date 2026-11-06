@@ -1,4 +1,8 @@
-import type { DatePrecision, DemographicFormDto } from '@crownshy/api-client/api';
+import type {
+	DatePrecision,
+	DemographicFormLatestDto,
+	QuestionLatestDto
+} from '@crownshy/api-client/api';
 
 export type QuestionKind =
 	| 'single_choice'
@@ -157,8 +161,3 @@ export const blankForm = (): DemographicForm => ({
 	publishedVersion: null,
 	draftVersion: null
 });
-
-export const specialCategoryCount = (form: DemographicFormDto, questions: DemographicQuestion[]) =>
-	form.latest_published?.entries.filter(
-		(fq) => questions.find((q) => q.id === fq.questionId)?.specialCategory
-	).length;

@@ -16,9 +16,9 @@ use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models::demographics::responses::{self, ConsentState};
 use crate::models::demographics::types::{
-    ConsentInput, DemographicFormDraftInput, DemographicFormDto, DemographicTag,
-    MyDemographicAnswer, PendingQuestion, QuestionDraftInput, QuestionDto, ResponseDto,
-    ResponseInput,
+    ConsentInput, DemographicFormDraftInput, DemographicFormDto, DemographicFormLatestDto,
+    DemographicTag, MyDemographicAnswer, PendingQuestion, QuestionDraftInput, QuestionDto,
+    QuestionLatestDto, QuestionVersionDto, ResponseDto, ResponseInput,
 };
 use crate::models::demographics::{forms, questions, steps};
 use crate::models::permissions::conversation::Action;
@@ -62,17 +62,25 @@ async fn can_view_conversation(
 
 /// The organization an admin selected in the demographics UI, sent as `?organization=`.
 #[derive(Deserialize, JsonSchema)]
-struct OrganizationScope {
+struct DefaultParams {
     organization: Option<Uuid>,
+}
+
+/// The organization an admin selected in the demographics UI, sent as `?organization=`.
+/// Whether or not to include archived resources in the response, sent as `?include_archived=`.
+#[derive(Deserialize, JsonSchema)]
+struct ListQueryParams {
+    organization: Option<Uuid>,
+    include_archived: Option<bool>,
 }
 
 /// The selected organization, if any. Admins may only select organizations they belong to.
 async fn selected_organization(
     state: &Arc<ComhairleState>,
     admin: &User,
-    scope: &OrganizationScope,
+    organization_id: Option<Uuid>,
 ) -> Result<Option<Uuid>, ComhairleError> {
-    let Some(org) = scope.organization else {
+    let Some(org) = organization_id else {
         return Ok(None);
     };
     let is_member = admin.organization_id == Some(org)
@@ -88,9 +96,9 @@ async fn selected_organization(
 async fn required_organization(
     state: &Arc<ComhairleState>,
     admin: &User,
-    scope: &OrganizationScope,
+    organization_id: Option<Uuid>,
 ) -> Result<Uuid, ComhairleError> {
-    selected_organization(state, admin, scope)
+    selected_organization(state, admin, organization_id)
         .await?
         .ok_or(ComhairleError::UserNotAuthorized)
 }
@@ -102,170 +110,292 @@ struct CreateTagInput {
 
 // Organization question bank
 
-#[instrument(skip(state, admin, scope))]
+#[instrument(skip(state, admin, params))]
 async fn list_tags(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
 ) -> Result<Json<Vec<DemographicTag>>, ComhairleError> {
-    let org = selected_organization(&state, &admin, &scope).await?;
+    let org = selected_organization(&state, &admin, params.organization).await?;
     Ok(Json(questions::list_tags(&state.db, org).await?))
 }
 
-#[instrument(skip(state, admin, scope, body))]
+#[instrument(skip(state, admin, params, body))]
 async fn create_tag(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     Json(body): Json<CreateTagInput>,
 ) -> Result<(StatusCode, Json<DemographicTag>), ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let tag = questions::create_tag(&state.db, Some(org), &body.name).await?;
     Ok((StatusCode::CREATED, Json(tag)))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn list_questions(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<QuestionDto>>, ComhairleError> {
-    let org = selected_organization(&state, &admin, &scope).await?;
+    let org = selected_organization(&state, &admin, params.organization).await?;
     Ok(Json(
         questions::list_questions(&state.db, org, &locale).await?,
     ))
 }
 
-#[instrument(skip(state, admin, scope, locale, body))]
+#[instrument(skip(state, admin, params, locale))]
+async fn list_questions_latest(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(admin): RequiredUser,
+    Query(params): Query<ListQueryParams>,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Json<Vec<QuestionLatestDto>>, ComhairleError> {
+    let org = selected_organization(&state, &admin, params.organization).await?;
+    let include_archived = params.include_archived.unwrap_or(false);
+    let questions = questions::list_questions(&state.db, org, &locale).await?;
+
+    let latest_questions = questions
+        .iter()
+        .filter_map(|question| {
+            if !include_archived && question.question.archived_at.is_some() {
+                return None;
+            };
+
+            let Some(question_latest) =
+                question.clone().draft.or(question.latest_published.clone())
+            else {
+                return None;
+            };
+
+            Some(QuestionLatestDto {
+                draft_version: question
+                    .draft
+                    .as_ref()
+                    .map(|d| d.version.version_number)
+                    .unwrap_or(0),
+                published_version: question
+                    .latest_published
+                    .as_ref()
+                    .map(|lp| lp.version.version_number)
+                    .unwrap_or(0),
+                tags: question.tags.clone(),
+                question: question_latest,
+            })
+        })
+        .collect();
+
+    Ok(Json(latest_questions))
+}
+
+#[instrument(skip(state, admin, params, locale, body))]
 async fn create_question(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Json(body): Json<QuestionDraftInput>,
 ) -> Result<(StatusCode, Json<QuestionDto>), ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let question = questions::create_question(&state.db, Some(org), &body, &locale).await?;
     Ok((StatusCode::CREATED, Json(question)))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn get_question(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, &scope).await?;
+    let org = selected_organization(&state, &admin, params.organization).await?;
     let question = questions::get_question(&state.db, org, question_id, &locale).await?;
     Ok(Json(question))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
+async fn get_question_latest(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(admin): RequiredUser,
+    Query(params): Query<DefaultParams>,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(question_id): Path<Uuid>,
+) -> Result<Json<QuestionLatestDto>, ComhairleError> {
+    let org = selected_organization(&state, &admin, params.organization).await?;
+    let question = questions::get_question(&state.db, org, question_id, &locale).await?;
+
+    let question_latest = QuestionLatestDto {
+        draft_version: question
+            .draft
+            .as_ref()
+            .map(|d| d.version.version_number)
+            .unwrap_or(0),
+        published_version: question
+            .latest_published
+            .as_ref()
+            .map(|lp| lp.version.version_number)
+            .unwrap_or(0),
+        tags: question.tags.clone(),
+        question: question
+            .clone()
+            .draft
+            .or(question.latest_published.clone())
+            .ok_or(ComhairleError::ResourceNotFound("question".into()))?,
+    };
+
+    Ok(Json(question_latest))
+}
+
+#[instrument(skip(state, admin, params, locale))]
 async fn start_question_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let question = questions::start_draft(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
 
-#[instrument(skip(state, admin, scope, locale, body))]
+#[instrument(skip(state, admin, params, locale, body))]
 async fn update_question_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
     Json(body): Json<QuestionDraftInput>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let question =
         questions::update_draft(&state.db, Some(org), question_id, &body, &locale).await?;
     Ok(Json(question))
 }
 
-#[instrument(skip(state, admin, scope))]
+#[instrument(skip(state, admin, params))]
 async fn discard_question_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     Path(question_id): Path<Uuid>,
 ) -> Result<StatusCode, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     questions::discard_draft(&state.db, Some(org), question_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn publish_question(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let question = questions::publish_question(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn archive_question(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let question = questions::archive_question(&state.db, Some(org), question_id, &locale).await?;
     Ok(Json(question))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn list_forms(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Json<Vec<DemographicFormDto>>, ComhairleError> {
     // Forms belong to an organization and there are no system forms, so this is empty without one.
-    let forms = match selected_organization(&state, &admin, &scope).await? {
+    let forms = match selected_organization(&state, &admin, params.organization).await? {
         Some(org) => forms::list_forms(&state.db, org, &locale).await?,
         None => Vec::new(),
     };
     Ok(Json(forms))
 }
 
-#[instrument(skip(state, admin, scope, locale, body))]
+#[instrument(skip(state, admin, params, locale))]
+async fn list_forms_latest(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(admin): RequiredUser,
+    Query(params): Query<ListQueryParams>,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Json<Vec<DemographicFormLatestDto>>, ComhairleError> {
+    // Forms belong to an organization and there are no system forms, so this is empty without one.
+    let forms = match selected_organization(&state, &admin, params.organization).await? {
+        Some(org) => forms::list_forms(&state.db, org, &locale).await?,
+        None => Vec::new(),
+    };
+
+    let include_archived = params.include_archived.unwrap_or(false);
+
+    let forms_latest = forms
+        .iter()
+        .filter_map(|form| {
+            if !include_archived && form.form.archived_at.is_some() {
+                return None;
+            };
+
+            let Some(form_latest) = form.clone().draft.or(form.latest_published.clone()) else {
+                return None;
+            };
+
+            Some(DemographicFormLatestDto {
+                draft_version: form
+                    .draft
+                    .as_ref()
+                    .map(|f| f.version.version_number)
+                    .unwrap_or(0),
+                published_version: form
+                    .latest_published
+                    .as_ref()
+                    .map(|f| f.version.version_number)
+                    .unwrap_or(0),
+                form: form_latest,
+            })
+        })
+        .collect();
+
+    Ok(Json(forms_latest))
+}
+
+#[instrument(skip(state, admin, params, locale, body))]
 async fn create_form(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Json(body): Json<DemographicFormDraftInput>,
 ) -> Result<(StatusCode, Json<DemographicFormDto>), ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     let form = forms::create_form(&state.db, org, &body, &locale).await?;
     Ok((StatusCode::CREATED, Json(form)))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn get_form(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = selected_organization(&state, &admin, &scope)
+    let org = selected_organization(&state, &admin, params.organization)
         .await?
         .ok_or_else(|| ComhairleError::ResourceNotFound("demographic form".into()))?;
     Ok(Json(
@@ -273,70 +403,105 @@ async fn get_form(
     ))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
+async fn get_form_latest(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(admin): RequiredUser,
+    Query(params): Query<DefaultParams>,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(form_id): Path<Uuid>,
+) -> Result<Json<DemographicFormLatestDto>, ComhairleError> {
+    let org = selected_organization(&state, &admin, params.organization)
+        .await?
+        .ok_or_else(|| ComhairleError::ResourceNotFound("demographic form".into()))?;
+
+    let form = forms::get_form(&state.db, org, form_id, &locale).await?;
+
+    let form_latest = DemographicFormLatestDto {
+        draft_version: form
+            .draft
+            .as_ref()
+            .map(|d| d.version.version_number)
+            .unwrap_or(0),
+        published_version: form
+            .latest_published
+            .as_ref()
+            .map(|lp| lp.version.version_number)
+            .unwrap_or(0),
+        form: form
+            .clone()
+            .draft
+            .or(form.latest_published.clone())
+            .ok_or(ComhairleError::ResourceNotFound("demographic form".into()))?,
+    };
+
+    Ok(Json(form_latest))
+}
+
+#[instrument(skip(state, admin, params, locale))]
 async fn start_form_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     Ok(Json(
         forms::start_form_draft(&state.db, org, form_id, &locale).await?,
     ))
 }
 
-#[instrument(skip(state, admin, scope, locale, body))]
+#[instrument(skip(state, admin, params, locale, body))]
 async fn update_form_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
     Json(body): Json<DemographicFormDraftInput>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     Ok(Json(
         forms::update_form_draft(&state.db, org, form_id, &body, &locale).await?,
     ))
 }
 
-#[instrument(skip(state, admin, scope))]
+#[instrument(skip(state, admin, params))]
 async fn discard_form_draft(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     Path(form_id): Path<Uuid>,
 ) -> Result<StatusCode, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     forms::discard_form_draft(&state.db, org, form_id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn publish_form(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     Ok(Json(
         forms::publish_form(&state.db, org, form_id, &locale).await?,
     ))
 }
 
-#[instrument(skip(state, admin, scope, locale))]
+#[instrument(skip(state, admin, params, locale))]
 async fn archive_form(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(admin): RequiredUser,
-    Query(scope): Query<OrganizationScope>,
+    Query(params): Query<DefaultParams>,
     LocaleExtractor(locale): LocaleExtractor,
     Path(form_id): Path<Uuid>,
 ) -> Result<Json<DemographicFormDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, &scope).await?;
+    let org = required_organization(&state, &admin, params.organization).await?;
     Ok(Json(
         forms::archive_form(&state.db, org, form_id, &locale).await?,
     ))
@@ -494,6 +659,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
             .route_layer(requires(SystemAction::DemographicRead)),
         )
         .api_route(
+            "/questions/latest",
+            get_with(list_questions_latest, |op| {
+                op.id("ListDemographicQuestionsLatest")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<QuestionLatestDto>>>()
+            })
+            .route_layer(requires(SystemAction::DemographicRead)),
+        )
+        .api_route(
             "/questions",
             post_with(create_question, |op| {
                 op.id("CreateDemographicQuestion")
@@ -510,6 +685,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Demographics")
                     .security_requirement("JWT")
                     .response::<200, Json<QuestionDto>>()
+            })
+            .route_layer(requires(SystemAction::DemographicRead)),
+        )
+        .api_route(
+            "/questions/{question_id}/latest",
+            get_with(get_question_latest, |op| {
+                op.id("GetDemographicsQuestionLatest")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<QuestionVersionDto>>()
             })
             .route_layer(requires(SystemAction::DemographicRead)),
         )
@@ -574,6 +759,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
             .route_layer(requires(SystemAction::DemographicRead)),
         )
         .api_route(
+            "/forms/latest",
+            get_with(list_forms_latest, |op| {
+                op.id("ListDemographicFormsLatest")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<DemographicFormLatestDto>>>()
+            })
+            .route_layer(requires(SystemAction::DemographicRead)),
+        )
+        .api_route(
             "/forms",
             post_with(create_form, |op| {
                 op.id("CreateDemographicForm")
@@ -590,6 +785,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Demographics")
                     .security_requirement("JWT")
                     .response::<200, Json<DemographicFormDto>>()
+            })
+            .route_layer(requires(SystemAction::DemographicRead)),
+        )
+        .api_route(
+            "/forms/{form_id}/latest",
+            get_with(get_form_latest, |op| {
+                op.id("GetDemographicFormLatest")
+                    .tag("Demographics")
+                    .security_requirement("JWT")
+                    .response::<200, Json<DemographicFormLatestDto>>()
             })
             .route_layer(requires(SystemAction::DemographicRead)),
         )
@@ -833,14 +1038,14 @@ mod tests {
             .as_str()
             .ok_or("organization id")?
             .to_string();
-        let scoped_tags = format!("/demographics/tags?organization={org_id}");
-        let scoped_questions = format!("/demographics/questions?organization={org_id}");
-        let scoped_forms = format!("/demographics/forms?organization={org_id}");
+        let paramsd_tags = format!("/demographics/tags?organization={org_id}");
+        let paramsd_questions = format!("/demographics/questions?organization={org_id}");
+        let paramsd_forms = format!("/demographics/forms?organization={org_id}");
 
         let (status, _, _) = member
             .post(
                 &app,
-                &scoped_tags,
+                &paramsd_tags,
                 json!({ "name": "Community" }).to_string().into(),
             )
             .await?;
@@ -850,7 +1055,7 @@ mod tests {
             "members can manage their organization"
         );
 
-        let (status, questions, _) = member.get(&app, &scoped_questions).await?;
+        let (status, questions, _) = member.get(&app, &paramsd_questions).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             questions
@@ -860,27 +1065,27 @@ mod tests {
             DEFAULT_QUESTION_COUNT
         );
 
-        let (status, forms, _) = member.get(&app, &scoped_forms).await?;
+        let (status, forms, _) = member.get(&app, &paramsd_forms).await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(forms, json!([]));
 
         let mut outsider = UserSession::new("test_admin", TEST_PASSWORD, "test@crown-shy.com");
         outsider.signup(&app).await?;
 
-        let (status, _, _) = outsider.get(&app, &scoped_questions).await?;
+        let (status, _, _) = outsider.get(&app, &paramsd_questions).await?;
         assert_eq!(
             status,
             StatusCode::FORBIDDEN,
             "non-members cannot read an organization's questions"
         );
 
-        let (status, _, _) = outsider.get(&app, &scoped_forms).await?;
+        let (status, _, _) = outsider.get(&app, &paramsd_forms).await?;
         assert_eq!(status, StatusCode::FORBIDDEN);
 
         let (status, _, _) = outsider
             .post(
                 &app,
-                &scoped_tags,
+                &paramsd_tags,
                 json!({ "name": "Not allowed" }).to_string().into(),
             )
             .await?;

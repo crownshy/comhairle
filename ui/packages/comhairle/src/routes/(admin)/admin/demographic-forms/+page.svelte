@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { apiClient } from '@crownshy/api-client/client';
+	// import { apiClient } from '@crownshy/api-client/client';
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
 	import * as Tabs from '$lib/components/ui/tabs';
@@ -9,39 +9,36 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import FormsTab from './FormsTab.svelte';
 	import QuestionBankTab from './QuestionBankTab.svelte';
-	import {
-		archiveForm,
-		archiveQuestion,
-		createDemographicTag,
-		persistForm,
-		persistQuestion
-	} from './demographicApi';
+	import {} from // archiveForm,
+	// archiveQuestion,
+	// createDemographicTag,
+	// persistForm,
+	// persistQuestion
+	'./demographicApi';
 	import {
 		blankForm,
 		createNewQuestion,
 		duplicateQuestionDraft,
-		formsUsingQuestion,
-		specialCategoryCount,
-		type DemographicForm,
-		type DemographicQuestion,
-		type Tag
+		// formsUsingQuestion,
+		type DemographicForm
+		// type DemographicQuestion,
+		// type Tag
 	} from './demographicModel';
-	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data } = $props();
 
-	type FormEdit = { form: DemographicForm; original: DemographicForm; isNew: boolean };
-	type QuestionEdit = {
-		question: DemographicQuestion;
-		isNew: boolean;
-		addsToForm: boolean;
-		focusConsent: boolean;
-	};
-	type QuestionSaveOptions = { publish: boolean; asNew: boolean };
+	// type FormEdit = { form: DemographicForm; original: DemographicForm; isNew: boolean };
+	// type QuestionEdit = {
+	// 	question: DemographicQuestion;
+	// 	isNew: boolean;
+	// 	addsToForm: boolean;
+	// 	focusConsent: boolean;
+	// };
+	// type QuestionSaveOptions = { publish: boolean; asNew: boolean };
 
 	let tab = $state('forms');
-	let formEdit = $state<FormEdit | null>(null);
-	let questionEdit = $state<QuestionEdit | null>(null);
+	// let formEdit = $state<FormEdit | null>(null);
+	// let questionEdit = $state<QuestionEdit | null>(null);
 
 	const reload = () => invalidate(key('admin/demographic-forms'));
 
@@ -51,8 +48,8 @@
 	);
 
 	function selectOrganization(organizationId: string) {
-		formEdit = null;
-		questionEdit = null;
+		// formEdit = null;
+		// questionEdit = null;
 		const url = new URL(page.url);
 		url.searchParams.set('organization', organizationId);
 		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
@@ -73,14 +70,14 @@
 
 	function newForm() {
 		const form = blankForm();
-		formEdit = { form, original: $state.snapshot(form), isNew: true };
+		// formEdit = { form, original: $state.snapshot(form), isNew: true };
 	}
 
 	function editForm(formId: string) {
 		const form = data.forms.find((f) => f.id === formId);
 		if (form) {
 			const snapshot = $state.snapshot(form);
-			formEdit = { form: snapshot, original: $state.snapshot(snapshot), isNew: false };
+			// formEdit = { form: snapshot, original: $state.snapshot(snapshot), isNew: false };
 		}
 	}
 
@@ -89,10 +86,10 @@
 		if (!source) return;
 		const form: DemographicForm = {
 			...blankForm(),
-			name: `${source.name} (copy)`,
-			questions: source.questions.map((entry) => ({ ...entry }))
+			name: `${source.name} (copy)`
+			// questions: source.questions.map((entry) => ({ ...entry }))
 		};
-		formEdit = { form, original: $state.snapshot(form), isNew: true };
+		// formEdit = { form, original: $state.snapshot(form), isNew: true };
 	}
 
 	// const formHasChanges = $derived(
@@ -102,16 +99,16 @@
 	// 				JSON.stringify($state.snapshot(formEdit.form)))
 	// );
 
-	async function commitForm(form: DemographicForm, publish: boolean) {
-		if (data.organizationId === null) return;
-		const result = await persistForm(apiClient, data.organizationId, form, publish);
-		if (result.err !== null) {
-			notifyError('Could not save the form. Try again.');
-			return;
-		}
-		formEdit = null;
-		await reload();
-	}
+	// async function commitForm(form: DemographicForm, publish: boolean) {
+	// 	if (data.organizationId === null) return;
+	// 	const result = await persistForm(apiClient, data.organizationId, form, publish);
+	// 	if (result.err !== null) {
+	// 		notifyError('Could not save the form. Try again.');
+	// 		return;
+	// 	}
+	// 	formEdit = null;
+	// 	await reload();
+	// }
 
 	// function saveForm(publish: boolean) {
 	// 	if (!formEdit) return;
@@ -313,7 +310,7 @@
 				<Tabs.Content value="forms" class="mt-6">
 					<FormsTab
 						forms={data.forms}
-						specialCategoryCount={specialCategoryCount(data.forms, data.questions)}
+						questions={data.questions}
 						canEdit={data.canEdit}
 						onNew={newForm}
 						onEdit={editForm}

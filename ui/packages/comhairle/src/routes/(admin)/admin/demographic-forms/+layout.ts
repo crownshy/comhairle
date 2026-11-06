@@ -40,13 +40,13 @@ export const load: LayoutLoad = async ({ parent, depends, url }) => {
 
 	const formsResponse = tryCatchAsync(() =>
 		api
-			.ListDemographicForms({ queries: { organization: organization.id } })
+			.ListDemographicFormsLatest({ queries: { organization: organization.id } })
 			.then((form) => form.filter((f) => !f.archived_at))
 	);
 
 	const questionsResponse = tryCatchAsync(() =>
 		api
-			.ListDemographicQuestions({ queries: { organization: organization.id } })
+			.ListDemographicQuestionsLatest({ queries: { organization: organization.id } })
 			.then((question) => question.filter((q) => !q.archived_at))
 	);
 
@@ -58,8 +58,6 @@ export const load: LayoutLoad = async ({ parent, depends, url }) => {
 	if (forms.err !== null) {
 		error(HttpStatus.InternalServerError, 'Could not load forms');
 	}
-
-	console.log(forms.ok);
 
 	const questions = await questionsResponse;
 	if (questions.err !== null) {

@@ -450,6 +450,23 @@ pub struct QuestionVersionDto {
     pub consent_text: Option<String>,
 }
 
+/// The latest question version (either draft or published).
+///
+/// See [`QuestionVersionDto`] for the underlying row.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionLatestDto {
+    /// The question.
+    #[serde(flatten)]
+    pub question: QuestionVersionDto,
+    /// The tags assigned to the question.
+    pub tags: Vec<DemographicTag>,
+    /// The latest draft version.
+    pub draft_version: i32,
+    /// The latest published version.
+    pub published_version: i32,
+}
+
 /// A question with its tags and versions.
 ///
 /// See [`QuestionRow`] for the underlying row.
@@ -494,6 +511,21 @@ pub struct DemographicFormVersionDto {
     pub version: DemographicFormVersion,
     /// The questions in the form version.
     pub entries: Vec<DemographicFormEntryDto>,
+}
+
+/// The latest form version (either draft or published).
+///
+/// See [`DemographicFormVersionDto`] for the underlying row.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DemographicFormLatestDto {
+    /// The form version.
+    #[serde(flatten)]
+    pub form: DemographicFormVersionDto,
+    /// The latest draft version.
+    pub draft_version: i32,
+    /// The latest published version.
+    pub published_version: i32,
 }
 
 /// A form entry with the text of the question it asks.

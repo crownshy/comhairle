@@ -3817,6 +3817,32 @@ export const QuestionDraftInput = z
   })
   .passthrough();
 export type QuestionDraftInput = z.infer<typeof QuestionDraftInput>;
+export const QuestionLatestDto = z
+  .object({
+    allow_other: z.boolean(),
+    consent_text: z.union([z.string(), z.null()]).optional(),
+    date_precision: z.union([DatePrecision, z.null()]).optional(),
+    draftVersion: z.number().int(),
+    id: z.string().uuid(),
+    json_schema: z.unknown().optional(),
+    location_country: z.union([z.string(), z.null()]).optional(),
+    location_format: z.union([LocationFormat, z.null()]).optional(),
+    max_selections: z.union([z.number(), z.null()]).optional(),
+    options: z.array(OptionDto),
+    prefer_not_to_say: z.boolean(),
+    publishedVersion: z.number().int(),
+    published_at: z.union([z.string(), z.null()]).optional(),
+    question_id: z.string().uuid(),
+    question_type: QuestionType2,
+    special_category: z.boolean(),
+    status: VersionStatus,
+    tags: z.array(DemographicTag),
+    text: z.string(),
+    updated_at: z.string().datetime({ offset: true }),
+    version_number: z.number().int(),
+  })
+  .passthrough();
+export type QuestionLatestDto = z.infer<typeof QuestionLatestDto>;
 export const DemographicFormEntryDto = z
   .object({
     form_id: z.string().uuid(),
@@ -3875,6 +3901,21 @@ export const DemographicFormDraftInput = z
 export type DemographicFormDraftInput = z.infer<
   typeof DemographicFormDraftInput
 >;
+export const DemographicFormLatestDto = z
+  .object({
+    draftVersion: z.number().int(),
+    entries: z.array(DemographicFormEntryDto),
+    form_id: z.string().uuid(),
+    id: z.string().uuid(),
+    name: z.string(),
+    publishedVersion: z.number().int(),
+    published_at: z.union([z.string(), z.null()]).optional(),
+    status: VersionStatus,
+    updated_at: z.string().datetime({ offset: true }),
+    version_number: z.number().int(),
+  })
+  .passthrough();
+export type DemographicFormLatestDto = z.infer<typeof DemographicFormLatestDto>;
 export const ResponseDto = z
   .object({
     conversation_id: z.union([z.string(), z.null()]).optional(),
@@ -4319,11 +4360,13 @@ export const schemas: Record<string, z.ZodType<any>> = {
   VersionSummary,
   QuestionDto,
   QuestionDraftInput,
+  QuestionLatestDto,
   DemographicFormEntryDto,
   DemographicFormVersionDto,
   DemographicFormDto,
   DemographicFormEntryInput,
   DemographicFormDraftInput,
+  DemographicFormLatestDto,
   ResponseDto,
   ConsentState,
   PendingQuestion,
@@ -5744,6 +5787,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: ReportImpactDto,
   },
   {
+    method: "get",
+    path: "/conversation/:conversation_id/report/embeds",
+    alias: "GetReportEmbeds",
+    requestFormat: "json",
+    response: ReportEmbedsDto,
+  },
+  {
     method: "post",
     path: "/conversation/:conversation_id/transfer-ownership",
     alias: "TransferConversationOwnership",
@@ -5756,13 +5806,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: ConversationDto,
-  },
-  {
-    method: "get",
-    path: "/conversation/:conversation_id/report/embeds",
-    alias: "GetReportEmbeds",
-    requestFormat: "json",
-    response: ReportEmbedsDto,
   },
   {
     method: "get",
@@ -6333,6 +6376,20 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
     response: z.void(),
   },
   {
+    method: "get",
+    path: "/demographics/forms/:form_id/latest",
+    alias: "GetDemographicFormLatest",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: DemographicFormLatestDto,
+  },
+  {
     method: "post",
     path: "/demographics/forms/:form_id/publish",
     alias: "PublishDemographicForm",
@@ -6345,6 +6402,25 @@ See [&#x60;DemographicFormEntryInput&#x60;] for the individual entries.`,
       },
     ],
     response: DemographicFormDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/forms/latest",
+    alias: "ListDemographicFormsLatest",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "include_archived",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(DemographicFormLatestDto),
   },
   {
     method: "get",
@@ -6505,6 +6581,20 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     response: z.void(),
   },
   {
+    method: "get",
+    path: "/demographics/questions/:question_id/latest",
+    alias: "GetDemographicsQuestionLatest",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: QuestionVersionDto,
+  },
+  {
     method: "post",
     path: "/demographics/questions/:question_id/publish",
     alias: "PublishDemographicQuestion",
@@ -6517,6 +6607,25 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
       },
     ],
     response: QuestionDto,
+  },
+  {
+    method: "get",
+    path: "/demographics/questions/latest",
+    alias: "ListDemographicQuestionsLatest",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "include_archived",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "organization",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(QuestionLatestDto),
   },
   {
     method: "get",

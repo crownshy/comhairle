@@ -6,10 +6,12 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
 	import { SPECIAL_CATEGORY_TAG } from './demographicModel';
-	import type { DemographicFormDto } from '@crownshy/api-client/api';
+	import { specialCategoryCount } from './utils';
+	import type { DemographicFormLatestDto, QuestionLatestDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		forms: DemographicFormDto[];
+		forms: DemographicFormLatestDto[];
+		questions: QuestionLatestDto[];
 		canEdit: boolean;
 		specialCategoryCount: number;
 		onNew: () => void;
@@ -17,7 +19,7 @@
 		onCopy: (formId: string) => void;
 	};
 
-	let { forms, specialCategoryCount, canEdit, onNew, onEdit, onCopy }: Props = $props();
+	let { forms, questions, canEdit, onNew, onEdit, onCopy }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-8">
@@ -63,9 +65,9 @@
 	<section class="flex flex-col gap-3">
 		<h2 class="text-lg font-semibold">Your forms</h2>
 		<div
-			class="border-border bg-card overflow-hidden rounded-xl border [&_td]:py-3 [&_td]:align-middle [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
+			class="border-border bg-card [&_th]:text-muted-foreground overflow-hidden rounded-xl border [&_td]:py-4 [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4"
 		>
-			<Table.Root>
+			<Table.Root class="table-auto">
 				<Table.Header class="bg-muted">
 					<Table.Row>
 						<Table.Head>Form</Table.Head>
@@ -79,6 +81,7 @@
 				</Table.Header>
 				<Table.Body>
 					{#each forms as form (form.id)}
+						{@const specialCount = specialCategoryCount(form, questions)}
 						<Table.Row>
 							<Table.Cell>
 								{#if form.publishedVersion === null}
@@ -92,19 +95,19 @@
 									</button>
 								{:else}
 									<span class="text-base font-medium">
-										{form.latest_published?.name}
+										{form.name}
 									</span>
 								{/if}
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col items-start gap-1">
 									<span class="text-base">
-										{form.latest_published?.entries.length} questions
+										{form.entries.length} questions
 									</span>
-									{#if specialCategoryCount > 0}
+									{#if specialCount > 0}
 										<TagBadge
 											tag={SPECIAL_CATEGORY_TAG}
-											label="{specialCategoryCount} special category"
+											label="{specialCount} special category"
 										/>
 									{/if}
 								</div>
@@ -112,15 +115,13 @@
 							<Table.Cell>
 								<div class="flex flex-col items-start gap-1">
 									<Badge
-										variant={form.publishedVersion === null
-											? 'draft'
-											: 'primary'}
+										variant={form.publishedVersion === 0 ? 'draft' : 'primary'}
 									>
-										{form.publishedVersion === null
+										{form.publishedVersion === 0
 											? 'Draft'
 											: `Published v${form.publishedVersion}`}
 									</Badge>
-									{#if form.draftVersion !== null && form.publishedVersion !== null}
+									{#if form.draftVersion !== 0 && form.publishedVersion !== 0}
 										<Badge variant="draft">Draft v{form.draftVersion}</Badge>
 									{/if}
 								</div>
