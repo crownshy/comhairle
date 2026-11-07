@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import QuestionBankTab from './QuestionBankTab.svelte';
-import { createNewQuestion, type SavedQuestion } from './demographicModel';
+import { createNewQuestion, type SavedQuestion } from '../demographicModel';
 
 let component: ReturnType<typeof mount> | undefined;
 

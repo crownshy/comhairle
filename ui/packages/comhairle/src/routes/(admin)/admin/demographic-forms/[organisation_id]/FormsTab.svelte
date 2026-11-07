@@ -5,8 +5,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';
-	import { SPECIAL_CATEGORY_TAG } from './demographicModel';
-	import { specialCategoryCount } from './utils';
+	import { SPECIAL_CATEGORY_TAG } from '../demographicModel';
+	import { specialCategoryCount } from '../utils';
 	import type { DemographicFormLatestDto, QuestionLatestDto } from '@crownshy/api-client/api';
 
 	type Props = {

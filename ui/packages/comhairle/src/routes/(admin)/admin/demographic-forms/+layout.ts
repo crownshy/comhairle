@@ -6,6 +6,7 @@ export const load: LayoutLoad = async ({ parent, depends }) => {
 	const p = await parent();
 
 	return {
-		userOrganisations: p.userOrganisations.organizations.filter((org) => org.isAssociated)
+		userOrganisations: p.userOrganisations.organizations.filter((org) => org.isAssociated),
+		canEdit: true
 	};
 };

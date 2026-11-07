@@ -5,7 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Table from '$lib/components/ui/table';
-	import { SPECIAL_CATEGORY_TAG } from './demographicModel';
+	import { SPECIAL_CATEGORY_TAG } from '../demographicModel';
 	import type { QuestionLatestDto } from '@crownshy/api-client/api';
 
 	type Props = {
