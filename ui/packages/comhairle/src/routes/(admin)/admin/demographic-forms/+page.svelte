@@ -36,18 +36,20 @@
 					href={resolve('/(admin)/admin/demographic-forms/[organisation_id]', {
 						organisation_id: userOrganisation.organization.id
 					})}
-					class="border-border bg-card hover:bg-accent/30 block border px-5 py-4 first:rounded-t-xl last:rounded-b-xl"
+					class="border-border bg-card hover:bg-accent/30 even:bg-muted/20 block border px-8 py-6 first:rounded-t-xl last:rounded-b-xl"
 				>
-					<div class="flex flex-row items-center justify-between pr-5">
+					<div class="flex flex-row items-center justify-between gap-x-5 pr-5">
 						<div class="flex flex-col">
 							<span class="text-xl font-medium">
 								{userOrganisation.organization.name}
 							</span>
-							<span class="text-muted-foreground">
+							<span class="text-muted-foreground prose">
 								{userOrganisation.organization.description}
 							</span>
 						</div>
-						<ChevronRight class="size-8" strokeWidth={1.2} />
+						<span>
+							<ChevronRight class="h-8 w-8" strokeWidth={1.2} />
+						</span>
 					</div>
 				</a>
 			{/each}
