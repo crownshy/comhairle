@@ -7,6 +7,7 @@ import {
 	type ConversationSection,
 	type SectionStage
 } from '$lib/config/conversation-steps';
+import { MODERATION_SECTIONS, type ConversationSurface } from '$lib/utils/conversationSurface';
 
 export type StageState = 'done' | 'current' | 'locked';
 
@@ -44,9 +45,21 @@ type StageInput = {
 	canAdmin: boolean;
 	/** Adds Moderate to Engage. */
 	hasPolisStep?: boolean;
+	surface?: ConversationSurface;
 };
 
 export function conversationStages({
+	conversation,
+	pathname,
+	canAdmin,
+	hasPolisStep = false,
+	surface = 'full'
+}: StageInput): ConversationStage[] {
+	if (surface === 'full') return allStages({ conversation, pathname, canAdmin, hasPolisStep });
+	return moderationStages(allStages({ conversation, pathname, canAdmin, hasPolisStep: true }));
+}
+
+function allStages({
 	conversation,
 	pathname,
 	canAdmin,
@@ -108,6 +121,22 @@ export function conversationStages({
 			sections: sectionsIn('results')
 		}
 	];
+}
+
+/**
+ * A moderator sees only the moderation sections, open whether or not the conversation is live
+ * or has a Polis step yet, so their sidebar is never empty or locked.
+ */
+function moderationStages(stages: ConversationStage[]): ConversationStage[] {
+	return stages
+		.filter((stage) => !stage.link)
+		.map((stage) => ({
+			...stage,
+			sections: stage.sections
+				.filter((link) => MODERATION_SECTIONS.includes(link.path))
+				.map((link) => ({ ...link, lock: null }))
+		}))
+		.filter((stage) => stage.sections.length > 0);
 }
 
 /** Engage and Close: locked before launch, current while live, done once closed. */

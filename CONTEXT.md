@@ -182,7 +182,7 @@ A User with read-only access to a Conversation. Observer access does not confer 
 A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
 
 **Conversation Moderator**:
-A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
+A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design. A Moderator who can't edit sees only **Moderate** in the conversation's admin; every other section redirects there (ADR-0065).
 
 **System Translator**:
 A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.

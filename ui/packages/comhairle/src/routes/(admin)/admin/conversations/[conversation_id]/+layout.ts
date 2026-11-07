@@ -8,11 +8,16 @@ import type {
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
-import { loadUserActions } from '$lib/utils/permissions';
+import { createPermissions, loadUserActions } from '$lib/utils/permissions';
+import {
+	conversationSurface,
+	sectionSegment,
+	surfaceRedirect
+} from '$lib/utils/conversationSurface';
 
 // Events load here, in parallel with the workflow fetch, so the layout can server-render the
 // events strip from `data.events` the same way it renders the step strip.
-export const load: LayoutLoad = async ({ params, parent, depends }) => {
+export const load: LayoutLoad = async ({ params, parent, depends, url, untrack }) => {
 	depends(key('admin/conversation'));
 	depends(key('admin/conversation/workflow'));
 	depends(key('admin/conversation/events'));
@@ -24,12 +29,22 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 	const conversation_id = params.conversation_id;
 	const { user, api } = await parent();
 
+	const conversationActions = await loadUserActions(api, 'conversation', conversation_id);
+	const permissions = createPermissions(() => [conversationActions]);
+	const surface = conversationSurface((action) =>
+		permissions.can('conversation', action, conversation_id)
+	);
+	// Untracked so moving between sections doesn't rerun this whole load. The sidebar only
+	// links a moderator to Moderate, so this catches typed URLs and the conversation cards.
+	const pathname = untrack(() => url.pathname);
+	const redirectTo = surfaceRedirect(surface, sectionSegment(pathname, conversation_id));
+	if (redirectTo) redirect(302, `/admin/conversations/${conversation_id}/${redirectTo}`);
+
 	try {
 		const conversation = (await api.GetConversation({
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		})) as ConversationWithTranslations;
-		const conversationActions = await loadUserActions(api, 'conversation', conversation.id);
 		const [
 			workflows,
 			eventsResponse,

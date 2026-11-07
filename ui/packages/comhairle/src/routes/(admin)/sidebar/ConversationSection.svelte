@@ -6,6 +6,7 @@
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { cn } from '$lib/utils';
+	import { conversationSurface } from '$lib/utils/conversationSurface';
 	import {
 		conversationStages,
 		sectionLockLabels,
@@ -31,8 +32,11 @@
 		})
 	);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
+	let surface = $derived(
+		conversationSurface((action) => permissions.can('conversation', action, conversation.id))
+	);
 	let stages = $derived(
-		conversationStages({ conversation, pathname: path, canAdmin, hasPolisStep })
+		conversationStages({ conversation, pathname: path, canAdmin, hasPolisStep, surface })
 	);
 	// Collapsed view: every link in order, milestones (Launch, Close) included.
 	let sections = $derived(
