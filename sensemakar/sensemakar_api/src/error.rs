@@ -1,5 +1,6 @@
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use sensemakar::{
+    conversation_analysis::ConversationAnalyzerError,
     statement_theme_assigner::StatementThemeAssignerError, theme_extraction::ThemeExtractorError,
     wikipoll_describer::WikiPollGroupDescriberError,
 };
@@ -16,6 +17,9 @@ pub enum ApiError {
 
     #[error("theme assignment failed: {0}")]
     ThemeAssignment(#[from] StatementThemeAssignerError),
+
+    #[error("conversation analysis failed: {0}")]
+    ConversationAnalysis(#[from] ConversationAnalyzerError),
 }
 
 impl IntoResponse for ApiError {

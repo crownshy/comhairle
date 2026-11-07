@@ -1,5 +1,6 @@
 mod statement_data_loader;
 mod theme_data_loader;
+mod transcript_data_loader;
 mod wiki_poll_data_loader;
 
 use std::path::PathBuf;
@@ -10,6 +11,7 @@ use language_tags::LanguageTag;
 use rig_core::DynModel;
 use rig_core::operation::Completion;
 use rig_core::providers::ollama::OllamaConfig;
+use sensemakar::conversation_analysis::ConversationAnalyzer;
 use sensemakar::statement_theme_assigner::StatementThemeAssigner;
 use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
@@ -192,6 +194,32 @@ enum Command {
         #[command(flatten)]
         model_args: ModelArgs,
     },
+
+    /// Analyze a speaker-attributed conversation transcript for a summary,
+    /// tension points, disagreements, and pivotal moments where a speaker
+    /// changed their mind.
+    AnalyzeConversation {
+        /// Path to the input transcript file (.csv or .json). CSV expects
+        /// `speaker_id` and `text` columns in spoken order; JSON expects a
+        /// full `Transcript`.
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Optional free-text context to prime the model with.
+        #[arg(long)]
+        context: Option<String>,
+
+        /// Optional additional instructions for the model.
+        #[arg(long)]
+        additional_instructions: Option<String>,
+
+        /// Where to write the resulting JSON analysis. Defaults to stdout.
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        #[command(flatten)]
+        model_args: ModelArgs,
+    },
 }
 
 fn write_output<T: serde::Serialize>(value: &T, output: Option<PathBuf>) -> Result<()> {
@@ -321,6 +349,31 @@ async fn main() -> Result<()> {
                 .run_with_model(statements, completion_model)
                 .await
                 .context("failed to assign themes")?;
+
+            write_output(&result, output)
+        }
+
+        Command::AnalyzeConversation {
+            input,
+            context,
+            additional_instructions,
+            output,
+            model_args,
+        } => {
+            let transcript = transcript_data_loader::load_transcript(&input)?;
+            println!("loaded {} utterances", transcript.parts.len());
+
+            let completion_model = model_args.build_model()?;
+
+            let analyzer = ConversationAnalyzer::builder()
+                .maybe_context(context)
+                .maybe_additional_instructions(additional_instructions)
+                .build();
+
+            let result = analyzer
+                .run_with_model(&transcript, completion_model)
+                .await
+                .context("failed to analyze conversation")?;
 
             write_output(&result, output)
         }

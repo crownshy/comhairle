@@ -5,6 +5,7 @@ use language_tags::LanguageTag;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+pub mod conversation_analysis;
 pub mod thinking_space;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -201,17 +202,17 @@ impl StatementList {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Transcript {
     pub id: String,
     pub parts: Vec<Utterance>,
     pub started_at: Timestamp,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Utterance {
-    speaker_id: String,
-    text: String,
-    started_offset: u32,
-    ended_offset: u32,
+    pub speaker_id: String,
+    pub text: String,
+    pub started_offset: u32,
+    pub ended_offset: u32,
 }

@@ -6410,6 +6410,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
+ "jiff",
  "language-tags",
  "rig-core",
  "sensemakar",
@@ -6419,6 +6420,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

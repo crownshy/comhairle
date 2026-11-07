@@ -35,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/polis-report", post(routes::polis_report))
         .route("/generate-themes", post(routes::generate_themes))
         .route("/assign-themes", post(routes::assign_themes))
+        .route("/analyze-conversation", post(routes::analyze_conversation))
         .layer(TraceLayer::new_for_http())
         .with_state(model);
 
