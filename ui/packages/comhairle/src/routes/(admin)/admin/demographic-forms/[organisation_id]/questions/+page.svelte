@@ -9,11 +9,11 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
+	import { updateQueryParam } from '$lib/utils.svelte';
+	import { useDebounce } from 'runed';
+	import { page } from '$app/state';
 
 	const { data } = $props();
-
-	let search = $state('');
-	let filter = $state<TagName | undefined>();
 </script>
 
 <TabContent>
@@ -33,16 +33,15 @@
 								type="radio"
 								name="filter"
 								class="hidden"
+								defaultChecked={page.url.searchParams.get('filter') === tag.name}
 								onclick={(e) => {
 									const radio = e.currentTarget;
-									console.log(radio);
-									console.log(radio.checked);
-									if (filter === tag.name) {
-										radio.checked = false;
-										filter = undefined;
-										return;
-									}
-									filter = tag.name as TagName;
+
+									updateQueryParam('filter', tag.name, {
+										onDelete: () => {
+											radio.checked = false;
+										}
+									});
 								}}
 							/>
 							<TagBadge tag={tag.name as TagName} />
@@ -51,7 +50,17 @@
 				{/if}
 			{/await}
 		</div>
-		<SearchBar bind:value={search} placeholder="Search questions..." />
+		<SearchBar
+			oninput={useDebounce((e) => {
+				const input = e.target as HTMLInputElement | null;
+				if (!input) {
+					return;
+				}
+				updateQueryParam('search', input.value);
+			}, 250)}
+			value={page.url.searchParams.get('search') ?? undefined}
+			placeholder="Search questions..."
+		/>
 	</div>
 
 	<Table.Root>
@@ -123,9 +132,9 @@
 								<Table.Cell>
 									<div class="flex gap-2">
 										{#if question.isDefault}
-											<Badge variant="secondary" class="text-sm"
-												>Default</Badge
-											>
+											<Badge variant="secondary" class="text-sm">
+												Default
+											</Badge>
 										{:else}
 											<Button variant="outline" size="sm">Edit</Button>
 										{/if}
@@ -141,6 +150,10 @@
 									</div>
 								</Table.Cell>
 							{/if}
+						</Table.Row>
+					{:else}
+						<Table.Row>
+							<Table.Cell class="italic font-semibold">No questions found</Table.Cell>
 						</Table.Row>
 					{/each}
 				{/if}

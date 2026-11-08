@@ -9,6 +9,11 @@ export const load: PageLoad = async ({ parent, params }) => {
 			p.api.ListDemographicFormsLatest({
 				queries: { organization_id: params.organisation_id }
 			})
+		),
+		streamedQuestions: tryCatchAsync(() =>
+			p.api.ListDemographicQuestionsLatest({
+				queries: { organization_id: params.organisation_id }
+			})
 		)
 	};
 };
