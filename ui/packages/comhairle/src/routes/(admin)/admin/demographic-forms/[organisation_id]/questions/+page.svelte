@@ -79,19 +79,19 @@
 			{#await data.streamedQuestions}
 				<Table.Row>
 					<Table.Cell>
-						<Skeleton class="h-9 w-50" />
+						<Skeleton class="h-7 w-54" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-10" />
+						<Skeleton class="h-7 w-17" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-10" />
+						<Skeleton class="h-7 w-8" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-10" />
+						<Skeleton class="h-7 w-30" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-auto" />
+						<Skeleton class="h-7 w-auto" />
 					</Table.Cell>
 				</Table.Row>
 			{:then questions}

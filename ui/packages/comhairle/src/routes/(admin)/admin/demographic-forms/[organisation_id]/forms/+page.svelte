@@ -31,16 +31,16 @@
 			{#await data.streamedForms}
 				<Table.Row>
 					<Table.Cell>
-						<Skeleton class="h-9 w-50" />
+						<Skeleton class="h-7 w-30" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-20" />
+						<Skeleton class="h-7 w-19" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-20" />
+						<Skeleton class="h-7 w-23" />
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-9 w-auto" />
+						<Skeleton class="h-7 w-auto" />
 					</Table.Cell>
 				</Table.Row>
 			{:then forms}
