@@ -14,8 +14,8 @@
 </script>
 
 <TabContent>
-	<Table.Root class="[&_td]:py-4 [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:pr-4">
-		<Table.Header class="bg-muted">
+	<Table.Root>
+		<Table.Header>
 			<Table.Row>
 				<Table.Head>Form</Table.Head>
 				<Table.Head>Questions</Table.Head>
@@ -30,7 +30,7 @@
 		<Table.Body>
 			{#await data.streamedForms}
 				<Table.Row>
-					<Table.Cell class="w-50">
+					<Table.Cell>
 						<Skeleton class="h-9 w-50" />
 					</Table.Cell>
 					<Table.Cell>
@@ -49,12 +49,14 @@
 				{:else}
 					{#each forms.ok as form (form.id)}
 						<Table.Row>
-							<Table.Cell class="w-50 font-semibold">
+							<Table.Cell class="w-50 truncate font-semibold" title={form.name}>
 								{form.name}
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col items-start gap-x-1">
-									{form.entries.length} questions
+									<span class="text-muted-foreground text-sm font-medium">
+										{form.entries.length} questions
+									</span>
 									{#await data.streamedQuestions}
 										<Skeleton class="h-3 w-5" />
 									{:then questions}

@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
-	import type { TagName } from './demographicModel';
+	import type { TagName } from '../demographicModel';
 
 	type Props = { tag: TagName; label?: string; class?: string; children?: Snippet };
 

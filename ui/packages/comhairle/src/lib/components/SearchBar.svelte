@@ -12,9 +12,9 @@
 </script>
 
 <label class="pile min-w-0">
-	<Input {...restProps} type="search" bind:value class={cn('pl-9 md:text-base', className)} />
+	<Input {...restProps} type="search" bind:value class={cn('pl-8 md:text-sm', className)} />
 	<Search
-		class="text-muted-foreground pointer-events-none ml-3 size-4 justify-self-start"
+		class="text-muted-foreground pointer-events-none ml-3 size-3 justify-self-start"
 		aria-hidden="true"
 	/>
 </label>
