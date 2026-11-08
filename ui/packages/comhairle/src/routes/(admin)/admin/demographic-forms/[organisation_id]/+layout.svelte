@@ -6,10 +6,16 @@
 	import { Plus } from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import { kebabToSentenceCase } from '$lib/utils/casingUtils';
+	import { page } from '$app/state';
 
 	const { data, params, children } = $props();
 
 	const tabs = ['forms', 'questions'] as const;
+
+	// Will 404 if tabs aren't matched
+	const route = $derived<typeof tabs | undefined>(
+		page.url.pathname.match(/([^/]+)$/)?.[1] as typeof tabs | undefined
+	);
 </script>
 
 <SectionHeader
@@ -24,7 +30,7 @@
 	{#snippet actions()}
 		{#if data.canEdit}
 			<Button>
-				<Plus class="size-4" />New form
+				<Plus class="size-4" />New {route?.slice(0, -1)}
 			</Button>
 		{/if}
 	{/snippet}
