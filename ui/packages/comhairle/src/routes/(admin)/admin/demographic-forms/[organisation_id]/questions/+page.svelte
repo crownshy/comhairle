@@ -100,15 +100,12 @@
 					<ErrorMessage>Couldn't load questions, please try again</ErrorMessage>
 				{:else}
 					{#each questions.ok as question (question.id)}
+						{console.log(question)}
 						<Table.Row>
 							{#if data.canEdit}
 								<Table.Cell class="pr-2">
 									<div class="text-foreground/70 flex flex-col gap-y-1">
-										{#if question.isDefault}
-											<Badge variant="secondary" class="text-sm">
-												Default
-											</Badge>
-										{:else}
+										{#if !Demographics.isDefaultQuestion(question)}
 											<Button
 												variant="ghost"
 												class="size-6"
@@ -138,16 +135,22 @@
 								{Demographics.getQuestionFromType(question.question_type)}
 							</Table.Cell>
 							<Table.Cell>
-								<Badge
-									variant={question.publishedVersion === 0 ? 'draft' : 'primary'}
-								>
-									{question.publishedVersion === 0
-										? 'Unpublished'
-										: `v${question.publishedVersion}`}
-									{#if question.draftVersion !== 0}
-										, draft v{question.draftVersion}
-									{/if}
-								</Badge>
+								{#if Demographics.isDefaultQuestion(question)}
+									<Badge variant="secondary" class="text-xs">Default</Badge>
+								{:else}
+									<Badge
+										variant={question.publishedVersion === 0
+											? 'draft'
+											: 'primary'}
+									>
+										{question.publishedVersion === 0
+											? 'Unpublished'
+											: `v${question.publishedVersion}`}
+										{#if question.draftVersion !== 0}
+											, draft v{question.draftVersion}
+										{/if}
+									</Badge>
+								{/if}
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-wrap gap-1">

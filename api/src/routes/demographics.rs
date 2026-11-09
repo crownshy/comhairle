@@ -181,6 +181,7 @@ async fn list_questions_latest(
                     .map(|lp| lp.version.version_number)
                     .unwrap_or(0),
                 tags: question.tags.clone(),
+                meta: question.question.clone(),
                 question: question_latest,
             })
         })
@@ -238,6 +239,7 @@ async fn get_question_latest(
             .map(|lp| lp.version.version_number)
             .unwrap_or(0),
         tags: question.tags.clone(),
+        meta: question.question.clone(),
         question: question
             .clone()
             .draft
@@ -366,6 +368,7 @@ async fn list_forms_latest(
                     .as_ref()
                     .map(|f| f.version.version_number)
                     .unwrap_or(0),
+                meta: form.form.clone(),
                 form: form_latest,
             })
         })
@@ -428,6 +431,7 @@ async fn get_form_latest(
             .as_ref()
             .map(|lp| lp.version.version_number)
             .unwrap_or(0),
+        meta: form.form.clone(),
         form: form
             .clone()
             .draft

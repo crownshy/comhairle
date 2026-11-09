@@ -1,4 +1,4 @@
-import type { QuestionDto, QuestionType2 } from '@crownshy/api-client/api';
+import type { QuestionDto, QuestionLatestDto, QuestionType2 } from '@crownshy/api-client/api';
 
 function getVersion(question: QuestionDto): QuestionDto['versions'][number] | undefined {
 	const versionNumber = question.latest_published?.version_number;
@@ -31,7 +31,12 @@ function getQuestionFromType(questionType: QuestionType2): string {
 	}
 }
 
+function isDefaultQuestion(question: QuestionLatestDto): boolean {
+	return question.meta.organization_id === null;
+}
+
 export default {
 	getVersion,
-	getQuestionFromType
+	getQuestionFromType,
+	isDefaultQuestion
 };

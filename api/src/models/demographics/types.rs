@@ -459,6 +459,8 @@ pub struct QuestionLatestDto {
     /// The question.
     #[serde(flatten)]
     pub question: QuestionVersionDto,
+    /// Metadata about the question.
+    pub meta: QuestionRow,
     /// The tags assigned to the question.
     pub tags: Vec<DemographicTag>,
     /// The latest draft version.
@@ -522,6 +524,8 @@ pub struct DemographicFormLatestDto {
     /// The form version.
     #[serde(flatten)]
     pub form: DemographicFormVersionDto,
+    /// Metadata about the form.
+    pub meta: DemographicForm,
     /// The latest draft version.
     pub draft_version: i32,
     /// The latest published version.

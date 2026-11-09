@@ -3817,6 +3817,16 @@ export const QuestionDraftInput = z
   })
   .passthrough();
 export type QuestionDraftInput = z.infer<typeof QuestionDraftInput>;
+export const QuestionRow = z
+  .object({
+    archived_at: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    forked_from_id: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type QuestionRow = z.infer<typeof QuestionRow>;
 export const QuestionLatestDto = z
   .object({
     allow_other: z.boolean(),
@@ -3828,6 +3838,7 @@ export const QuestionLatestDto = z
     location_country: z.union([z.string(), z.null()]).optional(),
     location_format: z.union([LocationFormat, z.null()]).optional(),
     max_selections: z.union([z.number(), z.null()]).optional(),
+    meta: QuestionRow,
     options: z.array(OptionDto),
     prefer_not_to_say: z.boolean(),
     publishedVersion: z.number().int(),
@@ -3901,12 +3912,22 @@ export const DemographicFormDraftInput = z
 export type DemographicFormDraftInput = z.infer<
   typeof DemographicFormDraftInput
 >;
+export const DemographicForm = z
+  .object({
+    archived_at: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    organization_id: z.string().uuid(),
+  })
+  .passthrough();
+export type DemographicForm = z.infer<typeof DemographicForm>;
 export const DemographicFormLatestDto = z
   .object({
     draftVersion: z.number().int(),
     entries: z.array(DemographicFormEntryDto),
     form_id: z.string().uuid(),
     id: z.string().uuid(),
+    meta: DemographicForm,
     name: z.string(),
     publishedVersion: z.number().int(),
     published_at: z.union([z.string(), z.null()]).optional(),
@@ -4360,12 +4381,14 @@ export const schemas: Record<string, z.ZodType<any>> = {
   VersionSummary,
   QuestionDto,
   QuestionDraftInput,
+  QuestionRow,
   QuestionLatestDto,
   DemographicFormEntryDto,
   DemographicFormVersionDto,
   DemographicFormDto,
   DemographicFormEntryInput,
   DemographicFormDraftInput,
+  DemographicForm,
   DemographicFormLatestDto,
   ResponseDto,
   ConsentState,
