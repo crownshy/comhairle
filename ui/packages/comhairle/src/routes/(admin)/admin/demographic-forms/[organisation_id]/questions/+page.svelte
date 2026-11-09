@@ -29,24 +29,16 @@
 					<ErrorMessage>Could not load tags, please try again</ErrorMessage>
 				{:else}
 					{#each tags.ok.concat( { id: 'special-category', name: SPECIAL_CATEGORY_TAG, organization_id: params.organisation_id } ) as tag (tag.id)}
-						<label class="cursor-pointer">
-							<input
-								type="radio"
-								name="filter"
-								class="hidden"
-								defaultChecked={page.url.searchParams.get('filter') === tag.name}
-								onclick={(e) => {
-									const radio = e.currentTarget;
-
-									updateQueryParam('filter', tag.name, {
-										onDelete: () => {
-											radio.checked = false;
-										}
-									});
-								}}
+						<button
+							type="button"
+							class="inline rounded-full"
+							onclick={() => void updateQueryParam('filter', tag.name)}
+						>
+							<TagBadge
+								tag={tag.name as TagName}
+								selected={page.url.searchParams.get('filter') === tag.name}
 							/>
-							<TagBadge tag={tag.name as TagName} />
-						</label>
+						</button>
 					{/each}
 				{/if}
 			{/await}

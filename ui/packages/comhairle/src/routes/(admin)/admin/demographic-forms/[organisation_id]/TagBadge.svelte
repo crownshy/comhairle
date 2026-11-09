@@ -1,36 +1,59 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
-	import { Badge } from '$lib/components/ui/badge';
-	import { cn } from '$lib/utils';
 	import type { TagName } from '../demographicModel';
+	import { cn } from '$lib/utils';
 
-	type Props = { tag: TagName; label?: string; class?: string; children?: Snippet };
+	type Props = { tag: TagName; selected?: boolean; class?: string };
 
-	let { tag, label, class: className, children }: Props = $props();
+	let { tag, selected, class: className }: Props = $props();
 
-	function stylesForTag(tag: TagName): string {
+	function getColour(tag: TagName): string {
 		switch (tag) {
 			case 'Age':
-				return 'bg-blue-100 text-blue-900 outline-blue-300 dark:bg-blue-950 dark:text-blue-100';
+				// Blue
+				return 'oklch(62.3% 0.214 259.815)';
 			case 'Gender':
-				return 'bg-purple-100 text-purple-900 outline-purple-300 dark:bg-purple-950 dark:text-purple-100';
+				// Purple
+				return 'oklch(62.7% 0.265 303.9)';
 			case 'Ethnicity':
-				return 'bg-amber-100 text-amber-900 outline-amber-300 dark:bg-amber-950 dark:text-amber-100';
+				// Amber
+				return 'oklch(76.9% 0.188 70.08)';
 			case 'Postcode':
-				return 'bg-green-100 text-green-900 outline-green-300 dark:bg-green-950 dark:text-green-100';
+				// Green
+				return 'oklch(72.3% 0.219 149.579)';
 			case 'Special category':
-				return 'bg-red-100 text-red-900 outline-red-300 dark:bg-red-950 dark:text-red-100';
+				// Red
+				return 'oklch(63.7% 0.237 25.331)';
 			case 'Custom':
 			default:
-				return 'bg-slate-100 text-slate-800 outline-slate-300 dark:bg-slate-800 dark:text-slate-100';
+				return 'oklch(55.4% 0.046 257.417)';
 		}
 	}
 </script>
 
-<Badge variant="secondary" class={cn(stylesForTag(tag), className)}>
-	{#if children}
-		{@render children()}
-	{:else}
-		{label ?? tag}
-	{/if}
-</Badge>
+<span
+	class={cn(
+		'badge focus-visible:ring-ring/50 rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-xs transition-[color,box-shadow] focus-visible:ring-[3px]',
+		selected ? 'selected' : '',
+		className
+	)}
+	style="--color: {getColour(tag)}"
+>
+	{tag}
+</span>
+
+<style>
+	.badge {
+		--_color: var(--color, oklch(50% 0 0));
+		--_border-color: oklch(from var(--_color) l c h / 0.8);
+		border-color: var(--_border-color);
+		background-color: oklch(from var(--_color) l c h / 0.2);
+		color: color-mix(var(--color-foreground) 85%, var(--_color));
+
+		&.selected {
+			--_new_bg: oklch(from var(--_color) 0.8 calc(c - 0.05) calc(h - 5));
+			background-color: var(--_new_bg);
+			border-color: var(--_new_bg);
+			color: contrast-color(var(--_new_bg));
+		}
+	}
+</style>
