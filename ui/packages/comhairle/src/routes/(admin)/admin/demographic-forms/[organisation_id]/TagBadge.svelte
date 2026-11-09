@@ -32,7 +32,7 @@
 
 <span
 	class={cn(
-		'badge focus-visible:ring-ring/50 rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-xs transition-[color,box-shadow] focus-visible:ring-[3px]',
+		'badge focus-visible:ring-ring/50 h-full rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-xs transition-[color,box-shadow] focus-visible:ring-[3px]',
 		selected ? 'selected' : '',
 		className
 	)}

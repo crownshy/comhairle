@@ -31,7 +31,7 @@
 					{#each tags.ok.concat( { id: 'special-category', name: SPECIAL_CATEGORY_TAG, organization_id: params.organisation_id } ) as tag (tag.id)}
 						<button
 							type="button"
-							class="inline rounded-full"
+							class="flex flex-row rounded-full"
 							onclick={() => void updateQueryParam('filter', tag.name)}
 						>
 							<TagBadge
