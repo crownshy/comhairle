@@ -13,7 +13,7 @@
 	} from '$lib/utils/conversationStatus';
 	import { ArrowRight, MessageCircle, MessageSquareText } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-	import { resolve } from '$app/paths';
+	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 
 	type Props = {
 		conversation: ConversationDto | LocalizedConversationDto;
@@ -32,11 +32,7 @@
 	}: Props = $props();
 
 	let status = $derived(conversationStatus(conversation));
-	let editHref = $derived(
-		resolve('/(admin)/admin/conversations/[conversation_id]/configure', {
-			conversation_id: conversation.id
-		})
-	);
+	let openHref = $derived(conversationLandingUrl(conversation));
 	// The title's link stretches over the whole card, so the card opens the conversation.
 	const CARD_CLASS =
 		'bg-card border-border group hover:border-primary/40 has-[a:focus-visible]:ring-ring relative overflow-hidden border transition duration-200 hover:-translate-y-0.5 hover:shadow-md has-[a:focus-visible]:ring-2';
@@ -141,14 +137,14 @@
 			</div>
 		{/snippet}
 
-		{#snippet editButton()}
-			<Button variant="primaryDark" class="relative z-10 rounded-full" href={editHref}>
-				Edit conversation
+		{#snippet openButton()}
+			<Button variant="primaryDark" class="relative z-10 rounded-full" href={openHref}>
+				Open conversation
 				<ArrowRight class="size-4" />
 			</Button>
 		{/snippet}
 
-		<!-- editHref is built with resolve() above. -->
+		<!-- conversationLandingUrl builds openHref with resolve(). -->
 		<!-- eslint-disable svelte/no-navigation-without-resolve -->
 		{#if layout === 'list'}
 			<article
@@ -162,14 +158,14 @@
 					<h2
 						class="text-foreground text-xl leading-7 font-semibold lg:text-2xl lg:leading-8"
 					>
-						<a href={editHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+						<a href={openHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
 					</h2>
 					{#if conversation.shortDescription}
 						<p class="text-muted-foreground text-base">
 							{conversation.shortDescription}
 						</p>
 					{/if}
-					<div class="mt-auto pt-2">{@render editButton()}</div>
+					<div class="mt-auto pt-2">{@render openButton()}</div>
 				</div>
 				{@render banner(
 					'h-40 w-full overflow-hidden rounded-xl sm:h-56 lg:h-72 lg:w-auto lg:flex-1'
@@ -181,14 +177,14 @@
 				<div class="flex grow flex-col gap-3 p-5">
 					{@render badges()}
 					<h2 class="text-foreground text-lg leading-snug font-semibold">
-						<a href={editHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+						<a href={openHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
 					</h2>
 					{#if conversation.shortDescription}
 						<p class="text-muted-foreground line-clamp-2 text-base">
 							{conversation.shortDescription}
 						</p>
 					{/if}
-					<div class="mt-auto pt-2">{@render editButton()}</div>
+					<div class="mt-auto pt-2">{@render openButton()}</div>
 				</div>
 			</article>
 		{/if}

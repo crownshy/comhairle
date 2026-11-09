@@ -194,7 +194,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'The workspace is where you create and manage [conversations](/admin/info/glossary#term-conversation), [launch](/admin/info/glossary#term-launch) them to participants, and moderate participant contributions.',
 				image: {
 					src: environmentImage,
-					alt: 'The workspace. The sidebar on the left lists Conversations, then Media library and Email templates under Library, and Organisations, Regions and System roles under Administration, with the Handbook and your account at the bottom. On the right, Your conversations has status filters, a search box and a card for each conversation showing its status and an Edit conversation button.'
+					alt: 'The workspace. The sidebar on the left lists Conversations, then Media library and Email templates under Library, and Organisations, Regions and System roles under Administration, with the Handbook and your account at the bottom. On the right, Your conversations has status filters, a search box and a card for each conversation showing its status and an Open conversation button.'
 				},
 				steps: [
 					'Use the sidebar to navigate between different areas of the workspace. The content on the right updates based on your selection.',

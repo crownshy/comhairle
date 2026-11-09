@@ -45,7 +45,7 @@ async function openOrCreate(page: Page, title: string) {
 		.filter({ has: page.getByRole('link', { name: title, exact: true }) });
 
 	if ((await card.count()) > 0) {
-		await card.first().getByRole('link', { name: 'Edit conversation' }).click();
+		await card.first().getByRole('link', { name: 'Open conversation' }).click();
 		await page.waitForURL(/\/admin\/conversations\/[^/?]+\//);
 	} else {
 		// The list is server-rendered, so the button shows before the app has hydrated and an
