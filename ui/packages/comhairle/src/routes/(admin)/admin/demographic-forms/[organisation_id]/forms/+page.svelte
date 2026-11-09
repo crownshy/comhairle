@@ -51,7 +51,7 @@
 						<Table.Row>
 							{#if data.canEdit}
 								<Table.Cell class="pr-2">
-									<div class="flex flex-col gap-y-1">
+									<div class="text-foreground/70 flex flex-col gap-y-1">
 										<Button
 											variant="ghost"
 											class="size-6"

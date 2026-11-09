@@ -103,7 +103,7 @@
 						<Table.Row>
 							{#if data.canEdit}
 								<Table.Cell class="pr-2">
-									<div class="flex flex-col gap-y-1">
+									<div class="text-foreground/70 flex flex-col gap-y-1">
 										{#if question.isDefault}
 											<Badge variant="secondary" class="text-sm">
 												Default
@@ -112,7 +112,7 @@
 											<Button
 												variant="ghost"
 												class="size-6"
-												title="Edit form"
+												title="Edit question"
 												aria-label="Edit {question.text}"
 											>
 												<Edit class="size-4" />
