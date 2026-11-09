@@ -13,8 +13,8 @@
 	const tabs = ['forms', 'questions'] as const;
 
 	// Will 404 if tabs aren't matched
-	const route = $derived<typeof tabs | undefined>(
-		page.url.pathname.match(/([^/]+)$/)?.[1] as typeof tabs | undefined
+	const route = $derived<(typeof tabs)[number] | undefined>(
+		page.url.pathname.match(/([^/]+)$/)?.[1] as (typeof tabs)[number] | undefined
 	);
 </script>
 
@@ -28,8 +28,12 @@
 	}}
 >
 	{#snippet actions()}
-		{#if data.canEdit}
-			<Button>
+		{#if data.canEdit && route !== undefined}
+			<Button
+				href={resolve(`/(admin)/admin/demographic-forms/[organisation_id]/${route}/new`, {
+					organisation_id: params.organisation_id
+				})}
+			>
 				<Plus class="size-4" />New {route?.slice(0, -1)}
 			</Button>
 		{/if}
