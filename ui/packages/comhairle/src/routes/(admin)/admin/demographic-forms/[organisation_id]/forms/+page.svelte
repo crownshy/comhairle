@@ -49,8 +49,10 @@
 				{:else}
 					{#each forms.ok as form (form.id)}
 						<Table.Row>
-							<Table.Cell class="w-50 truncate font-semibold" title={form.name}>
-								{form.name}
+							<Table.Cell class="text-base font-semibold" title={form.name}>
+								<div class="w-28 truncate">
+									{form.name}
+								</div>
 							</Table.Cell>
 							<Table.Cell>
 								<div class="flex flex-col items-start gap-x-1">

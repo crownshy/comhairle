@@ -101,8 +101,10 @@
 				{:else}
 					{#each questions.ok as question (question.id)}
 						<Table.Row>
-							<Table.Cell class="w-50 truncate font-semibold" title={question.text}>
-								{question.text}
+							<Table.Cell class=" font-semibold" title={question.text}>
+								<div class="w-50 truncate">
+									{question.text}
+								</div>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground text-sm">
 								{Demographics.getQuestionFromType(question.question_type)}
