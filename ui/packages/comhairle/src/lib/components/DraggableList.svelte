@@ -3,6 +3,17 @@
 	import { flip } from 'svelte/animate';
 	import type { Snippet } from 'svelte';
 
+	type Props = {
+		items: T[];
+		onReorder: (next: T[]) => void;
+		onCommit?: (next: T[]) => void;
+		children: Snippet<[T, number]>;
+		flipDurationMs?: number;
+		dragDisabled?: boolean;
+		dropTargetStyle?: Record<string, string>;
+		class?: string;
+	};
+
 	let {
 		items,
 		onReorder,
@@ -12,16 +23,7 @@
 		dragDisabled = false,
 		dropTargetStyle = {},
 		class: className = ''
-	}: {
-		items: T[];
-		onReorder: (next: T[]) => void;
-		onCommit?: (next: T[]) => void;
-		children: Snippet<[T, number]>;
-		flipDurationMs?: number;
-		dragDisabled?: boolean;
-		dropTargetStyle?: Record<string, string>;
-		class?: string;
-	} = $props();
+	}: Props = $props();
 
 	function consider(e: CustomEvent<DndEvent<T>>) {
 		onReorder(e.detail.items);
@@ -40,9 +42,7 @@
 	onfinalize={finalize}
 >
 	{#each items as item, i (item.id)}
-		<!-- svelte-dnd-action makes each item focusable (tabindex) and focuses the one
-		     being dragged for keyboard a11y; suppress the browser focus outline so a
-		     drag doesn't flash a ring around the item. -->
+		<!-- svelte-dnd-action makes each item focusable (tabindex) and focuses the one being dragged for keyboard a11y; suppress the browser focus outline so a drag doesn't flash a ring around the item. -->
 		<li animate:flip={{ duration: flipDurationMs }} class="outline-none">
 			{@render children(item, i)}
 		</li>

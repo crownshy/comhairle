@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { EllipsisVertical, Plus, RotateCcw, Trash2 } from 'lucide-svelte';
+	import { EllipsisVertical, GripVertical, Plus, RotateCcw, Trash2 } from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from '../../../TagBadge.svelte';
 	import ConsentCheck from '../../../ConsentCheck.svelte';
@@ -28,6 +28,7 @@
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import type { DemographicFormEntryDto } from '@crownshy/api-client/api';
 
 	// type Props = {
 	// 	form: DemographicForm;
@@ -268,13 +269,24 @@
 	// }
 
 	const { data } = $props();
+
+	type Row = { id: string; question: DemographicFormEntryDto };
+	let order = $state<Row[]>([]);
+	// TODO: Swap to use $derived when Svelte is updated
+	$effect(() => {
+		data.streamedForm.then((res) => {
+			if (res.ok !== null) {
+				order = res.ok.entries.map((e) => ({ id: e.question_id, question: e }));
+			}
+		});
+	});
 </script>
 
 {#await data.streamedForm}
 	<div class="flex h-full w-full items-center justify-center">
 		<Spinner
-			class="text-muted-foreground h-1/3 w-1/3"
-			strokeWidth={0.2}
+			class="text-muted-foreground h-1/4 w-1/4"
+			strokeWidth={0.5}
 			aria-label="Loading form"
 		/>
 	</div>
@@ -282,10 +294,9 @@
 	{#if form.err !== null}
 		<ErrorMessage>Could not load form, please try again</ErrorMessage>
 	{:else}
-		{console.log(form.ok)}
 		<SectionHeader
 			content={{
-				title: `Edit "${form.ok.name}"`
+				title: form.ok.name
 			}}
 		>
 			{#snippet actions()}
@@ -295,7 +306,44 @@
 		</SectionHeader>
 
 		<TabContent>
-			<Input label="Name" placeholder="Default form" />
+			<div class="grid grid-cols-[1fr_3fr_2fr] gap-x-5">
+				<section>
+					<Input label="Name" placeholder="Default form" value={form.ok.name} />
+					<h3 class="mb-2 pt-5 text-sm font-semibold">Questions</h3>
+					{#if form.ok.entries.length === 0}
+						<div class="text-muted-foreground text-sm font-medium italic">
+							No questions yet
+						</div>
+					{:else if order.length !== 0}
+						<DraggableList
+							items={order}
+							onReorder={(next) => void (order = next)}
+							class="flex flex-col gap-2"
+						>
+							{#snippet children(row, index)}
+								<div
+									class="border-border bg-card flex items-center gap-x-1 rounded-xl border px-3 py-3"
+								>
+									<GripVertical class="text-muted-foreground/70 size-4" />
+									<div
+										class="bg-muted text-muted-foreground mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+									>
+										{index + 1}
+									</div>
+									<h4
+										class="w-45 truncate text-sm font-medium"
+										title={row.question.question_text}
+									>
+										{row.question.question_text}
+									</h4>
+								</div>
+							{/snippet}
+						</DraggableList>
+					{/if}
+				</section>
+				<section>Preview</section>
+				<section>Question</section>
+			</div>
 
 			<!-- <div class="border-border flex flex-col gap-3 border-t pt-4"> -->
 			<!-- 	<h3 class="text-base font-semibold">Questions in this form</h3> -->
