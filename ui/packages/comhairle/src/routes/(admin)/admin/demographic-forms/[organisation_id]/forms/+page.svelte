@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
-	import { Copy } from 'lucide-svelte';
+	import { Copy, Edit } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
 	import TagBadge from '../TagBadge.svelte';
@@ -17,27 +17,27 @@
 	<Table.Root>
 		<Table.Header>
 			<Table.Row>
-				<Table.Head>Form</Table.Head>
-				<Table.Head>Questions</Table.Head>
-				<Table.Head>Status</Table.Head>
 				{#if data.canEdit}
 					<Table.Head>
 						<span class="sr-only">Actions</span>
 					</Table.Head>
 				{/if}
+				<Table.Head>Form</Table.Head>
+				<Table.Head>Questions</Table.Head>
+				<Table.Head>Status</Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
 			{#await data.streamedForms}
 				<Table.Row>
+					<Table.Cell class="pr-2">
+						<Skeleton class="h-14 w-6" />
+					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-30" />
 					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-19" />
-					</Table.Cell>
-					<Table.Cell>
-						<Skeleton class="h-7 w-23" />
 					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-auto" />
@@ -49,6 +49,28 @@
 				{:else}
 					{#each forms.ok as form (form.id)}
 						<Table.Row>
+							{#if data.canEdit}
+								<Table.Cell class="pr-2">
+									<div class="flex flex-col gap-y-1">
+										<Button
+											variant="ghost"
+											class="size-6"
+											title="Edit form"
+											aria-label="Edit {form.name}"
+										>
+											<Edit class="size-4" />
+										</Button>
+										<Button
+											variant="ghost"
+											class="size-6"
+											title="Duplicate form"
+											aria-label="Duplicate {form.name}"
+										>
+											<Copy class="size-4" />
+										</Button>
+									</div>
+								</Table.Cell>
+							{/if}
 							<Table.Cell class="text-base font-semibold" title={form.name}>
 								<div class="w-28 truncate">
 									{form.name}
@@ -91,22 +113,6 @@
 									{/if}
 								</span>
 							</Table.Cell>
-							{#if data.canEdit}
-								<Table.Cell>
-									<div class="flex items-center gap-2">
-										<Button variant="outline" size="sm">Edit</Button>
-										<Button
-											variant="outline"
-											size="icon"
-											class="size-8"
-											title="Duplicate form"
-											aria-label={`Duplicate ${form.name}`}
-										>
-											<Copy class="size-4" />
-										</Button>
-									</div>
-								</Table.Cell>
-							{/if}
 						</Table.Row>
 					{/each}
 				{/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Copy } from 'lucide-svelte';
+	import { Copy, Edit } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
@@ -67,18 +67,21 @@
 	<Table.Root>
 		<Table.Header>
 			<Table.Row>
+				{#if data.canEdit}
+					<Table.Head class="sr-only">Actions</Table.Head>
+				{/if}
 				<Table.Head>Question</Table.Head>
 				<Table.Head>Question type</Table.Head>
 				<Table.Head>Version</Table.Head>
 				<Table.Head>Demographic category</Table.Head>
-				{#if data.canEdit}
-					<Table.Head class="sr-only">Actions</Table.Head>
-				{/if}
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
 			{#await data.streamedQuestions}
 				<Table.Row>
+					<Table.Cell class="pr-2">
+						<Skeleton class="h-14 w-6" />
+					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-54" />
 					</Table.Cell>
@@ -87,9 +90,6 @@
 					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-8" />
-					</Table.Cell>
-					<Table.Cell>
-						<Skeleton class="h-7 w-30" />
 					</Table.Cell>
 					<Table.Cell>
 						<Skeleton class="h-7 w-auto" />
@@ -101,6 +101,34 @@
 				{:else}
 					{#each questions.ok as question (question.id)}
 						<Table.Row>
+							{#if data.canEdit}
+								<Table.Cell class="pr-2">
+									<div class="flex flex-col gap-y-1">
+										{#if question.isDefault}
+											<Badge variant="secondary" class="text-sm">
+												Default
+											</Badge>
+										{:else}
+											<Button
+												variant="ghost"
+												class="size-6"
+												title="Edit form"
+												aria-label="Edit {question.text}"
+											>
+												<Edit class="size-4" />
+											</Button>
+										{/if}
+										<Button
+											variant="ghost"
+											class="size-6"
+											title="Duplicate question"
+											aria-label="Duplicate {question.text}"
+										>
+											<Copy class="size-4" />
+										</Button>
+									</div>
+								</Table.Cell>
+							{/if}
 							<Table.Cell class=" font-semibold" title={question.text}>
 								<div class="w-50 truncate">
 									{question.text}
@@ -131,28 +159,6 @@
 									{/if}
 								</div>
 							</Table.Cell>
-							{#if data.canEdit}
-								<Table.Cell>
-									<div class="flex gap-2">
-										{#if question.isDefault}
-											<Badge variant="secondary" class="text-sm">
-												Default
-											</Badge>
-										{:else}
-											<Button variant="outline" size="sm">Edit</Button>
-										{/if}
-										<Button
-											variant="outline"
-											size="icon"
-											class="size-8"
-											title="Duplicate question"
-											aria-label={`Duplicate ${question.text}`}
-										>
-											<Copy class="size-4" />
-										</Button>
-									</div>
-								</Table.Cell>
-							{/if}
 						</Table.Row>
 					{:else}
 						<Table.Row>
