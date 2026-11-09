@@ -69,6 +69,7 @@ fn true_by_default() -> bool {
 
 /// One question within a form draft.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct DemographicFormEntryInput {
     /// The question to ask.
     pub question_id: Uuid,
@@ -163,6 +164,7 @@ pub struct SelectionAnswer {
 /// A row of `demographics_question`.
 #[derive(Debug, Clone, Serialize, JsonSchema, sqlx::FromRow)]
 #[enum_def(table_name = "demographics_question")]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionRow {
     /// The unique identifier of the question.
     pub id: Uuid,
@@ -180,6 +182,7 @@ pub struct QuestionRow {
 /// text is returned by [`QuestionVersionDto`].
 #[derive(Debug, Clone, Serialize, JsonSchema, sqlx::FromRow)]
 #[enum_def(table_name = "demographics_question_version")]
+#[serde(rename_all = "camelCase")]
 pub struct DemographicQuestionVersion {
     /// The unique identifier of the question version.
     pub id: Uuid,
@@ -438,6 +441,7 @@ pub struct OptionDto {
 ///
 /// See [`DemographicQuestionVersion`] for the underlying row.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionVersionDto {
     /// The question version.
     #[serde(flatten)]
@@ -473,6 +477,7 @@ pub struct QuestionLatestDto {
 ///
 /// See [`QuestionRow`] for the underlying row.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct QuestionDto {
     /// The question.
     #[serde(flatten)]
@@ -491,6 +496,7 @@ pub struct QuestionDto {
 ///
 /// See [`DemographicForm`] for the underlying row.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct DemographicFormDto {
     /// The form.
     #[serde(flatten)]

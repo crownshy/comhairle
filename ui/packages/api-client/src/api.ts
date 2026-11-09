@@ -3752,24 +3752,24 @@ export const VersionStatus = z.enum(["draft", "published"]);
 export type VersionStatus = z.infer<typeof VersionStatus>;
 export const QuestionVersionDto = z
   .object({
-    allow_other: z.boolean(),
-    consent_text: z.union([z.string(), z.null()]).optional(),
-    date_precision: z.union([DatePrecision, z.null()]).optional(),
+    allowOther: z.boolean(),
+    consentText: z.union([z.string(), z.null()]).optional(),
+    datePrecision: z.union([DatePrecision, z.null()]).optional(),
     id: z.string().uuid(),
-    json_schema: z.unknown().optional(),
-    location_country: z.union([z.string(), z.null()]).optional(),
-    location_format: z.union([LocationFormat, z.null()]).optional(),
-    max_selections: z.union([z.number(), z.null()]).optional(),
+    jsonSchema: z.unknown().optional(),
+    locationCountry: z.union([z.string(), z.null()]).optional(),
+    locationFormat: z.union([LocationFormat, z.null()]).optional(),
+    maxSelections: z.union([z.number(), z.null()]).optional(),
     options: z.array(OptionDto),
-    prefer_not_to_say: z.boolean(),
-    published_at: z.union([z.string(), z.null()]).optional(),
-    question_id: z.string().uuid(),
-    question_type: QuestionType2,
-    special_category: z.boolean(),
+    preferNotToSay: z.boolean(),
+    publishedAt: z.union([z.string(), z.null()]).optional(),
+    questionId: z.string().uuid(),
+    questionType: QuestionType2,
+    specialCategory: z.boolean(),
     status: VersionStatus,
     text: z.string(),
-    updated_at: z.string().datetime({ offset: true }),
-    version_number: z.number().int(),
+    updatedAt: z.string().datetime({ offset: true }),
+    versionNumber: z.number().int(),
   })
   .passthrough();
 export type QuestionVersionDto = z.infer<typeof QuestionVersionDto>;
@@ -3784,13 +3784,13 @@ export const VersionSummary = z
 export type VersionSummary = z.infer<typeof VersionSummary>;
 export const QuestionDto = z
   .object({
-    archived_at: z.union([z.string(), z.null()]).optional(),
-    created_at: z.string().datetime({ offset: true }),
+    archivedAt: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
     draft: z.union([QuestionVersionDto, z.null()]).optional(),
-    forked_from_id: z.union([z.string(), z.null()]).optional(),
+    forkedFromId: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    latest_published: z.union([QuestionVersionDto, z.null()]).optional(),
-    organization_id: z.union([z.string(), z.null()]).optional(),
+    latestPublished: z.union([QuestionVersionDto, z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     tags: z.array(DemographicTag),
     versions: z.array(VersionSummary),
   })
@@ -3819,38 +3819,38 @@ export const QuestionDraftInput = z
 export type QuestionDraftInput = z.infer<typeof QuestionDraftInput>;
 export const QuestionRow = z
   .object({
-    archived_at: z.union([z.string(), z.null()]).optional(),
-    created_at: z.string().datetime({ offset: true }),
-    forked_from_id: z.union([z.string(), z.null()]).optional(),
+    archivedAt: z.union([z.string(), z.null()]).optional(),
+    createdAt: z.string().datetime({ offset: true }),
+    forkedFromId: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    organization_id: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type QuestionRow = z.infer<typeof QuestionRow>;
 export const QuestionLatestDto = z
   .object({
-    allow_other: z.boolean(),
-    consent_text: z.union([z.string(), z.null()]).optional(),
-    date_precision: z.union([DatePrecision, z.null()]).optional(),
+    allowOther: z.boolean(),
+    consentText: z.union([z.string(), z.null()]).optional(),
+    datePrecision: z.union([DatePrecision, z.null()]).optional(),
     draftVersion: z.number().int(),
     id: z.string().uuid(),
-    json_schema: z.unknown().optional(),
-    location_country: z.union([z.string(), z.null()]).optional(),
-    location_format: z.union([LocationFormat, z.null()]).optional(),
-    max_selections: z.union([z.number(), z.null()]).optional(),
+    jsonSchema: z.unknown().optional(),
+    locationCountry: z.union([z.string(), z.null()]).optional(),
+    locationFormat: z.union([LocationFormat, z.null()]).optional(),
+    maxSelections: z.union([z.number(), z.null()]).optional(),
     meta: QuestionRow,
     options: z.array(OptionDto),
-    prefer_not_to_say: z.boolean(),
+    preferNotToSay: z.boolean(),
+    publishedAt: z.union([z.string(), z.null()]).optional(),
     publishedVersion: z.number().int(),
-    published_at: z.union([z.string(), z.null()]).optional(),
-    question_id: z.string().uuid(),
-    question_type: QuestionType2,
-    special_category: z.boolean(),
+    questionId: z.string().uuid(),
+    questionType: QuestionType2,
+    specialCategory: z.boolean(),
     status: VersionStatus,
     tags: z.array(DemographicTag),
     text: z.string(),
-    updated_at: z.string().datetime({ offset: true }),
-    version_number: z.number().int(),
+    updatedAt: z.string().datetime({ offset: true }),
+    versionNumber: z.number().int(),
   })
   .passthrough();
 export type QuestionLatestDto = z.infer<typeof QuestionLatestDto>;
@@ -3887,7 +3887,7 @@ export const DemographicFormDto = z
     created_at: z.string().datetime({ offset: true }),
     draft: z.union([DemographicFormVersionDto, z.null()]).optional(),
     id: z.string().uuid(),
-    latest_published: z.union([DemographicFormVersionDto, z.null()]).optional(),
+    latestPublished: z.union([DemographicFormVersionDto, z.null()]).optional(),
     organization_id: z.string().uuid(),
     versions: z.array(VersionSummary),
   })
@@ -3896,7 +3896,7 @@ export type DemographicFormDto = z.infer<typeof DemographicFormDto>;
 export const DemographicFormEntryInput = z
   .object({
     position: z.number().int(),
-    question_id: z.string().uuid(),
+    questionId: z.string().uuid(),
     required: z.boolean().optional().default(true),
   })
   .passthrough();
