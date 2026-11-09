@@ -2,9 +2,9 @@
 	import type { TagName } from '../demographicModel';
 	import { cn } from '$lib/utils';
 
-	type Props = { tag: TagName; selected?: boolean; class?: string };
+	type Props = { tag: TagName; label?: string; selected?: boolean; class?: string };
 
-	let { tag, selected, class: className }: Props = $props();
+	let { tag, label, selected, class: className }: Props = $props();
 
 	function getColour(tag: TagName): string {
 		switch (tag) {
@@ -38,7 +38,7 @@
 	)}
 	style="--color: {getColour(tag)}"
 >
-	{tag}
+	{label ?? tag}
 </span>
 
 <style>

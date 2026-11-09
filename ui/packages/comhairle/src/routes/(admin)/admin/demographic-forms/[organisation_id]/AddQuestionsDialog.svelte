@@ -9,7 +9,7 @@
 		QUESTION_KIND_LABELS,
 		SPECIAL_CATEGORY_TAG,
 		type SavedQuestion
-	} from './demographicModel';
+	} from '../demographicModel';
 
 	type Props = {
 		questions: SavedQuestion[];

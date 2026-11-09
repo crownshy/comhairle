@@ -9,8 +9,9 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
+	import { resolve } from '$app/paths';
 
-	const { data } = $props();
+	const { data, params } = $props();
 </script>
 
 <TabContent>
@@ -57,6 +58,13 @@
 											class="size-6"
 											title="Edit form"
 											aria-label="Edit {form.name}"
+											href={resolve(
+												'/(admin)/admin/demographic-forms/[organisation_id]/forms/edit/[form_id]',
+												{
+													organisation_id: params.organisation_id,
+													form_id: form.form_id
+												}
+											)}
 										>
 											<Edit class="size-4" />
 										</Button>

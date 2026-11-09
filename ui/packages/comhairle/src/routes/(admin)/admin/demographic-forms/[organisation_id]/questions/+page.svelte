@@ -13,6 +13,7 @@
 	import { useDebounce } from 'runed';
 	import { page } from '$app/state';
 	import Demographics from '$lib/interfaces/Demographics';
+	import { resolve } from '$app/paths';
 
 	const { data, params } = $props();
 </script>
@@ -102,6 +103,13 @@
 												class="size-6"
 												title="Edit question"
 												aria-label="Edit {question.text}"
+												href={resolve(
+													'/(admin)/admin/demographic-forms/[organisation_id]/questions/edit/[question_id]',
+													{
+														organisation_id: params.organisation_id,
+														question_id: question.questionId
+													}
+												)}
 											>
 												<Edit class="size-4" />
 											</Button>

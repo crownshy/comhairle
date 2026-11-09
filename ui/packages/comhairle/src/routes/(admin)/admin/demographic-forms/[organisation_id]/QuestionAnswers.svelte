@@ -9,13 +9,13 @@
 		PREFER_NOT_TO_SAY,
 		toggleChoice,
 		type Answer
-	} from './demographicAnswers';
+	} from '../demographicAnswers';
 	import {
 		getPlaceholder,
 		isChoiceKind,
 		selectionHint,
 		type DemographicQuestion
-	} from './demographicModel';
+	} from '../demographicModel';
 
 	type Props = {
 		question: Pick<

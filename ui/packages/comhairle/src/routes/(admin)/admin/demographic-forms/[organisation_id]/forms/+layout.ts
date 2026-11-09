@@ -1,7 +1,7 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: LayoutLoad = async ({ parent, params }) => {
 	const p = await parent();
 
 	return {
