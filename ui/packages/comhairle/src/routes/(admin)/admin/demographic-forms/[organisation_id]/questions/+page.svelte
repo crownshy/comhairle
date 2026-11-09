@@ -12,6 +12,7 @@
 	import { updateQueryParam } from '$lib/utils.svelte';
 	import { useDebounce } from 'runed';
 	import { page } from '$app/state';
+	import Demographics from '$lib/interfaces/Demographics';
 
 	const { data } = $props();
 </script>
@@ -104,7 +105,7 @@
 								{question.text}
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground text-sm">
-								{question.question_type}
+								{Demographics.getQuestionFromType(question.question_type)}
 							</Table.Cell>
 							<Table.Cell>
 								<Badge
