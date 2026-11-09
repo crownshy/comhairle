@@ -14,7 +14,7 @@
 	import { page } from '$app/state';
 	import Demographics from '$lib/interfaces/Demographics';
 
-	const { data } = $props();
+	const { data, params } = $props();
 </script>
 
 <TabContent>
@@ -28,7 +28,7 @@
 				{#if tags.err !== null}
 					<ErrorMessage>Could not load tags, please try again</ErrorMessage>
 				{:else}
-					{#each tags.ok as tag (tag.id)}
+					{#each tags.ok.concat( { id: 'special-category', name: SPECIAL_CATEGORY_TAG, organization_id: params.organisation_id } ) as tag (tag.id)}
 						<label class="cursor-pointer">
 							<input
 								type="radio"
@@ -100,7 +100,6 @@
 					<ErrorMessage>Couldn't load questions, please try again</ErrorMessage>
 				{:else}
 					{#each questions.ok as question (question.id)}
-						{console.log(question)}
 						<Table.Row>
 							{#if data.canEdit}
 								<Table.Cell class="pr-2">

@@ -1,4 +1,5 @@
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { SPECIAL_CATEGORY_TAG } from '../../demographicModel';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent, params, url }) => {
@@ -16,9 +17,12 @@ export const load: PageLoad = async ({ parent, params, url }) => {
 				.then((questions) => {
 					// TODO: Move this to the backend at some point
 					if (filter) {
-						questions = questions.filter(
-							(question) => question.tags.findIndex((tag) => tag.name === filter) > -1
-						);
+						questions = questions.filter((question) => {
+							if (filter === SPECIAL_CATEGORY_TAG) {
+								return question.specialCategory;
+							}
+							return question.tags.findIndex((tag) => tag.name === filter) > -1;
+						});
 					}
 
 					if (search) {
