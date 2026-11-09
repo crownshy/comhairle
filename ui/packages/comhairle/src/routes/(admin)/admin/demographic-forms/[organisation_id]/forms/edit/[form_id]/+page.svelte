@@ -21,14 +21,17 @@
 	import QuestionAnswers from '../../../QuestionAnswers.svelte';
 	import {
 		nextVersionNumber,
+		SPECIAL_CATEGORY_TAG,
 		type DemographicForm,
-		type SavedQuestion
+		type SavedQuestion,
+		type TagName
 	} from '../../../../demographicModel';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import type { DemographicFormEntryDto, QuestionLatestDto } from '@crownshy/api-client/api';
+	import Demographics from '$lib/interfaces/Demographics';
 
 	// type Props = {
 	// 	form: DemographicForm;
@@ -270,12 +273,15 @@
 
 	const { data } = $props();
 
-	let order = $state<QuestionLatestDto[]>([]);
+	let selectedQuestion = $state<QuestionLatestDto['id']>();
+	let order = $state.raw<QuestionLatestDto[]>([]);
+
 	// TODO: Swap to use $derived when Svelte is updated
 	$effect(() => {
 		data.streamed.then((res) => {
 			if (res.ok !== null) {
 				order = res.ok.questions;
+				selectedQuestion = order[0].id;
 			}
 		});
 	});
@@ -323,24 +329,61 @@
 						>
 							{#snippet children(question, index)}
 								<div
-									class="border-border bg-card flex items-center rounded-xl border px-3 py-3"
+									class="border-border bg-card flex items-center rounded-xl border-2 px-3 py-3"
+									class:border-primary={question.id === selectedQuestion}
+									aria-selected={question.id === selectedQuestion}
 								>
 									<GripVertical class="text-muted-foreground/70 size-4" />
-									<div class="flex flex-col">
-										<div class="flex items-center gap-1">
+									<button
+										type="button"
+										class="flex flex-col items-start"
+										onclick={() => void (selectedQuestion = question.id)}
+									>
+										<div class="flex items-center justify-start gap-1">
 											<div
 												class="text-muted-foreground ml-2 text-sm font-semibold"
 											>
 												{index + 1}.
 											</div>
 											<h4
-												class="w-45 truncate text-sm font-medium"
+												class="w-[20ch] truncate text-left text-sm font-medium"
 												title={question.text}
 											>
 												{question.text}
+												{#if question.required && question.text.length < 23}
+													<span
+														class="text-destructive font-semibold"
+														title="Required"
+													>
+														*
+													</span>
+													<span class="sr-only">Required</span>
+												{/if}
 											</h4>
+											{#if question.required && question.text.length >= 24}
+												<span
+													class="text-destructive font-semibold"
+													title="Required"
+												>
+													*
+												</span>
+												<span class="sr-only">Required</span>
+											{/if}
 										</div>
-									</div>
+										<div class="mt-0.5 ml-3">
+											{#each question.tags as tag (tag.id)}
+												<TagBadge tag={tag.name as TagName} />
+											{/each}
+											{#if question.specialCategory}
+												<TagBadge tag={SPECIAL_CATEGORY_TAG} />
+											{/if}
+											{#if Demographics.isDefaultQuestion(question)}
+												<Badge variant="secondary" class="text-xs">
+													Default
+												</Badge>
+											{/if}
+										</div>
+									</button>
 								</div>
 							{/snippet}
 						</DraggableList>
@@ -350,11 +393,6 @@
 				<section>Question</section>
 			</div>
 
-			<!-- <div class="border-border flex flex-col gap-3 border-t pt-4"> -->
-			<!-- 	<h3 class="text-base font-semibold">Questions in this form</h3> -->
-			<!-- 	{#if rows.length === 0} -->
-			<!-- 		<p class="text-muted-foreground text-base">No questions yet.</p> -->
-			<!-- 	{/if} -->
 			<!-- 	<DraggableList -->
 			<!-- 		items={dragRows ?? rows} -->
 			<!-- 		onReorder={reorderWhileDragging} -->
@@ -362,7 +400,6 @@
 			<!-- 		class="flex flex-col gap-2" -->
 			<!-- 	> -->
 			<!-- 		{#snippet children(row, index)} -->
-			<!-- 			<div class="flex flex-col gap-1"> -->
 			<!-- 				<div -->
 			<!-- 					class="bg-card flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3 {index === -->
 			<!-- 					previewIndex -->
@@ -374,22 +411,7 @@
 			<!-- 						class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left" -->
 			<!-- 						onclick={() => selectQuestion(row.id)} -->
 			<!-- 					> -->
-			<!-- 						<span -->
-			<!-- 							class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold" -->
-			<!-- 						> -->
-			<!-- 							{index + 1} -->
-			<!-- 						</span> -->
-			<!-- 						<span class="truncate text-base">{row.question.text}</span> -->
-			<!-- 						{#if row.required} -->
-			<!-- 							<span class="text-destructive font-semibold" title="Required"> -->
-			<!-- 								* -->
-			<!-- 							</span> -->
-			<!-- 							<span class="sr-only">Required</span> -->
-			<!-- 						{/if} -->
 			<!-- 					</button> -->
-			<!-- 					{#if row.question.tags[0]} -->
-			<!-- 						<TagBadge tag={row.question.tags[0].name} class="shrink-0" /> -->
-			<!-- 					{/if} -->
 			<!-- 					<DropdownMenu.Root> -->
 			<!-- 						<DropdownMenu.Trigger -->
 			<!-- 							class={buttonVariants({ -->
@@ -440,22 +462,6 @@
 			<!-- 						</DropdownMenu.Content> -->
 			<!-- 					</DropdownMenu.Root> -->
 			<!-- 				</div> -->
-			<!-- 				{#if row.question.specialCategory} -->
-			<!-- 					<div class="flex items-center gap-2 pr-3 pb-2 pl-11"> -->
-			<!-- 						<TagBadge tag="Special category" /> -->
-			<!-- 						{#if row.question.isDefault} -->
-			<!-- 							<Badge variant="secondary" class="text-sm">Default</Badge> -->
-			<!-- 						{:else} -->
-			<!-- 							<Button -->
-			<!-- 								variant="link" -->
-			<!-- 								class="h-auto p-0 text-sm" -->
-			<!-- 								onclick={() => onEditQuestion(row.id, true)} -->
-			<!-- 							> -->
-			<!-- 								Edit consent -->
-			<!-- 							</Button> -->
-			<!-- 						{/if} -->
-			<!-- 					</div> -->
-			<!-- 				{/if} -->
 			<!-- 			</div> -->
 			<!-- 		{/snippet} -->
 			<!-- 	</DraggableList> -->
