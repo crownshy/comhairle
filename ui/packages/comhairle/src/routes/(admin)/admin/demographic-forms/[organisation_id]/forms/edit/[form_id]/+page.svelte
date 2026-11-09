@@ -28,7 +28,7 @@
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
-	import type { DemographicFormEntryDto } from '@crownshy/api-client/api';
+	import type { DemographicFormEntryDto, QuestionLatestDto } from '@crownshy/api-client/api';
 
 	// type Props = {
 	// 	form: DemographicForm;
@@ -270,19 +270,18 @@
 
 	const { data } = $props();
 
-	type Row = { id: string; question: DemographicFormEntryDto };
-	let order = $state<Row[]>([]);
+	let order = $state<QuestionLatestDto[]>([]);
 	// TODO: Swap to use $derived when Svelte is updated
 	$effect(() => {
-		data.streamedForm.then((res) => {
+		data.streamed.then((res) => {
 			if (res.ok !== null) {
-				order = res.ok.entries.map((e) => ({ id: e.question_id, question: e }));
+				order = res.ok.questions;
 			}
 		});
 	});
 </script>
 
-{#await data.streamedForm}
+{#await data.streamed}
 	<div class="flex h-full w-full items-center justify-center">
 		<Spinner
 			class="text-muted-foreground h-1/4 w-1/4"
@@ -290,27 +289,29 @@
 			aria-label="Loading form"
 		/>
 	</div>
-{:then form}
-	{#if form.err !== null}
+{:then demographics}
+	{#if demographics.err !== null}
 		<ErrorMessage>Could not load form, please try again</ErrorMessage>
 	{:else}
-		<SectionHeader
-			content={{
-				title: form.ok.name
-			}}
-		>
-			{#snippet actions()}
-				<Button variant="outline">Save as draft</Button>
+		<!-- TODO: Copied from SectionHeader, might be good to unify at some point -->
+		<header class="border-border flex w-full justify-between border-b pt-6 pb-5">
+			<h1 class="text-foreground pl-5 text-3xl font-bold">{demographics.ok.form.name}</h1>
+			<div class="mr-10">
+				<Button variant="outline" class="mr-2">Save as draft</Button>
 				<Button>Publish</Button>
-			{/snippet}
-		</SectionHeader>
+			</div>
+		</header>
 
-		<TabContent>
+		<section class="pt-page-top px-5">
 			<div class="grid grid-cols-[1fr_3fr_2fr] gap-x-5">
 				<section>
-					<Input label="Name" placeholder="Default form" value={form.ok.name} />
+					<Input
+						label="Name"
+						placeholder="Default form"
+						value={demographics.ok.form.name}
+					/>
 					<h3 class="mb-2 pt-5 text-sm font-semibold">Questions</h3>
-					{#if form.ok.entries.length === 0}
+					{#if demographics.ok.form.entries.length === 0}
 						<div class="text-muted-foreground text-sm font-medium italic">
 							No questions yet
 						</div>
@@ -320,22 +321,26 @@
 							onReorder={(next) => void (order = next)}
 							class="flex flex-col gap-2"
 						>
-							{#snippet children(row, index)}
+							{#snippet children(question, index)}
 								<div
-									class="border-border bg-card flex items-center gap-x-1 rounded-xl border px-3 py-3"
+									class="border-border bg-card flex items-center rounded-xl border px-3 py-3"
 								>
 									<GripVertical class="text-muted-foreground/70 size-4" />
-									<div
-										class="bg-muted text-muted-foreground mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-									>
-										{index + 1}
+									<div class="flex flex-col">
+										<div class="flex items-center gap-1">
+											<div
+												class="text-muted-foreground ml-2 text-sm font-semibold"
+											>
+												{index + 1}.
+											</div>
+											<h4
+												class="w-45 truncate text-sm font-medium"
+												title={question.text}
+											>
+												{question.text}
+											</h4>
+										</div>
 									</div>
-									<h4
-										class="w-45 truncate text-sm font-medium"
-										title={row.question.question_text}
-									>
-										{row.question.question_text}
-									</h4>
 								</div>
 							{/snippet}
 						</DraggableList>
@@ -535,7 +540,7 @@
 			<!-- 		{/if} -->
 			<!-- 	</PhonePreview> -->
 			<!-- </div> -->
-		</TabContent>
+		</section>
 	{/if}
 {/await}
 <!-- <span class="text-muted-foreground mr-auto text-sm"> -->

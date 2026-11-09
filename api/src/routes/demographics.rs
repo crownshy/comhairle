@@ -18,7 +18,7 @@ use crate::models::demographics::responses::{self, ConsentState};
 use crate::models::demographics::types::{
     ConsentInput, DemographicFormDraftInput, DemographicFormDto, DemographicFormLatestDto,
     DemographicTag, MyDemographicAnswer, PendingQuestion, QuestionDraftInput, QuestionDto,
-    QuestionLatestDto, QuestionVersionDto, ResponseDto, ResponseInput,
+    QuestionLatestDto, ResponseDto, ResponseInput,
 };
 use crate::models::demographics::{forms, questions, steps};
 use crate::models::permissions::conversation::Action;
@@ -698,7 +698,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                 op.id("GetDemographicsQuestionLatest")
                     .tag("Demographics")
                     .security_requirement("JWT")
-                    .response::<200, Json<QuestionVersionDto>>()
+                    .response::<200, Json<QuestionLatestDto>>()
             })
             .route_layer(requires(SystemAction::DemographicRead)),
         )

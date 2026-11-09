@@ -6615,7 +6615,7 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
         schema: created_after,
       },
     ],
-    response: QuestionVersionDto,
+    response: QuestionLatestDto,
   },
   {
     method: "post",
