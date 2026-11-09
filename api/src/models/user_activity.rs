@@ -41,7 +41,7 @@ pub struct UserActivity {
     pub activity_changed_at: DateTime<Utc>,
     /// Whether the participant is currently active. False once paused or closed.
     pub is_active: bool,
-    /// Separate visits to the step. Opening it again after the row was closed counts as one.
+    /// Visits to the step. Only returning after "finishing" it counts as a new session.
     pub sessions: i32,
 }
 
@@ -103,7 +103,8 @@ impl TryFrom<&str> for EndReason {
 /// Records that a participant opened a step, creating their row on the first visit.
 ///
 /// On a later visit the existing row is reopened. `sessions` only goes up if the row had been
-/// closed, so a reconnect or a second tab during an open visit doesn't count as a return.
+/// "finished", so a reconnect, return after navigation away or a second tab during
+/// an open visit doesn't count as a return.
 ///
 /// Also used to resume after [`pause`]: a paused row starts a new active stretch,
 /// while an already active one keeps its stretch so a reconnect doesn't lose the
@@ -120,8 +121,13 @@ pub async fn start(
     // Qualified with the table: inside ON CONFLICT a bare column name is ambiguous between
     // the existing row and the proposed one, and Postgres rejects the query.
     let existing = |column| Expr::col((UserActivityIden::Table, column));
-    let returned_after_ending =
-        Expr::case(existing(UserActivityIden::EndedAt).is_not_null(), 1).finally(0);
+    let returned_after_finishing = Expr::case(
+        existing(UserActivityIden::EndedAt)
+            .is_not_null()
+            .and(existing(UserActivityIden::EndReason).eq(EndReason::Finished.to_string())),
+        1,
+    )
+    .finally(0);
 
     let (sql, values) = Query::insert()
         .into_table(UserActivityIden::Table)
@@ -131,7 +137,7 @@ pub async fn start(
             OnConflict::columns([UserActivityIden::UserId, UserActivityIden::WorkflowStepId])
                 .value(
                     UserActivityIden::Sessions,
-                    existing(UserActivityIden::Sessions).add(returned_after_ending),
+                    existing(UserActivityIden::Sessions).add(returned_after_finishing),
                 )
                 .value(UserActivityIden::EndedAt, Keyword::Null)
                 .value(UserActivityIden::EndReason, Keyword::Null)
@@ -502,7 +508,6 @@ mod tests {
         Ok(())
     }
 
-    /// A reconnect or a second tab sends `start` again while the row is still open.
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_not_count_a_new_session_when_started_while_open(
         pool: PgPool,
@@ -514,6 +519,36 @@ mod tests {
 
         assert_eq!(second.id, first.id, "should reuse the same row");
         assert_eq!(second.sessions, 1, "a reconnect isn't a return");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_only_count_new_session_on_finished_step(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = ActivityFixture::new(&pool).await?;
+
+        let first = fixture.start().await?;
+        fixture.close(EndReason::Disconnected).await?;
+
+        let second = fixture.start().await?;
+
+        assert_eq!(second.id, first.id, "should reuse the same row");
+        assert_eq!(second.sessions, 1, "a reconnect isn't a new session");
+
+        fixture.close(EndReason::Navigation).await?;
+
+        let third = fixture.start().await?;
+        assert_eq!(third.sessions, 1, "a navigation isn't a new session");
+
+        fixture.close(EndReason::Finished).await?;
+
+        let fourth = fixture.start().await?;
+        assert_eq!(
+            fourth.sessions, 2,
+            "a finished step return is a new session"
+        );
 
         Ok(())
     }
@@ -665,7 +700,7 @@ mod tests {
         let first = fixture.start().await?;
         fixture.backdate_activity_change(5).await?;
         let closed = fixture
-            .close(EndReason::Navigation)
+            .close(EndReason::Finished)
             .await?
             .ok_or("row not closed")?;
 

@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use dashmap::DashMap;
 use thiserror::Error;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::models::user_activity;
 use crate::models::user_activity::EndReason;
 use crate::websockets::error::WebsocketError;
 use crate::websockets::messages::WebSocketMessage;
-use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
+use crate::websockets::{ConnectionId, WebSocketConnection, WebSocketMessageHandler};
 
 #[derive(Error, Debug)]
 pub enum WorkflowWSError {}
@@ -67,12 +69,17 @@ pub enum WorkflowWSError {}
 ///
 /// This handler is automatically registered in `websockets::setup::register_handlers()`.
 #[derive(Default)]
-pub struct WorkflowMessageHandler;
+pub struct WorkflowMessageHandler {
+    /// The step each connection last started, so a dropped socket can close it.
+    open_steps: DashMap<ConnectionId, Uuid>,
+}
 
 impl WorkflowMessageHandler {
     /// Create a new workflow message handler.
     pub fn new() -> Self {
-        Self
+        Self {
+            open_steps: DashMap::new(),
+        }
     }
 }
 
@@ -114,6 +121,31 @@ impl WebSocketMessageHandler for WorkflowMessageHandler {
             _ => Ok(()),
         }
     }
+
+    async fn on_disconnect(
+        &self,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), WebsocketError> {
+        if let Some((_, step_id)) = self.open_steps.remove(&connection.id) {
+            let db_err = |e: String| WebsocketError::DatabaseError(e);
+            let mut db = state
+                .db
+                .acquire()
+                .await
+                .map_err(|e| db_err(e.to_string()))?;
+            user_activity::close(
+                &mut db,
+                connection.user.id,
+                step_id,
+                EndReason::Disconnected,
+            )
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
+        }
+
+        Ok(())
+    }
 }
 
 impl WorkflowMessageHandler {
@@ -127,6 +159,9 @@ impl WorkflowMessageHandler {
             "User {} started workflow step {}",
             connection.user.id, workflow_step_id
         );
+
+        self.open_steps
+            .insert(connection.id.clone(), *workflow_step_id);
 
         let db_err = |e: String| WebsocketError::DatabaseError(e);
 
@@ -183,6 +218,9 @@ impl WorkflowMessageHandler {
             "User {} finished workflow step {}",
             connection.user.id, workflow_step_id
         );
+
+        self.open_steps
+            .remove_if(&connection.id, |_key, val| val == workflow_step_id);
 
         let db_err = |e: String| WebsocketError::DatabaseError(e);
 
