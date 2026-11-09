@@ -134,6 +134,15 @@ pub trait WebSocketMessageHandler: Send + Sync {
     fn local_room_members(&self, _room_id: &Uuid) -> Vec<Uuid> {
         Vec::new()
     }
+
+    /// Disconnect hook called before websocket connection is removed from state.
+    async fn on_disconnect(
+        &self,
+        _connection: &WebSocketConnection,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<(), error::WebsocketError> {
+        Ok(())
+    }
 }
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
@@ -302,6 +311,8 @@ pub trait WebSocketService: Send + Sync {
     fn unregister_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
 
     fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
+
+    fn get_handlers(&self) -> Vec<Arc<dyn WebSocketMessageHandler>>;
 }
 
 #[cfg(test)]
@@ -335,6 +346,7 @@ impl MockWebSocketService {
         websockets.expect_register_handler().returning(|_| ());
         websockets.expect_unregister_handler().returning(|_| None);
         websockets.expect_get_handler().returning(|_| None);
+        websockets.expect_get_handlers().returning(Vec::new);
         websockets
     }
 }
@@ -828,6 +840,13 @@ impl WebSocketService for ComhairleWebSocketService {
     fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>> {
         self.handlers.get(domain).map(|entry| entry.value().clone())
     }
+
+    fn get_handlers(&self) -> Vec<Arc<dyn WebSocketMessageHandler>> {
+        self.handlers
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
 }
 
 #[instrument(skip(state, ws))]
@@ -922,6 +941,17 @@ async fn handle_websocket(
         }
         _ = incoming_task => {
             info!("Incoming task completed for connection {:?}", connection_id);
+        }
+    }
+
+    // Run disconnect hook for each handler before removing connection
+    for handler in state.websockets.get_handlers() {
+        if let Err(e) = handler.on_disconnect(&connection, &state).await {
+            warn!(
+                "on_disconnect failed in {} for {:?}: {e}",
+                handler.domain(),
+                connection_id
+            );
         }
     }
 

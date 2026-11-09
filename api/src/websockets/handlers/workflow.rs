@@ -1,13 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use dashmap::DashMap;
 use thiserror::Error;
 use tracing::info;
+use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::models::user_activity;
+use crate::models::user_activity::EndReason;
 use crate::websockets::error::WebsocketError;
 use crate::websockets::messages::WebSocketMessage;
-use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
+use crate::websockets::{ConnectionId, WebSocketConnection, WebSocketMessageHandler};
 
 #[derive(Error, Debug)]
 pub enum WorkflowWSError {}
@@ -65,12 +69,17 @@ pub enum WorkflowWSError {}
 ///
 /// This handler is automatically registered in `websockets::setup::register_handlers()`.
 #[derive(Default)]
-pub struct WorkflowMessageHandler;
+pub struct WorkflowMessageHandler {
+    /// The step each connection last started, so a dropped socket can close it.
+    open_steps: DashMap<ConnectionId, Uuid>,
+}
 
 impl WorkflowMessageHandler {
     /// Create a new workflow message handler.
     pub fn new() -> Self {
-        Self
+        Self {
+            open_steps: DashMap::new(),
+        }
     }
 }
 
@@ -91,12 +100,18 @@ impl WebSocketMessageHandler for WorkflowMessageHandler {
                 self.handle_workflow_step_started(workflow_step_id, connection, state)
                     .await
             }
-            WebSocketMessage::UserFinishedWorkflowStep { workflow_step_id } => {
-                self.handle_workflow_step_finished(workflow_step_id, connection, state)
+            WebSocketMessage::UserFinishedWorkflowStep {
+                workflow_step_id,
+                end_reason,
+            } => {
+                self.handle_workflow_step_finished(workflow_step_id, end_reason, connection, state)
                     .await
             }
-            WebSocketMessage::UserIdle { workflow_step_id } => {
-                self.handle_user_idle(workflow_step_id, connection, state)
+            WebSocketMessage::UserIdle {
+                workflow_step_id,
+                inactive_seconds,
+            } => {
+                self.handle_user_idle(workflow_step_id, *inactive_seconds, connection, state)
                     .await
             }
             WebSocketMessage::Custom { event, data } if event.starts_with("workflow:") => {
@@ -106,6 +121,31 @@ impl WebSocketMessageHandler for WorkflowMessageHandler {
             _ => Ok(()),
         }
     }
+
+    async fn on_disconnect(
+        &self,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), WebsocketError> {
+        if let Some((_, step_id)) = self.open_steps.remove(&connection.id) {
+            let db_err = |e: String| WebsocketError::DatabaseError(e);
+            let mut db = state
+                .db
+                .acquire()
+                .await
+                .map_err(|e| db_err(e.to_string()))?;
+            user_activity::close(
+                &mut db,
+                connection.user.id,
+                step_id,
+                EndReason::Disconnected,
+            )
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
+        }
+
+        Ok(())
+    }
 }
 
 impl WorkflowMessageHandler {
@@ -113,12 +153,26 @@ impl WorkflowMessageHandler {
         &self,
         workflow_step_id: &uuid::Uuid,
         connection: &WebSocketConnection,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
         info!(
             "User {} started workflow step {}",
             connection.user.id, workflow_step_id
         );
+
+        self.open_steps
+            .insert(connection.id.clone(), *workflow_step_id);
+
+        let db_err = |e: String| WebsocketError::DatabaseError(e);
+
+        let mut db = state
+            .db
+            .acquire()
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
+        user_activity::start(&mut db, connection.user.id, *workflow_step_id)
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
 
         // Example: Query database to get workflow step details
         // let _step = sqlx::query!(
@@ -156,13 +210,31 @@ impl WorkflowMessageHandler {
     async fn handle_workflow_step_finished(
         &self,
         workflow_step_id: &uuid::Uuid,
+        end_reason: &str,
         connection: &WebSocketConnection,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
         info!(
             "User {} finished workflow step {}",
             connection.user.id, workflow_step_id
         );
+
+        self.open_steps
+            .remove_if(&connection.id, |_key, val| val == workflow_step_id);
+
+        let db_err = |e: String| WebsocketError::DatabaseError(e);
+
+        let end_reason = EndReason::try_from(end_reason)
+            .map_err(|_| WebsocketError::SendError("invalid end_reason".to_string()))?;
+
+        let mut db = state
+            .db
+            .acquire()
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
+        user_activity::close(&mut db, connection.user.id, *workflow_step_id, end_reason)
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
 
         // Example: Update completion status in database
         // sqlx::query!(
@@ -194,16 +266,31 @@ impl WorkflowMessageHandler {
     async fn handle_user_idle(
         &self,
         workflow_step_id: &uuid::Uuid,
+        inactive_seconds: i32,
         connection: &WebSocketConnection,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
     ) -> Result<(), WebsocketError> {
         info!(
             "User {} is idle on workflow step {}",
             connection.user.id, workflow_step_id
         );
 
-        // Example: Track idle time for analytics
-        // You could store this in database or send to analytics service
+        let db_err = |e: String| WebsocketError::DatabaseError(e);
+
+        let mut db = state
+            .db
+            .acquire()
+            .await
+            .map_err(|e| db_err(e.to_string()))?;
+        // TODO: get interval from request?
+        user_activity::pause(
+            &mut db,
+            connection.user.id,
+            *workflow_step_id,
+            inactive_seconds,
+        )
+        .await
+        .map_err(|e| db_err(e.to_string()))?;
 
         Ok(())
     }
