@@ -11,6 +11,7 @@
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { toHeyFormLocale } from './utils';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { reportParticipantActivity } from '$lib/utils/participantActivity';
 
 	type Props = {
 		onDone: () => void;
@@ -252,6 +253,9 @@
 				break;
 			case 'FORM_NAVIGATION_STATE':
 				updateNavigation(data.canGoPrevious, data.isLastQuestion);
+				break;
+			case 'USER_ACTIVITY':
+				reportParticipantActivity();
 				break;
 		}
 	}
