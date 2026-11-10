@@ -598,6 +598,7 @@ export const PolisPublicRankedStatements = z
   .object({
     groups: z.array(PolisPublicGroup),
     statements: z.array(PolisPublicRankedStatement),
+    summary: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type PolisPublicRankedStatements = z.infer<
@@ -633,7 +634,9 @@ export type PolisPublicRepresentativeComment = z.infer<
 >;
 export const PolisPublicOpinionGroup = z
   .object({
+    description: z.union([z.string(), z.null()]).optional(),
     groupId: z.number().int().gte(0),
+    name: z.union([z.string(), z.null()]).optional(),
     representativeComments: z.array(PolisPublicRepresentativeComment),
     totalMembers: z.number().int().gte(0),
   })
@@ -656,6 +659,21 @@ export const PolisPublicOpinionGroups = z
   })
   .passthrough();
 export type PolisPublicOpinionGroups = z.infer<typeof PolisPublicOpinionGroups>;
+export const PolisPublicTheme = z
+  .object({
+    description: z.string(),
+    statements: z.array(PolisPublicStatement),
+    title: z.string(),
+  })
+  .passthrough();
+export type PolisPublicTheme = z.infer<typeof PolisPublicTheme>;
+export const PolisPublicThemes = z
+  .object({
+    groups: z.array(PolisPublicGroup),
+    themes: z.array(PolisPublicTheme),
+  })
+  .passthrough();
+export type PolisPublicThemes = z.infer<typeof PolisPublicThemes>;
 export const GroupVoteCounts = z
   .object({
     agrees: z.number().int().gte(0),
@@ -4185,6 +4203,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PolisPublicOpinionGroup,
   PolisPublicStatement,
   PolisPublicOpinionGroups,
+  PolisPublicTheme,
+  PolisPublicThemes,
   GroupVoteCounts,
   VoteCounts,
   CommentReportData,
@@ -8117,6 +8137,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/polis/public_report/themes",
+    alias: "PolisGetPublicThemes",
+    description: `The step&#x27;s latest themes with the accepted statements under each. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicThemes,
+  },
+  {
+    method: "get",
     path: "/tools/polis/report_data",
     alias: "PolisGetReportData",
     description: `Fetches the polis data export for a given workflow step`,
@@ -8204,6 +8239,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisPublicOpinionGroups,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_preview/themes",
+    alias: "PolisPreviewThemes",
+    description: `The same data as PolisGetPublicThemes, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PolisPublicThemes,
   },
   {
     method: "post",

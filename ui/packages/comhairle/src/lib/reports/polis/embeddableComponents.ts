@@ -11,7 +11,8 @@ export type PolisEmbeddableComponentType =
 	| 'polis-area-consensus'
 	| 'polis-area-disagreement'
 	| 'polis-consensus-continuum'
-	| 'polis-opinion-groups';
+	| 'polis-opinion-groups'
+	| 'polis-themes';
 
 export const POLIS_EMBEDDABLE_COMPONENTS: SectionBlockMeta<PolisEmbeddableComponentType>[] = [
 	{
@@ -38,5 +39,10 @@ export const POLIS_EMBEDDABLE_COMPONENTS: SectionBlockMeta<PolisEmbeddableCompon
 		type: 'polis-opinion-groups',
 		label: 'Opinion groups',
 		description: 'The emerging groups and their representative statements.'
+	},
+	{
+		type: 'polis-themes',
+		label: 'Themes',
+		description: 'Themes the sensemaker found, with the statements under each.'
 	}
 ];

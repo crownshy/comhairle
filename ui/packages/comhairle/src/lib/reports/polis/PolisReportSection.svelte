@@ -3,6 +3,8 @@
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
+	import StatementVoteBlock from './StatementVoteBlock.svelte';
+	import ThemesSection from '$lib/reports/ThemesSection.svelte';
 	import type { PolisEmbedData } from './embedData';
 
 	/**
@@ -37,11 +39,38 @@
 		/>
 	</div>
 {:else if data.componentType === 'polis-area-consensus'}
-	<AreaOfConsensus title="Area of consensus" comments={data.statements} groups={data.groups} />
+	<AreaOfConsensus
+		title="Area of consensus"
+		comments={data.statements}
+		groups={data.groups}
+		summary={data.summary}
+	/>
 {:else if data.componentType === 'polis-area-disagreement'}
-	<AreaOfConsensus title="Area of disagreement" comments={data.statements} groups={data.groups} />
+	<AreaOfConsensus
+		title="Area of disagreement"
+		comments={data.statements}
+		groups={data.groups}
+		summary={data.summary}
+	/>
 {:else if data.componentType === 'polis-consensus-continuum'}
 	<ConsensusContinuum comments={data.statements} groups={data.groups} />
 {:else if data.componentType === 'polis-opinion-groups'}
-	<OpinionGroups comments={data.statements} groups={data.groups} />
+	<OpinionGroups
+		comments={data.statements}
+		groups={data.groups}
+		groupSummaries={data.groupSummaries}
+	/>
+{:else if data.componentType === 'polis-themes'}
+	{@const groups = data.groups}
+	<ThemesSection themes={data.themes} noun={{ one: 'statement', other: 'statements' }}>
+		{#snippet details(theme)}
+			{#each theme.statements as statement (statement.tid)}
+				<StatementVoteBlock comment={statement} {groups} />
+			{:else}
+				<p class="text-muted-foreground text-base">
+					None of this theme's statements are in the published report.
+				</p>
+			{/each}
+		{/snippet}
+	</ThemesSection>
 {/if}

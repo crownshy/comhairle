@@ -19,11 +19,13 @@ use super::{PolisTool, PolisToolConfig};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::polis_statement_aux::{self, PolisStatementAuxFilterOptions};
+use crate::models::wikipoll_conversation_summary;
 use crate::routes::auth::RequiredUser;
 use crate::tools::public_report_data::anonymous::{
-    Count, FacilitatorText, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId,
-    public_report_data,
+    Count, FacilitatorText, GeneratedText, ModeratedText, OpinionGroupId, PublicReportData, Share,
+    StatementId, public_report_data,
 };
+use crate::tools::public_report_data::themes::{ThemeWithStatements, latest_theme_collection};
 use crate::tools::public_report_data::{serve_public_report_data, serve_report_preview_data};
 use crate::wiki_poll_service::ReportScope;
 use crate::wiki_poll_service::polis_service::{
@@ -33,6 +35,9 @@ use crate::wiki_poll_service::polis_service::{
 /// Public report data never shows pending statements, so this does not follow the step's
 /// `strict_moderation` the way `PolisGetReportData` does.
 const PUBLIC_SCOPE: ReportScope = ReportScope::AcceptedOnly;
+
+/// Where the theme collections of a Polis step come from (`sensemaking::harvest`).
+const THEME_ORIGIN: &str = "polis";
 
 public_report_data! {
     #[derive(PartialEq)]
@@ -93,6 +98,8 @@ public_report_data! {
     pub struct PolisPublicRankedStatements {
         pub statements: Vec<PolisPublicRankedStatement>,
         pub groups: Vec<PolisPublicGroup>,
+        /// The sensemaker's summary of this side, once a facilitator has generated one.
+        pub summary: Option<GeneratedText>,
     }
 }
 
@@ -125,6 +132,10 @@ public_report_data! {
     pub struct PolisPublicOpinionGroup {
         #[serde(flatten)]
         pub group: PolisPublicGroup,
+        /// The sensemaker's name and summary for the group, once a facilitator has generated
+        /// them and while they still describe the current groups.
+        pub name: Option<GeneratedText>,
+        pub description: Option<GeneratedText>,
         /// Points into `PolisPublicOpinionGroups::statements`.
         pub representative_comments: Vec<PolisPublicRepresentativeComment>,
     }
@@ -136,6 +147,44 @@ public_report_data! {
         /// Only the statements some group is represented by.
         pub statements: Vec<PolisPublicStatement>,
     }
+}
+
+public_report_data! {
+    /// A theme with the accepted statements the sensemaker filed under it.
+    pub struct PolisPublicTheme {
+        pub title: GeneratedText,
+        pub description: GeneratedText,
+        pub statements: Vec<PolisPublicStatement>,
+    }
+}
+
+public_report_data! {
+    pub struct PolisPublicThemes {
+        pub themes: Vec<PolisPublicTheme>,
+        pub groups: Vec<PolisPublicGroup>,
+    }
+}
+
+/// The sensemaker's Polis summary, as `PolisGetLatestSummary` stores it. Every field is
+/// optional because the summary format has changed over time.
+#[derive(Deserialize, Default)]
+struct SummaryResult {
+    #[serde(default)]
+    consensus_description: Option<String>,
+    #[serde(default)]
+    disagrement_description: Option<String>,
+    #[serde(default)]
+    group_descriptions: Vec<GroupDescription>,
+}
+
+#[derive(Deserialize)]
+struct GroupDescription {
+    /// A number or a numeric string, depending on the summary's age.
+    group_id: serde_json::Value,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
 }
 
 /// One embeddable section block: how the report stores it, where its endpoints live, how the
@@ -162,6 +211,7 @@ struct Consensus;
 struct Disagreement;
 struct ConsensusContinuum;
 struct OpinionGroups;
+struct Themes;
 
 impl SectionBlock for KeyStats {
     const TYPE: &'static str = "polis-key-stats";
@@ -187,7 +237,8 @@ impl SectionBlock for Consensus {
 
     async fn build(source: &ReportSource<'_>) -> Result<Self::Data, ComhairleError> {
         let (report, themes) = source.report_and_themes().await?;
-        Ok(ranked_statements(&report, &themes, |c| {
+        let summary = source.summary().await?.consensus_description;
+        Ok(ranked_statements(&report, &themes, summary, |c| {
             c.group_informed_consensus
         }))
     }
@@ -203,7 +254,10 @@ impl SectionBlock for Disagreement {
 
     async fn build(source: &ReportSource<'_>) -> Result<Self::Data, ComhairleError> {
         let (report, themes) = source.report_and_themes().await?;
-        Ok(ranked_statements(&report, &themes, |c| c.divisiveness))
+        let summary = source.summary().await?.disagrement_description;
+        Ok(ranked_statements(&report, &themes, summary, |c| {
+            c.divisiveness
+        }))
     }
 }
 
@@ -232,7 +286,24 @@ impl SectionBlock for OpinionGroups {
 
     async fn build(source: &ReportSource<'_>) -> Result<Self::Data, ComhairleError> {
         let (report, themes) = source.report_and_themes().await?;
-        Ok(opinion_groups(&report, &themes))
+        let summary = source.summary().await?;
+        Ok(opinion_groups(&report, &themes, &summary))
+    }
+}
+
+impl SectionBlock for Themes {
+    const TYPE: &'static str = "polis-themes";
+    const PATH: &'static str = "themes";
+    const OPERATION: &'static str = "Themes";
+    const SUMMARY: &'static str = "Themes";
+    const DESCRIPTION: &'static str =
+        "The step's latest themes with the accepted statements under each.";
+    type Data = PolisPublicThemes;
+
+    async fn build(source: &ReportSource<'_>) -> Result<Self::Data, ComhairleError> {
+        let (report, themes) = source.report_and_themes().await?;
+        let collection = source.theme_collection().await?;
+        Ok(public_themes(&report, &themes, &collection))
     }
 }
 
@@ -243,6 +314,7 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
         .merge(section_block_routes::<Disagreement>())
         .merge(section_block_routes::<ConsensusContinuum>())
         .merge(section_block_routes::<OpinionGroups>())
+        .merge(section_block_routes::<Themes>())
 }
 
 /// The public endpoint and its preview twin for one section block.
@@ -326,7 +398,7 @@ struct ReportSource<'a> {
 }
 
 /// Facilitator-set theme tags per statement.
-type Themes = HashMap<StatementId, Vec<FacilitatorText>>;
+type ThemeTags = HashMap<StatementId, Vec<FacilitatorText>>;
 
 impl<'a> ReportSource<'a> {
     fn new(state: &'a ComhairleState, workflow_step_id: Uuid, config: PolisToolConfig) -> Self {
@@ -347,7 +419,7 @@ impl<'a> ReportSource<'a> {
             .await?)
     }
 
-    async fn themes(&self) -> Result<Themes, ComhairleError> {
+    async fn themes(&self) -> Result<ThemeTags, ComhairleError> {
         let rows = polis_statement_aux::list(
             &self.state.db,
             Some(self.workflow_step_id),
@@ -370,8 +442,29 @@ impl<'a> ReportSource<'a> {
             .collect())
     }
 
-    async fn report_and_themes(&self) -> Result<(WikiPollReport, Themes), ComhairleError> {
+    async fn report_and_themes(&self) -> Result<(WikiPollReport, ThemeTags), ComhairleError> {
         Ok((self.report().await?, self.themes().await?))
+    }
+
+    /// The latest sensemaker summary, or an empty one when none has been generated.
+    async fn summary(&self) -> Result<SummaryResult, ComhairleError> {
+        let latest = wikipoll_conversation_summary::get_latest_by_workflow_step_id(
+            &self.state.db,
+            self.workflow_step_id,
+        )
+        .await?;
+        Ok(latest
+            .and_then(|summary| serde_json::from_value(summary.result).ok())
+            .unwrap_or_default())
+    }
+
+    /// The sensemaker's latest theme collection, empty when none has been generated.
+    async fn theme_collection(&self) -> Result<Vec<ThemeWithStatements>, ComhairleError> {
+        Ok(
+            latest_theme_collection(&self.state.db, &self.workflow_step_id, THEME_ORIGIN)
+                .await?
+                .unwrap_or_default(),
+        )
     }
 }
 
@@ -395,7 +488,8 @@ fn key_stats(report: &WikiPollReport) -> PolisPublicKeyStats {
 /// Every statement, highest `score` first. A statement Polis hasn't scored sorts as zero.
 fn ranked_statements(
     report: &WikiPollReport,
-    themes: &Themes,
+    themes: &ThemeTags,
+    summary: Option<String>,
     score: impl Fn(&CommentReportData) -> Option<f64>,
 ) -> PolisPublicRankedStatements {
     let mut comments: Vec<&CommentReportData> = report.comments.iter().collect();
@@ -409,6 +503,7 @@ fn ranked_statements(
             })
             .collect(),
         groups: group_sizes(report),
+        summary: summary.map(GeneratedText::from_sensemaking),
     }
 }
 
@@ -416,7 +511,10 @@ fn descending(a: Option<f64>, b: Option<f64>) -> Ordering {
     b.unwrap_or(0.0).total_cmp(&a.unwrap_or(0.0))
 }
 
-fn consensus_continuum(report: &WikiPollReport, themes: &Themes) -> PolisPublicConsensusContinuum {
+fn consensus_continuum(
+    report: &WikiPollReport,
+    themes: &ThemeTags,
+) -> PolisPublicConsensusContinuum {
     let scored: Vec<(&CommentReportData, f64)> = report
         .comments
         .iter()
@@ -441,14 +539,27 @@ fn consensus_continuum(report: &WikiPollReport, themes: &Themes) -> PolisPublicC
 
 /// Representative statements are checked against the report's own statements again, so one
 /// the scope left out can't come back through a group.
-fn opinion_groups(report: &WikiPollReport, themes: &Themes) -> PolisPublicOpinionGroups {
+fn opinion_groups(
+    report: &WikiPollReport,
+    themes: &ThemeTags,
+    summary: &SummaryResult,
+) -> PolisPublicOpinionGroups {
     let reported: HashSet<u32> = report.comments.iter().map(|c| c.tid).collect();
     let mut represented: HashSet<u32> = HashSet::new();
+    let descriptions = group_descriptions(summary, report.groups.len());
+    let generated = |group_id: u32, text: fn(&GroupDescription) -> &Option<String>| {
+        descriptions
+            .get(&group_id)
+            .and_then(|description| text(description).clone())
+            .map(GeneratedText::from_sensemaking)
+    };
     let groups: Vec<PolisPublicOpinionGroup> = report
         .groups
         .iter()
         .map(|g| PolisPublicOpinionGroup {
             group: group_size(g),
+            name: generated(g.group_id, |description| &description.name),
+            description: generated(g.group_id, |description| &description.description),
             representative_comments: g
                 .representative_comments
                 .iter()
@@ -473,9 +584,61 @@ fn opinion_groups(report: &WikiPollReport, themes: &Themes) -> PolisPublicOpinio
     }
 }
 
+/// The summary's group descriptions by group id, or none when the summary describes a
+/// different number of groups than Polis currently has, since it is then out of date.
+fn group_descriptions(
+    summary: &SummaryResult,
+    current_groups: usize,
+) -> HashMap<u32, &GroupDescription> {
+    if summary.group_descriptions.len() != current_groups {
+        return HashMap::new();
+    }
+    summary
+        .group_descriptions
+        .iter()
+        .filter_map(|description| {
+            let group_id = &description.group_id;
+            let id = group_id
+                .as_u64()
+                .and_then(|id| u32::try_from(id).ok())
+                .or_else(|| group_id.as_str()?.parse().ok())?;
+            Some((id, description))
+        })
+        .collect()
+}
+
+/// Themes with the accepted statements under each. A theme collection can hold statements
+/// moderation hasn't accepted, so only those in the public report are kept, and a theme the
+/// sensemaker left empty still shows with no statements.
+fn public_themes(
+    report: &WikiPollReport,
+    themes: &ThemeTags,
+    collection: &[ThemeWithStatements],
+) -> PolisPublicThemes {
+    let by_statement_id: HashMap<u32, &CommentReportData> =
+        report.comments.iter().map(|c| (c.tid, c)).collect();
+    PolisPublicThemes {
+        themes: collection
+            .iter()
+            .map(|theme| PolisPublicTheme {
+                title: GeneratedText::from_sensemaking(theme.theme.title.clone()),
+                description: GeneratedText::from_sensemaking(theme.theme.description.clone()),
+                statements: theme
+                    .statements
+                    .iter()
+                    .filter_map(|statement| statement.source_sub_id.as_deref()?.parse::<u32>().ok())
+                    .filter_map(|statement_id| by_statement_id.get(&statement_id))
+                    .map(|c| public_statement(c, themes))
+                    .collect(),
+            })
+            .collect(),
+        groups: group_sizes(report),
+    }
+}
+
 /// Only valid for reports loaded at `PUBLIC_SCOPE`, which leaves out every statement
 /// moderation hasn't accepted.
-fn public_statement(comment: &CommentReportData, themes: &Themes) -> PolisPublicStatement {
+fn public_statement(comment: &CommentReportData, themes: &ThemeTags) -> PolisPublicStatement {
     PolisPublicStatement {
         statement_id: StatementId(comment.tid),
         text: ModeratedText::from_accepted(comment.text.clone()),
@@ -539,12 +702,13 @@ mod tests {
     use crate::wiki_poll_service::{MockWikiPollService, WikiPoll, WikiPollService};
 
     /// Each endpoint's path and the section block type it serves.
-    const SECTION_BLOCKS: [(&str, &str); 5] = [
+    const SECTION_BLOCKS: [(&str, &str); 6] = [
         (KeyStats::PATH, KeyStats::TYPE),
         (Consensus::PATH, Consensus::TYPE),
         (Disagreement::PATH, Disagreement::TYPE),
         (ConsensusContinuum::PATH, ConsensusContinuum::TYPE),
         (OpinionGroups::PATH, OpinionGroups::TYPE),
+        (Themes::PATH, Themes::TYPE),
     ];
     const PENDING_TEXT: &str = "a pending statement";
 
@@ -854,7 +1018,7 @@ mod tests {
             groups: vec![],
             participants: vec![],
         };
-        let ranked = ranked_statements(&report, &HashMap::new(), |c| c.divisiveness);
+        let ranked = ranked_statements(&report, &HashMap::new(), None, |c| c.divisiveness);
         let tids: Vec<u32> = ranked
             .statements
             .iter()
@@ -916,7 +1080,7 @@ mod tests {
             StatementId(1),
             vec![FacilitatorText::from_facilitator("Transport".into())],
         )]);
-        let groups = opinion_groups(&report, &themes);
+        let groups = opinion_groups(&report, &themes, &SummaryResult::default());
 
         assert_eq!(
             groups.groups[0].representative_comments,

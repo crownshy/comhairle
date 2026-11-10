@@ -25,6 +25,7 @@ describe('sectionBlocksForTool', () => {
 describe('hasSectionBlocks', () => {
 	it('is true only for tools with section blocks', () => {
 		expect(hasSectionBlocks('polis')).toBe(true);
+		expect(hasSectionBlocks('heyform')).toBe(true);
 		expect(hasSectionBlocks('learn')).toBe(false);
 		expect(hasSectionBlocks(null)).toBe(false);
 	});
@@ -33,6 +34,7 @@ describe('hasSectionBlocks', () => {
 describe('toolTypeForSectionBlock', () => {
 	it('finds the tool that owns a stored section block type', () => {
 		expect(toolTypeForSectionBlock('polis-key-stats')).toBe('polis');
+		expect(toolTypeForSectionBlock('polis-themes')).toBe('polis');
 	});
 
 	it('is null for a type no tool owns', () => {

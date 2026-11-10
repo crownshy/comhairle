@@ -77,6 +77,19 @@ impl FacilitatorText {
 #[serde(transparent)]
 pub struct ScalePoint(pub u32);
 
+/// Text the sensemaker wrote at a facilitator's request from many contributions together, such
+/// as a theme's description or an opinion group's summary, or that a facilitator wrote in its
+/// place. Never one person's words.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct GeneratedText(String);
+
+impl GeneratedText {
+    pub fn from_sensemaking(text: String) -> Self {
+        Self(text)
+    }
+}
+
 macro_rules! building_blocks {
     ($($building_block:ty),*) => {
         $(
@@ -95,6 +108,7 @@ building_blocks!(
     OpinionGroupId,
     FacilitatorText,
     ScalePoint,
+    GeneratedText,
     bool
 );
 

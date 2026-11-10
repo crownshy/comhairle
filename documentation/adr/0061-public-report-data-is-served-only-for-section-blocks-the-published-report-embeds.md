@@ -50,10 +50,17 @@ Thinking Space summary, another may have told participants it stays with the org
   ids, pids, emails and raw strings can't reach a public response. Polis and HeyForm added:
   `StatementId` and `OpinionGroupId` (Polis's own numbering for statements and groups, which
   says nothing about who wrote or joined them), `FacilitatorText` (themes, survey questions
-  and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale). Participant text can only
-  go out as `ModeratedText`, which is built from accepted content only. Adding a building block
-  needs a reviewer to agree it can't identify a person. A future moderation report is the one
-  expected exception, and it gets its own ADR.
+  and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale).
+  Themes added `GeneratedText` (what the sensemaker wrote from many contributions at a
+  facilitator's request, such as a theme's description or an opinion group's summary, or what
+  a facilitator wrote in its place). Participant text can only go out as
+  `ModeratedText`, which is built from accepted content only. Adding a building block needs a
+  reviewer to agree it can't identify a person. A future moderation report is the one expected
+  exception, and it gets its own ADR.
+- **Themes are served per tool from the shared loader.** `public_report_data::themes` reads a
+  step's latest theme collection for one origin tool. Polis joins each theme's statements to
+  the accepted-only report, so a theme only shows statements the report already serves, with
+  their vote bars.
 - **Some section blocks are embedded once per item.** A HeyForm question is one section
   block, `heyform-question`, with the question id stored on the embed as `config.item`. The
   gate matches the item too, so embedding one question doesn't publish the rest of the form.
