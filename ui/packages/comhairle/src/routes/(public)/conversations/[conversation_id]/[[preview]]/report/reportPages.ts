@@ -53,13 +53,16 @@ function toDocument(nodes: ReportNode[]) {
 	return JSON.stringify({ type: 'doc', content: nodes });
 }
 
-/** True when a rich text value has any visible text or an embedded component. */
+/** Nodes that show something without any text of their own. */
+const CONTENT_WITHOUT_TEXT = new Set(['reportComponentEmbed', 'image', 'video', 'audio', 'iframe']);
+
+/** True when a rich text value has any visible text, media or an embedded component. */
 export function hasReportContent(content: string | null | undefined): boolean {
 	if (!content) return false;
 	const nodes = parseDocumentNodes(content);
 	if (!nodes) return content.trim().length > 0;
 	return nodes.some(
-		(node) => node.type === 'reportComponentEmbed' || nodeText(node).trim().length > 0
+		(node) => CONTENT_WITHOUT_TEXT.has(node.type ?? '') || nodeText(node).trim().length > 0
 	);
 }
 

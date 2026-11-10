@@ -37,6 +37,14 @@ describe('isUnwritten', () => {
 		).toBe(false);
 		expect(isUnwritten('Plain markdown someone wrote')).toBe(false);
 	});
+
+	it('treats media or a table with no text as written', () => {
+		for (const type of ['image', 'video', 'audio', 'iframe', 'table']) {
+			expect(
+				isUnwritten(JSON.stringify(doc({ type, attrs: { src: 'https://e.com/a' } })))
+			).toBe(false);
+		}
+	});
 });
 
 describe('reportSections', () => {

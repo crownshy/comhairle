@@ -143,6 +143,21 @@ describe('hasReportContent', () => {
 		expect(hasReportContent(doc(embed))).toBe(true);
 	});
 
+	it('counts an image, video, audio or embedded page as content', () => {
+		for (const type of ['image', 'video', 'audio', 'iframe']) {
+			expect(hasReportContent(doc({ type, attrs: { src: 'https://example.com/a' } }))).toBe(
+				true
+			);
+		}
+	});
+
+	it('keeps a card that holds only an image', () => {
+		const image = { type: 'image', attrs: { src: 'https://example.com/a.png' } };
+		expect(shape(doc(heading(2, 'Photos'), image))).toEqual([
+			{ label: 'Photos', titles: ['Photos'] }
+		]);
+	});
+
 	it('treats an empty document as blank', () => {
 		expect(hasReportContent(doc(paragraph('')))).toBe(false);
 		expect(hasReportContent(null)).toBe(false);

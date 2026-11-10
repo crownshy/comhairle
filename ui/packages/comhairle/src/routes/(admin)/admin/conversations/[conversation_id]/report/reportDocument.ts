@@ -49,7 +49,9 @@ export function isUnwritten(content: string | null | undefined): boolean {
 	if (!content) return true;
 	const document = parseReportDocument(content);
 	if (!document) return GENERATED_REPORT_TEXT.includes(content.trim()) || !content.trim();
-	if (document.content.some((node) => node.type === 'reportComponentEmbed')) return false;
+	// A chart, image, table or page break was put there on purpose, even with no text in it.
+	const isTextBlock = (node: ReportNode) => node.type === 'paragraph' || node.type === 'heading';
+	if (!document.content.every(isTextBlock)) return false;
 	const text = document.content.map(textOf).join(' ').trim();
 	return text === '' || GENERATED_REPORT_TEXT.includes(text);
 }
