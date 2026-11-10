@@ -10,6 +10,7 @@
 	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
+	import { MeetingAttendance } from './meetingAttendance.svelte';
 	import type {
 		JitsiConferenceEvent,
 		JitsiDisplayNameChangeEvent
@@ -25,6 +26,7 @@
 	import NoticeDialog from '$lib/components/LiveEvent/NoticeDialog.svelte';
 	import EndMeetingDialog from '$lib/components/LiveEvent/EndMeetingDialog.svelte';
 	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
+	import MeetingLeftScreen from '$lib/components/LiveEvent/MeetingLeftScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type {
@@ -93,7 +95,7 @@
 		return () => videoCallService.leaveCall(eventId);
 	});
 
-	let hasJoinedCall = $state(false);
+	const attendance = new MeetingAttendance(() => callStatus);
 	const jitsiRoom = new JitsiRoom();
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
@@ -134,19 +136,7 @@
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
 	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
 
-	let meetingPhase = $derived.by(() => {
-		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
-		if (callStatus === null) {
-			phase = 'loading';
-		} else if (hasJoinedCall && callStatus === 'Ended') {
-			phase = 'ended';
-		} else if (hasJoinedCall) {
-			phase = 'incall';
-		} else {
-			phase = 'lobby';
-		}
-		return phase;
-	});
+	let meetingPhase = $derived(attendance.phase);
 
 	/** True if any moderator/facilitator (other than current user) is in the lobby. */
 	let hostPresent = $derived(
@@ -300,13 +290,6 @@
 		}
 	});
 
-	// Auto-join when call is in progress (moderator started it)
-	$effect(() => {
-		if (callStatus === 'InProgress' && !hasJoinedCall) {
-			hasJoinedCall = true;
-		}
-	});
-
 	// Reset mobile sheet collapse state when a participant enters a breakout room (peek)
 	$effect(() => {
 		if (inBreakoutRoom && !isModerator) {
@@ -383,14 +366,6 @@
 		}
 	});
 
-	// When callStatus becomes 'Ended', hang up Jitsi for ALL participants
-	$effect(() => {
-		if (callStatus === 'Ended' && jitsiRoom.connected) {
-			jitsiRoom.hangup();
-			hasJoinedCall = false;
-		}
-	});
-
 	// Watch for broadcast messages (participants only — moderator gets toast confirmation)
 	$effect(() => {
 		if (lastBroadcast) {
@@ -427,7 +402,7 @@
 		videoCallService.changeCallState(eventId, 'Waiting');
 		videoCallService.setAgendaItem(eventId, 0);
 		videoCallService.endBreakoutSession(eventId);
-		hasJoinedCall = false;
+		attendance.reset();
 		roomContext = 'plenary';
 		showCreateBreakout = false;
 		breakoutDialogItem = null;
@@ -457,8 +432,8 @@
 	}
 
 	function handleStartMeeting() {
-		// Only render Jitsi — don't broadcast InProgress until moderator is actually in the call
-		hasJoinedCall = true;
+		// Only render Jitsi. Don't broadcast InProgress until the moderator is actually in the call.
+		attendance.start();
 	}
 
 	function handleSetAgendaItem(index: number) {
@@ -695,6 +670,12 @@
 		{isModerator}
 		onResetCall={resetCall}
 	/>
+{:else if meetingPhase === 'left'}
+	<MeetingLeftScreen
+		title={event?.name ?? 'Meeting'}
+		conversationUrl={`/conversations/${conversationId}`}
+		onRejoin={() => attendance.rejoin()}
+	/>
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
@@ -783,6 +764,7 @@
 						onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
 						onVideoConferenceJoined={handleVideoConferenceJoined}
 						onVideoConferenceLeft={handleVideoConferenceLeft}
+						onReadyToClose={() => attendance.leave()}
 						onDisplayNameChange={handleDisplayNameChange}
 						startWithAudioMuted={true}
 						configOverwrite={{
