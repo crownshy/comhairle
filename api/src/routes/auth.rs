@@ -970,6 +970,22 @@ pub fn verify_webhook_signature(
     Ok(expected == signature)
 }
 
+/// Derives a per-recording webhook secret from a master secret, so a caller
+/// (the shared jitsi-recorder singleton) only ever handles a request-scoped
+/// secret, never the master itself. Deterministic, so the receiving webhook
+/// handler can re-derive it from `recording_id` without persisting anything.
+pub fn derive_recorder_webhook_secret(
+    master_secret: &str,
+    recording_id: &Uuid,
+) -> Result<String, ComhairleError> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(master_secret.as_bytes())
+        .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+
+    mac.update(recording_id.as_bytes());
+
+    Ok(hex::encode(mac.finalize().into_bytes()))
+}
+
 /// Ensure the JTW is valid and if it is return the associated user
 /// May break this out in future for routes that require a valid
 /// user but dont care who they are

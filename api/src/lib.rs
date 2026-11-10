@@ -5,6 +5,7 @@ pub mod config;
 pub mod db;
 mod docs;
 pub mod error;
+pub mod jitsi_recorder;
 pub mod mailer;
 mod middleware;
 pub mod models;
@@ -119,6 +120,15 @@ impl ComhairleState {
         self.bulk_storage_service
             .as_ref()
             .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
+    }
+
+    fn required_jitsi_recorder_config(
+        &self,
+    ) -> Result<&config::JitsiRecorderConfig, ComhairleError> {
+        self.config
+            .jitsi_recorder
+            .as_ref()
+            .ok_or(ComhairleError::NoJitsiRecorderConfigured)
     }
 }
 

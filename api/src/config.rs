@@ -60,6 +60,25 @@ pub struct VideoCallConfig {
     pub jwt_accepted_audiences: String,
 }
 
+/// Config for calling the jitsi-recorder service directly (instead of relying
+/// on the Prosody event_sync webhook, which can't address a specific tenant's
+/// API). See `crate::jitsi_recorder`.
+#[derive(Clone, Debug, Deserialize)]
+pub struct JitsiRecorderConfig {
+    /// Base URL of the jitsi-recorder service, e.g.
+    /// `http://jitsi-recorder.jitsi-recorder.svc.cluster.local:3001`.
+    pub base_url: String,
+    /// MUC domain for the main (plenary) room, e.g. `muc.meet.jitsi`. Breakout
+    /// rooms carry their own MUC domain in the JID reported by the frontend,
+    /// so this is only needed for the main room.
+    pub main_muc_domain: String,
+    /// Master secret used to derive a per-recording webhook signing secret
+    /// (`hmac_sha256(master, recording_id)`), so the shared recorder
+    /// singleton only ever sees a request-scoped derived secret, never this
+    /// value itself.
+    pub webhook_secret: String,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ComhairleConfig {
     pub database_url: String,
@@ -80,6 +99,7 @@ pub struct ComhairleConfig {
     pub heyform_url: String,
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
+    pub jitsi_recorder: Option<JitsiRecorderConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
     pub worker_service: Option<WorkerConfig>,
     pub sensemaker_model: Option<SensemakarModelConfig>,
