@@ -340,9 +340,10 @@
 		handleEnterBreakoutRoom(roomIndex);
 	});
 
-	// Detect mid-session room reassignment (moderator moved a participant)
+	// Follow a mid-session room change made from the Move people dialog. Facilitators follow
+	// too; this only fires when the assignment changes, so their own room hopping is untouched.
 	$effect(() => {
-		if (!isBreakoutActive || isModerator || !user || !jitsiRoom.ready) {
+		if (!isBreakoutActive || !user || !jitsiRoom.ready) {
 			trackedRoomIndex = null;
 			return;
 		}
@@ -354,7 +355,6 @@
 			// First assignment — just start tracking
 			trackedRoomIndex = assignedRoom;
 		} else if (assignedRoom !== null && assignedRoom !== tracked && tracked !== null) {
-			// Room changed mid-session — moderator moved us
 			handleEnterBreakoutRoom(assignedRoom);
 			pushNotice({ message: `You've been moved to Breakout room #${assignedRoom + 1}` });
 			trackedRoomIndex = assignedRoom;
