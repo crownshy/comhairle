@@ -109,6 +109,28 @@ impl From<Vec<Theme>> for ThemeList {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[schemars(
+    description = "A single canonical theme produced by merging one or more candidate themes that describe the same topic"
+)]
+pub struct ThemeMergeGroup {
+    /// A descriptive name for the merged theme
+    pub name: String,
+    /// A short description of what the merged theme captures
+    pub description: String,
+    /// The ids of every candidate theme folded into this group. Every
+    /// candidate id given in the input must appear in exactly one group.
+    pub merged_ids: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[schemars(
+    description = "A deduplicated set of canonical themes, each mapping back to the candidate theme ids it was merged from"
+)]
+pub struct ThemeMergeResult {
+    pub groups: Vec<ThemeMergeGroup>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 /// Represents the assignment of a statement to a theme  
 pub struct ThemeAssignment {
     // The id of the statement
