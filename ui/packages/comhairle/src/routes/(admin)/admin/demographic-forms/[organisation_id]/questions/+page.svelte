@@ -131,7 +131,7 @@
 								</div>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground text-sm">
-								{Demographics.getQuestionFromType(question.questionType)}
+								{Demographics.getReadableQuestionType(question.questionType)}
 							</Table.Cell>
 							<Table.Cell>
 								{#if Demographics.isDefaultQuestion(question)}

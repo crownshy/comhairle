@@ -4,28 +4,7 @@ import type {
 	QuestionLatestDto
 } from '@crownshy/api-client/api';
 
-export type QuestionKind =
-	| 'single_choice'
-	| 'multiple_choice'
-	| 'number'
-	| 'date'
-	| 'open_text'
-	| 'postcode'
-	| 'lat_long'
-	| 'country'
-	| 'custom';
-
-export const QUESTION_KIND_LABELS: Record<QuestionKind, string> = {
-	single_choice: 'Single choice',
-	multiple_choice: 'Multiple choice',
-	number: 'Number',
-	date: 'Date',
-	open_text: 'Open text',
-	postcode: 'Postcode, by region',
-	lat_long: 'Latitude and longitude',
-	country: 'Country',
-	custom: 'Custom (set through the API)'
-};
+import type { DatePrecision, QuestionLatestDto, QuestionType2 } from '@crownshy/api-client/api';
 
 export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
 	day: 'Day (YYYY/MM/DD)',
@@ -33,11 +12,11 @@ export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
 	year: 'Year (YYYY)'
 };
 
-export function getPlaceholder(kind: QuestionKind, datePrecision: DatePrecision): string {
+export function getPlaceholder(kind: QuestionType2, datePrecision?: DatePrecision): string {
 	switch (kind) {
-		case 'single_choice':
+		case 'single_select':
 			return '';
-		case 'multiple_choice':
+		case 'multi_select':
 			return '';
 		case 'number':
 			return 'Enter a number';

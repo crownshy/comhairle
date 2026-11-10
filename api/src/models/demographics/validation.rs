@@ -53,12 +53,11 @@ fn validate_type_fields(input: &QuestionDraftInput) -> Result<(), ComhairleError
     )?;
     ensure(
         input.max_selections.is_none()
-            || (kind == QuestionType::MultiSelect
-                && input.max_selections.is_some_and(|max| max >= 1)),
+            || (kind == QuestionType::Select && input.max_selections.is_some_and(|max| max >= 1)),
         "max_selections is only allowed for multi_select questions and must be at least 1",
     )?;
     ensure(
-        kind.is_select() || (!input.allow_other && !input.prefer_not_to_say),
+        kind == QuestionType::Select || (!input.allow_other && !input.prefer_not_to_say),
         "allow_other and prefer_not_to_say are only allowed for select questions",
     )?;
     ensure(
@@ -73,7 +72,7 @@ fn validate_type_fields(input: &QuestionDraftInput) -> Result<(), ComhairleError
 
 fn validate_options(input: &QuestionDraftInput) -> Result<(), ComhairleError> {
     ensure(
-        input.question_type.is_select() != input.options.is_empty(),
+        (input.question_type == QuestionType::Select) != input.options.is_empty(),
         "select questions need at least one option, other questions must not have options",
     )?;
     ensure(
@@ -108,11 +107,9 @@ pub fn validate_answer(version: &QuestionVersionDto, value: &Value) -> Result<()
     match row.question_type {
         QuestionType::Number => ensure(value.is_number(), "answer must be a number"),
         QuestionType::Date => validate_date(row.date_precision, value),
-        QuestionType::AnyString => validate_non_blank_string(value),
+        QuestionType::Text => validate_non_blank_string(value),
         QuestionType::Location => validate_location(row.location_format, value),
-        QuestionType::SingleSelect | QuestionType::MultiSelect => {
-            validate_selection(version, value)
-        }
+        QuestionType::Select => validate_selection(version, value),
         QuestionType::Custom => validate_custom(row.json_schema.as_ref(), value),
     }
 }
@@ -208,20 +205,19 @@ fn validate_selection(version: &QuestionVersionDto, value: &Value) -> Result<(),
         chosen.is_subset(&known),
         "option_ids must belong to this question version",
     )?;
-    match row.question_type {
-        QuestionType::SingleSelect => ensure(
+
+    if row.multi {
+        if let Some(max) = row.max_selections {
+            ensure(
+                answer.option_ids.len() <= max as usize,
+                "too many options selected",
+            )?;
+        }
+    } else {
+        ensure(
             answer.option_ids.len() <= 1,
             "single select answers allow at most one option",
-        )?,
-        QuestionType::MultiSelect => {
-            if let Some(max) = row.max_selections {
-                ensure(
-                    answer.option_ids.len() <= max as usize,
-                    "too many options selected",
-                )?;
-            }
-        }
-        _ => {}
+        )?;
     }
 
     let other = answer.other_text.as_deref();

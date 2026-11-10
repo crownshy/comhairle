@@ -36,21 +36,26 @@
 
 	// For password inputs
 	let visible = $state<boolean>(false);
+
+	const id = crypto.randomUUID();
 </script>
 
 <div class="flex w-full flex-col">
 	{#if label}
-		<Label class="mb-1 text-sm font-semibold lg:w-75 lg:shrink-0 lg:pt-2">{label}</Label>
+		<Label class="mb-1 text-sm font-semibold lg:w-75 lg:shrink-0 lg:pt-2" for={id}>
+			{label}
+		</Label>
 	{/if}
-	<span class:pile={type === 'password'}>
+	<div class:pile={type === 'password'}>
 		<Input
 			{...props}
+			{id}
 			bind:ref
 			type={type === 'password' && visible ? 'text' : type}
 			onblur={(e) => {
 				onblur?.(e);
 				if (ref?.checkValidity()) {
-					errorMessage = ref.validationMessage;
+					clearError();
 				}
 			}}
 			oninvalid={() => {
@@ -74,7 +79,7 @@
 				{/if}
 			</button>
 		{/if}
-	</span>
+	</div>
 	{#if errorMessage}
 		<p aria-live="polite" class="text-destructive text-xs">{errorMessage}</p>
 	{/if}

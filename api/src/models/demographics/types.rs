@@ -27,6 +27,9 @@ pub struct QuestionDraftInput {
     pub text: String,
     /// The type of the question.
     pub question_type: QuestionType,
+    /// Whether it's multiple, for text this will let people enter multiple lines, for select it
+    /// will let them pick multiple options.
+    pub multi: bool,
     /// The precision of the date, for date questions.
     #[serde(default)]
     pub date_precision: Option<DatePrecision>,
@@ -199,6 +202,9 @@ pub struct DemographicQuestionVersion {
     pub text_content_id: TextContentId,
     /// The type of the question.
     pub question_type: QuestionType,
+    /// Whether it's multiple, for text this will let people enter multiple lines, for select it
+    /// will let them pick multiple options.
+    pub multi: bool,
     /// The precision of the date, for date questions.
     pub date_precision: Option<DatePrecision>,
     /// The format of the location, for location questions.

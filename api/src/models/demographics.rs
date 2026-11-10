@@ -22,18 +22,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum QuestionType {
     Number,
-    SingleSelect,
-    MultiSelect,
+    Select,
     Date,
-    AnyString,
+    Text,
     Location,
     Custom,
-}
-
-impl QuestionType {
-    pub fn is_select(self) -> bool {
-        matches!(self, Self::SingleSelect | Self::MultiSelect)
-    }
 }
 
 /// The precision of a date question, indicating the level of detail required in the response.
@@ -87,10 +80,9 @@ macro_rules! impl_sea_query_text_value {
 impl_sea_query_text_value! {
     QuestionType {
         Number => "number",
-        SingleSelect => "single_select",
-        MultiSelect => "multi_select",
+        Select => "select",
         Date => "date",
-        AnyString => "any_string",
+        Text => "text",
         Location => "location",
         Custom => "custom",
     },

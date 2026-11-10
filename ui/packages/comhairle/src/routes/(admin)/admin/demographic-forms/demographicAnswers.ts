@@ -1,5 +1,3 @@
-import type { QuestionKind } from './demographicModel';
-
 export const PREFER_NOT_TO_SAY = 'Prefer not to say';
 export const OTHER_CHOICE = 'Other (please specify)';
 

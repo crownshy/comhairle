@@ -26,8 +26,6 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import AddQuestionsDialog from '../../../AddQuestionsDialog.svelte';
 	import PublishDialog from '../../../PublishDialog.svelte';
-	import QuestionPreview from '../../../QuestionPreview.svelte';
-	import QuestionAnswers from '../../../QuestionAnswers.svelte';
 	import {
 		nextVersionNumber,
 		SPECIAL_CATEGORY_TAG,
@@ -45,6 +43,8 @@
 		QuestionLatestDto
 	} from '@crownshy/api-client/api';
 	import Demographics from '$lib/interfaces/Demographics';
+	import FullScreenContent from '../../../FullScreenContent.svelte';
+	import { FormPanel, PreviewPanel } from '../../../panels';
 
 	// type Props = {
 	// 	form: DemographicForm;
@@ -284,12 +284,12 @@
 	// 	onCreateQuestion();
 	// }
 
-	const { data } = $props();
+	const { data, params } = $props();
 
 	let editingFormName = $state<boolean>(false);
 	let form = $state<DemographicFormLatestDto>();
 	let questions = $state.raw<QuestionLatestDto[]>([]);
-	let selectedQuestion = $state<QuestionLatestDto['id']>();
+	let selectedQuestionId = $state<QuestionLatestDto['id']>();
 
 	// TODO: Swap to use $derived when Svelte is updated
 	$effect(() => {
@@ -297,7 +297,7 @@
 			if (res.ok !== null) {
 				form = res.ok.form;
 				questions = res.ok.questions;
-				selectedQuestion = questions[0].id;
+				selectedQuestionId = questions[0].id;
 			}
 		});
 	});
@@ -316,274 +316,191 @@
 		<ErrorMessage>Could not load form, please try again</ErrorMessage>
 	{:else}
 		<!-- TODO: Copied from SectionHeader, might be good to unify at some point -->
-		<header class="border-border flex w-full justify-between border-b pt-6 pb-5">
-			{#if !editingFormName}
-				<div class="flex items-center pl-5">
-					<h1 class="text-foreground text-3xl font-bold">
-						{form?.name}
-					</h1>
-					<Button
-						class="ml-1"
-						variant="ghost"
-						onclick={() => void (editingFormName = true)}
-						aria-label="Edit form name"
-					>
-						<Edit class="size-4" />
-					</Button>
-				</div>
-			{:else}
-				<Form
-					id="edit-form-name"
-					class="flex items-center pl-2"
-					handleSubmission={async (formData) => {
-						const formName = formData.get('form-name') as string | null;
-						if (!form || !formName) {
-							return;
-						}
-						form.name = formName;
-						editingFormName = false;
-					}}
-				>
-					<Input
-						required
-						autofocus
-						value={form?.name ?? ''}
-						class="text-3xl! font-bold"
-						name="form-name"
-					/>
-					<Button
-						variant="outline"
-						type="button"
-						class="ml-5"
-						onclick={() => void (editingFormName = false)}
-					>
-						Cancel
-					</Button>
-					<Button class="ml-2" type="submit" form="edit-form-name">Update</Button>
-				</Form>
-			{/if}
-			<div class="mr-10">
-				<Button variant="outline" class="mr-2">Save as draft</Button>
-				<Button>Publish</Button>
-			</div>
-		</header>
-
-		<section class="pt-page-top h-full px-5">
-			<div class="grid h-full grid-cols-[1fr_2fr_2fr] gap-x-5">
-				<section>
-					<h3 class="mb-2 text-sm font-semibold">Questions</h3>
-					{#if demographics.ok.form.entries.length === 0}
-						<div class="text-muted-foreground text-sm font-medium italic">
-							No questions yet
-						</div>
-					{:else if questions.length !== 0}
-						<DraggableList
-							items={questions}
-							onReorder={(next) => void (questions = next)}
-							class="flex flex-col gap-2"
+		<FullScreenContent>
+			{#snippet Header()}
+				{#if !editingFormName}
+					<div class="flex items-center pl-5">
+						<h1 class="text-foreground text-3xl font-bold">
+							{form?.name}
+						</h1>
+						<Button
+							class="ml-1"
+							variant="ghost"
+							onclick={() => void (editingFormName = true)}
+							aria-label="Edit form name"
 						>
-							{#snippet children(question, index)}
-								<div
-									class="border-border bg-card flex items-center rounded-xl border-2 px-3 py-3"
-									class:border-primary={question.id === selectedQuestion}
-									aria-selected={question.id === selectedQuestion}
-								>
-									<GripVertical class="text-muted-foreground/70 size-4" />
-									<button
-										type="button"
-										class="flex flex-col items-start"
-										onclick={() => void (selectedQuestion = question.id)}
-									>
-										<div class="flex items-center justify-start gap-1">
-											<div
-												class="text-muted-foreground ml-2 text-sm font-semibold"
-											>
-												{index + 1}.
-											</div>
-											<h4
-												class="w-[20ch] truncate text-left text-sm font-medium"
-												title={question.text}
-											>
-												{question.text}
-												{#if question.required && question.text.length < 23}
-													<span
-														class="text-destructive font-semibold"
-														title="Required"
-													>
-														*
-													</span>
-													<span class="sr-only">Required</span>
-												{/if}
-											</h4>
-											{#if question.required && question.text.length >= 24}
-												<span
-													class="text-destructive font-semibold"
-													title="Required"
-												>
-													*
-												</span>
-												<span class="sr-only">Required</span>
-											{/if}
-										</div>
-										<div class="mt-0.5 ml-3">
-											{#each question.tags as tag (tag.id)}
-												<TagBadge tag={tag.name as TagName} />
-											{/each}
-											{#if question.specialCategory}
-												<TagBadge tag={SPECIAL_CATEGORY_TAG} />
-											{/if}
-											{#if Demographics.isDefaultQuestion(question)}
-												<Badge variant="secondary" class="text-xs">
-													Default
-												</Badge>
-											{/if}
-										</div>
-									</button>
-								</div>
-							{/snippet}
-						</DraggableList>
-					{/if}
-				</section>
-				<section>
-					<QuestionPreview
-						step={questions.findIndex((question) => question.id === selectedQuestion) +
-							1}
-						steps={questions.length}
+							<Edit class="size-4" />
+						</Button>
+					</div>
+				{:else}
+					<Form
+						id="edit-form-name"
+						class="flex items-center pl-2"
+						handleSubmission={async (formData) => {
+							const formName = formData.get('form-name') as string | null;
+							if (!form || !formName) {
+								return;
+							}
+							form.name = formName;
+							editingFormName = false;
+						}}
 					>
-						{@const question = questions.find(
-							(question) => question.id === selectedQuestion
-						)}
-						<h2 class="text-2xl font-semibold">{question?.text}</h2>
-						<!-- <QuestionAnswers -->
-						<!-- 	question={current} -->
-						<!-- 	answer={answers[current.id] ?? emptyAnswer()} -->
-						<!-- 	onAnswer={(next) => (answers[current.id] = next)} -->
-						<!-- /> -->
-					</QuestionPreview>
-				</section>
-				<section>Question</section>
-			</div>
+						<Input
+							required
+							autofocus
+							value={form?.name ?? ''}
+							class="text-3xl! font-bold"
+							name="form-name"
+						/>
+						<Button
+							variant="outline"
+							type="button"
+							class="ml-5"
+							onclick={() => void (editingFormName = false)}
+						>
+							Cancel
+						</Button>
+						<Button class="ml-2" type="submit" form="edit-form-name">Update</Button>
+					</Form>
+				{/if}
+				<div class="mr-10">
+					<Button variant="outline" class="mr-2">Save as draft</Button>
+					<Button>Publish</Button>
+				</div>
+			{/snippet}
 
-			<!-- 	<DraggableList -->
-			<!-- 		items={dragRows ?? rows} -->
-			<!-- 		onReorder={reorderWhileDragging} -->
-			<!-- 		onCommit={commitReorder} -->
-			<!-- 		class="flex flex-col gap-2" -->
-			<!-- 	> -->
-			<!-- 		{#snippet children(row, index)} -->
-			<!-- 					<DropdownMenu.Root> -->
-			<!-- 						<DropdownMenu.Trigger -->
-			<!-- 							class={buttonVariants({ -->
-			<!-- 								variant: 'ghost', -->
-			<!-- 								size: 'icon' -->
-			<!-- 							})} -->
-			<!-- 							aria-label={`Actions for ${row.question.text}`} -->
-			<!-- 						> -->
-			<!-- 							<EllipsisVertical class="size-4" /> -->
-			<!-- 						</DropdownMenu.Trigger> -->
-			<!-- 						<DropdownMenu.Content align="end" class="w-52"> -->
-			<!-- 							<DropdownMenu.Item onSelect={() => toggleRequired(index)}> -->
-			<!-- 								{row.required ? 'Set to optional' : 'Set to required'} -->
-			<!-- 							</DropdownMenu.Item> -->
-			<!-- 							{#if row.question.isDefault} -->
-			<!-- 								<DropdownMenu.Label>Default question</DropdownMenu.Label> -->
-			<!-- 							{:else} -->
-			<!-- 								<DropdownMenu.Item onSelect={() => onEditQuestion(row.id)}> -->
-			<!-- 									Edit question -->
-			<!-- 								</DropdownMenu.Item> -->
-			<!-- 								{#if row.question.specialCategory} -->
-			<!-- 									<DropdownMenu.Item -->
-			<!-- 										onSelect={() => onEditQuestion(row.id, true)} -->
-			<!-- 									> -->
-			<!-- 										Edit consent wording -->
-			<!-- 									</DropdownMenu.Item> -->
-			<!-- 								{/if} -->
-			<!-- 							{/if} -->
-			<!-- 							<DropdownMenu.Item -->
-			<!-- 								disabled={index === 0} -->
-			<!-- 								onSelect={() => move(index, -1)} -->
-			<!-- 							> -->
-			<!-- 								Move up -->
-			<!-- 							</DropdownMenu.Item> -->
-			<!-- 							<DropdownMenu.Item -->
-			<!-- 								disabled={index === rows.length - 1} -->
-			<!-- 								onSelect={() => move(index, 1)} -->
-			<!-- 							> -->
-			<!-- 								Move down -->
-			<!-- 							</DropdownMenu.Item> -->
-			<!-- 							<DropdownMenu.Separator /> -->
-			<!-- 							<DropdownMenu.Item -->
-			<!-- 								class="text-destructive" -->
-			<!-- 								onSelect={() => form.questions.splice(index, 1)} -->
-			<!-- 							> -->
-			<!-- 								Remove from form -->
-			<!-- 							</DropdownMenu.Item> -->
-			<!-- 						</DropdownMenu.Content> -->
-			<!-- 					</DropdownMenu.Root> -->
-			<!-- 				</div> -->
-			<!-- 			</div> -->
-			<!-- 		{/snippet} -->
-			<!-- 	</DraggableList> -->
-			<!-- 	<Button onclick={() => (addOpen = true)}><Plus class="size-4" />Add question</Button> -->
-			<!-- </div> -->
-			<!---->
-			<!-- <div class="flex h-full min-h-0 flex-col gap-3"> -->
-			<!-- 	{#snippet consentFooter()} -->
-			<!-- 		{#if preview} -->
-			<!-- 			<ConsentCheck -->
-			<!-- 				id={`consent-${preview.id}`} -->
-			<!-- 				text={preview.consentText} -->
-			<!-- 				checked={consents[preview.id] ?? false} -->
-			<!-- 				onChange={(checked) => (consents[preview.id] = checked)} -->
-			<!-- 			/> -->
-			<!-- 		{/if} -->
-			<!-- 	{/snippet} -->
-			<!-- 	<div class="flex items-center justify-end"> -->
-			<!-- 		<Button variant="outline" size="sm" onclick={resetTest}> -->
-			<!-- 			<RotateCcw class="size-4" />Reset answers -->
-			<!-- 		</Button> -->
-			<!-- 	</div> -->
-			<!-- 	<PhonePreview -->
-			<!-- 		note="Try it as a participant. Nothing is saved." -->
-			<!-- 		step={finished ? Math.max(rows.length, 1) : previewIndex + 1} -->
-			<!-- 		steps={Math.max(rows.length, 1)} -->
-			<!-- 		showNext={!finished} -->
-			<!-- 		onNext={advance} -->
-			<!-- 		nextLabel={isLast ? 'Finish test' : 'Next'} -->
-			<!-- 		nextDisabled={!preview || consentMissing || requiredMissing} -->
-			<!-- 		footer={!finished && preview?.specialCategory ? consentFooter : undefined} -->
-			<!-- 	> -->
-			<!-- 		{#if finished} -->
-			<!-- 			<h2 class="text-2xl font-semibold">Test complete</h2> -->
-			<!-- 			<ul class="flex flex-col gap-3"> -->
-			<!-- 				{#each results as result (result.id)} -->
-			<!-- 					<li class="flex flex-col"> -->
-			<!-- 						<span class="text-base font-medium"> -->
-			<!-- 							{result.text}{result.required ? ' *' : ''} -->
-			<!-- 						</span> -->
-			<!-- 						<span class="text-muted-foreground text-base"> -->
-			<!-- 							{result.summary || 'Skipped'} -->
-			<!-- 						</span> -->
-			<!-- 					</li> -->
-			<!-- 				{/each} -->
-			<!-- 			</ul> -->
-			<!-- 			<Button variant="outline" onclick={resetTest}>Start again</Button> -->
-			<!-- 		{:else if preview} -->
-			<!-- 			{@const current = preview} -->
-			<!-- 			<h2 class="text-2xl font-semibold">{preview.text}</h2> -->
-			<!-- 			<QuestionAnswers -->
-			<!-- 				question={current} -->
-			<!-- 				answer={answers[current.id] ?? emptyAnswer()} -->
-			<!-- 				onAnswer={(next) => (answers[current.id] = next)} -->
-			<!-- 			/> -->
-			<!-- 		{:else} -->
-			<!-- 			<p class="text-muted-foreground text-base"> -->
-			<!-- 				Add a question to see how participants will see it. -->
-			<!-- 			</p> -->
-			<!-- 		{/if} -->
-			<!-- 	</PhonePreview> -->
-			<!-- </div> -->
-		</section>
+			{#snippet Body()}
+				<div class="grid h-full grid-cols-[1fr_2fr_2fr] gap-x-5">
+					<FormPanel
+						bind:questions
+						bind:selectedQuestionId
+						organisationId={params.organisation_id}
+					/>
+					<PreviewPanel {questions} {selectedQuestionId} />
+					<section>Question</section>
+				</div>
+
+				<!-- 	<DraggableList -->
+				<!-- 		items={dragRows ?? rows} -->
+				<!-- 		onReorder={reorderWhileDragging} -->
+				<!-- 		onCommit={commitReorder} -->
+				<!-- 		class="flex flex-col gap-2" -->
+				<!-- 	> -->
+				<!-- 		{#snippet children(row, index)} -->
+				<!-- 					<DropdownMenu.Root> -->
+				<!-- 						<DropdownMenu.Trigger -->
+				<!-- 							class={buttonVariants({ -->
+				<!-- 								variant: 'ghost', -->
+				<!-- 								size: 'icon' -->
+				<!-- 							})} -->
+				<!-- 							aria-label={`Actions for ${row.question.text}`} -->
+				<!-- 						> -->
+				<!-- 							<EllipsisVertical class="size-4" /> -->
+				<!-- 						</DropdownMenu.Trigger> -->
+				<!-- 						<DropdownMenu.Content align="end" class="w-52"> -->
+				<!-- 							<DropdownMenu.Item onSelect={() => toggleRequired(index)}> -->
+				<!-- 								{row.required ? 'Set to optional' : 'Set to required'} -->
+				<!-- 							</DropdownMenu.Item> -->
+				<!-- 							{#if row.question.isDefault} -->
+				<!-- 								<DropdownMenu.Label>Default question</DropdownMenu.Label> -->
+				<!-- 							{:else} -->
+				<!-- 								<DropdownMenu.Item onSelect={() => onEditQuestion(row.id)}> -->
+				<!-- 									Edit question -->
+				<!-- 								</DropdownMenu.Item> -->
+				<!-- 								{#if row.question.specialCategory} -->
+				<!-- 									<DropdownMenu.Item -->
+				<!-- 										onSelect={() => onEditQuestion(row.id, true)} -->
+				<!-- 									> -->
+				<!-- 										Edit consent wording -->
+				<!-- 									</DropdownMenu.Item> -->
+				<!-- 								{/if} -->
+				<!-- 							{/if} -->
+				<!-- 							<DropdownMenu.Item -->
+				<!-- 								disabled={index === 0} -->
+				<!-- 								onSelect={() => move(index, -1)} -->
+				<!-- 							> -->
+				<!-- 								Move up -->
+				<!-- 							</DropdownMenu.Item> -->
+				<!-- 							<DropdownMenu.Item -->
+				<!-- 								disabled={index === rows.length - 1} -->
+				<!-- 								onSelect={() => move(index, 1)} -->
+				<!-- 							> -->
+				<!-- 								Move down -->
+				<!-- 							</DropdownMenu.Item> -->
+				<!-- 							<DropdownMenu.Separator /> -->
+				<!-- 							<DropdownMenu.Item -->
+				<!-- 								class="text-destructive" -->
+				<!-- 								onSelect={() => form.questions.splice(index, 1)} -->
+				<!-- 							> -->
+				<!-- 								Remove from form -->
+				<!-- 							</DropdownMenu.Item> -->
+				<!-- 						</DropdownMenu.Content> -->
+				<!-- 					</DropdownMenu.Root> -->
+				<!-- 				</div> -->
+				<!-- 			</div> -->
+				<!-- 		{/snippet} -->
+				<!-- 	</DraggableList> -->
+				<!-- 	<Button onclick={() => (addOpen = true)}><Plus class="size-4" />Add question</Button> -->
+				<!-- </div> -->
+				<!---->
+				<!-- <div class="flex h-full min-h-0 flex-col gap-3"> -->
+				<!-- 	{#snippet consentFooter()} -->
+				<!-- 		{#if preview} -->
+				<!-- 			<ConsentCheck -->
+				<!-- 				id={`consent-${preview.id}`} -->
+				<!-- 				text={preview.consentText} -->
+				<!-- 				checked={consents[preview.id] ?? false} -->
+				<!-- 				onChange={(checked) => (consents[preview.id] = checked)} -->
+				<!-- 			/> -->
+				<!-- 		{/if} -->
+				<!-- 	{/snippet} -->
+				<!-- 	<div class="flex items-center justify-end"> -->
+				<!-- 		<Button variant="outline" size="sm" onclick={resetTest}> -->
+				<!-- 			<RotateCcw class="size-4" />Reset answers -->
+				<!-- 		</Button> -->
+				<!-- 	</div> -->
+				<!-- 	<PhonePreview -->
+				<!-- 		note="Try it as a participant. Nothing is saved." -->
+				<!-- 		step={finished ? Math.max(rows.length, 1) : previewIndex + 1} -->
+				<!-- 		steps={Math.max(rows.length, 1)} -->
+				<!-- 		showNext={!finished} -->
+				<!-- 		onNext={advance} -->
+				<!-- 		nextLabel={isLast ? 'Finish test' : 'Next'} -->
+				<!-- 		nextDisabled={!preview || consentMissing || requiredMissing} -->
+				<!-- 		footer={!finished && preview?.specialCategory ? consentFooter : undefined} -->
+				<!-- 	> -->
+				<!-- 		{#if finished} -->
+				<!-- 			<h2 class="text-2xl font-semibold">Test complete</h2> -->
+				<!-- 			<ul class="flex flex-col gap-3"> -->
+				<!-- 				{#each results as result (result.id)} -->
+				<!-- 					<li class="flex flex-col"> -->
+				<!-- 						<span class="text-base font-medium"> -->
+				<!-- 							{result.text}{result.required ? ' *' : ''} -->
+				<!-- 						</span> -->
+				<!-- 						<span class="text-muted-foreground text-base"> -->
+				<!-- 							{result.summary || 'Skipped'} -->
+				<!-- 						</span> -->
+				<!-- 					</li> -->
+				<!-- 				{/each} -->
+				<!-- 			</ul> -->
+				<!-- 			<Button variant="outline" onclick={resetTest}>Start again</Button> -->
+				<!-- 		{:else if preview} -->
+				<!-- 			{@const current = preview} -->
+				<!-- 			<h2 class="text-2xl font-semibold">{preview.text}</h2> -->
+				<!-- 			<QuestionAnswers -->
+				<!-- 				question={current} -->
+				<!-- 				answer={answers[current.id] ?? emptyAnswer()} -->
+				<!-- 				onAnswer={(next) => (answers[current.id] = next)} -->
+				<!-- 			/> -->
+				<!-- 		{:else} -->
+				<!-- 			<p class="text-muted-foreground text-base"> -->
+				<!-- 				Add a question to see how participants will see it. -->
+				<!-- 			</p> -->
+				<!-- 		{/if} -->
+				<!-- 	</PhonePreview> -->
+				<!-- </div> -->
+			{/snippet}
+		</FullScreenContent>
 	{/if}
 {/await}
 <!-- <span class="text-muted-foreground mr-auto text-sm"> -->

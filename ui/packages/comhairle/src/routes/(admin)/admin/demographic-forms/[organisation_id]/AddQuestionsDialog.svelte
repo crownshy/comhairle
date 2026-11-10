@@ -5,14 +5,11 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
-	import {
-		QUESTION_KIND_LABELS,
-		SPECIAL_CATEGORY_TAG,
-		type SavedQuestion
-	} from '../demographicModel';
+	import { SPECIAL_CATEGORY_TAG, type TagName } from '../demographicModel';
+	import type { QuestionLatestDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		questions: SavedQuestion[];
+		questions: QuestionLatestDto[];
 		inFormIds: string[];
 		onAdd: (ids: string[]) => void;
 		onCreateQuestion: () => void;
@@ -67,11 +64,11 @@
 					/>
 					<label for={`add-${question.id}`} class="flex min-w-0 flex-1 flex-col">
 						<span class="text-base font-medium">{question.text}</span>
-						<span class="text-sm">{QUESTION_KIND_LABELS[question.kind]}</span>
+						<!-- <span class="text-sm">{QUESTION_KIND_LABELS[question.kind]}</span> -->
 					</label>
 					<span class="flex items-center gap-1">
 						{#each question.tags as tag (tag.id)}
-							<TagBadge tag={tag.name} />
+							<TagBadge tag={tag.name as TagName} />
 						{/each}
 						{#if question.specialCategory}
 							<TagBadge tag={SPECIAL_CATEGORY_TAG} />

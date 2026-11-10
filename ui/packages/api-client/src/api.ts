@@ -3740,10 +3740,9 @@ export const OptionDto = z
 export type OptionDto = z.infer<typeof OptionDto>;
 export const QuestionType2 = z.enum([
   "number",
-  "single_select",
-  "multi_select",
+  "select",
   "date",
-  "any_string",
+  "text",
   "location",
   "custom",
 ]);
@@ -3760,6 +3759,7 @@ export const QuestionVersionDto = z
     locationCountry: z.union([z.string(), z.null()]).optional(),
     locationFormat: z.union([LocationFormat, z.null()]).optional(),
     maxSelections: z.union([z.number(), z.null()]).optional(),
+    multi: z.boolean(),
     options: z.array(OptionDto),
     preferNotToSay: z.boolean(),
     publishedAt: z.union([z.string(), z.null()]).optional(),
@@ -3808,6 +3808,7 @@ export const QuestionDraftInput = z
       .optional()
       .default(null),
     max_selections: z.union([z.number(), z.null()]).optional().default(null),
+    multi: z.boolean(),
     options: z.array(z.string()).optional().default([]),
     prefer_not_to_say: z.boolean().optional().default(false),
     question_type: QuestionType2,
@@ -3839,6 +3840,7 @@ export const QuestionLatestDto = z
     locationFormat: z.union([LocationFormat, z.null()]).optional(),
     maxSelections: z.union([z.number(), z.null()]).optional(),
     meta: QuestionRow,
+    multi: z.boolean(),
     options: z.array(OptionDto),
     preferNotToSay: z.boolean(),
     publishedAt: z.union([z.string(), z.null()]).optional(),
