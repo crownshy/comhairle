@@ -77,6 +77,12 @@ impl FacilitatorText {
 #[serde(transparent)]
 pub struct ScalePoint(pub u32);
 
+/// An aggregate number that isn't a count, such as a summed rating, a mean, or the edge of a
+/// scale bucket. Built from many people's answers together, never from one person's.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq)]
+#[serde(transparent)]
+pub struct Score(pub f64);
+
 /// Text the sensemaker wrote at a facilitator's request from many contributions together, such
 /// as a theme's description or an opinion group's summary, or that a facilitator wrote in its
 /// place. Never one person's words.
@@ -108,6 +114,7 @@ building_blocks!(
     OpinionGroupId,
     FacilitatorText,
     ScalePoint,
+    Score,
     GeneratedText,
     bool
 );

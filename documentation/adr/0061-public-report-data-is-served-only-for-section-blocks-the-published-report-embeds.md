@@ -56,22 +56,29 @@ Thinking Space summary, another may have told participants it stays with the org
   a facilitator wrote in its place). The sensemaker reads every Polis statement, including
   ones moderation rejected, so its text can paraphrase or quote one. We accept that because a
   facilitator asks for the text and can read it in Insights before embedding it; a reviewer
-  should weigh that when approving `GeneratedText`. Participant text can only go out as
-  `ModeratedText`, which is built from accepted content only. Adding a building block needs a
+  should weigh that when approving `GeneratedText`. Prioritization added `Score` (an aggregate
+  number that isn't a count, such as a summed rating or a scale bucket's edge). Participant
+  text can only go out as `ModeratedText`, which is built from accepted content only. Adding a building block needs a
   reviewer to agree it can't identify a person. A future moderation report is the one expected
   exception, and it gets its own ADR.
 - **Themes are served per tool from the shared loader.** `public_report_data::themes` reads a
   step's latest theme collection for one origin tool. It doesn't filter by moderation, so each
   tool must match a theme's contributions against its own public data. Polis joins them to the
   accepted-only report, so a theme only shows statements the report already serves, with
-  their vote bars.
+  their vote bars. Prioritization serves only each theme's title, description and
+  contribution count: its contributions are written answers, which are shared with the
+  organisers, not with readers.
+- **Only aggregates leave Prioritization.** It serves counts per Likert choice and per scale
+  bucket, the summed alignment ranking, and the proposal and section text facilitators
+  wrote. Free-text answers and the per-reviewer scatter plot stay on the Insights page.
 - **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
   the theme collection are read once per step and kept for 60 seconds, shared by every section
   block, so a regenerated summary can take up to a minute to reach the report. Polis votes
   stay on the client's own report cache.
 - **Some section blocks are embedded once per item.** A HeyForm question is one section
-  block, `heyform-question`, with the question id stored on the embed as `config.item`. The
-  gate matches the item too, so embedding one question doesn't publish the rest of the form.
+  block, `heyform-question`, with the question id stored on the embed as `config.item`, and a
+  Prioritization proposal is `prioritization-proposal` with the proposal id. The gate matches
+  the item too, so embedding one question doesn't publish the rest of the form.
 - **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
   skip the published and embedded checks but need permission to update the conversation
   (for an event step, the event's conversation). They run the same builders and return the same types, so the report editor, the add-chart

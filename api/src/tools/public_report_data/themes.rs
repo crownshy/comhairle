@@ -1,13 +1,24 @@
-//! The step's latest theme collection with the contributions filed under each theme. What a
-//! published report may show of it is each tool's call (ADR-0061).
+//! The step's latest theme collection with the contributions filed under each theme. A tool
+//! that may not show the contributions serves `PublicTheme` instead: each theme's title,
+//! description and how many contributions it groups (ADR-0061).
 
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use super::anonymous::{Count, GeneratedText, public_report_data};
 use crate::error::ComhairleError;
 use crate::models::statement::{self, Statement};
 use crate::models::statement_theme;
 use crate::models::theme::{self, Theme};
+
+public_report_data! {
+    pub struct PublicTheme {
+        pub title: GeneratedText,
+        pub description: GeneratedText,
+        /// Contributions the sensemaker filed under this theme.
+        pub contributions: Count,
+    }
+}
 
 /// A theme with the contributions filed under it. These include contributions moderation
 /// hasn't accepted, so a tool must match them against its own public data before serving any.
@@ -43,4 +54,12 @@ pub async fn latest_theme_collection(
             })
             .collect(),
     ))
+}
+
+pub fn public_theme(theme: &ThemeWithStatements) -> PublicTheme {
+    PublicTheme {
+        title: GeneratedText::from_sensemaking(theme.theme.title.clone()),
+        description: GeneratedText::from_sensemaking(theme.theme.description.clone()),
+        contributions: Count(theme.statements.len() as u64),
+    }
 }
