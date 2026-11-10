@@ -5,15 +5,21 @@ import { JitsiRoom } from './jitsiRoom.svelte';
 
 type SentCommand = [string, ...unknown[]];
 
-function fakeApi(options: { listed?: Record<string, JitsiBreakoutRoom> | Error } = {}) {
+type Listing = Record<string, JitsiBreakoutRoom> | Error;
+
+/** `listed` is what every listing returns; `listings` returns each in turn, then repeats the last. */
+function fakeApi(options: { listed?: Listing; listings?: Listing[] } = {}) {
 	const sent: SentCommand[] = [];
+	const listings = options.listings ?? [options.listed ?? {}];
+	let listCount = 0;
 	const api = {
 		executeCommand: (command: string, ...args: unknown[]) => {
 			sent.push([command, ...args]);
 		},
 		listBreakoutRooms: async () => {
-			if (options.listed instanceof Error) throw options.listed;
-			return options.listed ?? {};
+			const listing = listings[Math.min(listCount++, listings.length - 1)];
+			if (listing instanceof Error) throw listing;
+			return listing;
 		},
 		dispose: () => {}
 	} as unknown as JitsiMeetExternalApi;
@@ -92,7 +98,56 @@ describe('JitsiRoom', () => {
 
 		await room.removeAll();
 
-		expect(sent).toEqual([['removeBreakoutRoom', 'three@breakout']]);
+		expect(sent).toEqual([
+			['closeBreakoutRoom', 'three'],
+			['removeBreakoutRoom', 'three@breakout']
+		]);
+	});
+
+	it('waits for closed rooms to empty before removing them', async () => {
+		vi.useFakeTimers();
+		const occupied = roomsPayload({
+			id: 'one',
+			jid: 'one@breakout',
+			name: 'Breakout room #1',
+			participants: { 'someone@conf': {} }
+		});
+		const emptied = roomsPayload({ id: 'one', jid: 'one@breakout', name: 'Breakout room #1' });
+		const { api, sent } = fakeApi({ listings: [occupied, occupied, emptied] });
+		const room = new JitsiRoom();
+		room.attach(api);
+
+		const removing = room.removeAll();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(sent).toEqual([['closeBreakoutRoom', 'one']]);
+
+		await vi.advanceTimersByTimeAsync(250);
+		await removing;
+		expect(sent).toEqual([
+			['closeBreakoutRoom', 'one'],
+			['removeBreakoutRoom', 'one@breakout']
+		]);
+		vi.useRealTimers();
+	});
+
+	it('removes the rooms anyway if they never empty', async () => {
+		vi.useFakeTimers();
+		const occupied = roomsPayload({
+			id: 'one',
+			jid: 'one@breakout',
+			name: 'Breakout room #1',
+			participants: { 'someone@conf': {} }
+		});
+		const { api, sent } = fakeApi({ listed: occupied });
+		const room = new JitsiRoom();
+		room.attach(api);
+
+		const removing = room.removeAll();
+		await vi.advanceTimersByTimeAsync(5000);
+		await removing;
+
+		expect(sent.at(-1)).toEqual(['removeBreakoutRoom', 'one@breakout']);
+		vi.useRealTimers();
 	});
 
 	it('falls back to the rooms it was told about when Jitsi will not list them', async () => {
@@ -104,6 +159,8 @@ describe('JitsiRoom', () => {
 		await room.removeAll();
 
 		expect(sent).toEqual([
+			['closeBreakoutRoom', 'one'],
+			['closeBreakoutRoom', 'two'],
 			['removeBreakoutRoom', 'one@breakout'],
 			['removeBreakoutRoom', 'two@breakout']
 		]);
