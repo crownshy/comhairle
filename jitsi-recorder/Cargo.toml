@@ -1,0 +1,24 @@
+[package]
+name = "jisti-recorder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+dotenvy = "0.15"
+axum = "0.8.9"
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager"] }
+aws-sdk-s3 = "1"
+aws-config = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+serde_json = "1"
+reqwest = { version = "0.11", features = ["json"] }
+tower-http = { version = "0.6", features = ["trace"] }
+askama = "0.12"
+nix = { version = "0.27", features = ["signal", "process"] }
+jsonwebtoken = "9"
