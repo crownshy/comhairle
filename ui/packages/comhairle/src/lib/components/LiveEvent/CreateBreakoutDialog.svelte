@@ -19,6 +19,12 @@
 		showDuration?: boolean;
 		/** Label for the confirm button. */
 		confirmLabel?: string;
+		title?: string;
+		/**
+		 * Keep the number of rooms as it is: no reshuffle or room size, and a room you empty
+		 * stays in the list. Used to edit rooms that are already open in the call.
+		 */
+		fixedRooms?: boolean;
 		onClose: () => void;
 		onCreate: (config: {
 			maxPerRoom: number;
@@ -38,6 +44,8 @@
 		moderatorIds,
 		showDuration = true,
 		confirmLabel = 'Create',
+		title = 'Create breakout rooms',
+		fixedRooms = false,
 		onClose,
 		onCreate
 	}: Props = $props();
@@ -82,14 +90,14 @@
 		wasOpen = open;
 	});
 
+	function withToggled(userIds: Set<string>, userId: string): Set<string> {
+		return userIds.has(userId)
+			? new Set([...userIds].filter((id) => id !== userId))
+			: new Set([...userIds, userId]);
+	}
+
 	function toggleModerator(userId: string) {
-		const next = new Set(moderators);
-		if (next.has(userId)) {
-			next.delete(userId);
-		} else {
-			next.add(userId);
-		}
-		moderators = next;
+		moderators = withToggled(moderators, userId);
 	}
 
 	/** Rooms that have no moderator assigned — surfaced as a hint. */
@@ -168,13 +176,7 @@
 	}
 
 	function togglePin(userId: string) {
-		const next = new Set(pinnedUsers);
-		if (next.has(userId)) {
-			next.delete(userId);
-		} else {
-			next.add(userId);
-		}
-		pinnedUsers = next;
+		pinnedUsers = withToggled(pinnedUsers, userId);
 	}
 
 	function handleCreate() {
@@ -240,8 +242,9 @@
 		newAssignments[srcRoom].splice(srcIdx, 1);
 		newAssignments[targetRoomIdx].push(participant);
 
-		// Remove empty rooms
-		roomAssignments = newAssignments.filter((room) => room.length > 0);
+		roomAssignments = fixedRooms
+			? newAssignments
+			: newAssignments.filter((room) => room.length > 0);
 		dragSource = null;
 	}
 
@@ -292,7 +295,7 @@
 		<div class="flex min-h-0 flex-1 flex-col gap-6">
 			<!-- Title -->
 			<h2 class="text-foreground shrink-0 text-2xl leading-7 font-semibold">
-				Create breakout rooms
+				{title}
 			</h2>
 
 			<!-- Time left + room size row -->
@@ -311,19 +314,21 @@
 						<span class="text-foreground text-sm font-normal">minutes</span>
 					</div>
 				{/if}
-				<div class="flex items-center gap-2">
-					<Users class="text-foreground h-5 w-5" />
-					<span class="text-foreground text-sm font-normal">Max per room</span>
-					<input
-						type="number"
-						value={maxPerRoom}
-						onchange={handleMaxPerRoomChange}
-						min={1}
-						max={50}
-						class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
-					/>
-					<span class="text-foreground text-sm font-normal">people</span>
-				</div>
+				{#if !fixedRooms}
+					<div class="flex items-center gap-2">
+						<Users class="text-foreground h-5 w-5" />
+						<span class="text-foreground text-sm font-normal">Max per room</span>
+						<input
+							type="number"
+							value={maxPerRoom}
+							onchange={handleMaxPerRoomChange}
+							min={1}
+							max={50}
+							class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
+						/>
+						<span class="text-foreground text-sm font-normal">people</span>
+					</div>
+				{/if}
 			</div>
 
 			{#if enableModerators && roomsMissingModerator > 0 && roomAssignments.length > 0}
@@ -347,7 +352,7 @@
 				<div
 					class="bg-sidebar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl p-3 sm:p-4"
 				>
-					{#each roomAssignments as room, roomIdx}
+					{#each roomAssignments as room, roomIdx (roomIdx)}
 						<div
 							class="flex items-center gap-2 rounded-lg border p-5 transition-colors {dropTargetRoom ===
 							roomIdx
@@ -407,40 +412,47 @@
 												<Crown class="h-3.5 w-3.5" />
 											</button>
 										{/if}
-										<button
-											class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
-												p.user_id
-											)
-												? 'text-primary bg-primary/10'
-												: 'text-muted-foreground hover:text-foreground'}"
-											onclick={(e) => {
-												e.stopPropagation();
-												togglePin(p.user_id);
-											}}
-											title={pinnedUsers.has(p.user_id)
-												? 'Unpin (will move on reshuffle)'
-												: 'Pin to this room'}
-										>
-											<Pin class="h-3.5 w-3.5" />
-										</button>
+										{#if !fixedRooms}
+											<button
+												class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
+													p.user_id
+												)
+													? 'text-primary bg-primary/10'
+													: 'text-muted-foreground hover:text-foreground'}"
+												onclick={(e) => {
+													e.stopPropagation();
+													togglePin(p.user_id);
+												}}
+												title={pinnedUsers.has(p.user_id)
+													? 'Unpin (will move on reshuffle)'
+													: 'Pin to this room'}
+											>
+												<Pin class="h-3.5 w-3.5" />
+											</button>
+										{/if}
 									</div>
+								{:else}
+									<span class="text-muted-foreground text-sm"
+										>Drag someone here</span
+									>
 								{/each}
 							</div>
 						</div>
 					{/each}
 
-					<!-- Reshuffle button -->
-					<div>
-						<Button
-							variant="primaryDark"
-							size="sm"
-							class="gap-2 text-sm"
-							onclick={handleReshuffle}
-						>
-							<RefreshCw class="h-4 w-4" />
-							Reshuffle
-						</Button>
-					</div>
+					{#if !fixedRooms}
+						<div>
+							<Button
+								variant="primaryDark"
+								size="sm"
+								class="gap-2 text-sm"
+								onclick={handleReshuffle}
+							>
+								<RefreshCw class="h-4 w-4" />
+								Reshuffle
+							</Button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 

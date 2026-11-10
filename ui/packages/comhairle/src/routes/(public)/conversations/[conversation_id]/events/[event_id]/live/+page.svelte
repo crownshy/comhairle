@@ -8,7 +8,7 @@
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
-	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
+	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
 	import { MeetingAttendance } from './meetingAttendance.svelte';
@@ -113,6 +113,7 @@
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
 
 	let showCreateBreakout = $state(false);
+	let showEditBreakout = $state(false);
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showEndMeeting = $state(false);
@@ -525,6 +526,17 @@
 		activePanel = 'breakoutRooms';
 	}
 
+	function handleEditBreakout(config: {
+		maxPerRoom: number;
+		roomAssignments: VideoCallParticipant[][];
+	}) {
+		const editedRooms = config.roomAssignments.map((room) => room.map((p) => p.user_id));
+		const roomAssignments = applyRoomEdits(editedRooms, videoCallService.breakoutRooms);
+		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
+		showEditBreakout = false;
+		showToast('Breakout rooms updated');
+	}
+
 	function handleEnterBreakoutRoom(roomIndex: number) {
 		if (!jitsiRoom.ready) {
 			console.warn(
@@ -867,6 +879,7 @@
 							onUpdateTime={handleUpdateTime}
 							onEndSession={handleEndSessionPressed}
 							onBroadcastMessage={() => (showBroadcast = true)}
+							onEditRooms={() => (showEditBreakout = true)}
 						/>
 					{:else}
 						<AgendaPanel
@@ -1054,6 +1067,18 @@
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
 	onCreate={handleCreateBreakout}
+/>
+
+<CreateBreakoutDialog
+	bind:open={showEditBreakout}
+	participants={allParticipants}
+	initialAssignments={preassignedBreakoutRooms}
+	title="Move people between rooms"
+	confirmLabel="Save"
+	showDuration={false}
+	fixedRooms
+	onClose={() => (showEditBreakout = false)}
+	onCreate={handleEditBreakout}
 />
 
 <BroadcastMessageDialog
