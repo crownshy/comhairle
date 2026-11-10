@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getJitsiBreakoutRoomId, type JitsiBreakoutRoom } from './jitsiBreakoutRooms';
 
-const rooms = (...entries: JitsiBreakoutRoom[]): Record<string, JitsiBreakoutRoom> =>
-	Object.fromEntries(entries.map((room, i) => [`key-${i}`, room]));
+const rooms = (...entries: JitsiBreakoutRoom[]): JitsiBreakoutRoom[] => entries;
 
 describe('getJitsiBreakoutRoomId', () => {
 	it('maps a room index to the jid of the nth non-main room, in name order', () => {
@@ -21,7 +20,7 @@ describe('getJitsiBreakoutRoomId', () => {
 	});
 
 	it('returns null when Jitsi has not reported any rooms yet', () => {
-		expect(getJitsiBreakoutRoomId({}, 0)).toBeNull();
+		expect(getJitsiBreakoutRoomId([], 0)).toBeNull();
 	});
 
 	it('returns null when a room has no jid', () => {
@@ -34,15 +33,24 @@ describe('getJitsiBreakoutRoomId', () => {
 		expect(getJitsiBreakoutRoomId(all, 0)).toBe('unnamed@breakout');
 	});
 
-	// Current behaviour, not desired behaviour: the sort is lexicographic, so once there
-	// are ten or more rooms "#10" lands before "#2" and every index past it points at the
-	// wrong room. Part of #752; this test is here to fail loudly when that gets fixed.
-	it('orders room names lexicographically, so #10 sorts before #2', () => {
+	it('orders rooms by their number, so #10 sorts after #2', () => {
 		const all = rooms(
-			{ jid: 'ten@breakout', name: 'Breakout room #10' },
-			{ jid: 'two@breakout', name: 'Breakout room #2' }
+			...Array.from({ length: 11 }, (_, i) => ({
+				jid: `room-${i + 1}@breakout`,
+				name: `Breakout room #${i + 1}`
+			})).reverse()
 		);
 
-		expect(getJitsiBreakoutRoomId(all, 0)).toBe('ten@breakout');
+		expect(getJitsiBreakoutRoomId(all, 1)).toBe('room-2@breakout');
+		expect(getJitsiBreakoutRoomId(all, 9)).toBe('room-10@breakout');
+		expect(getJitsiBreakoutRoomId(all, 10)).toBe('room-11@breakout');
+	});
+
+	it('picks the same room for duplicate names whatever order Jitsi lists them in', () => {
+		const first = { jid: 'a@breakout', name: 'Breakout room #1' };
+		const second = { jid: 'b@breakout', name: 'Breakout room #1' };
+
+		expect(getJitsiBreakoutRoomId(rooms(first, second), 0)).toBe('a@breakout');
+		expect(getJitsiBreakoutRoomId(rooms(second, first), 0)).toBe('a@breakout');
 	});
 });

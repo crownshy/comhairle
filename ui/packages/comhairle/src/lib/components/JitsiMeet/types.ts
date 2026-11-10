@@ -14,7 +14,8 @@ export interface JitsiCommands {
 	addBreakoutRoom: [name?: string];
 	/** Called with no jid, this returns the local participant to the main room. */
 	joinBreakoutRoom: [roomJid?: string];
-	closeBreakoutRoom: [roomId: string];
+	/** Moves anyone still in the room to the main room, then deletes it. */
+	removeBreakoutRoom: [roomJid: string];
 }
 
 /** The part of the `JitsiMeetExternalAPI` instance we actually call. */

@@ -612,7 +612,7 @@
 		}
 
 		// Step 2: Remove all breakout rooms - Jitsi should auto-return participants to main room
-		await jitsiRoom.closeAll();
+		await jitsiRoom.removeAll();
 
 		// Step 3: Wait a moment for rooms to be removed
 		await new Promise((resolve) => setTimeout(resolve, 500));
