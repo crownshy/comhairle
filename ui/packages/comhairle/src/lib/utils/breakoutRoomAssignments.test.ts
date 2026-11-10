@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-import { applyRoomEdits, groupParticipantsByRoom } from './breakoutRoomAssignments';
+import {
+	applyRoomEdits,
+	groupParticipantsByRoom,
+	isFacilitatorRole
+} from './breakoutRoomAssignments';
 
 const participant = (user_id: string, role = 'participant'): VideoCallParticipant => ({
 	user_id,
@@ -92,5 +96,16 @@ describe('applyRoomEdits', () => {
 			['a'],
 			[]
 		]);
+	});
+});
+
+describe('isFacilitatorRole', () => {
+	it('counts moderators and facilitators as able to run a room', () => {
+		expect(isFacilitatorRole('moderator')).toBe(true);
+		expect(isFacilitatorRole('facilitator')).toBe(true);
+	});
+
+	it('does not count participants', () => {
+		expect(isFacilitatorRole('participant')).toBe(false);
 	});
 });
