@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { EllipsisVertical, GripVertical, Plus, RotateCcw, Trash2 } from 'lucide-svelte';
+	import {
+		Check,
+		Edit,
+		EllipsisVertical,
+		GripVertical,
+		Plus,
+		RotateCcw,
+		Trash2,
+		X
+	} from 'lucide-svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from '../../../TagBadge.svelte';
 	import ConsentCheck from '../../../ConsentCheck.svelte';
@@ -30,7 +39,11 @@
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
-	import type { DemographicFormEntryDto, QuestionLatestDto } from '@crownshy/api-client/api';
+	import type {
+		DemographicFormEntryDto,
+		DemographicFormLatestDto,
+		QuestionLatestDto
+	} from '@crownshy/api-client/api';
 	import Demographics from '$lib/interfaces/Demographics';
 
 	// type Props = {
@@ -273,15 +286,18 @@
 
 	const { data } = $props();
 
+	let editingFormName = $state<boolean>(false);
+	let form = $state<DemographicFormLatestDto>();
+	let questions = $state.raw<QuestionLatestDto[]>([]);
 	let selectedQuestion = $state<QuestionLatestDto['id']>();
-	let order = $state.raw<QuestionLatestDto[]>([]);
 
 	// TODO: Swap to use $derived when Svelte is updated
 	$effect(() => {
 		data.streamed.then((res) => {
 			if (res.ok !== null) {
-				order = res.ok.questions;
-				selectedQuestion = order[0].id;
+				form = res.ok.form;
+				questions = res.ok.questions;
+				selectedQuestion = questions[0].id;
 			}
 		});
 	});
@@ -301,7 +317,51 @@
 	{:else}
 		<!-- TODO: Copied from SectionHeader, might be good to unify at some point -->
 		<header class="border-border flex w-full justify-between border-b pt-6 pb-5">
-			<h1 class="text-foreground pl-5 text-3xl font-bold">{demographics.ok.form.name}</h1>
+			{#if !editingFormName}
+				<div class="flex items-center pl-5">
+					<h1 class="text-foreground text-3xl font-bold">
+						{form?.name}
+					</h1>
+					<Button
+						class="ml-1"
+						variant="ghost"
+						onclick={() => void (editingFormName = true)}
+						aria-label="Edit form name"
+					>
+						<Edit class="size-4" />
+					</Button>
+				</div>
+			{:else}
+				<Form
+					id="edit-form-name"
+					class="flex items-center pl-2"
+					handleSubmission={async (formData) => {
+						const formName = formData.get('form-name') as string | null;
+						if (!form || !formName) {
+							return;
+						}
+						form.name = formName;
+						editingFormName = false;
+					}}
+				>
+					<Input
+						required
+						autofocus
+						value={form?.name ?? ''}
+						class="text-3xl! font-bold"
+						name="form-name"
+					/>
+					<Button
+						variant="outline"
+						type="button"
+						class="ml-5"
+						onclick={() => void (editingFormName = false)}
+					>
+						Cancel
+					</Button>
+					<Button class="ml-2" type="submit" form="edit-form-name">Update</Button>
+				</Form>
+			{/if}
 			<div class="mr-10">
 				<Button variant="outline" class="mr-2">Save as draft</Button>
 				<Button>Publish</Button>
@@ -311,20 +371,15 @@
 		<section class="pt-page-top px-5">
 			<div class="grid grid-cols-[1fr_3fr_2fr] gap-x-5">
 				<section>
-					<Input
-						label="Name"
-						placeholder="Default form"
-						value={demographics.ok.form.name}
-					/>
-					<h3 class="mb-2 pt-5 text-sm font-semibold">Questions</h3>
+					<h3 class="mb-2 text-sm font-semibold">Questions</h3>
 					{#if demographics.ok.form.entries.length === 0}
 						<div class="text-muted-foreground text-sm font-medium italic">
 							No questions yet
 						</div>
-					{:else if order.length !== 0}
+					{:else if questions.length !== 0}
 						<DraggableList
-							items={order}
-							onReorder={(next) => void (order = next)}
+							items={questions}
+							onReorder={(next) => void (questions = next)}
 							class="flex flex-col gap-2"
 						>
 							{#snippet children(question, index)}
