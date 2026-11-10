@@ -6,16 +6,19 @@
 	import Heading2 from 'lucide-svelte/icons/heading-2';
 	import Heading3 from 'lucide-svelte/icons/heading-3';
 	import SeparatorHorizontal from 'lucide-svelte/icons/separator-horizontal';
-	import Bold from 'lucide-svelte/icons/bold';
-	import Italic from 'lucide-svelte/icons/italic';
-	import List from 'lucide-svelte/icons/list';
-	import ListOrdered from 'lucide-svelte/icons/list-ordered';
-	import Quote from 'lucide-svelte/icons/quote';
-	import LinkIcon from 'lucide-svelte/icons/link';
+	import ImageIcon from 'lucide-svelte/icons/image';
+	import Video from 'lucide-svelte/icons/video';
+	import Music from 'lucide-svelte/icons/music';
+	import TableIcon from 'lucide-svelte/icons/table';
 	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
+	import TableControlsPopover from '$lib/components/RichTextEditor/TableControlsPopover.svelte';
+	import { insertDefaultTable } from '$lib/components/RichTextEditor/tableActions';
+	import { isVideoFileUrl } from '$lib/utils/videoUrl';
 	import { cn } from '$lib/utils';
+	import { trackEditorTransactions } from './editorTransactions.svelte';
 
+	/** Block tools for the report body. Text formatting lives in the selection bubble. */
 	type Props = { editor: Editor | undefined; onAddChart: () => void };
 	let { editor, onAddChart }: Props = $props();
 
@@ -26,89 +29,57 @@
 		run: (current: Editor) => void;
 	};
 
-	const TOOL_GROUPS: Tool[][] = [
-		[
-			{
-				label: 'Text',
-				Icon: Pilcrow,
-				isActive: (e) => e.isActive('paragraph'),
-				run: (e) => e.chain().focus().setParagraph().run()
-			},
-			{
-				label: 'Section (a new pill)',
-				Icon: Heading2,
-				isActive: (e) => e.isActive('heading', { level: 2 }),
-				run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run()
-			},
-			{
-				label: 'Card (a new page)',
-				Icon: Heading3,
-				isActive: (e) => e.isActive('heading', { level: 3 }),
-				run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run()
-			},
-			{
-				// A horizontal rule starts a new card that keeps the section title (ADR-0058).
-				label: 'Page break',
-				Icon: SeparatorHorizontal,
-				isActive: () => false,
-				run: (e) => e.chain().focus().setHorizontalRule().run()
-			}
-		],
-		[
-			{
-				label: 'Bold',
-				Icon: Bold,
-				isActive: (e) => e.isActive('bold'),
-				run: (e) => e.chain().focus().toggleBold().run()
-			},
-			{
-				label: 'Italic',
-				Icon: Italic,
-				isActive: (e) => e.isActive('italic'),
-				run: (e) => e.chain().focus().toggleItalic().run()
-			}
-		],
-		[
-			{
-				label: 'Bullet list',
-				Icon: List,
-				isActive: (e) => e.isActive('bulletList'),
-				run: (e) => e.chain().focus().toggleBulletList().run()
-			},
-			{
-				label: 'Numbered list',
-				Icon: ListOrdered,
-				isActive: (e) => e.isActive('orderedList'),
-				run: (e) => e.chain().focus().toggleOrderedList().run()
-			},
-			{
-				label: 'Quote',
-				Icon: Quote,
-				isActive: (e) => e.isActive('blockquote'),
-				run: (e) => e.chain().focus().toggleBlockquote().run()
-			}
-		]
+	const STRUCTURE_TOOLS: Tool[] = [
+		{
+			label: 'Text',
+			Icon: Pilcrow,
+			isActive: (e) => e.isActive('paragraph'),
+			run: (e) => e.chain().focus().setParagraph().run()
+		},
+		{
+			label: 'Section (a new pill)',
+			Icon: Heading2,
+			isActive: (e) => e.isActive('heading', { level: 2 }),
+			run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run()
+		},
+		{
+			label: 'Card (a new page)',
+			Icon: Heading3,
+			isActive: (e) => e.isActive('heading', { level: 3 }),
+			run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run()
+		},
+		{
+			// A horizontal rule starts a new card that keeps the section title (ADR-0058).
+			label: 'Page break',
+			Icon: SeparatorHorizontal,
+			isActive: () => false,
+			run: (e) => e.chain().focus().setHorizontalRule().run()
+		}
 	];
 
 	const RAIL_BUTTON_CLASS =
 		'text-muted-foreground hover:bg-accent hover:text-foreground flex size-10 items-center justify-center rounded-lg transition-colors';
 	const ACTIVE_CLASS = 'bg-accent text-foreground';
 
-	// Bumped on every transaction so the active states re-read the editor.
-	let revision = $state(0);
-	$effect(() => {
-		const current = editor;
-		if (!current) return;
-		const bump = () => queueMicrotask(() => (revision += 1));
-		current.on('transaction', bump);
-		return () => current.off('transaction', bump);
-	});
+	const transactions = trackEditorTransactions(() => editor);
+	const inTable = $derived(transactions.isActive((e) => e.isActive('table')));
 
-	function active(tool: Tool) {
-		void revision;
-		return !!editor && !editor.isDestroyed && tool.isActive(editor);
+	function insertVideo(from: 'library' | 'external-url', url: string) {
+		if (from === 'library' || isVideoFileUrl(url)) {
+			editor?.chain().focus().setVideo({ src: url }).run();
+		} else {
+			editor?.chain().focus().setIframe({ src: url }).run();
+		}
 	}
 </script>
+
+{#snippet divider()}
+	<div class="bg-border my-1 h-px w-6" aria-hidden="true"></div>
+{/snippet}
+
+{#snippet railIcon(label: string, Icon: ComponentType<LucideIcon>)}
+	<span class={RAIL_BUTTON_CLASS} title={label} aria-label={label}><Icon class="size-5" /></span>
+{/snippet}
 
 <nav
 	aria-label="Editing tools"
@@ -123,29 +94,62 @@
 	>
 		<ChartNoAxesColumn class="size-5" />
 	</button>
-	{#each TOOL_GROUPS as group, groupIndex (groupIndex)}
-		<div class="bg-border my-1 h-px w-6" aria-hidden="true"></div>
-		{#each group as tool (tool.label)}
-			<button
-				type="button"
-				class={cn(RAIL_BUTTON_CLASS, active(tool) && ACTIVE_CLASS)}
-				title={tool.label}
-				aria-label={tool.label}
-				aria-pressed={active(tool)}
-				disabled={!editor}
-				onmousedown={(event) => event.preventDefault()}
-				onclick={() => editor && tool.run(editor)}
-			>
-				<tool.Icon class="size-5" />
-			</button>
-		{/each}
-	{/each}
-	<UrlInputPopover
-		type="link"
-		onSubmit={({ url }) => editor?.chain().focus().setLink({ href: url }).run()}
-	>
-		<span class={RAIL_BUTTON_CLASS} title="Link" aria-label="Link"
-			><LinkIcon class="size-5" /></span
+
+	{@render divider()}
+	{#each STRUCTURE_TOOLS as tool (tool.label)}
+		{@const active = transactions.isActive(tool.isActive)}
+		<button
+			type="button"
+			class={cn(RAIL_BUTTON_CLASS, active && ACTIVE_CLASS)}
+			title={tool.label}
+			aria-label={tool.label}
+			aria-pressed={active}
+			disabled={!editor}
+			onmousedown={(event) => event.preventDefault()}
+			onclick={() => editor && tool.run(editor)}
 		>
+			<tool.Icon class="size-5" />
+		</button>
+	{/each}
+
+	{@render divider()}
+	<UrlInputPopover
+		type="image"
+		allowLocalSelection
+		onSubmit={({ url }) => editor?.chain().focus().setImage({ src: url }).run()}
+	>
+		{@render railIcon('Image', ImageIcon)}
 	</UrlInputPopover>
+	<UrlInputPopover
+		type="video"
+		allowLocalSelection
+		onSubmit={({ from, url }) => insertVideo(from, url)}
+	>
+		{@render railIcon('Video', Video)}
+	</UrlInputPopover>
+	<UrlInputPopover
+		type="audio"
+		allowLocalSelection
+		onSubmit={({ url }) =>
+			editor?.chain().focus().setAudio({ src: url, autoplay: false, controls: true }).run()}
+	>
+		{@render railIcon('Audio', Music)}
+	</UrlInputPopover>
+	<!-- Outside a table the click inserts one; inside a table it opens the table menu. -->
+	<TableControlsPopover {editor}>
+		<span
+			role="presentation"
+			class={cn(RAIL_BUTTON_CLASS, inTable && ACTIVE_CLASS)}
+			title={inTable ? 'Table options' : 'Table'}
+			aria-label={inTable ? 'Table options' : 'Table'}
+			onclick={(event) => {
+				if (!inTable && editor) {
+					event.stopPropagation();
+					insertDefaultTable(editor);
+				}
+			}}
+		>
+			<TableIcon class="size-5" />
+		</span>
+	</TableControlsPopover>
 </nav>

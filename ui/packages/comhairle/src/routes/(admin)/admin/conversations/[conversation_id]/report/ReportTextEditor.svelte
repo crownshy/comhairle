@@ -1,31 +1,27 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { Editor } from '@tiptap/core';
+	import { TextSelection } from '@tiptap/pm/state';
+	import { BubbleMenu } from '@tiptap/extension-bubble-menu';
 	import { getBaseExtensions, getEditorProps } from '$lib/components/RichTextEditor/editorConfig';
 	import { MarkdownTablePaste } from '$lib/components/RichTextEditor/extensions/markdownTablePaste';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import '$lib/components/RichTextEditor/editor-content.css';
+	import SelectionBubble from './SelectionBubble.svelte';
 
 	type Props = {
 		/** Read once when the editor mounts; later edits come from the editor itself. */
 		initialValue: string;
 		editable: boolean;
 		onChange: (json: string) => void;
-		onFocus?: (editor: Editor) => void;
 		editor?: Editor;
 		label: string;
 	};
 
-	let {
-		initialValue,
-		editable,
-		onChange,
-		onFocus,
-		editor = $bindable(),
-		label
-	}: Props = $props();
+	let { initialValue, editable, onChange, editor = $bindable(), label }: Props = $props();
 
 	let element = $state<HTMLElement>();
+	let bubble = $state<HTMLElement>();
 	let loaded: string | undefined;
 
 	onMount(() => {
@@ -33,7 +29,20 @@
 		const base = getEditorProps();
 		editor = new Editor({
 			element,
-			extensions: [...getBaseExtensions({ mode: 'editor' }), MarkdownTablePaste],
+			extensions: [
+				...getBaseExtensions({ mode: 'editor' }),
+				MarkdownTablePaste,
+				BubbleMenu.configure({
+					element: bubble,
+					// Text only: a selected chart or page break has nothing to format.
+					shouldShow: ({ editor: current, state }) =>
+						current.isEditable &&
+						state.selection instanceof TextSelection &&
+						!state.selection.empty,
+					// Starting at the selection keeps the bubble clear of the rail on the left.
+					options: { placement: 'top-start' }
+				})
+			],
 			content: detected.content,
 			contentType: detected.type,
 			editable,
@@ -57,8 +66,7 @@
 				if (loaded === undefined) return;
 				const json = JSON.stringify(updated.getJSON());
 				if (json !== loaded) onChange(json);
-			},
-			onFocus: ({ editor: focused }) => onFocus?.(focused)
+			}
 		});
 	});
 
@@ -70,3 +78,7 @@
 </script>
 
 <div bind:this={element}></div>
+<!-- Hidden until TipTap positions it for a selection; it sets visibility inline from then on. -->
+<div bind:this={bubble} class="invisible absolute z-20">
+	<SelectionBubble {editor} />
+</div>

@@ -113,9 +113,7 @@
 	let bodyOnScreen = $state(untrack(() => initialBody));
 
 	let published = $derived(report.isPublic);
-	let summaryEditor = $state<Editor>();
 	let bodyEditor = $state<Editor>();
-	let activeEditor = $state<Editor>();
 	let addingChart = $state(false);
 	let reviewing = $state(false);
 	let translating = $state(false);
@@ -226,10 +224,7 @@
 	>
 		<div class="sticky top-0 hidden self-start py-8 ps-4 md:block">
 			{#if canEdit}
-				<EditingRail
-					editor={activeEditor ?? bodyEditor}
-					onAddChart={() => (addingChart = true)}
-				/>
+				<EditingRail editor={bodyEditor} onAddChart={() => (addingChart = true)} />
 			{/if}
 		</div>
 
@@ -270,8 +265,6 @@
 							editable={canEdit}
 							label="Executive summary"
 							onChange={saveSummary}
-							onFocus={(editor) => (activeEditor = editor)}
-							bind:editor={summaryEditor}
 						/>
 					</div>
 				</section>
@@ -300,7 +293,6 @@
 						editable={canEdit}
 						label="Report"
 						onChange={saveBody}
-						onFocus={(editor) => (activeEditor = editor)}
 						bind:editor={bodyEditor}
 					/>
 				</div>
@@ -321,7 +313,7 @@
 		{embeddedKeys}
 		{published}
 		onPick={(step, block) =>
-			(activeEditor ?? bodyEditor)
+			bodyEditor
 				?.chain()
 				.focus()
 				.setReportComponentEmbed({ toolStepId: step.id, componentType: block.type })

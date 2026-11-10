@@ -25,11 +25,18 @@ section pills (the body's H2s) and charts at reading size. Charts in the editor 
 of the editor's text styles so they look the same as on the public page. The conversation
 title isn't editable here; clicking it says where to change it.
 
-**2. A short rail holds the tools.** Add a chart, text, section (H2), card (H3), page
-break, bold, italic, lists, quote and link. A page break is the horizontal rule that already
-starts a new card (ADR-0058); the editor shows it as a labelled dashed line. Alignment,
-tables and media aren't in the rail yet. Add a chart opens a dialog: pick the step, then
-pick the chart from live previews.
+**2. The rail adds blocks; a bubble formats text.** The rail on the left holds Add a chart,
+text, section (H2), card (H3), page break, image, video, audio and table. A page break is the
+horizontal rule that already starts a new card (ADR-0058); the editor shows it as a labelled
+dashed line. Selecting text opens a bubble with bold, italic, underline, strikethrough, lists,
+quote, alignment and link. The rail only acts on the body, so the executive summary gets the
+bubble and no blocks. Add a chart opens a dialog: pick the step, then pick the chart from live
+previews.
+
+Rejected: every tool in the rail (too long to scan) and the old toolbar across the top (it
+breaks the editor looking like the page). Splitting blocks from formatting keeps everything
+the Learn editor's toolbar can do, apart from the Learn-only source document and glossary
+tools.
 
 **3. An unwritten report opens empty.** A summary or body counts as unwritten when it is
 empty or still holds the API's placeholder sentence. The editor opens it empty with a short
@@ -54,6 +61,7 @@ the existing translation editor for the summary and the body.
   call `UpdateReport`.
 - Impacts and facilitator notes stay on the page, below the report, marked as not part of
   the public report.
-- The rail is hidden on small screens. Keyboard shortcuts still work there.
+- The rail is hidden on small screens, so blocks can't be added there. The bubble and
+  keyboard shortcuts still work.
 - The editor treats the API's placeholder text as unwritten by matching the sentence. If the
   API's wording changes, `reportDocument.ts` has to follow.
