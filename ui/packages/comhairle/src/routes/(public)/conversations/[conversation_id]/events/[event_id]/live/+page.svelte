@@ -671,11 +671,7 @@
 		onResetCall={resetCall}
 	/>
 {:else if meetingPhase === 'left'}
-	<MeetingLeftScreen
-		title={event?.name ?? 'Meeting'}
-		conversationUrl={`/conversations/${conversationId}`}
-		onRejoin={() => attendance.rejoin()}
-	/>
+	<MeetingLeftScreen title={event?.name ?? 'Meeting'} onRejoin={() => attendance.rejoin()} />
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
