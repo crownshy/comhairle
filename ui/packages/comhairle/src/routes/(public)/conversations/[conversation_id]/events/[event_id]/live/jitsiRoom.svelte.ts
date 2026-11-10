@@ -1,7 +1,14 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { JitsiMeetExternalApi } from '$lib/components/JitsiMeet/types';
-import { getJitsiBreakoutRoomId, type JitsiBreakoutRoom } from '$lib/utils/jitsiBreakoutRooms';
+import {
+	getJitsiBreakoutRoomId,
+	isEmptyRoom,
+	type JitsiBreakoutRoom
+} from '$lib/utils/jitsiBreakoutRooms';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+
+const ROOMS_EMPTY_POLL_MS = 250;
+const ROOMS_EMPTY_TIMEOUT_MS = 5000;
 
 /**
  * The live event page's handle on the Jitsi call.
@@ -97,28 +104,54 @@ export class JitsiRoom {
 	}
 
 	/**
-	 * Remove every breakout room. Jitsi moves the people still in them to the main room
-	 * first. Closing is not enough: a closed room stays, and the next session's rooms would
-	 * reuse its name. Asks Jitsi for a fresh list first, because ours is only as current as
-	 * the last `breakoutRoomsUpdated` we saw.
+	 * Remove every breakout room. Removing a room with people still inside can drop them
+	 * out of the call, which shows them "You left the meeting". So close the rooms first,
+	 * which moves everyone to the main room, wait until Jitsi reports them empty, then
+	 * remove them. Closing alone is not enough: a closed room stays, and the next session's
+	 * rooms would reuse its name.
 	 */
 	async removeAll() {
-		let rooms: JitsiBreakoutRoom[] = [];
+		const rooms = await this.listRooms();
+		for (const room of rooms) {
+			if (room.id) this.send('closeBreakoutRoom', room.id);
+		}
+		await this.waitUntilRoomsEmpty();
+		for (const room of rooms) {
+			if (room.jid) this.send('removeBreakoutRoom', room.jid);
+		}
+	}
+
+	/**
+	 * Ask Jitsi for a fresh list, because ours is only as current as the last
+	 * `breakoutRoomsUpdated` we saw. Falls back to ours if Jitsi won't answer.
+	 */
+	private async listRooms(): Promise<JitsiBreakoutRoom[]> {
 		const listed = await tryCatchAsync(async () => this._api?.listBreakoutRooms?.());
 		if (listed.err !== null) {
 			console.error('[BREAKOUT] Error getting breakout rooms:', listed.err);
-			rooms = this.rooms;
-		} else if (listed.ok) {
-			rooms = Object.values(listed.ok).filter((room) => !room.isMainRoom);
+			return this.rooms;
 		}
+		return Object.values(listed.ok ?? {}).filter((room) => !room.isMainRoom);
+	}
 
-		for (const room of rooms) {
-			if (!room.jid) continue;
-			try {
-				this._api?.executeCommand('removeBreakoutRoom', room.jid);
-			} catch (error) {
-				console.error('[BREAKOUT] Error removing breakout room:', error);
-			}
+	private async waitUntilRoomsEmpty() {
+		const giveUpAt = Date.now() + ROOMS_EMPTY_TIMEOUT_MS;
+		while (Date.now() < giveUpAt) {
+			const rooms = await this.listRooms();
+			if (rooms.every(isEmptyRoom)) return;
+			await new Promise((resolve) => setTimeout(resolve, ROOMS_EMPTY_POLL_MS));
+		}
+		console.warn('[BREAKOUT] Rooms still had people in them after closing; removing anyway');
+	}
+
+	private send<Command extends 'closeBreakoutRoom' | 'removeBreakoutRoom'>(
+		command: Command,
+		roomAddress: string
+	) {
+		try {
+			this._api?.executeCommand(command, roomAddress);
+		} catch (error) {
+			console.error(`[BREAKOUT] Error sending ${command}:`, error);
 		}
 	}
 

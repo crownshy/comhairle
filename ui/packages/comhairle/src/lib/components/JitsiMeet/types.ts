@@ -14,7 +14,13 @@ export interface JitsiCommands {
 	addBreakoutRoom: [name?: string];
 	/** Called with no jid, this returns the local participant to the main room. */
 	joinBreakoutRoom: [roomJid?: string];
-	/** Moves anyone still in the room to the main room, then deletes it. */
+	/** Moves everyone in the room to the main room. The empty room stays. */
+	closeBreakoutRoom: [roomId: string];
+	/**
+	 * Deletes the room. Jitsi starts moving people out first but does not wait for them,
+	 * so anyone still inside can be dropped from the call. Close the room and let it empty
+	 * before removing it.
+	 */
 	removeBreakoutRoom: [roomJid: string];
 }
 

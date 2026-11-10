@@ -6,6 +6,12 @@ export interface JitsiBreakoutRoom {
 	id?: string;
 	name?: string;
 	isMainRoom?: boolean;
+	/** Who Jitsi has in the room, keyed by their jid. */
+	participants?: Record<string, unknown>;
+}
+
+export function isEmptyRoom(room: JitsiBreakoutRoom): boolean {
+	return Object.keys(room.participants ?? {}).length === 0;
 }
 
 /**
