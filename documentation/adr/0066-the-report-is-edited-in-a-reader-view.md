@@ -52,7 +52,11 @@ review: what anyone with the link can read and one line on what stays private. P
 saves what's on screen first. Charts carry no label of their own: one on every chart
 repeated the top bar and crowded the report.
 
-**5. Translations move into a dialog.** The page edits the main language. Translate opens
+**5. An outline on wide screens.** At `xl` and up an outline sits right of the report: each
+section, with its cards under it, and clicking one scrolls the editor there. The editor
+scrolls as one document; only readers page through cards.
+
+**6. Translations move into a dialog.** The page edits the main language. Translate opens
 the existing translation editor for the summary and the body.
 
 ## Consequences

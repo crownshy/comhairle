@@ -95,3 +95,40 @@ export function reportSections(
 		];
 	});
 }
+
+/**
+ * A card in the editor's outline, where an H3 or a page break starts a new one (ADR-0058).
+ * A card without an H3 is numbered by its place in the section.
+ */
+export type ReportOutlineCard = { title: string; firstNodeIndex: number };
+
+export type ReportOutlineSection = ReportSection & { cards: ReportOutlineCard[] };
+
+function startsCard(node: ReportNode): boolean {
+	return (node.type === 'heading' && node.attrs?.level === 3) || node.type === 'horizontalRule';
+}
+
+/**
+ * The sections and their cards, for the editor's outline. Unlike the published report it
+ * keeps cards with nothing in them yet, so a heading shows up as soon as it's typed.
+ */
+export function reportOutline(
+	content: string | null | undefined,
+	introductionLabel: string
+): ReportOutlineSection[] {
+	const document = parseReportDocument(content);
+	if (!document) return [];
+	return reportSections(content, introductionLabel).map((section) => {
+		const cards: ReportOutlineCard[] = [
+			{ title: section.label, firstNodeIndex: section.firstNodeIndex }
+		];
+		for (let offset = 1; offset < section.nodeCount; offset++) {
+			const index = section.firstNodeIndex + offset;
+			const node = document.content[index];
+			if (!startsCard(node)) continue;
+			const title = node.type === 'heading' ? textOf(node).trim() : '';
+			cards.push({ title: title || `Page ${cards.length + 1}`, firstNodeIndex: index });
+		}
+		return { ...section, cards };
+	});
+}

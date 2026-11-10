@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isUnwritten, reportSections, type ReportDocument } from './reportDocument';
+import { isUnwritten, reportOutline, reportSections, type ReportDocument } from './reportDocument';
 
 const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 const heading = (text: string) => ({
@@ -66,5 +66,49 @@ describe('reportSections', () => {
 
 	it('has no pills for text that is not a TipTap document', () => {
 		expect(reportSections('plain text', 'Introduction')).toEqual([]);
+	});
+});
+
+describe('reportOutline', () => {
+	const card = (text: string) => ({
+		type: 'heading',
+		attrs: { level: 3 },
+		content: [{ type: 'text', text }]
+	});
+	const pageBreak = { type: 'horizontalRule' };
+
+	it('lists each section with the cards a reader pages through', () => {
+		const body = JSON.stringify(
+			doc(
+				paragraph('Intro'),
+				heading('What we heard'),
+				paragraph('a'),
+				card('Transport'),
+				paragraph('b'),
+				pageBreak,
+				paragraph('c')
+			)
+		);
+		expect(
+			reportOutline(body, 'Introduction').map((section) => ({
+				label: section.label,
+				cards: section.cards
+			}))
+		).toEqual([
+			{ label: 'Introduction', cards: [{ title: 'Introduction', firstNodeIndex: 0 }] },
+			{
+				label: 'What we heard',
+				cards: [
+					{ title: 'What we heard', firstNodeIndex: 1 },
+					{ title: 'Transport', firstNodeIndex: 3 },
+					{ title: 'Page 3', firstNodeIndex: 5 }
+				]
+			}
+		]);
+	});
+
+	it('numbers a card that has no title of its own', () => {
+		const body = JSON.stringify(doc(heading('Next'), card('  ')));
+		expect(reportOutline(body, 'Introduction')[0].cards[1].title).toBe('Page 2');
 	});
 });

@@ -28,11 +28,12 @@
 	import ReportTextEditor from './ReportTextEditor.svelte';
 	import EditingRail from './EditingRail.svelte';
 	import SectionPills from './SectionPills.svelte';
+	import ReportOutline from './ReportOutline.svelte';
 	import AddChartDialog from './AddChartDialog.svelte';
 	import PublishDialog from './PublishDialog.svelte';
 	import TranslationsDialog from './TranslationsDialog.svelte';
 	import ImpactsAndNotes from './ImpactsAndNotes.svelte';
-	import { isUnwritten, reportSections, type ReportSection } from './reportDocument';
+	import { isUnwritten, reportOutline, type ReportSection } from './reportDocument';
 
 	useTour(() => reportTour);
 
@@ -141,7 +142,7 @@
 				.map((block) => `${block.workflowStepId}:${block.sectionBlock}`)
 		)
 	);
-	const sections = $derived(reportSections(bodyOnScreen, 'Introduction'));
+	const sections = $derived(reportOutline(bodyOnScreen, 'Introduction'));
 	const saveState = $derived(
 		[summarySource.saveState, bodySource.saveState].find((state) => state !== 'idle') ?? 'idle'
 	);
@@ -163,9 +164,9 @@
 		return position;
 	}
 
-	function jumpToSection(section: ReportSection) {
+	function jumpToNode(nodeIndex: number) {
 		if (!bodyEditor) return;
-		const element = bodyEditor.view.nodeDOM(positionBefore(bodyEditor, section.firstNodeIndex));
+		const element = bodyEditor.view.nodeDOM(positionBefore(bodyEditor, nodeIndex));
 		if (!(element instanceof HTMLElement)) return;
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		element.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
@@ -220,7 +221,7 @@
 	/>
 
 	<div
-		class="grid min-h-0 grow grid-cols-1 overflow-y-auto md:grid-cols-[4.5rem_minmax(0,1fr)_4.5rem]"
+		class="grid min-h-0 grow grid-cols-1 overflow-y-auto md:grid-cols-[4.5rem_minmax(0,1fr)_4.5rem] xl:grid-cols-[4.5rem_minmax(0,1fr)_16rem]"
 	>
 		<div class="sticky top-0 hidden self-start py-8 ps-4 md:block">
 			{#if canEdit}
@@ -272,7 +273,7 @@
 				<SectionPills
 					{sections}
 					editable={canEdit}
-					onJump={jumpToSection}
+					onJump={(section) => jumpToNode(section.firstNodeIndex)}
 					onRemove={removeSection}
 				/>
 
@@ -303,6 +304,10 @@
 				<ImpactsAndNotes {report} {canEdit} />
 			</section>
 		</div>
+
+		<aside class="sticky top-0 hidden max-h-dvh self-start overflow-y-auto py-8 pe-4 xl:block">
+			<ReportOutline {sections} onJump={jumpToNode} />
+		</aside>
 	</div>
 </div>
 
