@@ -1,9 +1,3 @@
-import type {
-	DatePrecision,
-	DemographicFormLatestDto,
-	QuestionLatestDto
-} from '@crownshy/api-client/api';
-
 import type { DatePrecision, QuestionLatestDto, QuestionType2 } from '@crownshy/api-client/api';
 
 export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
@@ -30,53 +24,21 @@ export function getPlaceholder(kind: QuestionType2, datePrecision?: DatePrecisio
 				default:
 					return 'YYYY';
 			}
-		case 'open_text':
+		case 'any_string':
 			return 'Type your answer';
-		case 'postcode':
-			return 'Enter your postcode';
-		case 'lat_long':
-			return 'Enter latitude and longitude';
-		case 'country':
-			return 'Enter your country';
+		case 'location':
+			return 'Enter your location';
 		case 'custom':
 		default:
 			return 'Type your answer';
 	}
 }
 
-export const isChoiceKind = (kind: QuestionKind) =>
-	kind === 'single_choice' || kind === 'multiple_choice';
-
-export const selectionHint = (kind: QuestionKind, maxSelections: number | null) => {
-	if (kind !== 'multiple_choice') return '';
-	if (maxSelections === null) return 'Select all that apply';
-	return maxSelections === 1 ? 'Select one' : `Select up to ${maxSelections}`;
-};
-
 export const SPECIAL_CATEGORY_TAG = 'Special category';
 export type TagName =
 	'Age' | 'Gender' | 'Ethnicity' | 'Postcode' | 'Custom' | typeof SPECIAL_CATEGORY_TAG;
 
 export type Tag = { id: string; name: TagName };
-
-export type DemographicQuestion = {
-	id: string | null;
-	isDefault: boolean;
-	text: string;
-	kind: QuestionKind;
-	datePrecision: DatePrecision;
-	locationCountry: string | null;
-	tags: Tag[];
-	options: string[];
-	allowOther: boolean;
-	preferNotToSay: boolean;
-	maxSelections: number | null;
-	specialCategory: boolean;
-	consentText: string;
-	archived: boolean;
-	publishedVersion: number | null;
-	draftVersion: number | null;
-};
 
 export type FormQuestion = { questionId: string; required: boolean; text: string };
 
@@ -89,7 +51,6 @@ export type DemographicForm = {
 	draftVersion: number | null;
 };
 
-export type SavedQuestion = DemographicQuestion & { id: string };
 export type SavedForm = DemographicForm & { id: string };
 
 /** The version number the next publish will create. */
@@ -101,8 +62,8 @@ export const nextVersionNumber = (item: {
 export const formsUsingQuestion = (questionId: string, forms: SavedForm[]) =>
 	forms.filter((form) => form.questions.some((q) => q.questionId === questionId));
 
-export const createNewQuestion = (): DemographicQuestion => ({
-	id: null,
+export const createNewQuestion = (): QuestionLatestDto => ({
+	id: '',
 	isDefault: false,
 	text: '',
 	kind: 'single_choice',
@@ -116,8 +77,8 @@ export const createNewQuestion = (): DemographicQuestion => ({
 	specialCategory: false,
 	consentText: '',
 	archived: false,
-	publishedVersion: null,
-	draftVersion: null
+	publishedVersion: 0,
+	draftVersion: 0
 });
 
 export const duplicateQuestionDraft = (question: DemographicQuestion): DemographicQuestion => ({
