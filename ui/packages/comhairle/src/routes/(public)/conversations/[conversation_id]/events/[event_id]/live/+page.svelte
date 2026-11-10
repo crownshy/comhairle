@@ -49,6 +49,8 @@
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
+	import { mediaTimedOutDuringSwitch } from './roomSwitch';
+	import { nudgeBackToTab } from './tabNudge';
 
 	let { data }: PageProps = $props();
 
@@ -101,6 +103,11 @@
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
 	let localParticipantId = $state<string | null>(null);
+	/** When Jitsi last left a room, so a slow join after it can be spotted */
+	let roomSwitchStartedAt: number | null = null;
+	let stopTabNudge: (() => void) | null = null;
+	/** Bumber to rebuild the Jitsi iframe when the mic and camera fail to reconnect */
+	let jitsiInstance = $state(0);
 
 	/** Mock breakout rooms for dev testing */
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
@@ -388,6 +395,7 @@
 	onDestroy(() => {
 		if (countdownInterval) clearInterval(countdownInterval);
 		if (toastTimeout) clearTimeout(toastTimeout);
+		stopTabNudge?.();
 	});
 
 	function pushNotice(notice: { message: string; actionLabel?: string; onAction?: () => void }) {
@@ -636,10 +644,27 @@
 		if (isModerator && callStatus === 'Waiting') {
 			videoCallService.changeCallState(eventId, 'InProgress');
 		}
+
+		stopTabNudge?.();
+		stopTabNudge = null;
+
+		if (mediaTimedOutDuringSwitch(roomSwitchStartedAt, Date.now())) {
+			pushNotice({
+				message: "Your microphone and camera didn't reconnect when you changed rooms.",
+				actionLabel: 'Reconnect',
+				onAction: reconnectVideo
+			});
+		}
+		roomSwitchStartedAt = null;
 	}
 
 	function handleVideoConferenceLeft() {
 		videoCallService.reportVideoLeft(eventId);
+		roomSwitchStartedAt = Date.now();
+		// Firefox holds Jitsi's mic and camera request until the tab is focused again.
+		if (document.hidden && !stopTabNudge) {
+			stopTabNudge = nudgeBackToTab('Rejoin your call');
+		}
 	}
 
 	function handleDisplayNameChange(data: JitsiDisplayNameChangeEvent) {
@@ -647,6 +672,14 @@
 		if (data?.id && data.id === localParticipantId) {
 			videoCallService.reportVideoJoined(eventId, data.displayname ?? data.displayName);
 		}
+	}
+
+	/** Rebuild the Jitsi iframe, which asks for the mic and camera afresh */
+	function reconnectVideo() {
+		roomSwitchStartedAt = null;
+		jitsiRoom.reset();
+		roomContext = 'plenary';
+		jitsiInstance += 1;
 	}
 </script>
 
@@ -762,32 +795,34 @@
 
 				<!-- Jitsi iframe -->
 				<div class="relative flex-1 overflow-hidden">
-					<JitsiMeet
-						roomName={plenaryRoomName}
-						{jwt}
-						onApiReady={(api) => jitsiRoom.attach(api)}
-						onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
-						onVideoConferenceJoined={handleVideoConferenceJoined}
-						onVideoConferenceLeft={handleVideoConferenceLeft}
-						onReadyToClose={() => attendance.leave()}
-						onDisplayNameChange={handleDisplayNameChange}
-						startWithAudioMuted={true}
-						configOverwrite={{
-							toolbarButtons: [
-								'microphone',
-								'camera',
-								'chat',
-								'raisehand',
-								'tileview',
-								'fullscreen',
-								'settings',
-								'hangup'
-							],
-							prejoinPageEnabled: false,
-							disableDeepLinking: true,
-							hideConferenceSubject: true
-						}}
-					/>
+					{#key jitsiInstance}
+						<JitsiMeet
+							roomName={plenaryRoomName}
+							{jwt}
+							onApiReady={(api) => jitsiRoom.attach(api)}
+							onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
+							onVideoConferenceJoined={handleVideoConferenceJoined}
+							onVideoConferenceLeft={handleVideoConferenceLeft}
+							onReadyToClose={() => attendance.leave()}
+							onDisplayNameChange={handleDisplayNameChange}
+							startWithAudioMuted={true}
+							configOverwrite={{
+								toolbarButtons: [
+									'microphone',
+									'camera',
+									'chat',
+									'raisehand',
+									'tileview',
+									'fullscreen',
+									'settings',
+									'hangup'
+								],
+								prejoinPageEnabled: false,
+								disableDeepLinking: true,
+								hideConferenceSubject: true
+							}}
+						/>
+					{/key}
 				</div>
 			</div>
 
