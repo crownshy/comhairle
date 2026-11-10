@@ -6,7 +6,7 @@
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
-	import { onMount, type ComponentProps } from 'svelte';
+	import { type ComponentProps } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { m } from '$lib/paraglide/messages';
@@ -37,6 +37,7 @@
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { workflowService } from '$lib/services/workflow.svelte';
 	import { ws } from '$lib/api/websockets.svelte';
+	import { PARTICIPANT_ACTIVITY_EVENT } from '$lib/utils/participantActivity';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -67,7 +68,18 @@
 	let tracksActivity = $derived(recordsProgress && ws.connectionStatus === 'connected');
 
 	// --- USER ACTIVITY ---
-	const userIdle = new IsIdle({ timeout: 90_000 });
+	const userIdle = new IsIdle({
+		timeout: 90_000,
+		events: [
+			'mousemove',
+			'mousedown',
+			'resize',
+			'keydown',
+			'touchstart',
+			'wheel',
+			PARTICIPANT_ACTIVITY_EVENT
+		]
+	});
 	watch(
 		() => [workflowStep.id, tracksActivity] as const,
 		([stepId, tracking]) => {
