@@ -26,7 +26,7 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import AddQuestionsDialog from '../../../AddQuestionsDialog.svelte';
 	import PublishDialog from '../../../PublishDialog.svelte';
-	import PhonePreview from '../../../PhonePreview.svelte';
+	import QuestionPreview from '../../../QuestionPreview.svelte';
 	import QuestionAnswers from '../../../QuestionAnswers.svelte';
 	import {
 		nextVersionNumber,
@@ -368,8 +368,8 @@
 			</div>
 		</header>
 
-		<section class="pt-page-top px-5">
-			<div class="grid grid-cols-[1fr_3fr_2fr] gap-x-5">
+		<section class="pt-page-top h-full px-5">
+			<div class="grid h-full grid-cols-[1fr_2fr_2fr] gap-x-5">
 				<section>
 					<h3 class="mb-2 text-sm font-semibold">Questions</h3>
 					{#if demographics.ok.form.entries.length === 0}
@@ -444,7 +444,23 @@
 						</DraggableList>
 					{/if}
 				</section>
-				<section>Preview</section>
+				<section>
+					<QuestionPreview
+						step={questions.findIndex((question) => question.id === selectedQuestion) +
+							1}
+						steps={questions.length}
+					>
+						{@const question = questions.find(
+							(question) => question.id === selectedQuestion
+						)}
+						<h2 class="text-2xl font-semibold">{question?.text}</h2>
+						<!-- <QuestionAnswers -->
+						<!-- 	question={current} -->
+						<!-- 	answer={answers[current.id] ?? emptyAnswer()} -->
+						<!-- 	onAnswer={(next) => (answers[current.id] = next)} -->
+						<!-- /> -->
+					</QuestionPreview>
+				</section>
 				<section>Question</section>
 			</div>
 
@@ -455,18 +471,6 @@
 			<!-- 		class="flex flex-col gap-2" -->
 			<!-- 	> -->
 			<!-- 		{#snippet children(row, index)} -->
-			<!-- 				<div -->
-			<!-- 					class="bg-card flex items-center gap-2 rounded-lg border py-1 pr-1 pl-3 {index === -->
-			<!-- 					previewIndex -->
-			<!-- 						? 'border-primary' -->
-			<!-- 						: 'border-border'}" -->
-			<!-- 				> -->
-			<!-- 					<button -->
-			<!-- 						type="button" -->
-			<!-- 						class="flex min-w-0 flex-1 items-center gap-2 py-2 text-left" -->
-			<!-- 						onclick={() => selectQuestion(row.id)} -->
-			<!-- 					> -->
-			<!-- 					</button> -->
 			<!-- 					<DropdownMenu.Root> -->
 			<!-- 						<DropdownMenu.Trigger -->
 			<!-- 							class={buttonVariants({ -->
@@ -522,28 +526,6 @@
 			<!-- 	</DraggableList> -->
 			<!-- 	<Button onclick={() => (addOpen = true)}><Plus class="size-4" />Add question</Button> -->
 			<!-- </div> -->
-			<!---->
-			<!-- {#if !isNew} -->
-			<!-- 	<AlertDialog.Root> -->
-			<!-- 		<AlertDialog.Trigger -->
-			<!-- 			class="{buttonVariants({ variant: 'destructiveOutline' })} mt-auto" -->
-			<!-- 		> -->
-			<!-- 			<Trash2 class="size-4" />Delete this form -->
-			<!-- 		</AlertDialog.Trigger> -->
-			<!-- 		<AlertDialog.Content> -->
-			<!-- 			<AlertDialog.Header> -->
-			<!-- 				<AlertDialog.Title>Delete this form?</AlertDialog.Title> -->
-			<!-- 				<AlertDialog.Description> -->
-			<!-- 					{form.name} will be archived and hidden from your forms. -->
-			<!-- 				</AlertDialog.Description> -->
-			<!-- 			</AlertDialog.Header> -->
-			<!-- 			<AlertDialog.Footer> -->
-			<!-- 				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel> -->
-			<!-- 				<AlertDialog.Action onclick={onDelete}>Delete form</AlertDialog.Action> -->
-			<!-- 			</AlertDialog.Footer> -->
-			<!-- 		</AlertDialog.Content> -->
-			<!-- 	</AlertDialog.Root> -->
-			<!-- {/if} -->
 			<!---->
 			<!-- <div class="flex h-full min-h-0 flex-col gap-3"> -->
 			<!-- 	{#snippet consentFooter()} -->
