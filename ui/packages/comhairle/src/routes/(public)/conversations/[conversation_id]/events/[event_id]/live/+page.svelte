@@ -95,7 +95,6 @@
 
 	let hasJoinedCall = $state(false);
 	const jitsiRoom = new JitsiRoom();
-	let roomContext = $state<RoomContext>('plenary');
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
 	let localParticipantId = $state<string | null>(null);
@@ -157,6 +156,15 @@
 	);
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
+
+	/** Which room this client is in. The join and leave handlers write it, and it drops back
+	 *  to plenary whenever a breakout session starts or ends. That reset has to cover
+	 *  facilitators too: one who was in a room when someone else ended the session would
+	 *  otherwise see "Leave breakout room" in plenary at the next session. */
+	let roomContext: RoomContext = $derived.by(() => {
+		void isBreakoutActive;
+		return 'plenary';
+	});
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
 
 	/** Which side panel tab is showing. Moderators land on the rooms list as soon as a
@@ -317,10 +325,6 @@
 			const assignedRoom = user ? videoCallService.getUserBreakoutRoom(user.id) : null;
 			// Use assigned room from backend, or default to room 0 for mock testing
 			handleEnterBreakoutRoom(assignedRoom ?? 0);
-		}
-		if (!isBreakoutActive && typeof roomContext !== 'string' && !isModerator) {
-			roomContext = 'plenary';
-			// Jitsi automatically moves participants back when rooms are removed
 		}
 	});
 
