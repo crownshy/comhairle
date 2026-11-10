@@ -71,9 +71,13 @@
 			durationMinutes = defaultDuration;
 			pinnedUsers = new Set();
 			moderators = new Set(moderatorIds ?? []);
-			if (initialAssignments && initialAssignments.length > 0) {
-				// Preserve a pre-existing plan rather than reshuffling it away.
-				roomAssignments = initialAssignments.map((room) => [...room]);
+			// A planned room whose people are not on the call would only be created empty,
+			// unless the rooms are already open and their numbering has to stay.
+			const plannedRooms = fixedRooms
+				? (initialAssignments ?? [])
+				: (initialAssignments ?? []).filter((room) => room.length > 0);
+			if (plannedRooms.length > 0) {
+				roomAssignments = plannedRooms.map((room) => [...room]);
 			} else if (participants.length > 0) {
 				distributeParticipants();
 			} else {

@@ -238,7 +238,7 @@
 	});
 
 	let preassignedBreakoutRooms = $derived(
-		groupParticipantsByRoom(allParticipants, videoCallService.breakoutRooms)
+		groupParticipantsByRoom(inCallParticipants, videoCallService.breakoutRooms)
 	);
 
 	$effect(() => {
@@ -1061,7 +1061,7 @@
 <!-- Dialogs -->
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
-	participants={allParticipants}
+	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
@@ -1071,7 +1071,7 @@
 
 <CreateBreakoutDialog
 	bind:open={showEditBreakout}
-	participants={allParticipants}
+	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	title="Move people between rooms"
 	confirmLabel="Save"
