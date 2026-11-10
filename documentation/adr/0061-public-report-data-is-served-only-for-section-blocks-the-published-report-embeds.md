@@ -53,17 +53,24 @@ Thinking Space summary, another may have told participants it stays with the org
   and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale).
   Themes added `GeneratedText` (what the sensemaker wrote from many contributions at a
   facilitator's request, such as a theme's description or an opinion group's summary, or what
-  a facilitator wrote in its place). Participant text can only go out as
+  a facilitator wrote in its place). Prioritization added `Score` (an aggregate number that
+  isn't a count, such as a summed rating or a scale bucket's edge). Participant text can only go out as
   `ModeratedText`, which is built from accepted content only. Adding a building block needs a
   reviewer to agree it can't identify a person. A future moderation report is the one expected
   exception, and it gets its own ADR.
 - **Themes are served per tool from the shared loader.** `public_report_data::themes` reads a
   step's latest theme collection for one origin tool. Polis joins each theme's statements to
   the accepted-only report, so a theme only shows statements the report already serves, with
-  their vote bars.
+  their vote bars. Prioritization serves only each theme's title, description and
+  contribution count: its contributions are written answers, which are shared with the
+  organisers, not with readers.
+- **Only aggregates leave Prioritization.** It serves counts per Likert choice and per scale
+  bucket, the summed alignment ranking, and the proposal and section text facilitators
+  wrote. Free-text answers and the per-reviewer scatter plot stay on the Insights page.
 - **Some section blocks are embedded once per item.** A HeyForm question is one section
-  block, `heyform-question`, with the question id stored on the embed as `config.item`. The
-  gate matches the item too, so embedding one question doesn't publish the rest of the form.
+  block, `heyform-question`, with the question id stored on the embed as `config.item`, and a
+  Prioritization proposal is `prioritization-proposal` with the proposal id. The gate matches
+  the item too, so embedding one question doesn't publish the rest of the form.
 - **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
   skip the published and embedded checks but need permission to update the conversation.
   They run the same builders and return the same types, so the report editor, the add-chart

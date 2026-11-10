@@ -3,6 +3,7 @@
 	import EmbedState from './EmbedState.svelte';
 	import HeyFormEmbedLive from './heyform/HeyFormEmbedLive.svelte';
 	import PolisEmbedLive from './polis/PolisEmbedLive.svelte';
+	import PrioritizationEmbedLive from './prioritization/PrioritizationEmbedLive.svelte';
 	import { toolTypeForSectionBlock, type ReportEmbedProps } from './embeds';
 
 	/**
@@ -14,7 +15,8 @@
 
 	const EMBED_BY_TOOL: Record<string, Component<ReportEmbedProps>> = {
 		polis: PolisEmbedLive,
-		heyform: HeyFormEmbedLive
+		heyform: HeyFormEmbedLive,
+		prioritization: PrioritizationEmbedLive
 	};
 
 	const ToolEmbed = $derived(EMBED_BY_TOOL[toolTypeForSectionBlock(componentType) ?? '']);

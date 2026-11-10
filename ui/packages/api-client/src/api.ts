@@ -1210,6 +1210,113 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const PrioritizationPublicKeyStats = z
+  .object({
+    participants: z.number().int().gte(0),
+    proposals: z.number().int().gte(0),
+    reviews: z.number().int().gte(0),
+  })
+  .passthrough();
+export type PrioritizationPublicKeyStats = z.infer<
+  typeof PrioritizationPublicKeyStats
+>;
+export const PrioritizationPublicRankedProposal = z
+  .object({
+    alignment: z.number(),
+    reviews: z.number().int().gte(0),
+    title: z.string(),
+  })
+  .passthrough();
+export type PrioritizationPublicRankedProposal = z.infer<
+  typeof PrioritizationPublicRankedProposal
+>;
+export const PrioritizationPublicRanking = z
+  .object({
+    max: z.number(),
+    min: z.number(),
+    proposals: z.array(PrioritizationPublicRankedProposal),
+    question: z.string(),
+  })
+  .passthrough();
+export type PrioritizationPublicRanking = z.infer<
+  typeof PrioritizationPublicRanking
+>;
+export const PrioritizationPublicChoice = z
+  .object({ count: z.number().int().gte(0), label: z.string() })
+  .passthrough();
+export type PrioritizationPublicChoice = z.infer<
+  typeof PrioritizationPublicChoice
+>;
+export const PrioritizationPublicBucket = z
+  .object({ count: z.number().int().gte(0), from: z.number() })
+  .passthrough();
+export type PrioritizationPublicBucket = z.infer<
+  typeof PrioritizationPublicBucket
+>;
+export const PrioritizationPublicScale = z
+  .object({
+    buckets: z.array(PrioritizationPublicBucket),
+    max: z.number(),
+    maxLabel: z.string(),
+    min: z.number(),
+    minLabel: z.string(),
+  })
+  .passthrough();
+export type PrioritizationPublicScale = z.infer<
+  typeof PrioritizationPublicScale
+>;
+export const PrioritizationPublicQuestion = z
+  .object({
+    answered: z.number().int().gte(0),
+    choices: z.array(PrioritizationPublicChoice),
+    question: z.string(),
+    scale: z.union([PrioritizationPublicScale, z.null()]).optional(),
+  })
+  .passthrough();
+export type PrioritizationPublicQuestion = z.infer<
+  typeof PrioritizationPublicQuestion
+>;
+export const PrioritizationPublicSection = z
+  .object({
+    body: z.string(),
+    position: z.number().int().gte(0),
+    questions: z.array(PrioritizationPublicQuestion),
+  })
+  .passthrough();
+export type PrioritizationPublicSection = z.infer<
+  typeof PrioritizationPublicSection
+>;
+export const PrioritizationPublicProposal = z
+  .object({
+    questions: z.array(PrioritizationPublicQuestion),
+    reviews: z.number().int().gte(0),
+    sections: z.array(PrioritizationPublicSection),
+    title: z.string(),
+  })
+  .passthrough();
+export type PrioritizationPublicProposal = z.infer<
+  typeof PrioritizationPublicProposal
+>;
+export const PublicTheme = z
+  .object({
+    contributions: z.number().int().gte(0),
+    description: z.string(),
+    title: z.string(),
+  })
+  .passthrough();
+export type PublicTheme = z.infer<typeof PublicTheme>;
+export const PrioritizationPublicThemes = z
+  .object({ themes: z.array(PublicTheme) })
+  .passthrough();
+export type PrioritizationPublicThemes = z.infer<
+  typeof PrioritizationPublicThemes
+>;
+export const PrioritizationEmbeddableProposal = z
+  .object({ id: z.string().uuid(), title: z.string() })
+  .passthrough();
+export type PrioritizationEmbeddableProposal = z.infer<
+  typeof PrioritizationEmbeddableProposal
+>;
 export const Translation2 = z
   .object({
     textContent: TextContentDto,
@@ -4037,6 +4144,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  PrioritizationPublicKeyStats,
+  PrioritizationPublicRankedProposal,
+  PrioritizationPublicRanking,
+  PrioritizationPublicChoice,
+  PrioritizationPublicBucket,
+  PrioritizationPublicScale,
+  PrioritizationPublicQuestion,
+  PrioritizationPublicSection,
+  PrioritizationPublicProposal,
+  PublicTheme,
+  PrioritizationPublicThemes,
+  PrioritizationEmbeddableProposal,
   Translation2,
   SectionWithTranslationsDto,
   Translation,
@@ -8108,6 +8227,151 @@ Create a response for prioritization tool proposal
     description: `Delete a section from a prioritization tool proposal`,
     requestFormat: "json",
     response: ProposalSectionDto,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/public_report/key_stats",
+    alias: "PrioritizationGetPublicKeyStats",
+    description: `Reviewer, proposal and review counts for a Prioritization step. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/public_report/proposal",
+    alias: "PrioritizationGetPublicProposal",
+    description: `Counts per Likert choice or scale bucket for every rated question about the proposal and its sections. 404 unless the conversation&#x27;s published report embeds this proposal.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "proposal_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicProposal,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/public_report/ranking",
+    alias: "PrioritizationGetPublicRanking",
+    description: `Proposals ranked by their summed alignment answers. 404 unless the conversation&#x27;s published report embeds this section block for the step; 422 when the step has no alignment question.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicRanking,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/public_report/themes",
+    alias: "PrioritizationGetPublicThemes",
+    description: `The step&#x27;s latest themes with how many written answers each groups. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicThemes,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/report_preview/key_stats",
+    alias: "PrioritizationPreviewKeyStats",
+    description: `The same data as PrioritizationGetPublicKeyStats, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/report_preview/proposal",
+    alias: "PrioritizationPreviewProposal",
+    description: `The same data as PrioritizationGetPublicProposal, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "proposal_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicProposal,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/report_preview/proposals",
+    alias: "PrioritizationListEmbeddableProposals",
+    description: `The step&#x27;s proposals, for facilitators who can update the conversation.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PrioritizationEmbeddableProposal),
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/report_preview/ranking",
+    alias: "PrioritizationPreviewRanking",
+    description: `The same data as PrioritizationGetPublicRanking, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicRanking,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/report_preview/themes",
+    alias: "PrioritizationPreviewThemes",
+    description: `The same data as PrioritizationGetPublicThemes, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: PrioritizationPublicThemes,
   },
   {
     method: "get",

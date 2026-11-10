@@ -10,6 +10,12 @@ const ITEM_LOADERS: Record<string, (workflowStepId: string) => Promise<EmbedItem
 			queries: { workflow_step_id: workflowStepId }
 		});
 		return questions.map((question) => ({ id: question.id, label: question.title }));
+	},
+	'prioritization-proposal': async (workflowStepId) => {
+		const proposals = await apiClient.PrioritizationListEmbeddableProposals({
+			queries: { workflow_step_id: workflowStepId }
+		});
+		return proposals.map((proposal) => ({ id: proposal.id, label: proposal.title }));
 	}
 };
 
