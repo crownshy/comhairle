@@ -1,10 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Editor } from '@tiptap/core';
-	import Sparkles from 'lucide-svelte/icons/sparkles';
-	import X from 'lucide-svelte/icons/x';
 	import PenLine from 'lucide-svelte/icons/pen-line';
-	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { ReportTranslations } from '@crownshy/api-client/api';
 	import { invalidate } from '$app/navigation';
@@ -35,13 +32,7 @@
 	import PublishDialog from './PublishDialog.svelte';
 	import TranslationsDialog from './TranslationsDialog.svelte';
 	import ImpactsAndNotes from './ImpactsAndNotes.svelte';
-	import {
-		countDraftPrompts,
-		draftReport,
-		isUnwritten,
-		reportSections,
-		type ReportSection
-	} from './reportDocument';
+	import { isUnwritten, reportSections, type ReportSection } from './reportDocument';
 
 	useTour(() => reportTour);
 
@@ -110,22 +101,16 @@
 		return textContentRes.ok.id;
 	}
 
-	// A report nobody has written opens on a generated starter body (ADR-0066). It is only shown,
-	// not saved: the first edit saves it, so opening the page never writes anything.
+	// The API fills a new report with a placeholder sentence; the editor opens that as empty.
 	const savedSummary = $derived(summarySource.contents[primaryLocale] ?? '');
 	const savedBody = $derived(bodySource.contents[primaryLocale] ?? '');
-	const bodyIsUnwritten = $derived(isUnwritten(savedBody));
 	const initialSummary = $derived(isUnwritten(savedSummary) ? '' : savedSummary);
-	const initialBody = $derived(
-		bodyIsUnwritten ? JSON.stringify(draftReport(data.reportEmbedSteps)) : savedBody
-	);
+	const initialBody = $derived(isUnwritten(savedBody) ? '' : savedBody);
 
-	// What's on screen right now, including a draft that hasn't been saved yet. Plain state, not
-	// derived from the saved text: clearing the body saves it as empty, and the pills must keep
-	// showing the empty page rather than the draft.
+	// What's on screen right now. Plain state rather than derived from the saved text, so the
+	// pills follow typing before the save lands.
 	let summaryOnScreen = $state(untrack(() => initialSummary));
 	let bodyOnScreen = $state(untrack(() => initialBody));
-	let draftNoteDismissed = $state(false);
 
 	let published = $derived(report.isPublic);
 	let summaryEditor = $state<Editor>();
@@ -196,14 +181,8 @@
 		bodyEditor.chain().focus().deleteRange({ from, to }).run();
 	}
 
-	function startBlank() {
-		bodyEditor?.chain().clearContent(true).focus().run();
-		draftNoteDismissed = true;
-	}
-
 	async function setPublished(isPublic: boolean) {
-		// Publish what's on screen: save an untouched draft, and finish any pending typing.
-		if (isPublic && bodyIsUnwritten) bodySource.saveSource(bodyOnScreen);
+		// Publish what's on screen, including typing the autosave hasn't sent yet.
 		await Promise.all([summarySource.flush(), bodySource.flush()]);
 		const result = await tryCatchAsync(() =>
 			apiClient.UpdateReport(
@@ -255,25 +234,6 @@
 		</div>
 
 		<div class={cn(REPORT_COLUMN_CLASS, 'flex flex-col gap-5 py-8')}>
-			{#if canEdit && bodyIsUnwritten && !draftNoteDismissed}
-				<div
-					class="border-primary/40 bg-primary/5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-dashed py-1.5 ps-4 pe-1.5 text-base"
-				>
-					<Sparkles class="text-primary size-4 shrink-0" />
-					<span class="grow">Starter draft: write over the prompts in italics.</span>
-					<Button size="sm" variant="ghost" onclick={startBlank}>Start blank</Button>
-					<Button
-						size="icon"
-						variant="ghost"
-						class="size-8 rounded-full"
-						aria-label="Hide this note"
-						onclick={() => (draftNoteDismissed = true)}
-					>
-						<X class="size-4" />
-					</Button>
-				</div>
-			{/if}
-
 			<ReportTitle title={conversation.title} conversationId={conversation.id} />
 
 			{#key editorsRevision}
@@ -308,7 +268,6 @@
 						<ReportTextEditor
 							initialValue={initialSummary}
 							editable={canEdit}
-							{published}
 							label="Executive summary"
 							onChange={saveSummary}
 							onFocus={(editor) => (activeEditor = editor)}
@@ -324,6 +283,11 @@
 					onRemove={removeSection}
 				/>
 
+				{#if canEdit && isUnwritten(bodyOnScreen)}
+					<p class="text-muted-foreground text-base italic">
+						Start writing, or add a chart from the rail.
+					</p>
+				{/if}
 				<div
 					class={cn(
 						REPORT_EDITOR_TEXT_CLASS,
@@ -334,7 +298,6 @@
 					<ReportTextEditor
 						initialValue={initialBody}
 						editable={canEdit}
-						{published}
 						label="Report"
 						onChange={saveBody}
 						onFocus={(editor) => (activeEditor = editor)}
@@ -386,7 +349,6 @@
 	{published}
 	results={publicResults}
 	steps={data.reportEmbedSteps}
-	promptsLeft={countDraftPrompts(bodyOnScreen)}
 	canPublish={canEdit}
 	onPublish={() => setPublished(true)}
 />

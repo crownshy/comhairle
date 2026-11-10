@@ -1,4 +1,4 @@
-# ADR-0066: The report is edited in a reader view, from a starter draft
+# ADR-0066: The report is edited in a reader view
 
 **Status:** proposed
 **Date:** 2026-10-28
@@ -25,21 +25,25 @@ section pills (the body's H2s) and charts at reading size. Charts in the editor 
 of the editor's text styles so they look the same as on the public page. The conversation
 title isn't editable here; clicking it says where to change it.
 
-**2. A short rail holds the tools.** Add a chart, text, section (H2), card (H3), bold,
-italic, lists, quote and link. Alignment, tables and media are left out to keep it short.
-Add a chart opens a dialog: pick the step, then pick the chart from live previews.
+**2. A short rail holds the tools.** Add a chart, text, section (H2), card (H3), page
+break, bold, italic, lists, quote and link. A page break is the horizontal rule that already
+starts a new card (ADR-0058); the editor shows it as a labelled dashed line. Alignment,
+tables and media aren't in the rail yet. Add a chart opens a dialog: pick the step, then
+pick the chart from live previews.
 
-**3. An unwritten report opens on a starter draft.** An introduction prompt, one section
-per step that has charts with its main charts embedded under a prompt, and a closing
-section. For Polis that is Key stats and Areas of consensus. The draft is only shown. The
-first edit saves it, so opening the page never writes anything. A summary or body counts as
-unwritten when it is empty or still holds the API's placeholder sentence.
+**3. An unwritten report opens empty.** A summary or body counts as unwritten when it is
+empty or still holds the API's placeholder sentence. The editor opens it empty with a short
+hint, which is never saved.
+
+Rejected: a starter draft with a section per step, its main charts embedded under italic
+prompts. It made a new report look busy before anyone had written a word, and every prompt
+left in had to be caught at publish time.
 
 **4. Sharing is always on screen.** The top bar says what publishing shares, or what is
-public now, and every embedded chart says "Public when published" or "Public now".
-Publishing is a review: what anyone with the link can read, one line on what stays private,
-and a warning if starter prompts are still in the text. Publishing saves what's on screen
-first, including an untouched draft.
+public now, and the Add a chart dialog says when a chart becomes public. Publishing is a
+review: what anyone with the link can read and one line on what stays private. Publishing
+saves what's on screen first. Charts carry no label of their own: one on every chart
+repeated the top bar and crowded the report.
 
 **5. Translations move into a dialog.** The page edits the main language. Translate opens
 the existing translation editor for the summary and the body.

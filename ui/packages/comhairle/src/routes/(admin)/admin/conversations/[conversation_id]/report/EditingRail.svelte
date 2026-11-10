@@ -1,11 +1,11 @@
 <script lang="ts">
-	// Only what a report needs; alignment, tables and media are left out to keep the rail short.
 	import type { Editor } from '@tiptap/core';
 	import type { ComponentType } from 'svelte';
 	import type { Icon as LucideIcon } from 'lucide-svelte';
 	import Pilcrow from 'lucide-svelte/icons/pilcrow';
 	import Heading2 from 'lucide-svelte/icons/heading-2';
 	import Heading3 from 'lucide-svelte/icons/heading-3';
+	import SeparatorHorizontal from 'lucide-svelte/icons/separator-horizontal';
 	import Bold from 'lucide-svelte/icons/bold';
 	import Italic from 'lucide-svelte/icons/italic';
 	import List from 'lucide-svelte/icons/list';
@@ -45,6 +45,13 @@
 				Icon: Heading3,
 				isActive: (e) => e.isActive('heading', { level: 3 }),
 				run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run()
+			},
+			{
+				// A horizontal rule starts a new card that keeps the section title (ADR-0058).
+				label: 'Page break',
+				Icon: SeparatorHorizontal,
+				isActive: () => false,
+				run: (e) => e.chain().focus().setHorizontalRule().run()
 			}
 		],
 		[

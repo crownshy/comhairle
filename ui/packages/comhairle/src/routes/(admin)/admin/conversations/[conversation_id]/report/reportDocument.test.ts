@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	countDraftPrompts,
-	draftReport,
-	isUnwritten,
-	reportSections,
-	type ReportDocument
-} from './reportDocument';
+import { isUnwritten, reportSections, type ReportDocument } from './reportDocument';
 
 const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 const heading = (text: string) => ({
@@ -64,45 +58,5 @@ describe('reportSections', () => {
 
 	it('has no pills for text that is not a TipTap document', () => {
 		expect(reportSections('plain text', 'Introduction')).toEqual([]);
-	});
-});
-
-describe('draftReport', () => {
-	it('opens each step that has charts with its main charts, and skips the rest', () => {
-		const draft = draftReport([
-			{ id: 'polis-step', name: 'Bike lanes poll', toolType: 'polis' },
-			{ id: 'learn-step', name: 'Background', toolType: 'learn' }
-		]);
-		const headings = draft.content
-			.filter((n) => n.type === 'heading')
-			.map((n) => n.content?.[0].text);
-		const charts = draft.content
-			.filter((n) => n.type === 'reportComponentEmbed')
-			.map((n) => [n.attrs?.toolStepId, n.attrs?.componentType]);
-
-		expect(headings).toEqual(['Bike lanes poll', 'What happens next']);
-		expect(charts).toEqual([
-			['polis-step', 'polis-key-stats'],
-			['polis-step', 'polis-area-consensus']
-		]);
-	});
-
-	it('still gives a starting point when no step has charts', () => {
-		expect(draftReport([]).content.length).toBeGreaterThan(0);
-	});
-});
-
-describe('countDraftPrompts', () => {
-	it('counts the prompts nobody has written over', () => {
-		const draft = draftReport([{ id: 'p', name: 'Poll', toolType: 'polis' }]);
-		expect(countDraftPrompts(JSON.stringify(draft))).toBe(4);
-
-		const edited = {
-			...draft,
-			content: draft.content.map((node, i) =>
-				i === 0 ? paragraph('We asked 40 people') : node
-			)
-		};
-		expect(countDraftPrompts(JSON.stringify(edited))).toBe(3);
 	});
 });

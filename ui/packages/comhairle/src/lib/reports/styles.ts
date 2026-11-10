@@ -20,9 +20,12 @@ export const REPORT_PILL_CLASS =
 export const REPORT_EDITOR_TEXT_CLASS =
 	'text-foreground text-lg leading-7 [&_.tiptap]:text-lg [&_.tiptap]:leading-7 [&_.tiptap>h3]:text-xl [&_.tiptap>h3]:font-semibold [&_.tiptap>:is(ul,ol)>li]:my-2 [&_.tiptap>p]:my-3 [&_.tiptap>p]:text-lg [&_.tiptap>p]:leading-7';
 
-/** In the editor, an H2 starts a new section, so it is set like a card title with room above. */
+/**
+ * In the editor, an H2 starts a new section, so it is set like a card title with room above.
+ * A horizontal rule starts a new card, so it shows as a labelled page break.
+ */
 export const REPORT_EDITOR_SECTION_CLASS =
-	'[&_.tiptap>h2]:text-muted-foreground [&_.tiptap>h2]:mt-14 [&_.tiptap>h2]:border-t [&_.tiptap>h2]:pt-8 [&_.tiptap>h2]:text-2xl [&_.tiptap>h2]:leading-8 [&_.tiptap>h2]:font-semibold [&_.tiptap>h2:first-child]:mt-0 [&_.tiptap>h2:first-child]:border-t-0 [&_.tiptap>h2:first-child]:pt-0 [&_.tiptap>p_em]:text-muted-foreground';
+	"[&_.tiptap>h2]:text-muted-foreground [&_.tiptap>h2]:mt-14 [&_.tiptap>h2]:border-t [&_.tiptap>h2]:pt-8 [&_.tiptap>h2]:text-2xl [&_.tiptap>h2]:leading-8 [&_.tiptap>h2]:font-semibold [&_.tiptap>h2:first-child]:mt-0 [&_.tiptap>h2:first-child]:border-t-0 [&_.tiptap>h2:first-child]:pt-0 [&_.tiptap>hr]:relative [&_.tiptap>hr]:my-10 [&_.tiptap>hr]:overflow-visible [&_.tiptap>hr]:border-0 [&_.tiptap>hr]:border-t-2 [&_.tiptap>hr]:border-dashed [&_.tiptap>hr]:border-border [&_.tiptap>hr::after]:absolute [&_.tiptap>hr::after]:start-1/2 [&_.tiptap>hr::after]:-top-3 [&_.tiptap>hr::after]:-translate-x-1/2 [&_.tiptap>hr::after]:bg-background [&_.tiptap>hr::after]:px-3 [&_.tiptap>hr::after]:text-base [&_.tiptap>hr::after]:text-muted-foreground [&_.tiptap>hr::after]:content-['Page_break'] [&_.tiptap>hr.ProseMirror-selectednode]:border-primary";
 
 /** Each editable block tints on hover, so it's clear the text can be changed. */
 export const REPORT_EDITOR_HOVER_CLASS =

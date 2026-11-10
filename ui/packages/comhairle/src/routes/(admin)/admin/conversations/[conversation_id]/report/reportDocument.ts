@@ -1,6 +1,3 @@
-import { sectionBlocksForTool } from '$lib/reports/embeds';
-import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
-
 export type ReportNode = {
 	type: string;
 	attrs?: Record<string, unknown>;
@@ -24,7 +21,7 @@ export type ReportSection = {
 
 /**
  * The text the API fills a new report with (`api/src/models/report.rs`). The editor treats it as
- * unwritten, so a new report opens on the starter draft rather than on this sentence.
+ * unwritten, so a new report opens empty rather than on this sentence.
  */
 const GENERATED_REPORT_TEXT = [
 	'Summary to be filled out by facilitator',
@@ -95,70 +92,4 @@ export function reportSections(
 			}
 		];
 	});
-}
-
-const PROMPTS = {
-	introduction: 'Who took part, when, and what did you ask them?',
-	turnout: 'How many people took part, and how did they join in?',
-	consensus: 'What did people agree on?',
-	anyChart: 'What does this show?',
-	nextSteps: 'How will these findings be used, and when will people hear back?'
-};
-
-/** The charts a starter draft opens a step's section with. Other tools get their first block. */
-const DRAFT_CHARTS_BY_TOOL: Record<string, { type: string; prompt: string }[]> = {
-	polis: [
-		{ type: 'polis-key-stats', prompt: PROMPTS.turnout },
-		{ type: 'polis-area-consensus', prompt: PROMPTS.consensus }
-	]
-};
-
-/** How many starter-draft prompts are still in a body, word for word, so publishing can warn. */
-export function countDraftPrompts(content: string | null | undefined): number {
-	const prompts = new Set(Object.values(PROMPTS));
-	return (
-		parseReportDocument(content)?.content.filter(
-			(node) => node.type === 'paragraph' && prompts.has(textOf(node).trim())
-		).length ?? 0
-	);
-}
-
-function prompt(text: string): ReportNode {
-	return { type: 'paragraph', content: [{ type: 'text', text, marks: [{ type: 'italic' }] }] };
-}
-
-function heading(text: string): ReportNode {
-	return { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text }] };
-}
-
-function chart(toolStepId: string, componentType: string): ReportNode {
-	return { type: 'reportComponentEmbed', attrs: { toolStepId, componentType, config: {} } };
-}
-
-/**
- * A starter body for a report nobody has written yet: an introduction prompt, one section per
- * step that has charts (with its main ones embedded under a prompt), and a closing section.
- * Prompts are italic so they read as text to replace.
- */
-export function draftReport(steps: EmbeddableStep[]): ReportDocument {
-	const stepSections = steps.flatMap((step) => {
-		const blocks = sectionBlocksForTool(step.toolType);
-		if (blocks.length === 0) return [];
-		const picks = DRAFT_CHARTS_BY_TOOL[step.toolType] ?? [
-			{ type: blocks[0].type, prompt: PROMPTS.anyChart }
-		];
-		return [
-			heading(step.name),
-			...picks.flatMap((pick) => [prompt(pick.prompt), chart(step.id, pick.type)])
-		];
-	});
-	return {
-		type: 'doc',
-		content: [
-			prompt(PROMPTS.introduction),
-			...stepSections,
-			heading('What happens next'),
-			prompt(PROMPTS.nextSteps)
-		]
-	};
 }

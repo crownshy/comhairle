@@ -10,8 +10,6 @@
 		/** Read once when the editor mounts; later edits come from the editor itself. */
 		initialValue: string;
 		editable: boolean;
-		/** Switches every embed's label from "Public when published" to "Public now". */
-		published: boolean;
 		onChange: (json: string) => void;
 		onFocus?: (editor: Editor) => void;
 		editor?: Editor;
@@ -21,7 +19,6 @@
 	let {
 		initialValue,
 		editable,
-		published,
 		onChange,
 		onFocus,
 		editor = $bindable(),
@@ -67,11 +64,6 @@
 
 	$effect(() => {
 		editor?.setEditable(editable);
-	});
-
-	$effect(() => {
-		if (!editor) return;
-		editor.view.dom.toggleAttribute('data-report-published', published);
 	});
 
 	onDestroy(() => editor?.destroy());

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Globe from 'lucide-svelte/icons/globe';
 	import Lock from 'lucide-svelte/icons/lock';
-	import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/loading-button.svelte';
@@ -14,21 +13,11 @@
 		/** What the report embeds right now, per step (ADR-0061). */
 		results: PublicStepResults[];
 		steps: EmbeddableStep[];
-		/** Starter-draft prompts nobody has written over yet. */
-		promptsLeft: number;
 		/** Without update permission the dialog only explains what is shared. */
 		canPublish: boolean;
 		onPublish: () => Promise<void>;
 	};
-	let {
-		open = $bindable(),
-		published,
-		results,
-		steps,
-		promptsLeft,
-		canPublish,
-		onPublish
-	}: Props = $props();
+	let { open = $bindable(), published, results, steps, canPublish, onPublish }: Props = $props();
 
 	let publishing = $state(false);
 
@@ -86,16 +75,6 @@
 			<Lock class="mt-0.5 size-5 shrink-0" />
 			<span>Stays private: {privateItems.join(', ')}.</span>
 		</p>
-
-		{#if promptsLeft > 0 && !published && canPublish}
-			<p class="flex gap-2 text-base">
-				<TriangleAlert class="text-destructive mt-0.5 size-5 shrink-0" />
-				<span>
-					{promptsLeft} starter {promptsLeft === 1 ? 'prompt is' : 'prompts are'} still in the
-					report. Readers will see {promptsLeft === 1 ? 'it' : 'them'} as written.
-				</span>
-			</p>
-		{/if}
 
 		<Dialog.Footer>
 			{#if published || !canPublish}
