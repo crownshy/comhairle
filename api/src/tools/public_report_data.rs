@@ -7,6 +7,7 @@
 
 pub mod anonymous;
 pub mod embeds;
+pub mod themes;
 
 use std::sync::Arc;
 

@@ -16,6 +16,8 @@ export type PolisEmbedData =
 			componentType: 'polis-area-consensus' | 'polis-area-disagreement';
 			statements: (VotedStatement & { is_seed: boolean })[];
 			groups: GroupSize[];
+			/** The sensemaker's summary of this side, once generated. */
+			summary?: string;
 	  }
 	| {
 			componentType: 'polis-consensus-continuum';
@@ -26,7 +28,21 @@ export type PolisEmbedData =
 			componentType: 'polis-opinion-groups';
 			statements: VotedStatement[];
 			groups: RepresentedGroup[];
+			/** The sensemaker's name and summary per group, keyed by `group_id`. */
+			groupSummaries: Record<number, { name: string; summary: string }>;
+	  }
+	| {
+			componentType: 'polis-themes';
+			themes: PolisEmbedTheme[];
+			groups: GroupSize[];
 	  };
+
+export type PolisEmbedTheme = {
+	title: string;
+	description: string;
+	contributions: number;
+	statements: VotedStatement[];
+};
 
 /**
  * Each section block's endpoints. The preview ones need a facilitator who can update the
@@ -38,14 +54,16 @@ const ENDPOINTS = {
 		consensus: apiClient.PolisGetPublicConsensus,
 		disagreement: apiClient.PolisGetPublicDisagreement,
 		consensusContinuum: apiClient.PolisGetPublicConsensusContinuum,
-		opinionGroups: apiClient.PolisGetPublicOpinionGroups
+		opinionGroups: apiClient.PolisGetPublicOpinionGroups,
+		themes: apiClient.PolisGetPublicThemes
 	},
 	preview: {
 		keyStats: apiClient.PolisPreviewKeyStats,
 		consensus: apiClient.PolisPreviewConsensus,
 		disagreement: apiClient.PolisPreviewDisagreement,
 		consensusContinuum: apiClient.PolisPreviewConsensusContinuum,
-		opinionGroups: apiClient.PolisPreviewOpinionGroups
+		opinionGroups: apiClient.PolisPreviewOpinionGroups,
+		themes: apiClient.PolisPreviewThemes
 	}
 };
 
@@ -85,7 +103,8 @@ async function loadFrom(
 					...toVotedStatement(s),
 					is_seed: s.isSeed
 				})),
-				groups: ranked.groups.map(toGroupSize)
+				groups: ranked.groups.map(toGroupSize),
+				summary: ranked.summary ?? undefined
 			};
 		}
 		case 'polis-area-disagreement': {
@@ -96,7 +115,8 @@ async function loadFrom(
 					...toVotedStatement(s),
 					is_seed: s.isSeed
 				})),
-				groups: ranked.groups.map(toGroupSize)
+				groups: ranked.groups.map(toGroupSize),
+				summary: ranked.summary ?? undefined
 			};
 		}
 		case 'polis-consensus-continuum': {
@@ -115,10 +135,36 @@ async function loadFrom(
 			return {
 				componentType,
 				statements: opinionGroups.statements.map(toVotedStatement),
-				groups: opinionGroups.groups.map(toRepresentedGroup)
+				groups: opinionGroups.groups.map(toRepresentedGroup),
+				groupSummaries: toGroupSummaries(opinionGroups.groups)
+			};
+		}
+		case 'polis-themes': {
+			const themes = await endpoints.themes(request);
+			return {
+				componentType,
+				themes: themes.themes.map((theme) => ({
+					title: theme.title,
+					description: theme.description,
+					contributions: theme.statements.length,
+					statements: theme.statements.map(toVotedStatement)
+				})),
+				groups: themes.groups.map(toGroupSize)
 			};
 		}
 	}
+}
+
+/** The groups the sensemaker has named and summarised, in the shape `OpinionGroups` reads. */
+export function toGroupSummaries(
+	groups: PolisPublicOpinionGroup[]
+): Record<number, { name: string; summary: string }> {
+	const summaries: Record<number, { name: string; summary: string }> = {};
+	for (const group of groups) {
+		if (!group.name || !group.description) continue;
+		summaries[group.groupId] = { name: group.name, summary: group.description };
+	}
+	return summaries;
 }
 
 /**

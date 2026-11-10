@@ -20,11 +20,13 @@ use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::polis_statement_aux::{self, PolisStatementAuxFilterOptions};
 use crate::models::users::User;
+use crate::models::wikipoll_conversation_summary;
 use crate::routes::auth::RequiredUser;
 use crate::tools::public_report_data::anonymous::{
-    Count, FacilitatorText, ModeratedText, OpinionGroupId, PublicReportData, Share, StatementId,
-    public_report_data,
+    Count, FacilitatorText, GeneratedText, ModeratedText, OpinionGroupId, PublicReportData, Share,
+    StatementId, public_report_data,
 };
+use crate::tools::public_report_data::themes::{ThemeWithStatements, latest_theme_collection};
 use crate::tools::public_report_data::{serve_public_report_data, serve_report_data_preview};
 use crate::wiki_poll_service::ReportScope;
 use crate::wiki_poll_service::polis_service::{
@@ -41,6 +43,10 @@ const CONSENSUS: &str = "polis-area-consensus";
 const DISAGREEMENT: &str = "polis-area-disagreement";
 const CONSENSUS_CONTINUUM: &str = "polis-consensus-continuum";
 const OPINION_GROUPS: &str = "polis-opinion-groups";
+const THEMES: &str = "polis-themes";
+
+/// Where the theme collections of a Polis step come from (`sensemaking::harvest`).
+const THEME_ORIGIN: &str = "polis";
 
 public_report_data! {
     #[derive(PartialEq)]
@@ -105,6 +111,8 @@ public_report_data! {
     pub struct PolisPublicRankedStatements {
         pub statements: Vec<PolisPublicRankedStatement>,
         pub groups: Vec<PolisPublicGroup>,
+        /// The sensemaker's summary of this side, once a facilitator has generated one.
+        pub summary: Option<GeneratedText>,
     }
 }
 
@@ -140,6 +148,10 @@ public_report_data! {
     pub struct PolisPublicOpinionGroup {
         pub group_id: OpinionGroupId,
         pub total_members: Count,
+        /// The sensemaker's name and summary for the group, once a facilitator has generated
+        /// them and while they still describe the current groups.
+        pub name: Option<GeneratedText>,
+        pub description: Option<GeneratedText>,
         /// Points into `PolisPublicOpinionGroups::statements`.
         pub representative_comments: Vec<PolisPublicRepresentativeStatement>,
     }
@@ -151,6 +163,44 @@ public_report_data! {
         /// Only the statements some group is represented by.
         pub statements: Vec<PolisPublicStatement>,
     }
+}
+
+public_report_data! {
+    /// A theme with the accepted statements the sensemaker filed under it.
+    pub struct PolisPublicTheme {
+        pub title: GeneratedText,
+        pub description: GeneratedText,
+        pub statements: Vec<PolisPublicStatement>,
+    }
+}
+
+public_report_data! {
+    pub struct PolisPublicThemes {
+        pub themes: Vec<PolisPublicTheme>,
+        pub groups: Vec<PolisPublicGroup>,
+    }
+}
+
+/// The sensemaker's Polis summary, as `PolisGetLatestSummary` stores it. Every field is
+/// optional because the summary format has changed over time.
+#[derive(Deserialize, Default)]
+struct SummaryResult {
+    #[serde(default)]
+    consensus_description: Option<String>,
+    #[serde(default)]
+    disagrement_description: Option<String>,
+    #[serde(default)]
+    group_descriptions: Vec<GroupDescription>,
+}
+
+#[derive(Deserialize)]
+struct GroupDescription {
+    /// A number or a numeric string, depending on the summary's age.
+    group_id: serde_json::Value,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -290,6 +340,50 @@ pub fn routes() -> ApiRouter<Arc<ComhairleState>> {
                     .response::<200, Json<PolisPublicOpinionGroups>>()
             }),
         )
+        .api_route(
+            "/polis/public_report/themes",
+            get_with(get_themes, |op| {
+                op.id("PolisGetPublicThemes")
+                    .tag("Tools")
+                    .summary("Themes for a published report")
+                    .description(
+                        "The step's latest themes with the accepted statements under each. 404 \
+                         unless the conversation's published report embeds this section block \
+                         for the step.",
+                    )
+                    .response::<200, Json<PolisPublicThemes>>()
+            }),
+        )
+        .api_route(
+            "/polis/report_preview/themes",
+            get_with(preview_themes, |op| {
+                op.id("PolisPreviewThemes")
+                    .tag("Tools")
+                    .summary("Themes as the published report will show them")
+                    .description(
+                        "The same data as PolisGetPublicThemes, for facilitators who can update \
+                         the conversation, before the report is published.",
+                    )
+                    .response::<200, Json<PolisPublicThemes>>()
+            }),
+        )
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_themes(
+    State(state): State<Arc<ComhairleState>>,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicThemes>, ComhairleError> {
+    serve_public(&state, workflow_step_id, THEMES, build_themes).await
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview_themes(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(PublicReportQuery { workflow_step_id }): Query<PublicReportQuery>,
+) -> Result<Json<PolisPublicThemes>, ComhairleError> {
+    serve_preview(&state, &user, workflow_step_id, build_themes).await
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -434,9 +528,12 @@ async fn build_consensus(
     config: PolisToolConfig,
 ) -> Result<PolisPublicRankedStatements, ComhairleError> {
     let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
-    Ok(ranked_statements(&report, &themes, |c| {
-        c.group_informed_consensus
-    }))
+    let summary = load_summary(state, workflow_step_id).await?;
+    let mut ranked = ranked_statements(&report, &themes, |c| c.group_informed_consensus);
+    ranked.summary = summary
+        .consensus_description
+        .map(GeneratedText::from_sensemaking);
+    Ok(ranked)
 }
 
 async fn build_disagreement(
@@ -445,7 +542,12 @@ async fn build_disagreement(
     config: PolisToolConfig,
 ) -> Result<PolisPublicRankedStatements, ComhairleError> {
     let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
-    Ok(ranked_statements(&report, &themes, |c| c.divisiveness))
+    let summary = load_summary(state, workflow_step_id).await?;
+    let mut ranked = ranked_statements(&report, &themes, |c| c.divisiveness);
+    ranked.summary = summary
+        .disagrement_description
+        .map(GeneratedText::from_sensemaking);
+    Ok(ranked)
 }
 
 async fn build_consensus_continuum(
@@ -463,7 +565,34 @@ async fn build_opinion_groups(
     config: PolisToolConfig,
 ) -> Result<PolisPublicOpinionGroups, ComhairleError> {
     let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
-    Ok(opinion_groups(&report, &themes))
+    let summary = load_summary(state, workflow_step_id).await?;
+    Ok(opinion_groups(&report, &themes, &summary))
+}
+
+async fn build_themes(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+    config: PolisToolConfig,
+) -> Result<PolisPublicThemes, ComhairleError> {
+    let (report, themes) = load_report_and_themes(state, workflow_step_id, &config).await?;
+    let collection = latest_theme_collection(&state.db, workflow_step_id, THEME_ORIGIN)
+        .await?
+        .unwrap_or_default();
+    Ok(public_themes(&report, &themes, &collection))
+}
+
+/// The latest sensemaker summary, or an empty one when none has been generated.
+async fn load_summary(
+    state: &ComhairleState,
+    workflow_step_id: &Uuid,
+) -> Result<SummaryResult, ComhairleError> {
+    let Some(summary) =
+        wikipoll_conversation_summary::get_latest_by_workflow_step_id(&state.db, *workflow_step_id)
+            .await?
+    else {
+        return Ok(SummaryResult::default());
+    };
+    Ok(serde_json::from_value(summary.result).unwrap_or_default())
 }
 
 /// The step's report at `PUBLIC_SCOPE`. Goes through the Polis client's report cache, so the
@@ -536,6 +665,7 @@ fn ranked_statements(
     let mut comments: Vec<&CommentReportData> = report.comments.iter().collect();
     comments.sort_by(|a, b| descending(score(a), score(b)));
     PolisPublicRankedStatements {
+        summary: None,
         statements: comments
             .into_iter()
             .map(|c| PolisPublicRankedStatement {
@@ -584,15 +714,28 @@ fn consensus_continuum(report: &WikiPollReport, themes: &Themes) -> PolisPublicC
 
 /// Representative statements are checked against the report's own statements again, so one
 /// the scope left out can't come back through a group.
-fn opinion_groups(report: &WikiPollReport, themes: &Themes) -> PolisPublicOpinionGroups {
+fn opinion_groups(
+    report: &WikiPollReport,
+    themes: &Themes,
+    summary: &SummaryResult,
+) -> PolisPublicOpinionGroups {
     let reported: HashSet<u32> = report.comments.iter().map(|c| c.tid).collect();
     let mut represented: HashSet<u32> = HashSet::new();
+    let descriptions = group_descriptions(summary, report.groups.len());
     let groups: Vec<PolisPublicOpinionGroup> = report
         .groups
         .iter()
         .map(|g| PolisPublicOpinionGroup {
             group_id: OpinionGroupId(g.group_id),
             total_members: Count(g.total_members),
+            name: descriptions
+                .get(&g.group_id)
+                .and_then(|d| d.name.clone())
+                .map(GeneratedText::from_sensemaking),
+            description: descriptions
+                .get(&g.group_id)
+                .and_then(|d| d.description.clone())
+                .map(GeneratedText::from_sensemaking),
             representative_comments: g
                 .representative_comments
                 .iter()
@@ -611,15 +754,71 @@ fn opinion_groups(report: &WikiPollReport, themes: &Themes) -> PolisPublicOpinio
             .comments
             .iter()
             .filter(|c| represented.contains(&c.tid))
-            .map(|c| PolisPublicStatement {
-                tid: StatementId(c.tid),
-                text: accepted_text(c),
-                themes: themes_of(themes, c.tid),
-                overall_votes: votes(&c.overall_votes),
-                group_votes: group_votes(&c.group_votes),
-            })
+            .map(|c| public_statement(c, themes))
             .collect(),
         groups,
+    }
+}
+
+/// The summary's group descriptions by group id, or none when the summary describes a
+/// different number of groups than Polis currently has, since it is then out of date.
+fn group_descriptions(
+    summary: &SummaryResult,
+    current_groups: usize,
+) -> HashMap<u32, &GroupDescription> {
+    if summary.group_descriptions.len() != current_groups {
+        return HashMap::new();
+    }
+    summary
+        .group_descriptions
+        .iter()
+        .filter_map(|d| {
+            let id = d
+                .group_id
+                .as_u64()
+                .and_then(|id| u32::try_from(id).ok())
+                .or_else(|| d.group_id.as_str()?.parse().ok())?;
+            Some((id, d))
+        })
+        .collect()
+}
+
+/// Themes with the accepted statements under each. A theme collection can hold statements
+/// moderation hasn't accepted, so only those in the public report are kept, and a theme the
+/// sensemaker left empty still shows with no statements.
+fn public_themes(
+    report: &WikiPollReport,
+    themes: &Themes,
+    collection: &[ThemeWithStatements],
+) -> PolisPublicThemes {
+    let by_tid: HashMap<u32, &CommentReportData> =
+        report.comments.iter().map(|c| (c.tid, c)).collect();
+    PolisPublicThemes {
+        themes: collection
+            .iter()
+            .map(|theme| PolisPublicTheme {
+                title: GeneratedText::from_sensemaking(theme.theme.title.clone()),
+                description: GeneratedText::from_sensemaking(theme.theme.description.clone()),
+                statements: theme
+                    .statements
+                    .iter()
+                    .filter_map(|s| s.source_sub_id.as_deref()?.parse::<u32>().ok())
+                    .filter_map(|tid| by_tid.get(&tid))
+                    .map(|c| public_statement(c, themes))
+                    .collect(),
+            })
+            .collect(),
+        groups: group_sizes(report),
+    }
+}
+
+fn public_statement(comment: &CommentReportData, themes: &Themes) -> PolisPublicStatement {
+    PolisPublicStatement {
+        tid: StatementId(comment.tid),
+        text: accepted_text(comment),
+        themes: themes_of(themes, comment.tid),
+        overall_votes: votes(&comment.overall_votes),
+        group_votes: group_votes(&comment.group_votes),
     }
 }
 
@@ -999,7 +1198,7 @@ mod tests {
             participants: vec![],
         };
         let themes = HashMap::from([(1, vec!["Transport".to_string()])]);
-        let groups = opinion_groups(&report, &themes);
+        let groups = opinion_groups(&report, &themes, &SummaryResult::default());
 
         assert_eq!(
             groups.groups[0].representative_comments,
