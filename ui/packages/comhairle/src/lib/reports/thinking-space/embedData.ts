@@ -1,0 +1,61 @@
+import { apiClient } from '@crownshy/api-client/client';
+import type {
+	PublicTheme,
+	ThinkingSpacePublicKeyStats,
+	ThinkingSpacePublicQuestion
+} from '@crownshy/api-client/api';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { ThinkingSpaceEmbeddableComponentType } from './embeddableComponents';
+
+/** What one Thinking Space section block draws, from its public report-data endpoint. */
+export type ThinkingSpaceEmbedData =
+	| { componentType: 'thinkingspace-key-stats'; stats: ThinkingSpacePublicKeyStats }
+	| { componentType: 'thinkingspace-questions'; questions: ThinkingSpacePublicQuestion[] }
+	| { componentType: 'thinkingspace-themes'; themes: PublicTheme[] };
+
+const ENDPOINTS = {
+	public: {
+		keyStats: apiClient.ThinkingSpaceGetPublicKeyStats,
+		questions: apiClient.ThinkingSpaceGetPublicQuestions,
+		themes: apiClient.ThinkingSpaceGetPublicThemes
+	},
+	preview: {
+		keyStats: apiClient.ThinkingSpacePreviewKeyStats,
+		questions: apiClient.ThinkingSpacePreviewQuestions,
+		themes: apiClient.ThinkingSpacePreviewThemes
+	}
+};
+
+/**
+ * Load one section block's data. A preview falls back to the public endpoint, as the Polis
+ * embeds do. Any failure throws, and the caller shows the embed's unavailable state.
+ */
+export async function loadThinkingSpaceEmbedData(
+	workflowStepId: string,
+	componentType: ThinkingSpaceEmbeddableComponentType,
+	preview = false
+): Promise<ThinkingSpaceEmbedData> {
+	if (preview) {
+		const previewed = await tryCatchAsync(() =>
+			loadFrom(ENDPOINTS.preview, workflowStepId, componentType)
+		);
+		if (previewed.err === null) return previewed.ok;
+	}
+	return loadFrom(ENDPOINTS.public, workflowStepId, componentType);
+}
+
+async function loadFrom(
+	endpoints: (typeof ENDPOINTS)['public'],
+	workflowStepId: string,
+	componentType: ThinkingSpaceEmbeddableComponentType
+): Promise<ThinkingSpaceEmbedData> {
+	const request = { queries: { workflow_step_id: workflowStepId } };
+	switch (componentType) {
+		case 'thinkingspace-key-stats':
+			return { componentType, stats: await endpoints.keyStats(request) };
+		case 'thinkingspace-questions':
+			return { componentType, questions: (await endpoints.questions(request)).questions };
+		case 'thinkingspace-themes':
+			return { componentType, themes: (await endpoints.themes(request)).themes };
+	}
+}

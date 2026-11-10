@@ -42,6 +42,8 @@ use crate::{ComhairleError, ComhairleState, sensemakar_service};
 /// land over that limit.
 const MAX_SUMMARY_WORDS: usize = 300;
 
+mod public_report;
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq, TranslatableJson)]
 pub struct ThinkingSpaceQuestion {
     pub id: Uuid,
@@ -203,6 +205,7 @@ impl ToolImpl for ThinkingSpaceTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/thinking_space",
                 post_with(converse, |op| {

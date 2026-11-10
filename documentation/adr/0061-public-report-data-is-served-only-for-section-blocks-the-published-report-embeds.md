@@ -66,9 +66,9 @@ Thinking Space summary, another may have told participants it stays with the org
   step's latest theme collection for one origin tool. It doesn't filter by moderation, so each
   tool must match a theme's contributions against its own public data. Polis joins them to the
   accepted-only report, so a theme only shows statements the report already serves, with
-  their vote bars. Prioritization serves only each theme's title, description and
-  contribution count: its contributions are written answers, which are shared with the
-  organisers, not with readers.
+  their vote bars. Prioritization and Thinking Space serve only each theme's title,
+  description and contribution count: their contributions are written answers and shared
+  summaries, which are shared with the organisers, not with readers.
 - **Only aggregates leave Prioritization.** It serves counts per Likert choice and per scale
   bucket, the summed alignment ranking, and the proposal and section text facilitators
   wrote. Free-text answers and the per-reviewer scatter plot stay on the Insights page.
@@ -77,6 +77,9 @@ Thinking Space summary, another may have told participants it stays with the org
   withholds a question's breakdown when fewer than three people answered it, and leaves a
   proposal unranked when fewer than three answered the alignment question. The ranking
   lists those proposals last, without a score.
+- **Only aggregates leave Thinking Space.** It serves how many people shared a summary,
+  follow-ups per participant and per opening question, and themes. A participant's summary
+  and answers never leave, since the consent they give covers the organisers only.
 - **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
   the theme collection are read once per step and kept for 60 seconds, shared by every section
   block, so a regenerated summary can take up to a minute to reach the report. Polis votes
