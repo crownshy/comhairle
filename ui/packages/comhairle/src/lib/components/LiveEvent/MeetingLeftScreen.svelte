@@ -4,11 +4,10 @@
 
 	interface Props {
 		title: string;
-		conversationUrl?: string;
 		onRejoin: () => void;
 	}
 
-	let { title, conversationUrl, onRejoin }: Props = $props();
+	let { title, onRejoin }: Props = $props();
 </script>
 
 <div class="bg-background flex min-h-dvh w-full items-center justify-center">
@@ -25,19 +24,8 @@
 			</p>
 		</div>
 
-		<div class="flex flex-col items-center gap-3">
-			<Button
-				variant="primaryDark"
-				class="h-12 px-8 text-base font-semibold"
-				onclick={onRejoin}
-			>
-				Rejoin
-			</Button>
-			{#if conversationUrl}
-				<Button variant="outline" class="h-10 px-6 text-base" href={conversationUrl}>
-					Back to conversation
-				</Button>
-			{/if}
-		</div>
+		<Button variant="primaryDark" class="h-12 px-8 text-base font-semibold" onclick={onRejoin}>
+			Rejoin
+		</Button>
 	</div>
 </div>
