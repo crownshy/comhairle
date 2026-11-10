@@ -128,7 +128,7 @@
 			<Tooltip.Trigger
 				aria-label={summary}
 				onpointermove={trackCursor}
-				class="relative block h-2.5 min-w-0 flex-1 cursor-default border-0 bg-transparent p-0"
+				class="relative isolate block h-2.5 min-w-0 flex-1 cursor-default border-0 bg-transparent p-0"
 			>
 				{#each pills as p, i (p.key)}
 					<span
