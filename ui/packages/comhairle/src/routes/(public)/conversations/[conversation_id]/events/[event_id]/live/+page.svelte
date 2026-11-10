@@ -7,6 +7,7 @@
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
+	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
 	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
@@ -157,6 +158,13 @@
 	});
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
 
+	/** Moderators are moved into their room once per session, so leaving early to help
+	 *  another room is not undone. Resets with the session, like roomContext. */
+	let moderatorAutoEnteredThisSession = $derived.by(() => {
+		void isBreakoutActive;
+		return false;
+	});
+
 	/** Which side panel tab is showing. Moderators land on the rooms list as soon as a
 	 *  breakout starts, everyone else on the agenda. Writable, because the tab buttons and
 	 *  the join and return paths set it directly; those writes hold until the next
@@ -297,18 +305,19 @@
 		}
 	});
 
-	// Auto-enter participants into their assigned breakout room
+	// Move everyone into their assigned breakout room once Jitsi has the rooms
 	$effect(() => {
-		if (
-			isBreakoutActive &&
-			!isModerator &&
-			jitsiRoom.ready &&
-			typeof roomContext === 'string'
-		) {
-			const assignedRoom = user ? videoCallService.getUserBreakoutRoom(user.id) : null;
-			// Use assigned room from backend, or default to room 0 for mock testing
-			handleEnterBreakoutRoom(assignedRoom ?? 0);
-		}
+		if (!isBreakoutActive || !jitsiRoom.ready || typeof roomContext !== 'string') return;
+
+		const roomIndex = breakoutAutoEnterRoom({
+			isModerator,
+			assignedRoom: user ? videoCallService.getUserBreakoutRoom(user.id) : null,
+			moderatorAlreadyAutoEntered: moderatorAutoEnteredThisSession
+		});
+		if (roomIndex === null) return;
+
+		if (isModerator) moderatorAutoEnteredThisSession = true;
+		handleEnterBreakoutRoom(roomIndex);
 	});
 
 	// Detect mid-session room reassignment (moderator moved a participant)
