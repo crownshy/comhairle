@@ -79,20 +79,20 @@ describe('JitsiRoom', () => {
 		]);
 	});
 
-	it('closes every room on the list Jitsi hands back, not the one it last pushed', async () => {
+	it('removes every room on the list Jitsi hands back, not the one it last pushed', async () => {
 		const { api, sent } = fakeApi({
 			listed: roomsPayload(
-				{ id: 'main', isMainRoom: true },
-				{ id: 'three', name: 'Breakout room #3' }
+				{ id: 'main', jid: 'main@conf', isMainRoom: true },
+				{ id: 'three', jid: 'three@breakout', name: 'Breakout room #3' }
 			)
 		});
 		const room = new JitsiRoom();
 		room.attach(api);
 		room.setRooms(breakouts);
 
-		await room.closeAll();
+		await room.removeAll();
 
-		expect(sent).toEqual([['closeBreakoutRoom', 'three']]);
+		expect(sent).toEqual([['removeBreakoutRoom', 'three@breakout']]);
 	});
 
 	it('falls back to the rooms it was told about when Jitsi will not list them', async () => {
@@ -101,11 +101,11 @@ describe('JitsiRoom', () => {
 		room.attach(api);
 		room.setRooms(breakouts);
 
-		await room.closeAll();
+		await room.removeAll();
 
 		expect(sent).toEqual([
-			['closeBreakoutRoom', 'one'],
-			['closeBreakoutRoom', 'two']
+			['removeBreakoutRoom', 'one@breakout'],
+			['removeBreakoutRoom', 'two@breakout']
 		]);
 	});
 
@@ -139,5 +139,65 @@ describe('JitsiRoom', () => {
 
 		expect(room.rooms).toEqual([]);
 		expect(room.ready).toBe(false);
+	});
+
+	describe('when a session ends and another starts', () => {
+		const secondSession = roomsPayload(
+			{ id: 'main', jid: 'main@conf', name: 'Main room', isMainRoom: true },
+			{ id: 'new-one', jid: 'new-one@breakout', name: 'Breakout room #1' },
+			{ id: 'new-two', jid: 'new-two@breakout', name: 'Breakout room #2' }
+		);
+
+		function endFirstSession() {
+			const { api, sent } = fakeApi();
+			const room = new JitsiRoom();
+			room.attach(api);
+			room.setRooms(breakouts);
+			room.syncReady(2);
+			room.syncReady(null);
+			return { room, sent };
+		}
+
+		it('forgets the old rooms on every client, not just the one that ended it', () => {
+			const { room } = endFirstSession();
+
+			expect(room.rooms).toEqual([]);
+		});
+
+		it('is not ready for the next session until its own rooms exist', () => {
+			const { room } = endFirstSession();
+			room.setRooms(breakouts);
+
+			room.syncReady(2);
+
+			expect(room.ready).toBe(false);
+		});
+
+		it('joins the new room when Jitsi still lists an old one with the same name', () => {
+			const { room, sent } = endFirstSession();
+			room.setRooms(
+				roomsPayload(...Object.values(breakouts), ...Object.values(secondSession))
+			);
+
+			room.syncReady(2);
+			expect(room.ready).toBe(true);
+			expect(room.joinBreakout(0)).toBe(true);
+			expect(room.joinBreakout(1)).toBe(true);
+
+			expect(sent).toEqual([
+				['joinBreakoutRoom', 'new-one@breakout'],
+				['joinBreakoutRoom', 'new-two@breakout']
+			]);
+		});
+
+		it('does not forget rooms when no session was running', () => {
+			const room = new JitsiRoom();
+			room.setRooms(breakouts);
+
+			room.syncReady(null);
+			room.syncReady(2);
+
+			expect(room.ready).toBe(true);
+		});
 	});
 });
