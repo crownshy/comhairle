@@ -307,8 +307,9 @@ _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate con
 The short rich text an admin writes at the top of the End of engagement report (`report.summary`). Participants see it on the report's opening screen, under the "Final report" label. Reports made before the summary and body were split keep their whole text in `summary` and have no executive summary.
 
 **Report body**:
-The full End of engagement report (`report.body`), with its embedded components. Its H2 headings make the **report sections** (one pill each) and its H3 headings and horizontal rules make the **report cards** the participant pages through. See [ADR-0058](documentation/adr/0058-the-public-report-pages-by-its-own-headings.md).
-_Avoid_: card for a [[#report-component]] (a report card is one page of the report body).
+The full End of engagement report (`report.body`), with its embedded components. Each **page break** (a horizontal rule) starts a new **report page**, shown to the participant as one card with its own pill, named by the page's first line of text. Headings are only text styles. See [ADR-0069](documentation/adr/0069-the-report-pages-at-its-page-breaks.md).
+_Avoid_: card for a [[#report-component]] (a report card is one page of the report body); report section for a page.
+
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
 
 ### Room display

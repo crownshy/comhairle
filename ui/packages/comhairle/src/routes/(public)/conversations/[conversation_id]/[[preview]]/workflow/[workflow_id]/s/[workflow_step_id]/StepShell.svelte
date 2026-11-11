@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { PAGER_BAR_SURFACE_CLASS } from '$lib/components/pager/pager';
 	import { cn } from '$lib/utils';
 	import { STEP_SCROLL_ATTRIBUTE } from '$lib/utils/stepScroll';
 
@@ -45,7 +46,7 @@
 		<!-- data-spotlight-keep keeps the pager usable while a tool's spotlight dims the page. -->
 		<div
 			data-spotlight-keep
-			class="bg-background/70 border-border/40 absolute inset-x-0 bottom-0 z-10 border-t backdrop-blur-lg"
+			class={cn(PAGER_BAR_SURFACE_CLASS, 'absolute inset-x-0 bottom-0 z-10')}
 			bind:clientHeight={barHeight}
 		>
 			{@render bar()}
