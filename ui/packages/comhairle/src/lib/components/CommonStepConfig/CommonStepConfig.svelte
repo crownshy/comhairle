@@ -90,7 +90,12 @@
 
 	async function createDataProtocol(content: string): Promise<string | undefined> {
 		const textContent = await tryCatchAsync(() =>
-			apiClient.CreateTextContent({ content, format: 'rich', primary_locale: primaryLocale })
+			apiClient.CreateTextContent({
+				content,
+				format: 'rich',
+				primary_locale: primaryLocale,
+				scope: { type: 'conversation', id: conversation_id }
+			})
 		);
 		if (textContent.err !== null) {
 			notifications.send({ message: 'Failed to create data protocol', priority: 'ERROR' });

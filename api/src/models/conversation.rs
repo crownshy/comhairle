@@ -17,7 +17,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use super::pagination::{Order, PageOptions, PaginatedResults};
-use super::translations::{TextContentId, TextFormat, new_translation};
+use super::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
 use super::user_participation::UserParticipationIden;
 use super::workflow::WorkflowIden;
 use crate::ComhairleState;
@@ -759,10 +759,12 @@ pub async fn create(
     organization_id: Option<Uuid>,
 ) -> Result<Conversation, ComhairleError> {
     let conversation_id = Uuid::new_v4();
+    let mut transaction = db.begin().await?;
 
     // Generate Translations
     let title = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.title,
         TextFormat::Plain,
@@ -770,7 +772,8 @@ pub async fn create(
     .await?;
 
     let description = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.description,
         TextFormat::Rich,
@@ -778,7 +781,8 @@ pub async fn create(
     .await?;
 
     let short_description = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.short_description,
         TextFormat::Rich,
@@ -875,11 +879,14 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation_result = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *transaction)
         .await;
 
     match conversation_result {
-        Ok(conversation) => Ok(conversation),
+        Ok(conversation) => {
+            transaction.commit().await?;
+            Ok(conversation)
+        }
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"

@@ -84,6 +84,8 @@ impl ToolImpl for LearnTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _db: &mut sqlx::PgConnection,
+        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         learn_setup(setup).await

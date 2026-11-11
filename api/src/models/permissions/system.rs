@@ -97,7 +97,6 @@ impl PermissionAction for Action {
 pub enum Role {
     SuperAdmin,
     Admin,
-    Translator,
 }
 
 impl PermissionRole for Role {
@@ -114,7 +113,6 @@ impl PermissionRole for Role {
                 Action::ConversationCreate,
                 Action::Translate,
             ],
-            Self::Translator => &[Action::Translate],
         }
     }
 }
@@ -145,17 +143,12 @@ mod tests {
     }
 
     #[test]
-    fn translators_only_have_translation_authority() {
-        assert_eq!(Role::Translator.as_ref(), "translator");
-        assert_eq!(Role::Translator.system_triplet().unwrap().2, "translator");
-        for action in Action::iter() {
-            assert_eq!(Role::Translator.allows(action), action == Action::Translate);
-        }
+    fn system_administrators_translate_system_content() {
         assert!(Role::Admin.allows(Action::Translate));
         assert!(Role::SuperAdmin.allows(Action::Translate));
         assert_eq!(
             super::super::roles_for_action(Action::Translate),
-            vec!["super_admin", "admin", "translator"]
+            vec!["super_admin", "admin"]
         );
     }
 }

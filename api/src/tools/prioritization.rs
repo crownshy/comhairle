@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -22,7 +21,9 @@ use crate::models::proposal_response::{
 use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
-use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
+use crate::models::translations::{
+    BuildTextTranslation, TextContentId, TextFormat, TranslationScope,
+};
 use crate::models::{user_progress, workflow_step};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::translations::LocaleExtractor;
@@ -113,16 +114,20 @@ pub struct SetupQuestion {
 impl SetupQuestion {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Question, ComhairleError> {
         Ok(Question {
             id: Uuid::new_v4(),
             text: self
                 .text
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
-            r#type: self.r#type.build_with_translations(db, locale).await?,
+            r#type: self
+                .r#type
+                .build_with_translations(db, scope, locale)
+                .await?,
             required: false,
         })
     }
@@ -147,7 +152,8 @@ pub enum SetupQuestionType {
 impl SetupQuestionType {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<QuestionType, ComhairleError> {
         Ok(match self {
@@ -155,7 +161,7 @@ impl SetupQuestionType {
             SetupQuestionType::LikertScale { categories } => {
                 let mut built = Vec::with_capacity(categories.len());
                 for category in categories {
-                    built.push(category.build_with_translations(db, locale).await?);
+                    built.push(category.build_with_translations(db, scope, locale).await?);
                 }
                 QuestionType::LikertScale { categories: built }
             }
@@ -170,10 +176,10 @@ impl SetupQuestionType {
                 min_value,
                 max_value,
                 min_label: min_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .build_text_translation(db, scope, locale, TextFormat::Plain)
                     .await?,
                 max_label: max_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .build_text_translation(db, scope, locale, TextFormat::Plain)
                     .await?,
             },
         })
@@ -189,14 +195,15 @@ pub struct SetupCategory {
 impl SetupCategory {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Category, ComhairleError> {
         Ok(Category {
             value: self.value,
             label: self
                 .label
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
         })
     }
@@ -238,10 +245,12 @@ impl ToolImpl for PrioritizationTool {
 
     async fn setup(
         setup: &Self::Setup,
-        state: &Arc<ComhairleState>,
+        _state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
-        prioritization_setup(&state.db, setup, locale).await
+        prioritization_setup(db, setup, scope, locale).await
     }
 
     async fn clone_tool(
@@ -377,13 +386,14 @@ Create a response for prioritization tool proposal
 }
 
 async fn prioritization_setup(
-    db: &PgPool,
+    db: &mut sqlx::PgConnection,
     setup_config: &PrioritizationToolSetup,
+    scope: TranslationScope,
     locale: &str,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
     let mut questions = Vec::with_capacity(setup_config.questions.len());
     for question in setup_config.questions.clone() {
-        questions.push(question.build_with_translations(db, locale).await?);
+        questions.push(question.build_with_translations(db, scope, locale).await?);
     }
 
     let alignment_question_id = questions.first().map(|q| q.id);
