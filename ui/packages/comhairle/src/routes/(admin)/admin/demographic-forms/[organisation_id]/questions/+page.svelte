@@ -90,7 +90,12 @@
 				</Table.Row>
 			{:then questions}
 				{#if questions.err !== null}
-					<ErrorMessage>Couldn't load questions, please try again</ErrorMessage>
+					<Table.Row>
+						<Table.Cell></Table.Cell>
+						<Table.Cell>
+							<ErrorMessage>Couldn't load questions, please try again</ErrorMessage>
+						</Table.Cell>
+					</Table.Row>
 				{:else}
 					{#each questions.ok as question (question.id)}
 						<Table.Row>
