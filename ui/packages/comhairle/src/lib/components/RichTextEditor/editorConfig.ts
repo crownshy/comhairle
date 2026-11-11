@@ -1,12 +1,12 @@
 import { StarterKit } from '@tiptap/starter-kit';
 import { Link } from '@tiptap/extension-link';
-import { Image } from '@tiptap/extension-image';
 import { Audio } from '@tiptap/extension-audio';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { TableKit, TableCell, TableHeader } from '@tiptap/extension-table';
 import { Markdown } from '@tiptap/markdown';
 import { Color } from '@tiptap/extension-color';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
+import { Image } from './extensions/image';
 import { Video } from '$lib/components/RichTextEditor/extensions/video';
 import { ListItem } from '@tiptap/extension-list-item';
 import { TextStyle } from '@tiptap/extension-text-style';

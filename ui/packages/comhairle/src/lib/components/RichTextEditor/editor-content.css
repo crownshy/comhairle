@@ -109,6 +109,45 @@
 	text-align: justify;
 }
 
+/* Image layout keys come from extensions/image.ts. Width is a share of the column, so it
+   scales with the screen. */
+.tiptap img[data-align] {
+	display: block;
+}
+
+.tiptap img[data-align='left'] {
+	margin-inline: 0 auto;
+}
+
+.tiptap img[data-align='center'] {
+	margin-inline: auto;
+}
+
+.tiptap img[data-align='right'] {
+	margin-inline: auto 0;
+}
+
+.tiptap img[data-width='25'] {
+	width: 25%;
+}
+
+.tiptap img[data-width='50'] {
+	width: 50%;
+}
+
+.tiptap img[data-width='75'] {
+	width: 75%;
+}
+
+.tiptap img[data-width='100'] {
+	width: 100%;
+}
+
+.tiptap img.ProseMirror-selectednode {
+	outline: 3px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
 /* Tables
    Registered via TableKit in editorConfig, so these styles land in both the live
    editor and the read-only renderer (both carry the `.tiptap` + `prose` classes).

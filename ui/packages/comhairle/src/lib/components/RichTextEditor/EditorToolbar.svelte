@@ -5,6 +5,7 @@
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
 	import TableControlsPopover from './TableControlsPopover.svelte';
 	import { insertDefaultTable } from './tableActions';
+	import { TOOLBAR_BUTTON_CLASS, ACTIVE_BUTTON_CLASS } from './styles';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { cn } from '$lib/utils';
 	import { isVideoFileUrl } from '$lib/utils/videoUrl';
@@ -51,10 +52,6 @@
 		classes?: string;
 	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
 
-	const TOOLBAR_BUTTON_CLASS =
-		'text-muted-foreground hover:bg-accent hover:text-accent-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-sm leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40';
-	const ACTIVE_BUTTON_CLASS =
-		'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold';
 	const GROUP_CLASS = 'flex items-center gap-0.5';
 </script>
 
