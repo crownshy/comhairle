@@ -616,9 +616,10 @@ async fn write_draft_text(
 }
 
 /// The version columns that hold editable content.
-const CONTENT_COLUMNS: [DemographicQuestionVersionIden; 11] = [
+const CONTENT_COLUMNS: [DemographicQuestionVersionIden; 12] = [
     DemographicQuestionVersionIden::TextContentId,
     DemographicQuestionVersionIden::QuestionType,
+    DemographicQuestionVersionIden::Multi,
     DemographicQuestionVersionIden::DatePrecision,
     DemographicQuestionVersionIden::LocationFormat,
     DemographicQuestionVersionIden::LocationCountry,
@@ -634,7 +635,7 @@ const CONTENT_COLUMNS: [DemographicQuestionVersionIden; 11] = [
 fn draft_content(
     input: &QuestionDraftInput,
     texts: &DraftText,
-) -> [(DemographicQuestionVersionIden, SimpleExpr); 11] {
+) -> [(DemographicQuestionVersionIden, SimpleExpr); 12] {
     use DemographicQuestionVersionIden as Col;
     let location_country = input
         .location_country
@@ -643,6 +644,7 @@ fn draft_content(
     [
         (Col::TextContentId, Expr::val(texts.text.into_uuid()).into()),
         (Col::QuestionType, Expr::val(input.question_type).into()),
+        (Col::Multi, Expr::val(input.multi).into()),
         (Col::DatePrecision, Expr::val(input.date_precision).into()),
         (Col::LocationFormat, Expr::val(input.location_format).into()),
         (Col::LocationCountry, Expr::val(location_country).into()),

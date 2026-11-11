@@ -210,7 +210,7 @@ mod tests {
             Some(org_id),
             &question_input(json!({
                 "text": "Favourite colour",
-                "question_type": "any_string",
+                "question_type": "text",
                 "tag_ids": [tag_id],
             })),
             LOCALE,
@@ -230,7 +230,7 @@ mod tests {
             question_id,
             &question_input(json!({
                 "text": "Favourite colour (edited)",
-                "question_type": "any_string",
+                "question_type": "text",
                 "tag_ids": [tag_id],
             })),
             LOCALE,
@@ -259,7 +259,7 @@ mod tests {
         let version = publish_new_question(
             &pool,
             org_id,
-            json!({"text": "Original", "question_type": "any_string"}),
+            json!({"text": "Original", "question_type": "text"}),
         )
         .await?;
         let question_id = version.version.question_id;
@@ -303,7 +303,7 @@ mod tests {
         let v1 = publish_new_question(
             &pool,
             org_id,
-            json!({"text": "Original", "question_type": "any_string"}),
+            json!({"text": "Original", "question_type": "text"}),
         )
         .await?;
         let question_id = v1.version.question_id;
@@ -311,7 +311,7 @@ mod tests {
         let unpublished = questions::create_question(
             &pool,
             Some(org_id),
-            &question_input(json!({"text": "Never published", "question_type": "any_string"})),
+            &question_input(json!({"text": "Never published", "question_type": "text"})),
             LOCALE,
         )
         .await?;
@@ -344,7 +344,7 @@ mod tests {
             question_id,
             &question_input(json!({
                 "text": "Draft wording",
-                "question_type": "any_string",
+                "question_type": "text",
                 "tag_ids": [first_tag_id(&pool).await?],
             })),
             LOCALE,
@@ -382,7 +382,7 @@ mod tests {
             org_id,
             json!({
                 "text": "Employment",
-                "question_type": "single_select",
+                "question_type": "select",
                 "options": ["Employed", "Unemployed"],
             }),
         )
@@ -578,7 +578,7 @@ mod tests {
         let v1 = publish_new_question(
             &pool,
             org_id,
-            json!({"text": "Occupation", "question_type": "any_string"}),
+            json!({"text": "Occupation", "question_type": "text"}),
         )
         .await?;
         let question_id = v1.version.question_id;
@@ -642,13 +642,13 @@ mod tests {
         let asked = publish_new_question(
             &pool,
             org_id,
-            json!({"text": "Asked", "question_type": "any_string"}),
+            json!({"text": "Asked", "question_type": "text"}),
         )
         .await?;
         let disabled = publish_new_question(
             &pool,
             org_id,
-            json!({"text": "Disabled", "question_type": "any_string"}),
+            json!({"text": "Disabled", "question_type": "text"}),
         )
         .await?;
         let form = forms::create_form(

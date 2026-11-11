@@ -1171,7 +1171,7 @@ mod tests {
             .post(
                 &app,
                 "/demographics/defaults",
-                json!({ "text": "Only super admins", "question_type": "any_string" })
+                json!({ "text": "Only super admins", "question_type": "text" })
                     .to_string()
                     .into(),
             )

@@ -54,7 +54,7 @@ fn validate_type_fields(input: &QuestionDraftInput) -> Result<(), ComhairleError
     ensure(
         input.max_selections.is_none()
             || (kind == QuestionType::Select && input.max_selections.is_some_and(|max| max >= 1)),
-        "max_selections is only allowed for multi_select questions and must be at least 1",
+        "max_selections is only allowed for multi-select questions and must be at least 1",
     )?;
     ensure(
         kind == QuestionType::Select || (!input.allow_other && !input.prefer_not_to_say),
