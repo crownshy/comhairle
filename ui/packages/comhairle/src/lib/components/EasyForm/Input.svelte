@@ -11,7 +11,7 @@
 		label?: string;
 		files?: undefined;
 	};
-	let { onblur, ref = $bindable(), label, type, ...props }: Props = $props();
+	let { onblur, ref = $bindable(), label, class: className, type, ...props }: Props = $props();
 
 	let errorMessage = $state<string>('');
 
@@ -50,6 +50,7 @@
 		<Input
 			{...props}
 			{id}
+			class="{className} {errorMessage ? 'border-destructive' : ''}"
 			bind:ref
 			type={type === 'password' && visible ? 'text' : type}
 			onblur={(e) => {
