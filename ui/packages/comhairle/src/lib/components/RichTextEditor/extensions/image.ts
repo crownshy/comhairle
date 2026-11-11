@@ -1,12 +1,10 @@
 import { Image as BaseImage } from '@tiptap/extension-image';
 
-/**
- * The stock Image node plus `align` and `width`. Both are stored as keys and rendered as
- * `data-align` / `data-width`, which editor-content.css lays out, so the document holds no raw
- * CSS. Keep these lists in sync with that stylesheet.
- */
 export type ImageAlign = 'left' | 'center' | 'right';
 export type ImageWidth = '25' | '50' | '75' | '100';
+
+/** The layout keys an image node carries. `null` means the default layout. */
+export type ImageLayout = { align: ImageAlign | null; width: ImageWidth | null };
 
 export const IMAGE_ALIGN_OPTIONS: { key: ImageAlign; label: string }[] = [
 	{ key: 'left', label: 'Align left' },
@@ -24,33 +22,42 @@ export const IMAGE_WIDTH_OPTIONS: { key: ImageWidth; label: string }[] = [
 const ALIGN_KEYS = new Set<string>(IMAGE_ALIGN_OPTIONS.map((option) => option.key));
 const WIDTH_KEYS = new Set<string>(IMAGE_WIDTH_OPTIONS.map((option) => option.key));
 
-// Stored JSON skips parseHTML, so rendering checks the value against the list too.
-function knownKey(value: unknown, keys: Set<string>): string | null {
-	return typeof value === 'string' && keys.has(value) ? value : null;
+function knownKey<Key extends string>(value: unknown, keys: Set<string>): Key | null {
+	return typeof value === 'string' && keys.has(value) ? (value as Key) : null;
 }
 
+/** Reads an image's layout from its node attributes, dropping values outside the option lists. */
+export function readImageLayout(attributes: Record<string, unknown>): ImageLayout {
+	return {
+		align: knownKey<ImageAlign>(attributes.align, ALIGN_KEYS),
+		width: knownKey<ImageWidth>(attributes.width, WIDTH_KEYS)
+	};
+}
+
+// Stored JSON skips parseHTML, so rendering checks the value against the list too.
+function layoutAttribute(name: keyof ImageLayout, keys: Set<string>) {
+	const dataAttribute = `data-${name}`;
+	return {
+		default: null,
+		parseHTML: (element: HTMLElement) => knownKey(element.getAttribute(dataAttribute), keys),
+		renderHTML: (attributes: Record<string, unknown>) => {
+			const value = knownKey(attributes[name], keys);
+			return value ? { [dataAttribute]: value } : {};
+		}
+	};
+}
+
+/**
+ * The stock Image node plus `align` and `width`. Both are stored as keys and rendered as
+ * `data-align` / `data-width`, which editor-content.css lays out, so the document holds no raw
+ * CSS. Keep the option lists in sync with that stylesheet.
+ */
 export const Image = BaseImage.extend({
 	addAttributes() {
 		return {
 			...this.parent?.(),
-			align: {
-				default: null as ImageAlign | null,
-				parseHTML: (element: HTMLElement) =>
-					knownKey(element.getAttribute('data-align'), ALIGN_KEYS),
-				renderHTML: (attributes: Record<string, unknown>) => {
-					const align = knownKey(attributes.align, ALIGN_KEYS);
-					return align ? { 'data-align': align } : {};
-				}
-			},
-			width: {
-				default: null as ImageWidth | null,
-				parseHTML: (element: HTMLElement) =>
-					knownKey(element.getAttribute('data-width'), WIDTH_KEYS),
-				renderHTML: (attributes: Record<string, unknown>) => {
-					const width = knownKey(attributes.width, WIDTH_KEYS);
-					return width ? { 'data-width': width } : {};
-				}
-			}
+			align: layoutAttribute('align', ALIGN_KEYS),
+			width: layoutAttribute('width', WIDTH_KEYS)
 		};
 	}
 });

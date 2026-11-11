@@ -109,8 +109,8 @@
 	text-align: justify;
 }
 
-/* Image layout is stored as keys on the node (extensions/image.ts). Width is a share of the
-   column, so it scales with the screen. Keep the keys in sync with that file. */
+/* Image layout keys come from extensions/image.ts. Width is a share of the column, so it
+   scales with the screen. */
 .tiptap img[data-align] {
 	display: block;
 }
