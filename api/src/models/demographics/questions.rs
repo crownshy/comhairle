@@ -17,7 +17,7 @@ use crate::models::translations::{
     TextContentId, TextFormat, localize_translations, new_translation_in_connection,
 };
 
-const VERSION_COLUMNS: [DemographicQuestionVersionIden; 17] = [
+const VERSION_COLUMNS: [DemographicQuestionVersionIden; 18] = [
     DemographicQuestionVersionIden::Id,
     DemographicQuestionVersionIden::QuestionId,
     DemographicQuestionVersionIden::VersionNumber,
@@ -25,6 +25,7 @@ const VERSION_COLUMNS: [DemographicQuestionVersionIden; 17] = [
     DemographicQuestionVersionIden::PublishedAt,
     DemographicQuestionVersionIden::TextContentId,
     DemographicQuestionVersionIden::QuestionType,
+    DemographicQuestionVersionIden::Multi,
     DemographicQuestionVersionIden::DatePrecision,
     DemographicQuestionVersionIden::LocationFormat,
     DemographicQuestionVersionIden::LocationCountry,
