@@ -462,13 +462,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Set the order of your [steps](/admin/info/glossary#term-step). Participants will go through them from top to bottom.',
 				image: {
 					src: arrangeStepOrderImage,
-					alt: "Process design with two step cards, New Survey Step and New Polis Step. The second step's actions menu is open, showing Move up, Move down, Rename, Learn more and Delete."
+					alt: "Process design with two step cards, New Survey Step and New Polis Step. The second step's actions menu is open, showing Move up, Move down, Rename, Required, Revisitable, Learn more and Delete."
 				},
 				steps: [
 					'Go to **Process design**.',
 					'Drag a step card up or down to change its position.',
 					'Alternatively, open the step’s actions menu :actions: and select **Move up** or **Move down**.',
-					'You can also use this menu to **Rename** or **Delete** a step, or select **Learn more** to read about its engagement tool.'
+					'You can also use this menu to **Rename** or **Delete** a step, tick **Required** or **Revisitable**, or select **Learn more** to read about its engagement tool.'
 				],
 				tips: [
 					'Think about the participant journey when ordering your steps: what do they need to know or consider before moving on to the next activity?',
@@ -483,14 +483,14 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Set up the content and behaviour of each step before participants go through your conversation.',
 				image: {
 					src: configureAStepImage,
-					alt: 'The Configure tab of a step, with the Name and Description fields, and the Revisitable step and Required step switches.'
+					alt: 'The Configure tab of a step, with the Name, Description and Data protocol fields.'
 				},
 				steps: [
 					'In **Process design**, select the step you want to configure.',
 					'Open the **Setup** tab to add the content participants will interact with, such as learning materials or poll questions. The options available depend on the [engagement tool](/admin/info/glossary#term-engagement-tool) you chose.',
 					'Open the **Configure** tab to edit the step’s **Name** and **Description**.',
-					'Turn on **Required step** if participants must complete the step before moving on.',
-					'Turn on **Revisitable step** if participants should be able to return to the step later.'
+					'To make participants complete the step before moving on, open its actions menu :actions: in **Process design** and tick **Required**.',
+					'To let participants return to the step later, tick **Revisitable** in the same menu.'
 				],
 				tips: [
 					'The settings available under **Setup** depend on the **engagement tool** used for that step.',
@@ -741,11 +741,11 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In a Participant-led poll, participants can write their own statements. Moderate them so that only appropriate statements are shown to others.',
 				image: {
 					src: moderateImage,
-					alt: 'The Moderation tab of a Participant-led poll step in Process design. Statements moderation has Download CSV, Sync from Polis and Add seed statements buttons, a search box, the All, Seeded, Accepted, Pending and Rejected filters, and a list of statements. The Reject statement popover is open, with an optional Reason and Note, and Cancel and Reject buttons.'
+					alt: 'Engage → Moderate for a Participant-led poll step. Statements moderation has Download CSV and Sync from Polis buttons, a search box, the All, Seeded, Accepted, Pending and Rejected filters, and a list of statements. The Reject statement popover is open, with an optional Reason and Note, and Cancel and Reject buttons.'
 				},
 				steps: [
 					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
-					'In **Process design**, open the Participant-led poll step and go to its **Moderation** tab.',
+					'Open **Moderate** under **Engage**, then choose the Participant-led poll step.',
 					'Filter statements by **Pending**, **Accepted**, **Rejected**, **Seeded** or **All**, or search for a word.',
 					'Accept or reject each statement. When you reject a statement, choose a reason from your moderation policy.'
 				],
@@ -769,7 +769,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Use **Report** to summarise what came out of your conversation, record its impact, and share the results.',
 				image: {
 					src: reportImage,
-					alt: 'The Report page under Results, with View Report and a Publish Report switch at the top, then a Summary editor and a Report body editor, each with formatting tools and an Embed report component button.'
+					alt: 'The Report page under Results, with View Report and a Publish Report switch at the top, a Public when you publish box, then a Summary editor and a Report body editor, each with formatting tools and an Embed report component button.'
 				},
 				steps: [
 					'Open **Report**. It becomes available after you launch the conversation.',
@@ -822,13 +822,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Get to know the [moderation](/admin/info/glossary#term-moderation) screen for a Participant-led poll, then work through the decision each new statement needs and how to carry it out.',
 				image: {
 					src: moderationInDepthImage,
-					alt: 'The Moderation tab of a Participant-led poll step, filtered to Accepted. Two statements have an Edited badge and Edited from: the original statement about park benches and bins. Each row has translate, pencil, tick and cross icons, and Download CSV, Sync from Polis and Add seed statements buttons sit above the search box and filters.',
+					alt: 'The Moderate page for a Participant-led poll step, filtered to Accepted. Two statements have an Edited badge and Edited from: the original statement about park benches and bins. Each row has translate, pencil, tick and cross icons, and Download CSV and Sync from Polis buttons sit above the search box and filters.',
 					caption:
 						'The moderation screen for a Participant-led poll step, showing two statements split from one.'
 				},
 				environment: {
 					title: 'The moderation screen',
-					intro: 'Open your poll step in **Process design** and go to **Moderation**. Statements are grouped into tabs by where they came from and what has been decided about them.',
+					intro: 'Open **Moderate** under **Engage** and choose your poll step. Statements are grouped into tabs by where they came from and what has been decided about them.',
 					parts: [
 						{
 							name: 'Download CSV',
@@ -841,16 +841,15 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 								'Pulls in new participant statements. The list does not update on its own, so click this before you start moderating.'
 						},
 						{
-							name: 'Add seed statements',
-							description:
-								'Adds your own statements to start the conversation. They go straight into **Seeded** and **Accepted**.'
-						},
-						{
 							name: 'All',
 							description:
 								'Every statement: seed statements, participant statements, edited statements, and those pending, accepted or rejected.'
 						},
-						{ name: 'Seeded', description: 'The conversation starters you added.' },
+						{
+							name: 'Seeded',
+							description:
+								'The conversation starters you added under **Seed statements** in the poll step’s **Setup** tab.'
+						},
 						{
 							name: 'Accepted',
 							description:
@@ -1067,22 +1066,22 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Three settings decide whether participants can skip steps, go back to them, and return after they have finished. Their effects overlap, so make these decisions together.',
 				image: {
 					src: stepNavigationImage,
-					alt: 'A step’s Configure tab in Process design, with Name, Description and Data protocol fields. Below them, highlighted, are the Revisitable step toggle (Can users revisit this step?), turned off, and the Required step toggle (Can users skip this step?), turned on.',
+					alt: "Process design with two step cards. The second step's actions menu is open, with Required (ticked) and Revisitable (not ticked) highlighted.",
 					caption:
-						'A step’s Configure tab, where Required step and Revisitable step are set.'
+						'A step’s actions menu in Process design, where Required and Revisitable are set.'
 				},
 				environment: {
 					title: 'Where the settings are',
 					parts: [
 						{
-							name: 'Required step',
+							name: 'Required',
 							description:
-								'In **Process design** → your step → **Configure**. On by default.'
+								'In the step’s actions menu :actions: in **Process design**. On by default.'
 						},
 						{
-							name: 'Revisitable step',
+							name: 'Revisitable',
 							description:
-								'In **Process design** → your step → **Configure**. Off by default. Applies while a participant is still working through the conversation.'
+								'In the step’s actions menu :actions: in **Process design**. Off by default. Applies while a participant is still working through the conversation. Survey steps can’t be revisited.'
 						},
 						{
 							name: 'Allow revisit after finishing',
@@ -1097,13 +1096,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						{
 							title: 'Let participants skip a step',
 							when: 'The step is optional, such as extra background reading.',
-							how: ['Turn off **Required step** for that step.'],
+							how: ['Untick **Required** in the step’s actions menu :actions:.'],
 							result: 'Participants can move on without completing it. Keep steps that later steps depend on required.'
 						},
 						{
 							title: 'Let participants go back to a step',
 							when: 'Participants may want to check or change what they did earlier, such as re-reading background before voting.',
-							how: ['Turn on **Revisitable step** for that step.'],
+							how: ['Tick **Revisitable** in the step’s actions menu :actions:.'],
 							result: 'Participants can return to the step while they are still working through the conversation. After they finish, **Allow revisit after finishing** decides instead.'
 						},
 						{
@@ -1115,7 +1114,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'Participants who finish can’t reach any step, the revisit links disappear, and further contributions are rejected. Adding a step to a live conversation re-opens it for everyone who had already finished.',
 							image: {
 								src: toggleRevisitAfterFinishImage,
-								alt: 'The Access section of Configure Details, with the Allow revisit after finishing toggle turned off, below the thank-you page settings.',
+								alt: 'The Access section of Configure Details, with the Allow revisit after finishing toggle turned off, first under After finishing, above the signup prompt and thank-you page settings.',
 								caption:
 									'Allow revisit after finishing, turned off, in the Access section.'
 							}
