@@ -43,7 +43,7 @@
 
 <InlineInput
 	placeholder="Question..."
-	class="mb-3 pl-0 text-xl! font-semibold"
+	class="mb-3 text-xl! font-semibold"
 	value={question.text}
 	oninput={(e) => void (question.text = e.currentTarget.value)}
 />

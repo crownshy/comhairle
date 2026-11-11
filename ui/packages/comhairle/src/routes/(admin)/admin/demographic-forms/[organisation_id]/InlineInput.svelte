@@ -8,8 +8,5 @@
 
 <Input
 	{...props}
-	class={cn(
-		'not-user-valid:border-primary rounded-none border-0 border-b-3 bg-transparent!',
-		className
-	)}
+	class={cn('border-primary rounded-none border-0 border-b-3 bg-transparent! pl-1', className)}
 />
