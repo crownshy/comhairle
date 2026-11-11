@@ -5,7 +5,7 @@ type ReportNode = {
 	text?: string;
 };
 
-/** One page of the published report, and one tab in its header. */
+/** One page of the published report, and one pill in its header. */
 export type ReportPage = {
 	label: string;
 	/** A TipTap document (or a legacy plain string) that `ReportBody` can render. */
@@ -51,18 +51,33 @@ export function hasReportContent(content: string | null | undefined): boolean {
 	);
 }
 
-/** The first line of text on a page, which names its tab. */
-function firstText(nodes: ReportNode[]): string | undefined {
+function isInline(node: ReportNode): boolean {
+	return node.text !== undefined || node.type === 'hardBreak';
+}
+
+/** A node's text with a newline at each hard break and between blocks such as list items. */
+function nodeLines(node: ReportNode): string {
+	if (node.type === 'hardBreak') return '\n';
+	if (node.text !== undefined) return node.text;
+	const children = node.content ?? [];
+	return children.map(nodeLines).join(children.some(isInline) ? '' : '\n');
+}
+
+/** The first line of text on a page, which names its pill. */
+function firstLine(nodes: ReportNode[]): string | undefined {
 	for (const node of nodes) {
-		const text = nodeText(node).trim();
-		if (text) return text;
+		const line = nodeLines(node)
+			.split('\n')
+			.map((text) => text.trim())
+			.find(Boolean);
+		if (line) return line;
 	}
 	return undefined;
 }
 
 /**
  * Splits the report body into the pages the published report shows. Each page break (a
- * horizontal rule) starts a new page, and the page's first line of text names its tab.
+ * horizontal rule) starts a new page, and the page's first line of text names its pill.
  * Headings are only text styles. A page with nothing on it is dropped, and a page with no
  * text at all is named by `fallbackLabel`. See ADR-0069.
  */
@@ -75,17 +90,17 @@ export function splitReportIntoPages(
 		return hasReportContent(content) ? [{ label: fallbackLabel(1), content }] : [];
 	}
 
-	const runs: ReportNode[][] = [[]];
+	const pagesNodes: ReportNode[][] = [[]];
 	for (const node of nodes) {
-		if (node.type === 'horizontalRule') runs.push([]);
-		else runs[runs.length - 1].push(node);
+		if (node.type === 'horizontalRule') pagesNodes.push([]);
+		else pagesNodes[pagesNodes.length - 1].push(node);
 	}
 
-	return runs
-		.filter((run) => hasReportContent(toDocument(run)))
-		.map((run, index) => ({
-			label: firstText(run) ?? fallbackLabel(index + 1),
-			content: toDocument(run)
+	return pagesNodes
+		.filter((pageNodes) => hasReportContent(toDocument(pageNodes)))
+		.map((pageNodes, index) => ({
+			label: firstLine(pageNodes) ?? fallbackLabel(index + 1),
+			content: toDocument(pageNodes)
 		}));
 }
 

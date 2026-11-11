@@ -9,6 +9,12 @@ const heading = (level: number, text: string) => ({
 const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 const rule = { type: 'horizontalRule' };
 const embed = { type: 'reportComponentEmbed', attrs: { toolStepId: 'step', componentType: 'map' } };
+const image = { type: 'image', attrs: { src: 'https://example.com/a.png' } };
+const hardBreak = { type: 'hardBreak' };
+const bulletList = (...items: string[]) => ({
+	type: 'bulletList',
+	content: items.map((item) => ({ type: 'listItem', content: [paragraph(item)] }))
+});
 const doc = (...content: unknown[]) => JSON.stringify({ type: 'doc', content });
 
 const pageLabel = (pageNumber: number) => `Page ${pageNumber}`;
@@ -46,8 +52,39 @@ describe('splitReportIntoPages', () => {
 		});
 	});
 
+	it('names a page by the line before a hard break', () => {
+		const twoLines = {
+			type: 'paragraph',
+			content: [
+				{ type: 'text', text: 'Line one' },
+				hardBreak,
+				{ type: 'text', text: 'Line two' }
+			]
+		};
+		expect(labels(doc(twoLines))).toEqual(['Line one']);
+	});
+
+	it('names a page that opens with a list by its first item', () => {
+		expect(labels(doc(bulletList('First', 'Second')))).toEqual(['First']);
+	});
+
+	it('names a page that opens with an image by the text after it', () => {
+		expect(labels(doc(paragraph('Intro'), rule, image, paragraph('Caption')))).toEqual([
+			'Intro',
+			'Caption'
+		]);
+	});
+
+	it('ignores page breaks at the start and end', () => {
+		expect(labels(doc(rule, paragraph('Only'), rule))).toEqual(['Only']);
+	});
+
 	it('numbers a page that has no text', () => {
 		expect(labels(doc(paragraph('Intro'), rule, embed))).toEqual(['Intro', 'Page 2']);
+	});
+
+	it('keeps a page that holds only an image', () => {
+		expect(labels(doc(paragraph('Intro'), rule, image))).toEqual(['Intro', 'Page 2']);
 	});
 
 	it('drops empty pages and numbers the pages that are left', () => {
@@ -78,11 +115,6 @@ describe('hasReportContent', () => {
 				true
 			);
 		}
-	});
-
-	it('keeps a page that holds only an image', () => {
-		const image = { type: 'image', attrs: { src: 'https://example.com/a.png' } };
-		expect(labels(doc(paragraph('Intro'), rule, image))).toEqual(['Intro', 'Page 2']);
 	});
 
 	it('treats an empty document as blank', () => {

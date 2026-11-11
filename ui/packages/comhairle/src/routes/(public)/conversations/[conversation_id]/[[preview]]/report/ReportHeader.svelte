@@ -44,7 +44,7 @@
 
 	{#if pages.length > 0}
 		<nav
-			aria-label={m.report_sections()}
+			aria-label={m.report_pages()}
 			class="-mx-5 overflow-x-auto px-5 [scrollbar-width:none]"
 		>
 			<ul class="flex w-max gap-2">
