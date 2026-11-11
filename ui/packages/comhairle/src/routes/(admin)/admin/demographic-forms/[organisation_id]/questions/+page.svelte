@@ -22,28 +22,18 @@
 <TabContent>
 	<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
 		<div class="flex flex-wrap gap-2">
-			{#await data.streamedTags}
-				{#each { length: 3 }}
-					<Skeleton class="h-4 w-10 rounded-xl" />
-				{/each}
-			{:then tags}
-				{#if tags.err !== null}
-					<ErrorMessage>Could not load tags, please try again</ErrorMessage>
-				{:else}
-					{#each tags.ok.concat( { id: 'special-category', name: SPECIAL_CATEGORY_TAG, organization_id: params.organisation_id } ) as tag (tag.id)}
-						<button
-							type="button"
-							class="flex flex-row rounded-full"
-							onclick={() => void updateQueryParam('filter', tag.name)}
-						>
-							<TagBadge
-								tag={tag.name as TagName}
-								selected={page.url.searchParams.get('filter') === tag.name}
-							/>
-						</button>
-					{/each}
-				{/if}
-			{/await}
+			{#each data.tags.concat( { id: 'special-category', name: SPECIAL_CATEGORY_TAG, organization_id: params.organisation_id } ) as tag (tag.id)}
+				<button
+					type="button"
+					class="flex flex-row rounded-full"
+					onclick={() => void updateQueryParam('filter', tag.name)}
+				>
+					<TagBadge
+						tag={tag.name as TagName}
+						selected={page.url.searchParams.get('filter') === tag.name}
+					/>
+				</button>
+			{/each}
 		</div>
 		<SearchBar
 			oninput={useDebounce((e) => {
@@ -52,7 +42,7 @@
 					return;
 				}
 				updateQueryParam('search', input.value);
-			}, 250)}
+			}, 350)}
 			value={page.url.searchParams.get('search') ?? undefined}
 			placeholder="Search questions..."
 		/>
@@ -71,110 +61,77 @@
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
-			{#await data.streamedQuestions}
+			{#each data.questions as question (question.id)}
 				<Table.Row>
-					<Table.Cell class="pr-2">
-						<Skeleton class="h-14 w-6" />
+					{#if data.canEdit}
+						<Table.Cell class="pr-2">
+							<div class="text-foreground/70 flex flex-col gap-y-1">
+								{#if !Demographics.isDefaultQuestion(question)}
+									<Button
+										variant="ghost"
+										class="size-6"
+										title="Edit question"
+										aria-label="Edit {question.text}"
+										href={resolve(
+											'/(admin)/admin/demographic-forms/[organisation_id]/questions/edit/[question_id]',
+											{
+												organisation_id: params.organisation_id,
+												question_id: question.questionId
+											}
+										)}
+									>
+										<Edit class="size-4" />
+									</Button>
+								{/if}
+								<Button
+									variant="ghost"
+									class="size-6"
+									title="Duplicate question"
+									aria-label="Duplicate {question.text}"
+								>
+									<Copy class="size-4" />
+								</Button>
+							</div>
+						</Table.Cell>
+					{/if}
+					<Table.Cell class=" font-semibold" title={question.text}>
+						<div class="w-50 truncate">
+							{question.text}
+						</div>
+					</Table.Cell>
+					<Table.Cell class="text-muted-foreground text-sm">
+						{capitalise(question.questionType)}
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-7 w-54" />
+						{#if Demographics.isDefaultQuestion(question)}
+							<Badge variant="secondary" class="text-xs">Default</Badge>
+						{:else}
+							<Badge variant={question.publishedVersion === 0 ? 'draft' : 'primary'}>
+								{question.publishedVersion === 0
+									? 'Unpublished'
+									: `v${question.publishedVersion}`}
+								{#if question.draftVersion !== 0}
+									, draft v{question.draftVersion}
+								{/if}
+							</Badge>
+						{/if}
 					</Table.Cell>
 					<Table.Cell>
-						<Skeleton class="h-7 w-17" />
-					</Table.Cell>
-					<Table.Cell>
-						<Skeleton class="h-7 w-8" />
-					</Table.Cell>
-					<Table.Cell>
-						<Skeleton class="h-7 w-auto" />
+						<div class="flex flex-wrap gap-1">
+							{#each question.tags as tag (tag)}
+								<TagBadge tag={tag.name as TagName} />
+							{/each}
+							{#if question.specialCategory}
+								<TagBadge tag={SPECIAL_CATEGORY_TAG} />
+							{/if}
+						</div>
 					</Table.Cell>
 				</Table.Row>
-			{:then questions}
-				{#if questions.err !== null}
-					<Table.Row>
-						<Table.Cell></Table.Cell>
-						<Table.Cell>
-							<ErrorMessage>Couldn't load questions, please try again</ErrorMessage>
-						</Table.Cell>
-					</Table.Row>
-				{:else}
-					{#each questions.ok as question (question.id)}
-						<Table.Row>
-							{#if data.canEdit}
-								<Table.Cell class="pr-2">
-									<div class="text-foreground/70 flex flex-col gap-y-1">
-										{#if !Demographics.isDefaultQuestion(question)}
-											<Button
-												variant="ghost"
-												class="size-6"
-												title="Edit question"
-												aria-label="Edit {question.text}"
-												href={resolve(
-													'/(admin)/admin/demographic-forms/[organisation_id]/questions/edit/[question_id]',
-													{
-														organisation_id: params.organisation_id,
-														question_id: question.questionId
-													}
-												)}
-											>
-												<Edit class="size-4" />
-											</Button>
-										{/if}
-										<Button
-											variant="ghost"
-											class="size-6"
-											title="Duplicate question"
-											aria-label="Duplicate {question.text}"
-										>
-											<Copy class="size-4" />
-										</Button>
-									</div>
-								</Table.Cell>
-							{/if}
-							<Table.Cell class=" font-semibold" title={question.text}>
-								<div class="w-50 truncate">
-									{question.text}
-								</div>
-							</Table.Cell>
-							<Table.Cell class="text-muted-foreground text-sm">
-								{capitalise(question.questionType)}
-							</Table.Cell>
-							<Table.Cell>
-								{#if Demographics.isDefaultQuestion(question)}
-									<Badge variant="secondary" class="text-xs">Default</Badge>
-								{:else}
-									<Badge
-										variant={question.publishedVersion === 0
-											? 'draft'
-											: 'primary'}
-									>
-										{question.publishedVersion === 0
-											? 'Unpublished'
-											: `v${question.publishedVersion}`}
-										{#if question.draftVersion !== 0}
-											, draft v{question.draftVersion}
-										{/if}
-									</Badge>
-								{/if}
-							</Table.Cell>
-							<Table.Cell>
-								<div class="flex flex-wrap gap-1">
-									{#each question.tags as tag (tag)}
-										<TagBadge tag={tag.name as TagName} />
-									{/each}
-									{#if question.specialCategory}
-										<TagBadge tag={SPECIAL_CATEGORY_TAG} />
-									{/if}
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						<Table.Row>
-							<Table.Cell class="italic font-semibold">No questions found</Table.Cell>
-						</Table.Row>
-					{/each}
-				{/if}
-			{/await}
+			{:else}
+				<Table.Row>
+					<Table.Cell class="italic font-semibold">No questions found</Table.Cell>
+				</Table.Row>
+			{/each}
 		</Table.Body>
 	</Table.Root>
 </TabContent>

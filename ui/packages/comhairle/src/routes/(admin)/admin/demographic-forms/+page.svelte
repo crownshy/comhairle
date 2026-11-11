@@ -19,7 +19,7 @@
 
 <TabContent>
 	{#if data.userOrganisations.length === 0}
-		<Callout variant="warning" class="px-7 py-5">
+		<Callout variant="primary" class="px-7 py-5">
 			<h2 class="text-lg font-semibold">No organisations yet</h2>
 
 			<p class="text-muted-foreground text-base">
