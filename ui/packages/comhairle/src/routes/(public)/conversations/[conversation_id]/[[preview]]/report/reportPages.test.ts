@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	cardHref,
-	hasReportContent,
-	readCardNumber,
-	splitReportIntoSections,
-	toReportPages
-} from './reportPages';
+import { cardHref, hasReportContent, readCardNumber, splitReportIntoPages } from './reportPages';
 
 const heading = (level: number, text: string) => ({
 	type: 'heading',
@@ -17,130 +11,78 @@ const rule = { type: 'horizontalRule' };
 const embed = { type: 'reportComponentEmbed', attrs: { toolStepId: 'step', componentType: 'map' } };
 const doc = (...content: unknown[]) => JSON.stringify({ type: 'doc', content });
 
-const shape = (content: string) =>
-	splitReportIntoSections(content, 'Introduction').map((section) => ({
-		label: section.label,
-		titles: section.cards.map((card) => card.title)
-	}));
+const pageLabel = (pageNumber: number) => `Page ${pageNumber}`;
+const labels = (content: string) =>
+	splitReportIntoPages(content, pageLabel).map((page) => page.label);
 
-describe('splitReportIntoSections', () => {
-	it('starts a section at each H2 and titles its first card with it', () => {
+describe('splitReportIntoPages', () => {
+	it('starts a page at each page break', () => {
 		expect(
-			shape(
-				doc(
-					heading(2, 'Overview'),
-					paragraph('a'),
-					heading(2, 'Methodology'),
-					paragraph('b')
-				)
-			)
-		).toEqual([
-			{ label: 'Overview', titles: ['Overview'] },
-			{ label: 'Methodology', titles: ['Methodology'] }
-		]);
+			labels(doc(paragraph('One'), rule, paragraph('Two'), rule, paragraph('Three')))
+		).toEqual(['One', 'Two', 'Three']);
 	});
 
-	it('starts a card titled by each H3', () => {
+	it('names each page by its first line of text, whatever its style', () => {
 		expect(
-			shape(
-				doc(
-					heading(2, 'What emerged'),
-					paragraph('a'),
-					heading(3, 'Common ground'),
-					paragraph('b'),
-					heading(3, 'Where opinions differ'),
-					embed
-				)
+			labels(
+				doc(heading(2, 'Overview'), paragraph('a'), rule, paragraph('What emerged'), embed)
 			)
-		).toEqual([
-			{
-				label: 'What emerged',
-				titles: ['What emerged', 'Common ground', 'Where opinions differ']
-			}
-		]);
+		).toEqual(['Overview', 'What emerged']);
 	});
 
-	it('starts a card that keeps the section title at each horizontal rule', () => {
-		expect(shape(doc(heading(2, 'Overview'), paragraph('a'), rule, paragraph('b')))).toEqual([
-			{ label: 'Overview', titles: ['Overview', 'Overview'] }
-		]);
-	});
-
-	it('puts content before the first H2 in an introduction section', () => {
-		expect(shape(doc(paragraph('a'), heading(2, 'Overview'), paragraph('b')))).toEqual([
-			{ label: 'Introduction', titles: ['Introduction'] },
-			{ label: 'Overview', titles: ['Overview'] }
-		]);
-	});
-
-	it('drops empty cards and sections', () => {
+	it('keeps headings on the page they sit on', () => {
 		expect(
-			shape(
-				doc(
-					heading(2, 'Empty'),
-					heading(2, 'What emerged'),
-					heading(3, 'Common ground'),
-					paragraph('a'),
-					rule,
-					paragraph(' ')
-				)
+			labels(
+				doc(heading(2, 'Overview'), paragraph('a'), heading(2, 'Method'), heading(3, 'Who'))
 			)
-		).toEqual([{ label: 'What emerged', titles: ['Common ground'] }]);
+		).toEqual(['Overview']);
 	});
 
-	it('leaves the headings that split the report out of the card content', () => {
-		const [section] = splitReportIntoSections(
-			doc(heading(2, 'Overview'), paragraph('a')),
-			'Introduction'
-		);
-		expect(JSON.parse(section.cards[0].content)).toEqual({
+	it('shows the whole page, first line included, as the card content', () => {
+		const [page] = splitReportIntoPages(doc(heading(2, 'Overview'), paragraph('a')), pageLabel);
+		expect(JSON.parse(page.content)).toEqual({
 			type: 'doc',
-			content: [paragraph('a')]
+			content: [heading(2, 'Overview'), paragraph('a')]
 		});
 	});
 
-	it('shows a legacy plain text body as one card', () => {
-		expect(shape('Some **markdown**')).toEqual([
-			{ label: 'Introduction', titles: ['Introduction'] }
+	it('numbers a page that has no text', () => {
+		expect(labels(doc(paragraph('Intro'), rule, embed))).toEqual(['Intro', 'Page 2']);
+	});
+
+	it('drops empty pages and numbers the pages that are left', () => {
+		expect(labels(doc(paragraph(' '), rule, rule, embed, rule, paragraph('Last')))).toEqual([
+			'Page 1',
+			'Last'
 		]);
+	});
+
+	it('shows a legacy plain text body as one page', () => {
+		expect(labels('Some **markdown**')).toEqual(['Page 1']);
 	});
 
 	it('returns nothing for an empty body', () => {
-		expect(shape('')).toEqual([]);
-		expect(shape(doc(paragraph('')))).toEqual([]);
-	});
-});
-
-describe('toReportPages', () => {
-	it('numbers each card within its section', () => {
-		const sections = splitReportIntoSections(
-			doc(
-				heading(2, 'One'),
-				paragraph('a'),
-				rule,
-				paragraph('b'),
-				heading(2, 'Two'),
-				paragraph('c')
-			),
-			'Introduction'
-		);
-		expect(
-			toReportPages(sections).map(({ sectionIndex, cardIndex, cardCount }) => [
-				sectionIndex,
-				cardIndex,
-				cardCount
-			])
-		).toEqual([
-			[0, 0, 2],
-			[0, 1, 2],
-			[1, 0, 1]
-		]);
+		expect(labels('')).toEqual([]);
+		expect(labels(doc(paragraph('')))).toEqual([]);
 	});
 });
 
 describe('hasReportContent', () => {
 	it('counts an embedded component as content', () => {
 		expect(hasReportContent(doc(embed))).toBe(true);
+	});
+
+	it('counts an image, video, audio or embedded page as content', () => {
+		for (const type of ['image', 'video', 'audio', 'iframe']) {
+			expect(hasReportContent(doc({ type, attrs: { src: 'https://example.com/a' } }))).toBe(
+				true
+			);
+		}
+	});
+
+	it('keeps a page that holds only an image', () => {
+		const image = { type: 'image', attrs: { src: 'https://example.com/a.png' } };
+		expect(labels(doc(paragraph('Intro'), rule, image))).toEqual(['Intro', 'Page 2']);
 	});
 
 	it('treats an empty document as blank', () => {
