@@ -8,6 +8,7 @@
 		label?: string;
 		files?: undefined;
 	};
+
 	let { onblur, ref = $bindable(), label, ...props }: Props = $props();
 
 	let errorMessage = $state<string>('');
@@ -43,7 +44,7 @@
 	<Textarea
 		{...props}
 		{id}
-		{ref}
+		bind:ref
 		onblur={(e) => {
 			onblur?.(e);
 			if (!ref) {
