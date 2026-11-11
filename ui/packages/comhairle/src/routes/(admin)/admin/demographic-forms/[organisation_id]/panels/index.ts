@@ -1,5 +1,5 @@
 import PreviewPanel from './PreviewPanel';
 import FormPanel from './FormPanel.svelte';
-import QuestionPanel from './QuestionPanel.svelte';
+import QuestionOptionsPanel from './QuestionOptionsPanel.svelte';
 
-export { PreviewPanel, FormPanel, QuestionPanel };
+export { PreviewPanel, FormPanel, QuestionOptionsPanel };

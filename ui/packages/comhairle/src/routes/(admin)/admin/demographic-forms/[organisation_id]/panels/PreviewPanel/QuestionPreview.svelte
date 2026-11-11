@@ -44,6 +44,7 @@
 <InlineInput
 	placeholder="Question..."
 	class="mb-3 text-xl! font-semibold"
+	multiline
 	value={question.text}
 	oninput={(e) => void (question.text = e.currentTarget.value)}
 />
@@ -64,7 +65,6 @@
 					<GripVertical class="size-4" />
 					<Input
 						value={row.label}
-						autofocus
 						placeholder="Option..."
 						oninput={(e) => {
 							row.id = e.currentTarget.value;

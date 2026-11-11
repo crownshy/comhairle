@@ -5,7 +5,7 @@
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { QuestionLatestDto } from '@crownshy/api-client/api';
 	import FullScreenContent from '../../../FullScreenContent.svelte';
-	import { FormPanel, PreviewPanel } from '../../../panels';
+	import { FormPanel, PreviewPanel, QuestionOptionsPanel } from '../../../panels';
 
 	const { data, params } = $props();
 
@@ -39,14 +39,14 @@
 				</section>
 			{/snippet}
 			{#snippet Body()}
-				<div class="grid h-full grid-cols-[1fr_2fr_2fr] gap-x-5">
+				<div class="grid h-full grid-cols-[1fr_2fr_1fr] gap-x-5">
 					<FormPanel
 						bind:questions
 						bind:selectedQuestionId
 						organisationId={params.organisation_id}
 					/>
 					<PreviewPanel bind:questions {selectedQuestionId} />
-					<section>Question</section>
+					<QuestionOptionsPanel bind:questions {selectedQuestionId} />
 				</div>
 			{/snippet}
 		</FullScreenContent>

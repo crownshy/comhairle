@@ -39,6 +39,13 @@
 	</div>
 {/snippet}
 
+{#snippet Asteriks()}
+	<span class="text-destructive font-semibold" title="Required">
+		*
+		<span class="sr-only">Required</span>
+	</span>
+{/snippet}
+
 <section>
 	<h3 class="mb-2 text-sm font-semibold">Questions</h3>
 	{#if questions.length === 0}
@@ -56,14 +63,14 @@
 		>
 			{#snippet children(question, index)}
 				<div
-					class="border-border bg-card flex items-center justify-between rounded-xl border-2 py-3 pr-1 pl-3"
+					class="border-border bg-card flex items-center rounded-xl border-2 py-3 pr-1 pl-3"
 					class:border-primary={question.id === selectedQuestionId}
 					aria-selected={question.id === selectedQuestionId}
 				>
 					<GripVertical class="text-muted-foreground/70 size-4" />
 					<button
 						type="button"
-						class="flex items-center"
+						class="flex w-full items-center justify-between"
 						onclickcapture={() => void (selectedQuestionId = question.id)}
 					>
 						<div class="flex flex-col items-start">
@@ -77,20 +84,11 @@
 								>
 									{question.text}
 									{#if question.required && question.text.length < 23}
-										<span
-											class="text-destructive font-semibold"
-											title="Required"
-										>
-											*
-										</span>
-										<span class="sr-only">Required</span>
+										{@render Asteriks()}
 									{/if}
 								</h4>
 								{#if question.required && question.text.length >= 24}
-									<span class="text-destructive font-semibold" title="Required">
-										*
-									</span>
-									<span class="sr-only">Required</span>
+									{@render Asteriks()}
 								{/if}
 							</div>
 							<div class="mt-0.5 ml-3">
@@ -107,7 +105,7 @@
 						</div>
 						<Button
 							variant="ghost"
-							class="text-muted-foreground size-6"
+							class="text-muted-foreground mr-1 size-6"
 							title="Delete question"
 							aria-label="Delete {question.text}"
 							onclick={() => void (deleteDialogOpen = true)}
@@ -118,9 +116,7 @@
 				</div>
 			{/snippet}
 		</DraggableList>
-		<div>
-			{@render AddQuestionButtons()}
-		</div>
+		{@render AddQuestionButtons()}
 	{/if}
 </section>
 
