@@ -715,12 +715,13 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    let preview_tool_config =
-        setup_tool(&new_workflow_step.tool_setup, state, primary_locale).await?;
-
     let mut conn = state.db.acquire().await?;
-    demographics::steps::validate_tool_config(&mut conn, organization_id, &preview_tool_config)
-        .await?;
+    demographics::steps::validate_tool_config(
+        &mut conn,
+        organization_id,
+        &new_workflow_step.tool_config,
+    )
+    .await?;
     drop(conn);
 
     columns.push(WorkflowStepIden::WorkflowId);
@@ -737,8 +738,11 @@ pub async fn create(
     }
 
     if is_live {
-        let live_tool_config =
-            demographics::steps::freeze_tool_config(&state.db, preview_tool_config.clone()).await?;
+        let live_tool_config = demographics::steps::freeze_tool_config(
+            &state.db,
+            new_workflow_step.tool_config.clone(),
+        )
+        .await?;
         columns.push(WorkflowStepIden::ToolConfig);
         values.push(serde_json::to_value(&live_tool_config)?.into());
     }
@@ -935,7 +939,15 @@ mod tests {
             data_protocol: None,
         };
 
-        let step = create(&Arc::clone(&state), &payload, workflow.id, "en", false).await?;
+        let step = create(
+            &Arc::clone(&state),
+            &payload,
+            workflow.id,
+            "en",
+            false,
+            None,
+        )
+        .await?;
         let name = get_text_translation_by_content_and_locale(&state.db, &step.name, "en").await?;
 
         assert!(

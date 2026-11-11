@@ -307,6 +307,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => Ok(ToolExIm::ThinkingSpace(
                 thinking_space::ThinkingSpaceTool::export_tool(config).await?,
             )),
+            ToolConfig::DemographicQuestion(config) => Ok(ToolExIm::DemographicQuestion(
+                demographics::DemographicQuestionTool::export_tool(config).await?,
+            )),
+            ToolConfig::DemographicForm(config) => Ok(ToolExIm::DemographicForm(
+                demographics::DemographicFormTool::export_tool(config).await?,
+            )),
         }
     }
 }
@@ -403,6 +409,8 @@ pub enum ToolExIm {
     ElicitationBot(<elicitation_bot::ElicitationBotTool as ToolImpl>::ExportImport),
     Prioritization(<prioritization::PrioritizationTool as ToolImpl>::ExportImport),
     ThinkingSpace(<thinking_space::ThinkingSpaceTool as ToolImpl>::ExportImport),
+    DemographicQuestion(<demographics::DemographicQuestionTool as ToolImpl>::ExportImport),
+    DemographicForm(<demographics::DemographicFormTool as ToolImpl>::ExportImport),
 }
 
 impl ToolExIm {
@@ -437,6 +445,16 @@ impl ToolExIm {
                 thinking_space::ThinkingSpaceTool::import_tool(export, state)
                     .await
                     .map(ToolConfig::ThinkingSpace)
+            }
+            ToolExIm::DemographicQuestion(export) => {
+                demographics::DemographicQuestionTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicQuestion)
+            }
+            ToolExIm::DemographicForm(export) => {
+                demographics::DemographicFormTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicForm)
             }
         }
     }

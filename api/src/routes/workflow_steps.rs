@@ -26,7 +26,9 @@ use crate::models::permissions::conversation::Action;
 use crate::models::translations::{
     CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
-use crate::models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig};
+use crate::models::workflow_step::{
+    self, ActivationRule, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig, setup_tool,
+};
 use crate::models::{self, conversation, demographics, user_participation};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{
@@ -488,6 +490,7 @@ async fn import_workflow_step(
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
+        conversation.organization_id,
     )
     .await?;
 
