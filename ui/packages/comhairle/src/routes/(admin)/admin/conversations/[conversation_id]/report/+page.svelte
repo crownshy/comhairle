@@ -1,37 +1,39 @@
 <script lang="ts">
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import * as Card from '$lib/components/ui/card/index.js';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Select from '$lib/components/ui/select';
-	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import { untrack } from 'svelte';
+	import type { Editor } from '@tiptap/core';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { ReportTranslations } from '@crownshy/api-client/api';
-	import { notifications } from '$lib/notifications.svelte.js';
-	import { m } from '$lib/paraglide/messages';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import { invalidate } from '$app/navigation';
-	import { Switch } from '$lib/components/ui/switch/index.js';
-	import Edit from 'lucide-svelte/icons/edit';
-	import Delete from 'lucide-svelte/icons/delete';
-	import { Separator } from '$lib/components/ui/separator';
-	import { report_url } from '$lib/urls.js';
-	import 'carta-md/default.css';
-	import '@cartamd/plugin-slash/default.css';
-	import 'carta-plugin-video/default.css';
+	import { notifications } from '$lib/notifications.svelte.js';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte.js';
+	import { registerAutosaveSource } from '$lib/components/Translation/autosaveRegistry.svelte';
 	import type { Locale } from '$lib/paraglide/runtime.js';
 	import { key } from '$lib/utils/invalidationKey.js';
 	import { permissions } from '$lib/permissions.svelte';
-	import { publicResultsByStep } from '$lib/reports/embeds';
-	import PublicResultsSummary from './PublicResultsSummary.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { cn } from '$lib/utils';
+	import { publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
+	import {
+		REPORT_COLUMN_CLASS,
+		REPORT_EDITOR_HOVER_CLASS,
+		REPORT_EDITOR_PAGE_BREAK_CLASS,
+		REPORT_EDITOR_TEXT_CLASS,
+		REPORT_EYEBROW_CLASS
+	} from '$lib/reports/styles';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { reportTour } from './tour';
+	import ReportTopBar from './ReportTopBar.svelte';
+	import ReportTitle from './ReportTitle.svelte';
+	import ReportTextEditor from './ReportTextEditor.svelte';
+	import ReportToolbar from './ReportToolbar.svelte';
+	import ImageControls from '$lib/components/RichTextEditor/ImageControls.svelte';
+	import PagePills from './PagePills.svelte';
+	import PagesPanel from './PagesPanel.svelte';
+	import AddChartDialog from './AddChartDialog.svelte';
+	import PublishDialog from './PublishDialog.svelte';
+	import TranslationsDialog from './TranslationsDialog.svelte';
+	import ImpactsAndNotes from './ImpactsAndNotes.svelte';
+	import { isUnwritten, reportPages, type ReportPage } from './reportDocument';
 
 	useTour(() => reportTour);
 
@@ -39,48 +41,29 @@
 	let report = $derived(data.report);
 	let translations = $derived(ReportTranslations.parse(report.translations));
 	let conversation = $derived(data.conversation);
+	let primaryLocale = $derived(conversation.primaryLocale as Locale);
+	let supportedLanguages = $derived(conversation.supportedLanguages as Locale[]);
 	const canEdit = $derived(
 		permissions.can('conversation', 'conversation_update', conversation.id)
 	);
 
-	let newImpact = $state({
-		title: '',
-		details: '',
-		kind: 'policy'
-	});
-
-	let newFeedback = $state({
-		title: '',
-		details: ''
-	});
-
-	let impactOpen = $state(false);
-	let feedbackOpen = $state(false);
-
-	const summaryTranslationSource = createTextContentSource({
+	const summarySource = createTextContentSource({
 		getTranslation: () => translations.summary,
-		getPrimaryLocale: () => conversation.primaryLocale as Locale,
-		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
 		refresh: () => invalidate(key('admin/conversation/report'))
 	});
 
-	const bodyTranslationSource = createTextContentSource({
+	const bodySource = createTextContentSource({
 		getTranslation: () => translations.body ?? undefined,
-		getPrimaryLocale: () => conversation.primaryLocale as Locale,
-		getSupportedLanguages: () => conversation.supportedLanguages as Locale[],
+		getPrimaryLocale: () => primaryLocale,
+		getSupportedLanguages: () => supportedLanguages,
 		refresh: () => invalidate(key('admin/conversation/report')),
 		ensureTextContentId: upsertBodyTranslation
 	});
 
-	const publicResults = $derived(
-		publicResultsByStep(
-			[
-				...Object.values(summaryTranslationSource.contents),
-				...Object.values(bodyTranslationSource.contents)
-			],
-			data.reportEmbedSteps
-		)
-	);
+	registerAutosaveSource(() => summarySource);
+	registerAutosaveSource(() => bodySource);
 
 	async function upsertBodyTranslation(content: string): Promise<string | undefined> {
 		const textContentRes = await tryCatchAsync(() =>
@@ -119,22 +102,148 @@
 		return textContentRes.ok.id;
 	}
 
-	async function createFeedback() {}
+	// The API fills a new report with a placeholder sentence; the editor opens that as empty.
+	const savedSummary = $derived(summarySource.contents[primaryLocale] ?? '');
+	const savedBody = $derived(bodySource.contents[primaryLocale] ?? '');
+	const initialSummary = $derived(isUnwritten(savedSummary) ? '' : savedSummary);
+	const initialBody = $derived(isUnwritten(savedBody) ? '' : savedBody);
 
-	async function createImpact() {
-		if (!canEdit) return;
-		const result = await tryCatchAsync(() =>
-			apiClient.CreateImpact(newImpact, {
-				params: { report_id: report.id, conversation_id: report.conversationId }
-			})
-		);
-		if (result.err !== null) {
-			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
+	// What's on screen right now. Plain state rather than derived from the saved text, so the
+	// pills follow typing before the save lands.
+	let summaryOnScreen = $state(untrack(() => initialSummary));
+	let bodyOnScreen = $state(untrack(() => initialBody));
+
+	let published = $derived(report.isPublic);
+	let bodyEditor = $state<Editor>();
+	let activeEditor = $state<Editor>();
+	let addingChart = $state(false);
+	let scroller = $state<HTMLElement>();
+	// Readers never see an empty summary, so it shows only to someone who can fill it.
+	const showSummary = $derived(canEdit || !isUnwritten(summaryOnScreen));
+	// -1 is the summary, above the first page.
+	let currentPageIndex = $state(-1);
+	let reviewing = $state(false);
+	let translating = $state(false);
+	// Bumped after the translations dialog, which can also edit the main language.
+	let editorsRevision = $state(0);
+
+	const otherLocaleContents = $derived(
+		supportedLanguages
+			.filter((locale) => locale !== primaryLocale)
+			.flatMap((locale) => [
+				summarySource.contents[locale] ?? '',
+				bodySource.contents[locale] ?? ''
+			])
+	);
+	const publicResults = $derived(
+		publicResultsByStep(
+			[summaryOnScreen, bodyOnScreen, ...otherLocaleContents],
+			data.reportEmbedSteps
+		)
+	);
+	const embeddedKeys = $derived(
+		new Set(
+			[summaryOnScreen, bodyOnScreen]
+				.flatMap(sectionBlocksInDocument)
+				.map((block) => `${block.workflowStepId}:${block.sectionBlock}`)
+		)
+	);
+	const pages = $derived(
+		reportPages(bodyOnScreen, (pageNumber) => `Page ${pageNumber}`, 'Untitled page')
+	);
+	const saveState = $derived(
+		[summarySource.saveState, bodySource.saveState].find((state) => state !== 'idle') ?? 'idle'
+	);
+
+	function saveSummary(json: string) {
+		summaryOnScreen = json;
+		summarySource.saveSource(json);
+	}
+
+	function saveBody(json: string) {
+		bodyOnScreen = json;
+		bodySource.saveSource(json);
+	}
+
+	/** The document position just before the body's top-level node at `index`. */
+	function positionBefore(editor: Editor, index: number): number {
+		let position = 0;
+		for (let i = 0; i < index; i++) position += editor.state.doc.child(i).nodeSize;
+		return position;
+	}
+
+	function pageElement(editor: Editor, reportPage: ReportPage): HTMLElement | undefined {
+		const element = editor.view.nodeDOM(positionBefore(editor, reportPage.firstNodeIndex));
+		return element instanceof HTMLElement ? element : undefined;
+	}
+
+	/** The last page whose top has scrolled past the top of the report, or the last page at the end. */
+	function followScroll() {
+		if (!bodyEditor || !scroller) return;
+		const atEnd = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
+		if (atEnd) {
+			currentPageIndex = pages.length - 1;
 			return;
 		}
-		invalidate(key('admin/conversation/report'));
-		impactOpen = false;
-		notifications.send({ message: 'Impact Saved', priority: 'INFO' });
+		const line = scroller.getBoundingClientRect().top + 96;
+		const editor = bodyEditor;
+		const passed = pages.findLastIndex(
+			(reportPage) =>
+				(pageElement(editor, reportPage)?.getBoundingClientRect().top ?? 0) <= line
+		);
+		currentPageIndex = showSummary ? passed : Math.max(passed, 0);
+	}
+
+	function scrollBehavior(): 'auto' | 'smooth' {
+		return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+	}
+
+	function jumpToSummary() {
+		scroller?.scrollTo({ top: 0, behavior: scrollBehavior() });
+	}
+
+	function jumpToPage(reportPage: ReportPage) {
+		if (!bodyEditor) return;
+		const element = pageElement(bodyEditor, reportPage);
+		if (!element) return;
+		element.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+	}
+
+	function addPage() {
+		if (!bodyEditor) return;
+		bodyEditor.chain().focus('end').setHorizontalRule().scrollIntoView().run();
+		// The new page is the last one, one past the pages listed before it was added.
+		currentPageIndex = pages.length;
+	}
+
+	// A delete rather than replacing the document, so Ctrl+Z brings the page back.
+	function removePage(reportPage: ReportPage) {
+		if (!bodyEditor) return;
+		const { firstNodeIndex, nodeCount } = reportPage.removal;
+		const from = positionBefore(bodyEditor, firstNodeIndex);
+		const to = positionBefore(bodyEditor, firstNodeIndex + nodeCount);
+		bodyEditor.chain().focus().deleteRange({ from, to }).run();
+	}
+
+	async function setPublished(isPublic: boolean) {
+		// Publish what's on screen, including typing the autosave hasn't sent yet.
+		await Promise.all([summarySource.flush(), bodySource.flush()]);
+		const result = await tryCatchAsync(() =>
+			apiClient.UpdateReport(
+				{ is_public: isPublic },
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+		if (result.err !== null) {
+			notifications.send({
+				message: isPublic
+					? "The report couldn't be published."
+					: "The report couldn't be unpublished.",
+				priority: 'ERROR'
+			});
+			return;
+		}
+		published = isPublic;
 	}
 </script>
 
@@ -142,250 +251,152 @@
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div data-tour="report-publish" class="flex w-full flex-row items-center justify-end gap-2">
-		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
-		<Label for="published">Publish Report</Label>
-		<Switch name="published" value={report.isPublic} disabled={!canEdit} />
+<div class="bg-background flex min-h-0 grow flex-col">
+	<ReportTopBar
+		conversationId={conversation.id}
+		{published}
+		{canEdit}
+		results={publicResults}
+		{saveState}
+		hasTranslations={supportedLanguages.length > 1}
+		onRetry={() => Promise.all([summarySource.retry(), bodySource.retry()])}
+		onReview={() => (reviewing = true)}
+		onTranslate={() => (translating = true)}
+		onUnpublish={() => setPublished(false)}
+	/>
+
+	{#if canEdit}
+		<!-- Centred over the report rather than flush with the page edge, so the tools sit above
+			the text they change. -->
+		<div class="border-b">
+			<div class="mx-auto w-fit max-w-full px-5 py-2">
+				<ReportToolbar
+					editor={activeEditor ?? bodyEditor}
+					inBody={(activeEditor ?? bodyEditor) === bodyEditor}
+					onAddChart={() => (addingChart = true)}
+				/>
+			</div>
+		</div>
+	{/if}
+
+	<div
+		bind:this={scroller}
+		onscroll={followScroll}
+		class="grid min-h-0 grow grid-cols-1 overflow-y-auto xl:grid-cols-[16rem_minmax(0,1fr)]"
+	>
+		<!-- Wide screens list the pages beside the report, like tabs in a document editor. -->
+		<div class="sticky top-0 hidden self-start py-8 ps-4 xl:block">
+			<PagesPanel
+				{pages}
+				currentIndex={Math.min(currentPageIndex, pages.length - 1)}
+				editable={canEdit}
+				onJumpToSummary={showSummary ? jumpToSummary : undefined}
+				onJump={jumpToPage}
+				onAdd={addPage}
+				onRemove={removePage}
+			/>
+		</div>
+
+		<div class={cn(REPORT_COLUMN_CLASS, 'flex flex-col gap-5 py-8')}>
+			<ReportTitle title={conversation.title} />
+
+			{#key editorsRevision}
+				{#if showSummary}
+					<!-- Readers get the summary on its own opening screen, so a rule ends it here. -->
+					<section class="border-b pb-8">
+						<h2 class={REPORT_EYEBROW_CLASS}>Executive summary</h2>
+						<div
+							class={cn(
+								'pt-2',
+								REPORT_EDITOR_TEXT_CLASS,
+								canEdit && REPORT_EDITOR_HOVER_CLASS
+							)}
+						>
+							<ReportTextEditor
+								initialValue={initialSummary}
+								editable={canEdit}
+								label="Executive summary"
+								placeholder="A few sentences on what this conversation found. Readers see this first."
+								onChange={saveSummary}
+								onFocus={(editor) => (activeEditor = editor)}
+							/>
+						</div>
+					</section>
+				{/if}
+
+				<PagePills
+					{pages}
+					editable={canEdit}
+					onJump={jumpToPage}
+					onRemove={removePage}
+					class="bg-background/95 sticky top-0 z-10 -mx-5 px-5 py-3 backdrop-blur xl:hidden"
+				/>
+
+				<div
+					class={cn(
+						REPORT_EDITOR_TEXT_CLASS,
+						REPORT_EDITOR_PAGE_BREAK_CLASS,
+						canEdit && REPORT_EDITOR_HOVER_CLASS
+					)}
+				>
+					<ReportTextEditor
+						initialValue={initialBody}
+						editable={canEdit}
+						label="Report"
+						placeholder="Start writing, or add a chart from the toolbar."
+						onChange={saveBody}
+						onFocus={(editor) => (activeEditor = editor)}
+						bind:editor={bodyEditor}
+					/>
+				</div>
+				{#if canEdit}
+					<ImageControls editor={bodyEditor} />
+				{/if}
+			{/key}
+
+			<section class="mt-24 flex flex-col gap-4 border-t pt-10">
+				<p class="text-muted-foreground text-base">Not part of the public report</p>
+				<ImpactsAndNotes {report} {canEdit} />
+			</section>
+		</div>
 	</div>
-
-	<PublicResultsSummary results={publicResults} reportIsPublic={report.isPublic} />
-
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Summary</Card.Title>
-			<Card.Description
-				>A short introduction shown at the top of the public report.</Card.Description
-			>
-		</Card.Header>
-		<Card.Content>
-			{#if canEdit}
-				<TranslatableField
-					source={summaryTranslationSource}
-					disabled={!canEdit}
-					primaryLocale={conversation.primaryLocale as Locale}
-					supportedLanguages={conversation.supportedLanguages as Locale[]}
-					inputType="textarea"
-					editorType="rich"
-					placeholder="Write a short introduction to the report"
-					minHeight="100px"
-					conversationId={conversation.id}
-					reportEmbedSteps={data.reportEmbedSteps}
-				/>
-			{:else}
-				<div class="bg-card border-border rounded-lg border p-4">
-					<ContentRenderer
-						content={summaryTranslationSource.contents[
-							conversation.primaryLocale as Locale
-						] ?? ''}
-					/>
-				</div>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Report body</Card.Title>
-			<Card.Description
-				>The full report, including sections and embedded report components</Card.Description
-			>
-		</Card.Header>
-		<Card.Content>
-			{#if canEdit}
-				<TranslatableField
-					source={bodyTranslationSource}
-					disabled={!canEdit}
-					primaryLocale={conversation.primaryLocale as Locale}
-					supportedLanguages={conversation.supportedLanguages as Locale[]}
-					inputType="textarea"
-					placeholder="Write the full content of  introduction to the report. Add data visualisations and provide context to help readers understand the findings."
-					editorType="rich"
-					minHeight="100px"
-					conversationId={conversation.id}
-					reportEmbedSteps={data.reportEmbedSteps}
-				/>
-			{:else}
-				<div class="bg-card border-border rounded-lg border p-4">
-					<ContentRenderer
-						content={bodyTranslationSource.contents[
-							conversation.primaryLocale as Locale
-						] ?? ''}
-					/>
-				</div>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Impacts</Card.Title>
-			<Card.Description>What impacts has this conversation had?</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			{#each report.impacts as impact (impact.id)}
-				<div class="flex w-full flex-row items-center justify-between">
-					<p class="">{impact.title}</p>
-					{#if canEdit}
-						<div class="flex flex-row">
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
-									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Edit Impact</p>
-									</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
-
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button aria-label="Delete" variant="ghost"
-											><Delete /></Button
-										>
-									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Delete Impact</p>
-									</Tooltip.Content>
-								</Tooltip.Root></Tooltip.Provider
-							>
-						</div>
-					{/if}
-				</div>
-				<Separator class="my-4" />
-			{/each}
-			{#if canEdit}
-				<Card.Footer class="flex w-full justify-end">
-					<Dialog.Root bind:open={impactOpen}>
-						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
-							>Add Impact</Dialog.Trigger
-						>
-
-						<Dialog.Content class="sm:max-w-[425px]">
-							<Dialog.Header>
-								<Dialog.Title>Add an impact</Dialog.Title>
-								<Dialog.Description
-									>Record an impact that this report has had</Dialog.Description
-								>
-							</Dialog.Header>
-							<div class="grid gap-4 py-4">
-								<div class="flex flex-col gap-4">
-									<Label for="title">Title</Label>
-									<Input bind:value={newImpact.title} id="title" />
-									<Label for="title">Details</Label>
-									<Textarea
-										id="details"
-										placeholder="Describe in detail the impact."
-										bind:value={newImpact.details}
-										class="col-span-3"
-									/>
-									<Label for="title">Impact Type</Label>
-									<Select.Root
-										required
-										onSelectedChange={(v) => {
-											if (v?.value) {
-												newImpact.kind = v.value;
-											}
-										}}
-									>
-										<Select.Trigger>
-											<Select.Value placeholder="Select an impact type" />
-										</Select.Trigger>
-										<Select.Content class="w-56">
-											<Select.Item value="policy" label="Policy" />
-											<Select.Item value="debate" label="Debate" />
-											<Select.Item
-												value="followup_conversation"
-												label="Followup Conversation"
-											/>
-										</Select.Content>
-									</Select.Root>
-								</div>
-							</div>
-							<Dialog.Footer>
-								<Button onclick={createImpact} type="submit">{m.submit()}</Button>
-							</Dialog.Footer>
-						</Dialog.Content>
-					</Dialog.Root>
-				</Card.Footer>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Facilitator Notes</Card.Title>
-			<Card.Description>Notes gathered by facilitators</Card.Description>
-		</Card.Header>
-		<Card.Content>
-			{#each report.facilitatorFeedback as impact (impact.id)}
-				<div class="flex w-full flex-row items-center justify-between">
-					<p class="">{impact.title}</p>
-					{#if canEdit}
-						<div class="flex flex-row">
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button aria-label="Edit" variant="ghost"><Edit /></Button>
-									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Edit Feedback</p>
-									</Tooltip.Content>
-								</Tooltip.Root></Tooltip.Provider
-							>
-
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button aria-label="Delete" variant="ghost"
-											><Delete /></Button
-										>
-									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Delete Feedback</p>
-									</Tooltip.Content>
-								</Tooltip.Root></Tooltip.Provider
-							>
-						</div>
-					{/if}
-				</div>
-				<Separator class="my-4" />
-			{/each}
-			{#if canEdit}
-				<Card.Footer class="flex w-full justify-end">
-					<Dialog.Root bind:open={feedbackOpen}>
-						<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
-							>Add Feedback</Dialog.Trigger
-						>
-
-						<Dialog.Content class="sm:max-w-[425px]">
-							<Dialog.Header>
-								<Dialog.Title>Add feedback</Dialog.Title>
-								<Dialog.Description
-									>Record some feedback or notes from facilitators</Dialog.Description
-								>
-							</Dialog.Header>
-							<div class="grid gap-4 py-4">
-								<div class="flex flex-col gap-4">
-									<Label for="title">Title</Label>
-									<Input bind:value={newFeedback.title} id="title" />
-									<Label for="title">Details</Label>
-									<Textarea
-										id="details"
-										placeholder="Describe in detail the impact."
-										bind:value={newFeedback.details}
-										class="col-span-3"
-									/>
-								</div>
-							</div>
-							<Dialog.Footer>
-								<Button onclick={createFeedback} type="submit">{m.submit()}</Button>
-							</Dialog.Footer>
-						</Dialog.Content>
-					</Dialog.Root>
-				</Card.Footer>
-			{/if}
-		</Card.Content>
-	</Card.Root>
 </div>
+
+{#if canEdit}
+	<AddChartDialog
+		bind:open={addingChart}
+		steps={data.reportEmbedSteps}
+		{embeddedKeys}
+		{published}
+		onPick={(step, block) =>
+			bodyEditor
+				?.chain()
+				.focus()
+				.setReportComponentEmbed({ toolStepId: step.id, componentType: block.type })
+				.run()}
+	/>
+
+	<TranslationsDialog
+		bind:open={translating}
+		{summarySource}
+		{bodySource}
+		{primaryLocale}
+		{supportedLanguages}
+		conversationId={conversation.id}
+		disabled={!canEdit}
+		onClosed={() => {
+			summaryOnScreen = initialSummary;
+			bodyOnScreen = initialBody;
+			editorsRevision += 1;
+		}}
+	/>
+{/if}
+
+<PublishDialog
+	bind:open={reviewing}
+	{published}
+	results={publicResults}
+	steps={data.reportEmbedSteps}
+	canPublish={canEdit}
+	onPublish={() => setPublished(true)}
+/>

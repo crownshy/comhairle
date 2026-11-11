@@ -65,6 +65,7 @@ function sectionGuide(section: ConversationSection, pageSegments: string[]): Gui
 }
 
 function isEditorPage(segment: string, subSegment: string | undefined): boolean {
+	if (segment === 'report') return true;
 	return segment === 'events' && subSegment !== undefined && subSegment !== 'new';
 }
 

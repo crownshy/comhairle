@@ -31,8 +31,9 @@ above it.
 **3. Empty pages are dropped,** in the published report and in the editor's pills alike, and
 the "Page n" numbers count only the pages that are left.
 
-The split is `splitReportIntoPages` in the public `report/reportPages.ts`, with unit tests
-for these rules.
+The split is `splitReportIntoPages` in the public `report/reportPages.ts`, and `reportPages`
+in the editor's `report/reportDocument.ts`, which also keeps where each page sits so a pill
+can scroll to it or remove it. Both have unit tests for the same rules.
 
 Rejected: H2 also starts a page, so headings and page breaks both cut the report. It kept two
 ways to do one thing, which was the confusion this replaces.
@@ -45,6 +46,7 @@ ways to do one thing, which was the confusion this replaces.
   `?card=n` and drops the progress line it had; the step pager keeps its Skip, loading and blocked rules.
 - A page has no frame around it. It sits in the report column the way it sits in the editor.
 - `?card=n` from ADR-0058 still addresses a page.
+- The rail calls H2 and H3 Heading and Subheading, and Page break says it starts a new page.
 - A long first line makes a long pill label, so pills are capped in width and truncated.
 - The editor outline in #1776 was built on sections and cards and needs reworking to list
   pages.

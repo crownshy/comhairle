@@ -100,6 +100,9 @@ importers:
       '@tiptap/extension-underline':
         specifier: ^3.11.0
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
+      '@tiptap/extensions':
+        specifier: ^3.20.0
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
       '@tiptap/markdown':
         specifier: ^3.11.0
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
@@ -6273,7 +6276,7 @@ snapshots:
 
   '@layerstack/svelte-actions@1.0.1-next.18':
     dependencies:
-      '@floating-ui/dom': 1.7.5
+      '@floating-ui/dom': 1.8.0
       '@layerstack/utils': 2.0.0-next.18
       d3-scale: 4.0.2
 

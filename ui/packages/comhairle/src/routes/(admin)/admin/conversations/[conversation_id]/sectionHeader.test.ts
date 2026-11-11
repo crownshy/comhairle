@@ -94,6 +94,7 @@ describe('sectionHeader', () => {
 
 	it('compacts the header on editor and step pages only', () => {
 		expect(at('events/e1')?.compact).toBe(true);
+		expect(at('report')?.compact).toBe(true);
 		expect(at('design/step/s1/setup')?.compact).toBe(true);
 		expect(at('design')?.compact).toBe(false);
 		expect(at('events')?.compact).toBe(false);
