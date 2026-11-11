@@ -1,20 +1,26 @@
 <script lang="ts">
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import {
+	import type {
 		ConsentState,
-		type ConversationDto,
-		type MyDemographicAnswer,
-		type QuestionDto,
-		type QuestionType2
+		QuestionLatestDto,
+		ConversationDto,
+		MyDemographicAnswer,
+		QuestionType
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { onMount } from 'svelte';
 	import type { OnSequenceChange, ToolSequence } from '../toolSequence';
 	import Callout from '$lib/components/Callout.svelte';
-	import { Form, Input, SelectList, Submit, type Option } from '$lib/components/EasyForm';
+	import {
+		Form,
+		Input,
+		SelectList,
+		Submit,
+		Textarea,
+		type Option
+	} from '$lib/components/EasyForm';
 	import Formatter from './Formatter';
-	import Demographics from '$lib/interfaces/Demographics';
 	import { typed } from '$lib/utils/types';
 
 	type Props = {
@@ -26,7 +32,7 @@
 
 	let { organizationId, formId, onDone, onSequenceChange }: Props = $props();
 
-	let questions = $state.raw<QuestionDto[]>([]);
+	let questions = $state.raw<QuestionLatestDto[]>([]);
 	let questionNumber = $state<number>(1);
 	let answers = $state.raw<MyDemographicAnswer[]>([]);
 
@@ -41,7 +47,7 @@
 			return;
 		}
 
-		const type = formData.get('question_type') as QuestionType2;
+		const type = formData.get('question_type') as QuestionType;
 		const consent = typed<ConsentState | null>(formData.get('consent') as 'granted' | null);
 		const value = formData.getAll(question.id ?? '') as string[] | null;
 		if (!value || (value.length === 1 && value[0] === '')) {
@@ -52,20 +58,11 @@
 
 		cache.set(question.id, processedValue);
 
-		if (
-			value.length > 0 &&
-			question.latest_published?.special_category &&
-			consent !== 'granted'
-		) {
+		if (value.length > 0 && question.special_category && consent !== 'granted') {
 			notifications.addFlash({
 				message: 'Special consent is needed for this question',
 				priority: 'ERROR'
 			});
-			return;
-		}
-
-		const version = Demographics.getVersion(question);
-		if (!version) {
 			return;
 		}
 
@@ -83,7 +80,7 @@
 		}
 	}
 
-	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
+	function getOptions(question: QuestionLatestDto): Option[] {
 		const options: Option[] = question.options.map((o) => ({
 			label: o.label,
 			value: o.id
@@ -116,21 +113,6 @@
 		position: `Question ${questionNumber} of ${questions.length}`
 	});
 
-	function getInputType(
-		questionType: Omit<QuestionType2, 'single_select' | 'multi_select' | 'location'>
-	): HTMLInputElement['type'] {
-		switch (questionType) {
-			case 'number':
-				return 'number';
-			case 'date':
-				return 'date';
-			case 'any_string':
-			case 'custom':
-			default:
-				return 'text';
-		}
-	}
-
 	$effect(() => {
 		onSequenceChange?.(sequence);
 	});
@@ -148,7 +130,7 @@
 
 		const demographicForm = await tryCatchAsync(() =>
 			apiClient.GetDemographicForm({
-				queries: { organization: organizationId },
+				queries: { organization_id: organizationId },
 				params: { form_id: formId }
 			})
 		);
@@ -162,10 +144,10 @@
 		}
 
 		const questionsResponses = await Promise.all(
-			demographicForm.ok.latest_published?.entries.map((entry) =>
+			demographicForm.ok.entries.map((entry) =>
 				tryCatchAsync(() =>
 					apiClient.GetDemographicQuestion({
-						queries: { organization: organizationId },
+						queries: { organization_id: organizationId },
 						params: { question_id: entry.question_id }
 					})
 				)
@@ -178,20 +160,16 @@
 
 {#if questions[questionNumber - 1]?.latest_published}
 	{@const question = questions[questionNumber - 1]}
-	{@const q = question.latest_published!}
 	{#key question.id}
 		<Form {handleSubmission}>
 			{@const defaultValue = Formatter.to(
-				q.question_type,
+				question.questionType,
 				cache.get(question.id) ??
-					answers.find(
-						(a) =>
-							a.answer.question_version_id === Demographics.getVersion(question)?.id
-					)?.answer.value
+					answers.find((a) => a.answer.question_version_id === question?.id)?.answer.value
 			)}
-			<input type="hidden" name="question_type" value={q.question_type} />
-			{#if q.special_category}
-				<Callout>
+			<input type="hidden" name="question_type" value={question.questionType} />
+			{#if question.special_category}
+				<Callout variant="primary">
 					<input
 						id="special-consent"
 						name="consent"
@@ -200,28 +178,36 @@
 						value={typed<ConsentState>('granted')}
 					/>
 					<label for="special-consent" class="pl-3">
-						{q.consent_text ??
+						{question.consent_text ??
 							'This question requires additional content as it contains sensitive information'}
 					</label>
 				</Callout>
 			{/if}
-			{#if q.question_type === 'single_select' || q.question_type === 'multi_select'}
+			{#if question.questionType === 'text' || question.questionType === 'number' || question.questionType === 'date'}
+				{#if question.multi === true}
+					<Textarea
+						label={question.text}
+						name={question.id}
+						defaultValue={String(defaultValue)}
+					/>
+				{:else}
+					<Input
+						label={question.text}
+						name={question.id}
+						type={question.questionType}
+						{defaultValue}
+					/>
+				{/if}
+			{:else if question.question_type === 'select'}
 				<SelectList
-					title={q.text}
+					title={question.text}
 					name={question.id}
-					multiple={q.question_type === 'multi_select'}
-					options={getOptions(q)}
+					multiple={question.multi ?? false}
+					options={getOptions(question)}
 					defaultSelected={defaultValue as string[] | undefined}
 				/>
-			{:else if q.question_type === 'location'}
-				<Input label={q.text} name={question.id} {defaultValue} />
-			{:else}
-				<Input
-					label={q.text}
-					name={question.id}
-					type={getInputType(q.question_type)}
-					{defaultValue}
-				/>
+			{:else if question.question_type === 'location'}
+				<Input label={question.text} name={question.id} {defaultValue} />
 			{/if}
 			<Submit bind:ref={submit} class="hidden" text="Submit" />
 		</Form>

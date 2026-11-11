@@ -14,6 +14,7 @@
 	import { page } from '$app/state';
 	import Demographics from '$lib/interfaces/Demographics';
 	import { resolve } from '$app/paths';
+	import { capitalise } from '$lib/utils/casingUtils';
 
 	const { data, params } = $props();
 </script>
@@ -136,7 +137,7 @@
 								</div>
 							</Table.Cell>
 							<Table.Cell class="text-muted-foreground text-sm">
-								{Demographics.getReadableQuestionType(question.questionType)}
+								{capitalise(question.questionType)}
 							</Table.Cell>
 							<Table.Cell>
 								{#if Demographics.isDefaultQuestion(question)}

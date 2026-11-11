@@ -1,4 +1,4 @@
-import type { DatePrecision, QuestionLatestDto, QuestionType2 } from '@crownshy/api-client/api';
+import type { DatePrecision, QuestionLatestDto, QuestionType } from '@crownshy/api-client/api';
 
 export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
 	day: 'Day (YYYY/MM/DD)',
@@ -6,11 +6,9 @@ export const DATE_PRECISION_LABELS: Record<DatePrecision, string> = {
 	year: 'Year (YYYY)'
 };
 
-export function getPlaceholder(kind: QuestionType2, datePrecision?: DatePrecision): string {
+export function getPlaceholder(kind: QuestionType, datePrecision?: DatePrecision): string {
 	switch (kind) {
-		case 'single_select':
-			return '';
-		case 'multi_select':
+		case 'select':
 			return '';
 		case 'number':
 			return 'Enter a number';
@@ -24,7 +22,7 @@ export function getPlaceholder(kind: QuestionType2, datePrecision?: DatePrecisio
 				default:
 					return 'YYYY';
 			}
-		case 'any_string':
+		case 'text':
 			return 'Type your answer';
 		case 'location':
 			return 'Enter your location';
