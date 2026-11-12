@@ -11,15 +11,9 @@
 	 */
 	type Props = {
 		data: PolisEmbedData;
-		/**
-		 * When true, render the static variant: interactive controls dropped, all rows shown,
-		 * beeswarm laid out synchronously. Kept for a future no-JS export (ADR-0012). Live
-		 * embeds leave it false (interactive).
-		 */
-		frozen?: boolean;
 	};
 
-	let { data, frozen = false }: Props = $props();
+	let { data }: Props = $props();
 </script>
 
 {#if data.componentType === 'polis-key-stats'}
@@ -43,21 +37,11 @@
 		/>
 	</div>
 {:else if data.componentType === 'polis-area-consensus'}
-	<AreaOfConsensus
-		title="Area of consensus"
-		comments={data.statements}
-		groups={data.groups}
-		{frozen}
-	/>
+	<AreaOfConsensus title="Area of consensus" comments={data.statements} groups={data.groups} />
 {:else if data.componentType === 'polis-area-disagreement'}
-	<AreaOfConsensus
-		title="Area of disagreement"
-		comments={data.statements}
-		groups={data.groups}
-		{frozen}
-	/>
+	<AreaOfConsensus title="Area of disagreement" comments={data.statements} groups={data.groups} />
 {:else if data.componentType === 'polis-consensus-continuum'}
-	<ConsensusContinuum comments={data.statements} groups={data.groups} {frozen} />
+	<ConsensusContinuum comments={data.statements} groups={data.groups} />
 {:else if data.componentType === 'polis-opinion-groups'}
-	<OpinionGroups comments={data.statements} groups={data.groups} {frozen} />
+	<OpinionGroups comments={data.statements} groups={data.groups} />
 {/if}

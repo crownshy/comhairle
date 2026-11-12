@@ -3,6 +3,7 @@
 	import EmbedState from './EmbedState.svelte';
 	import PolisEmbedLive from './polis/PolisEmbedLive.svelte';
 	import { toolTypeForSectionBlock, type ReportEmbedProps } from './embeds';
+	import { getReportPreview } from './reportPreview';
 
 	/**
 	 * A live section block embedded in the report (ADR-0012). Hands the stored reference to the
@@ -10,6 +11,9 @@
 	 * and the published report page.
 	 */
 	let { toolStepId, componentType, preview = false }: ReportEmbedProps = $props();
+
+	const onPreviewPage = getReportPreview();
+	const loadsPreview = $derived(preview || onPreviewPage());
 
 	const EMBED_BY_TOOL: Record<string, Component<ReportEmbedProps>> = {
 		polis: PolisEmbedLive
@@ -19,7 +23,7 @@
 </script>
 
 {#if ToolEmbed}
-	<ToolEmbed {toolStepId} {componentType} {preview} />
+	<ToolEmbed {toolStepId} {componentType} preview={loadsPreview} />
 {:else}
 	<EmbedState state="unavailable" />
 {/if}

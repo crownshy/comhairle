@@ -4,6 +4,7 @@
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { REPORT_COLUMN_CLASS } from '$lib/reports/styles';
 	import { hasReportContent } from '$lib/reports/reportDocument';
+	import { setReportPreview } from '$lib/reports/reportPreview';
 	import { cn } from '$lib/utils';
 	import ReportCard from './ReportCard.svelte';
 	import ReportHeader from './ReportHeader.svelte';
@@ -14,6 +15,7 @@
 
 	let { data } = $props();
 	let { conversation, report } = $derived(data);
+	setReportPreview(() => data.preview);
 
 	// Reports written before the summary and body were split keep everything in `summary`.
 	let bodyContent = $derived(report.body ?? report.summary);
@@ -58,11 +60,7 @@
 		/>
 		<div class={cn(REPORT_COLUMN_CLASS, 'grow py-5')}>
 			{#key cardNumber}
-				<ReportCard
-					content={currentPage.content}
-					conversationId={conversation.id}
-					preview={data.preview}
-				/>
+				<ReportCard content={currentPage.content} conversationId={conversation.id} />
 			{/key}
 		</div>
 		<ReportPager
@@ -82,7 +80,6 @@
 			conversationId={conversation.id}
 			summary={summaryContent}
 			readMoreHref={pages.length > 0 ? cardHref(page.url, 1) : undefined}
-			preview={data.preview}
 		/>
 	{/if}
 </main>

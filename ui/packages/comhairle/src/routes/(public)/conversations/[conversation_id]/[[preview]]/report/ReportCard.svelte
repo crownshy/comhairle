@@ -6,17 +6,16 @@
 	type Props = {
 		content: string;
 		conversationId: string;
-		preview: boolean;
 	};
 
-	let { content, conversationId, preview }: Props = $props();
+	let { content, conversationId }: Props = $props();
 </script>
 
 <!-- No frame: a page reads as the report itself, as it does in the editor. -->
 <article>
 	<ExpandableContent collapsedHeight={28}>
 		<div class={REPORT_TEXT_CLASS}>
-			<ReportBody {content} {conversationId} {preview} />
+			<ReportBody {content} {conversationId} />
 		</div>
 	</ExpandableContent>
 </article>
