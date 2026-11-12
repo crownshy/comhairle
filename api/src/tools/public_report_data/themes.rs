@@ -12,6 +12,7 @@ use crate::models::statement_theme;
 use crate::models::theme::{self, Theme};
 
 public_report_data! {
+    #[derive(Clone)]
     pub struct PublicTheme {
         pub title: GeneratedText,
         pub description: GeneratedText,

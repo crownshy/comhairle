@@ -1,18 +1,13 @@
 <script lang="ts">
-	import type {
-		PrioritizationPublicQuestion,
-		PrioritizationPublicRanking
-	} from '@crownshy/api-client/api';
-	import { ChevronDown } from 'lucide-svelte';
-	import BarChart from '$lib/components/Charts/BarChart.svelte';
-	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
+	import type { PrioritizationPublicQuestion } from '@crownshy/api-client/api';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import Crown from '$lib/components/icons/Crown.svelte';
-	import * as Table from '$lib/components/ui/table';
-	import DivergingProgress from '$lib/reports/DivergingProgress.svelte';
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
+	import PrioritizationQuestionChart, {
+		type QuestionChart
+	} from './PrioritizationQuestionChart.svelte';
+	import PrioritizationRankingTable from './PrioritizationRankingTable.svelte';
 	import PrioritizationThemes from './PrioritizationThemes.svelte';
-	import { bucketAnswers, type PrioritizationEmbedData } from './embedData';
+	import { bucketAnswers, rankingDomain, type PrioritizationEmbedData } from './embedData';
 
 	/**
 	 * Renders one embeddable Prioritization section block from its public report data, with
@@ -20,16 +15,19 @@
 	 */
 	let { data }: { data: PrioritizationEmbedData } = $props();
 
-	const RANKING_ROWS_SHOWN = 4;
-	let rankingRowLimit = $state(RANKING_ROWS_SHOWN);
-
-	/**
-	 * The ranking bars share one scale: an answer's range times the most reviews any proposal
-	 * got, so the proposal with the most support fills its bar.
-	 */
-	function rankingDomain(ranking: PrioritizationPublicRanking): [number, number] {
-		const mostReviews = Math.max(1, ...ranking.proposals.map((proposal) => proposal.reviews));
-		return [ranking.min * mostReviews, ranking.max * mostReviews];
+	function questionChart(question: PrioritizationPublicQuestion): QuestionChart {
+		if (question.scale) {
+			return {
+				kind: 'continuous',
+				label: question.question,
+				values: bucketAnswers(question.scale),
+				min: question.scale.min,
+				max: question.scale.max,
+				minLabel: question.scale.minLabel,
+				maxLabel: question.scale.maxLabel
+			};
+		}
+		return { kind: 'likert', choices: question.choices };
 	}
 </script>
 
@@ -39,24 +37,12 @@
 			<h4 class="text-base font-bold">{question.question}</h4>
 			<p class="text-muted-foreground text-sm">{question.answered} responses</p>
 		</div>
-		{#if question.scale}
-			<KdePlot
-				minLabel={question.scale.minLabel}
-				maxLabel={question.scale.maxLabel}
-				data={{ [question.question]: bucketAnswers(question.scale) }}
-				minX={question.scale.min}
-				maxX={question.scale.max}
-			/>
+		{#if question.tooFewAnswers}
+			<p class="text-muted-foreground text-base">
+				Too few answers to show without pointing at someone.
+			</p>
 		{:else}
-			<BarChart
-				data={question.choices.map((choice) => ({
-					category: choice.label,
-					count: choice.count
-				}))}
-				x="category"
-				y="count"
-				axis="x"
-			/>
+			<PrioritizationQuestionChart chart={questionChart(question)} />
 		{/if}
 	</div>
 {/snippet}
@@ -77,52 +63,25 @@
 	</div>
 {:else if data.componentType === 'prioritization-ranking'}
 	{@const ranking = data.ranking}
-	{@const [min, max] = rankingDomain(ranking)}
-	<div class="bg-card overflow-hidden rounded-xl border">
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head class="text-muted-foreground w-[10%] px-5 text-center"
-						>Ranking</Table.Head
-					>
-					<Table.Head class="text-muted-foreground w-2/5 px-5">Proposal</Table.Head>
-					<Table.Head class="text-muted-foreground w-2/5 px-5"
-						>{ranking.question}</Table.Head
-					>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each ranking.proposals.slice(0, rankingRowLimit) as proposal, index (proposal.title)}
-					<Table.Row>
-						<Table.Cell class="text-muted-foreground px-5 py-6">
-							<div class="flex justify-center">
-								{#if index === 0}
-									<Crown />
-								{:else}
-									{index + 1}
-								{/if}
-							</div>
-						</Table.Cell>
-						<Table.Cell class="h-auto px-5 text-base text-wrap!"
-							>{proposal.title}</Table.Cell
-						>
-						<Table.Cell class="text-primary h-auto px-5">
-							<DivergingProgress value={proposal.alignment} {min} {max} />
-						</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-		{#if rankingRowLimit < ranking.proposals.length}
-			<button
-				class="bg-border flex w-full items-center justify-center gap-2 py-3 text-center text-base"
-				type="button"
-				onclick={() => (rankingRowLimit = ranking.proposals.length)}
-			>
-				See all {ranking.proposals.length} proposals <ChevronDown />
-			</button>
-		{/if}
-	</div>
+	{#if ranking.alignmentQuestion}
+		<div class="bg-card overflow-hidden rounded-xl border">
+			<PrioritizationRankingTable
+				rows={ranking.proposals.map((proposal, index) => ({
+					key: String(index),
+					title: proposal.title,
+					alignment: proposal.alignment ?? null
+				}))}
+				domain={rankingDomain(ranking.alignmentQuestion, ranking.proposals)}
+				scoreHeading={ranking.alignmentQuestion.text}
+			/>
+		</div>
+	{:else}
+		<p
+			class="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-8 text-center text-base"
+		>
+			This step has no alignment question, so its proposals can't be ranked.
+		</p>
+	{/if}
 {:else if data.componentType === 'prioritization-proposal'}
 	{@const proposal = data.proposal}
 	<div class="bg-card flex flex-col gap-6 rounded-xl border p-4">
@@ -133,7 +92,7 @@
 		{#each proposal.questions as question (question.question)}
 			{@render questionResults(question)}
 		{/each}
-		{#each proposal.sections as section (section.position)}
+		{#each proposal.sections as section, index (index)}
 			{#if section.questions.length > 0}
 				<section class="flex flex-col gap-4 rounded-xl border p-4">
 					<ContentRenderer content={section.body} />

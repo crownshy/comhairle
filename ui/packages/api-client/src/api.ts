@@ -1250,9 +1250,15 @@ export const PrioritizationPublicKeyStats = z
 export type PrioritizationPublicKeyStats = z.infer<
   typeof PrioritizationPublicKeyStats
 >;
+export const PrioritizationPublicAlignmentQuestion = z
+  .object({ max: z.number(), min: z.number(), text: z.string() })
+  .passthrough();
+export type PrioritizationPublicAlignmentQuestion = z.infer<
+  typeof PrioritizationPublicAlignmentQuestion
+>;
 export const PrioritizationPublicRankedProposal = z
   .object({
-    alignment: z.number(),
+    alignment: z.union([z.number(), z.null()]).optional(),
     reviews: z.number().int().gte(0),
     title: z.string(),
   })
@@ -1262,10 +1268,10 @@ export type PrioritizationPublicRankedProposal = z.infer<
 >;
 export const PrioritizationPublicRanking = z
   .object({
-    max: z.number(),
-    min: z.number(),
+    alignmentQuestion: z
+      .union([PrioritizationPublicAlignmentQuestion, z.null()])
+      .optional(),
     proposals: z.array(PrioritizationPublicRankedProposal),
-    question: z.string(),
   })
   .passthrough();
 export type PrioritizationPublicRanking = z.infer<
@@ -1301,6 +1307,7 @@ export const PrioritizationPublicQuestion = z
     choices: z.array(PrioritizationPublicChoice),
     question: z.string(),
     scale: z.union([PrioritizationPublicScale, z.null()]).optional(),
+    tooFewAnswers: z.boolean(),
   })
   .passthrough();
 export type PrioritizationPublicQuestion = z.infer<
@@ -1309,7 +1316,6 @@ export type PrioritizationPublicQuestion = z.infer<
 export const PrioritizationPublicSection = z
   .object({
     body: z.string(),
-    position: z.number().int().gte(0),
     questions: z.array(PrioritizationPublicQuestion),
   })
   .passthrough();
@@ -4415,6 +4421,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleAgentSession,
   ConversationRequest,
   PrioritizationPublicKeyStats,
+  PrioritizationPublicAlignmentQuestion,
   PrioritizationPublicRankedProposal,
   PrioritizationPublicRanking,
   PrioritizationPublicChoice,
@@ -8826,7 +8833,7 @@ Create a response for prioritization tool proposal
     method: "get",
     path: "/tools/prioritization/public_report/key_stats",
     alias: "PrioritizationGetPublicKeyStats",
-    description: `Reviewer, proposal and review counts for a Prioritization step. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    description: `Reviewer, proposal and review counts. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -8841,7 +8848,7 @@ Create a response for prioritization tool proposal
     method: "get",
     path: "/tools/prioritization/public_report/proposal",
     alias: "PrioritizationGetPublicProposal",
-    description: `Counts per Likert choice or scale bucket for every rated question about the proposal and its sections. 404 unless the conversation&#x27;s published report embeds this proposal.`,
+    description: `Counts per Likert choice or scale bucket for every rated question about the proposal and its sections. The embed must be for this proposal. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {
@@ -8861,7 +8868,7 @@ Create a response for prioritization tool proposal
     method: "get",
     path: "/tools/prioritization/public_report/ranking",
     alias: "PrioritizationGetPublicRanking",
-    description: `Proposals ranked by their summed alignment answers. 404 unless the conversation&#x27;s published report embeds this section block for the step; 422 when the step has no alignment question.`,
+    description: `Proposals ranked by their summed alignment answers, with no proposals when the step has no alignment question. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {

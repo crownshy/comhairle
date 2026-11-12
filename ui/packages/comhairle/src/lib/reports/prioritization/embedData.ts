@@ -1,7 +1,9 @@
 import { apiClient } from '@crownshy/api-client/client';
 import type {
+	PrioritizationPublicAlignmentQuestion,
 	PrioritizationPublicKeyStats,
 	PrioritizationPublicProposal,
+	PrioritizationPublicRankedProposal,
 	PrioritizationPublicRanking,
 	PrioritizationPublicScale,
 	PublicTheme
@@ -19,22 +21,22 @@ export type PrioritizationEmbedData =
 
 const ENDPOINTS = {
 	public: {
-		keyStats: apiClient.PrioritizationGetPublicKeyStats,
-		ranking: apiClient.PrioritizationGetPublicRanking,
-		proposal: apiClient.PrioritizationGetPublicProposal,
-		themes: apiClient.PrioritizationGetPublicThemes
+		'prioritization-key-stats': apiClient.PrioritizationGetPublicKeyStats,
+		'prioritization-ranking': apiClient.PrioritizationGetPublicRanking,
+		'prioritization-proposal': apiClient.PrioritizationGetPublicProposal,
+		'prioritization-themes': apiClient.PrioritizationGetPublicThemes
 	},
 	preview: {
-		keyStats: apiClient.PrioritizationPreviewKeyStats,
-		ranking: apiClient.PrioritizationPreviewRanking,
-		proposal: apiClient.PrioritizationPreviewProposal,
-		themes: apiClient.PrioritizationPreviewThemes
+		'prioritization-key-stats': apiClient.PrioritizationPreviewKeyStats,
+		'prioritization-ranking': apiClient.PrioritizationPreviewRanking,
+		'prioritization-proposal': apiClient.PrioritizationPreviewProposal,
+		'prioritization-themes': apiClient.PrioritizationPreviewThemes
 	}
-};
+} satisfies Record<'public' | 'preview', Record<PrioritizationEmbeddableComponentType, unknown>>;
 
 /**
- * Load one section block's data. A preview falls back to the public endpoint, as the Polis
- * embeds do. Any failure throws, and the caller shows the embed's unavailable state.
+ * Load one section block's data. A preview falls back to the public endpoint, as
+ * `loadPolisEmbedData` explains. Any failure throws, and the caller shows the embed's unavailable state.
  */
 export async function loadPrioritizationEmbedData(
 	workflowStepId: string,
@@ -60,18 +62,18 @@ async function loadFrom(
 	const request = { queries: { workflow_step_id: workflowStepId } };
 	switch (componentType) {
 		case 'prioritization-key-stats':
-			return { componentType, stats: await endpoints.keyStats(request) };
+			return { componentType, stats: await endpoints[componentType](request) };
 		case 'prioritization-ranking':
-			return { componentType, ranking: await endpoints.ranking(request) };
+			return { componentType, ranking: await endpoints[componentType](request) };
 		case 'prioritization-proposal': {
 			if (!item) throw new Error('A proposal embed needs a proposal');
-			const proposal = await endpoints.proposal({
+			const proposal = await endpoints[componentType]({
 				queries: { workflow_step_id: workflowStepId, proposal_id: item }
 			});
 			return { componentType, proposal };
 		}
 		case 'prioritization-themes':
-			return { componentType, themes: (await endpoints.themes(request)).themes };
+			return { componentType, themes: (await endpoints[componentType](request)).themes };
 	}
 }
 
@@ -81,6 +83,18 @@ export async function listEmbeddableProposals(workflowStepId: string): Promise<E
 		queries: { workflow_step_id: workflowStepId }
 	});
 	return proposals.map((proposal) => ({ id: proposal.id, label: proposal.title }));
+}
+
+/**
+ * The ranking bars share one scale: an answer's range times the most reviews any proposal
+ * got, so the proposal with the most support fills its bar.
+ */
+export function rankingDomain(
+	question: PrioritizationPublicAlignmentQuestion,
+	proposals: PrioritizationPublicRankedProposal[]
+): [number, number] {
+	const mostReviews = Math.max(1, ...proposals.map((proposal) => proposal.reviews));
+	return [question.min * mostReviews, question.max * mostReviews];
 }
 
 /**

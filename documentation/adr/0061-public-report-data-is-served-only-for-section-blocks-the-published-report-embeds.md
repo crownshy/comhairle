@@ -57,9 +57,10 @@ Thinking Space summary, another may have told participants it stays with the org
   ones moderation rejected, so its text can paraphrase or quote one. We accept that because a
   facilitator asks for the text and can read it in Insights before embedding it; a reviewer
   should weigh that when approving `GeneratedText`. Prioritization added `Score` (an aggregate
-  number that isn't a count, such as a summed rating or a scale bucket's edge). Participant
-  text can only go out as `ModeratedText`, which is built from accepted content only. Adding a building block needs a
-  reviewer to agree it can't identify a person. A future moderation report is the one expected
+  number that isn't a count, such as a summed rating or a scale bucket's edge), which is only
+  ever built from at least three answers. Participant text can only go out as `ModeratedText`,
+  which is built from accepted content only. Adding a building block needs a reviewer to
+  agree it can't identify a person. A future moderation report is the one expected
   exception, and it gets its own ADR.
 - **Themes are served per tool from the shared loader.** `public_report_data::themes` reads a
   step's latest theme collection for one origin tool. It doesn't filter by moderation, so each
@@ -71,14 +72,21 @@ Thinking Space summary, another may have told participants it stays with the org
 - **Only aggregates leave Prioritization.** It serves counts per Likert choice and per scale
   bucket, the summed alignment ranking, and the proposal and section text facilitators
   wrote. Free-text answers and the per-reviewer scatter plot stay on the Insights page.
+- **A score or breakdown needs three answers.** With fewer, a reader who knows who reviewed
+  a proposal can work out each person's answers. Prioritization serves the answer count but
+  withholds a question's breakdown when fewer than three people answered it, and leaves a
+  proposal unranked when fewer than three answered the alignment question. The ranking
+  lists those proposals last, without a score.
 - **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
   the theme collection are read once per step and kept for 60 seconds, shared by every section
   block, so a regenerated summary can take up to a minute to reach the report. Polis votes
-  stay on the client's own report cache.
+  stay on the client's own report cache. Prioritization caches its proposals, reviews and
+  themes the same way, per language, so a new review can also take up to a minute.
 - **Some section blocks are embedded once per item.** A HeyForm question is one section
   block, `heyform-question`, with the question id stored on the embed as `config.item`, and a
   Prioritization proposal is `prioritization-proposal` with the proposal id. The gate matches
-  the item too, so embedding one question doesn't publish the rest of the form.
+  the item too, so embedding one question doesn't publish the rest of the form. The
+  Prioritization ranking is a separate block and lists every proposal's title and score.
 - **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
   skip the published and embedded checks but need permission to update the conversation
   (for an event step, the event's conversation). They run the same builders and return the same types, so the report editor, the add-chart
@@ -99,8 +107,10 @@ Thinking Space summary, another may have told participants it stays with the org
   room display still reads `PolisGetReportData` (#1254). Locking that down to admins (#1255)
   waits on the display moving.
 - Types stop identifiers and unmoderated text, but they can't stop small numbers from pointing
-  at a person, such as an opinion group of one. Whether to round or hide small counts is open
-  and belongs with the first tool that shows group sizes.
+  at a person. Prioritization applies the three-answer minimum. HeyForm question counts and
+  Polis opinion group sizes don't yet, and should adopt it.
+- Without a step's alignment question the ranking block comes back empty, and the report
+  says the proposals can't be ranked, rather than showing the embed as unavailable.
 - A published report's embed shows "unavailable" only when its step or data is gone, not
   because a separate switch is off.
 - More endpoints to maintain, each small. Several section blocks from one step can repeat an
