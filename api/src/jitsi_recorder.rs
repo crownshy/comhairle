@@ -124,7 +124,11 @@ pub async fn trigger_recording(
             event_id,
             name: recording_name.to_string(),
             s3_key_prefix,
-            file_extension: AudioFormat::Wav,
+            // jitsi-recorder now records Opus-in-Ogg, not WAV (20-40x smaller
+            // for speech at comparable clarity) - AWS Transcribe already
+            // understands AudioFormat::Ogg as OGG_OPUS, so this is a drop-in
+            // swap, no transcription-side changes needed.
+            file_extension: AudioFormat::Ogg,
         },
     )
     .await?;
@@ -149,6 +153,41 @@ pub async fn trigger_recording(
     let response = reqwest::Client::new()
         .post(format!("{}/recordings", recorder_config.base_url))
         .json(&request)
+        .send()
+        .await
+        .map_err(|e| ComhairleError::JitsiRecorderError(e.to_string()))?;
+
+    if !response.status().is_success() {
+        return Err(ComhairleError::JitsiRecorderError(format!(
+            "jitsi-recorder returned {}",
+            response.status()
+        )));
+    }
+
+    Ok(())
+}
+
+/// Stops a jitsi-recorder session for `room_name`, if one is active. There's
+/// no Prosody room/destroyed webhook wired up for this comhairle-triggered
+/// path (unlike `trigger_recording`'s start side, nothing here replaces that
+/// old integration) - this is comhairle-api's own hangup detection, called
+/// from `websockets::handlers::video_call` whenever a room's last
+/// participant leaves, a breakout session ends, or the call itself ends.
+///
+/// Idempotent: a 404 (no active session for that room) is treated the same
+/// as success, since stop requests race the recording's own natural
+/// completion (e.g. gst-meet already exited on its own) by design.
+pub async fn stop_recording(
+    state: &Arc<ComhairleState>,
+    room_name: &str,
+) -> Result<(), ComhairleError> {
+    let recorder_config = state.required_jitsi_recorder_config()?;
+
+    let response = reqwest::Client::new()
+        .post(format!(
+            "{}/recordings/room/{room_name}/stop",
+            recorder_config.base_url
+        ))
         .send()
         .await
         .map_err(|e| ComhairleError::JitsiRecorderError(e.to_string()))?;
