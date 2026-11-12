@@ -112,6 +112,10 @@
 		}
 
 		questionNumber += forwards ? 1 : -1;
+
+		if (questionNumber > questions.length) {
+			onDone();
+		}
 	}
 
 	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
@@ -129,13 +133,10 @@
 	}
 
 	let sequence = $derived<ToolSequence>({
-		next:
-			questionNumber >= questions.length
-				? onDone
-				: () => {
-						forwards = true;
-						submit?.click();
-					},
+		next: () => {
+			forwards = true;
+			submit?.click();
+		},
 		previous:
 			questionNumber <= 1
 				? undefined
