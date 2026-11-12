@@ -699,6 +699,7 @@ pub async fn create(
         workflow_id,
         primary_locale,
         is_live,
+        organization_id,
     )
     .await?;
     transaction.commit().await?;
@@ -712,6 +713,7 @@ pub async fn create_in_transaction(
     workflow_id: Uuid,
     primary_locale: &str,
     is_live: bool,
+    organization_id: Option<Uuid>,
 ) -> Result<WorkflowStep, ComhairleError> {
     let translation_scope = translation_scope_for_workflow(&state.db, workflow_id).await?;
 
