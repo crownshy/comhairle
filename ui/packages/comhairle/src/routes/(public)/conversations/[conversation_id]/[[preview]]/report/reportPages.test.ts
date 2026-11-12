@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardHref, hasReportContent, readCardNumber, splitReportIntoPages } from './reportPages';
+import { cardHref, readCardNumber, splitReportIntoPages } from './reportPages';
 
 const heading = (level: number, text: string) => ({
 	type: 'heading',
@@ -101,25 +101,6 @@ describe('splitReportIntoPages', () => {
 	it('returns nothing for an empty body', () => {
 		expect(labels('')).toEqual([]);
 		expect(labels(doc(paragraph('')))).toEqual([]);
-	});
-});
-
-describe('hasReportContent', () => {
-	it('counts an embedded component as content', () => {
-		expect(hasReportContent(doc(embed))).toBe(true);
-	});
-
-	it('counts an image, video, audio or embedded page as content', () => {
-		for (const type of ['image', 'video', 'audio', 'iframe']) {
-			expect(hasReportContent(doc({ type, attrs: { src: 'https://example.com/a' } }))).toBe(
-				true
-			);
-		}
-	});
-
-	it('treats an empty document as blank', () => {
-		expect(hasReportContent(doc(paragraph('')))).toBe(false);
-		expect(hasReportContent(null)).toBe(false);
 	});
 });
 

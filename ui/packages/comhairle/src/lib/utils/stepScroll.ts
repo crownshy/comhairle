@@ -1,3 +1,5 @@
+import { scrollBehavior } from './reducedMotion';
+
 export const STEP_SCROLL_ATTRIBUTE = 'data-step-scroll';
 
 /**
@@ -24,8 +26,7 @@ export function offsetInStepScroll(
 
 /** Smooth scrolling falls back to a jump when the viewer prefers reduced motion. */
 export function scrollStepTo(top: number, { smooth = false } = {}) {
-	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	stepScroller().scrollTo({ top, behavior: smooth && !reduceMotion ? 'smooth' : 'auto' });
+	stepScroller().scrollTo({ top, behavior: smooth ? scrollBehavior() : 'auto' });
 }
 
 export function scrollStepToTop(options: { smooth?: boolean } = {}) {
