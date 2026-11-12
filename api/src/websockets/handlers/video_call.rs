@@ -1447,7 +1447,10 @@ mod tests {
         }
         call.breakout_rooms = rooms
             .into_iter()
-            .map(|participants| BreakoutRoomAssignments { participants })
+            .map(|participants| BreakoutRoomAssignments {
+                participants,
+                room_jid: None,
+            })
             .collect();
         call
     }
