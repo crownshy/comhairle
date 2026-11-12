@@ -586,6 +586,18 @@ async fn create_thinking_space_answer(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<CreateAnswerRequest>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceAnswerDto>), ComhairleError> {
+    // A follow-up must chain off one of the caller's own root answers — without
+    // this, anyone could attach content under another participant's root,
+    // which would then surface in that participant's chain in admin insights.
+    if let Some(root_question_id) = payload.root_question_id {
+        let root = thinking_space_answer::get_by_id(&state.db, &root_question_id).await?;
+        if root.user_id != user.id {
+            return Err(ComhairleError::ResourceNotFound(
+                "Thinking Space Answer".to_string(),
+            ));
+        }
+    }
+
     let params = CreateAnswer {
         question: payload.question,
         answer: payload.answer,
@@ -610,9 +622,13 @@ struct ListThinkingSpaceAnswersQuery {
 async fn list_thinking_space_answers(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(filter_options): Query<ThinkingSpaceAnswerFilterOptions>,
+    Query(mut filter_options): Query<ThinkingSpaceAnswerFilterOptions>,
     Query(ListThinkingSpaceAnswersQuery { workflow_step_id }): Query<ListThinkingSpaceAnswersQuery>,
 ) -> Result<(StatusCode, Json<Vec<ThinkingSpaceAnswerDto>>), ComhairleError> {
+    // Scope to the authenticated user regardless of any caller-supplied user_id
+    // — answers are private to the user that authored them.
+    filter_options.user_id = Some(user.id);
+
     let answers = thinking_space_answer::list(&state.db, &workflow_step_id, filter_options)
         .await?
         .into_iter()
@@ -629,6 +645,15 @@ async fn update_thinking_space_answer(
     Path(answer_id): Path<Uuid>,
     Json(payload): Json<UpdateAnswer>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceAnswerDto>), ComhairleError> {
+    let existing = thinking_space_answer::get_by_id(&state.db, &answer_id).await?;
+    // Hide other users' answers behind a 404 rather than 403 so we don't leak
+    // that an answer with this id exists.
+    if existing.user_id != user.id {
+        return Err(ComhairleError::ResourceNotFound(
+            "Thinking Space Answer".to_string(),
+        ));
+    }
+
     let answer = thinking_space_answer::update(&state.db, &answer_id, &payload).await?;
 
     Ok((StatusCode::OK, Json(answer.into())))
@@ -782,6 +807,15 @@ async fn update_or_create_thinking_space_summary(
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
     match payload.summary_id {
         Some(summary_id) => {
+            let existing = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
+            // Hide other users' summaries behind a 404 rather than 403 so we
+            // don't leak that a summary with this id exists.
+            if existing.user_id != user.id {
+                return Err(ComhairleError::ResourceNotFound(
+                    "Thinking Space Summary".to_string(),
+                ));
+            }
+
             let update_summary = UpdateSummary {
                 summary: payload.summary,
             };
@@ -835,6 +869,16 @@ async fn create_thinking_space_follow_up_questions(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<CreateFollowUpQuestions>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceFollowUpQuestionDto>), ComhairleError> {
+    // The pool of suggested follow-ups must chain off one of the caller's own
+    // root answers — otherwise anyone could attach suggestions to another
+    // participant's root.
+    let root = thinking_space_answer::get_by_id(&state.db, &payload.root_question_id).await?;
+    if root.user_id != user.id {
+        return Err(ComhairleError::ResourceNotFound(
+            "Thinking Space Answer".to_string(),
+        ));
+    }
+
     let follow_ups =
         thinking_space_follow_up_question::create(&state.db, user.id, &payload).await?;
 
@@ -848,6 +892,13 @@ async fn update_thinking_space_follow_up_questions(
     Path(follow_up_id): Path<Uuid>,
     Json(payload): Json<UpdateFollowUpQuestions>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceFollowUpQuestionDto>), ComhairleError> {
+    let existing = thinking_space_follow_up_question::get_by_id(&state.db, follow_up_id).await?;
+    if existing.user_id != user.id {
+        return Err(ComhairleError::ResourceNotFound(
+            "Thinking Space Follow Up Questions".to_string(),
+        ));
+    }
+
     let follow_ups =
         thinking_space_follow_up_question::update(&state.db, follow_up_id, &payload).await?;
 
@@ -859,8 +910,12 @@ async fn list_thinking_space_follow_up_questions(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
-    Query(filter_options): Query<ThinkingSpaceFollowUpQuestionFilterOptions>,
+    Query(mut filter_options): Query<ThinkingSpaceFollowUpQuestionFilterOptions>,
 ) -> Result<(StatusCode, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>), ComhairleError> {
+    // Scope to the authenticated user regardless of any caller-supplied user_id
+    // — these are private to the user that authored them.
+    filter_options.user_id = Some(user.id);
+
     let follow_ups =
         thinking_space_follow_up_question::list(&state.db, &workflow_step_id, filter_options)
             .await?
@@ -990,7 +1045,32 @@ mod tests {
     };
     use crate::models::user_progress::{self, ProgressStatus};
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
-    use crate::test_helpers::thinking_space_tool_config;
+    use crate::test_helpers::{UserSession, thinking_space_tool_config};
+
+    async fn setup_thinking_space_workflow_step(
+        app: &crate::App,
+        session: &mut UserSession,
+    ) -> Result<WorkflowStepDto, Box<dyn Error>> {
+        let conversation_id = get_random_conversation_id(app, session).await?;
+        let workflow_id = get_random_workflow_id(app, session, &conversation_id).await?;
+        let (_, value, _) = session
+            .create_workflow_step(
+                app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with thinking space",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        Ok(serde_json::from_value(value)?)
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_thinking_space_answer_via_api(
@@ -1325,6 +1405,386 @@ mod tests {
             user_insights.answers[0].follow_ups.len(),
             1,
             "incorrect follow ups"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_leak_other_users_answers_when_listing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+        let owner_id = session.id.expect("owner should have an id after signup");
+
+        session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A private question",
+                    "answer": "A private answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        // Omitting user_id entirely used to return every participant's answers.
+        let (status, value, _) = attacker
+            .get(
+                &app,
+                &format!(
+                    "/tools/thinking_space/answers?workflow_step_id={}",
+                    workflow_step.id
+                ),
+            )
+            .await?;
+        assert!(
+            status.is_success(),
+            "expected success, got {status}: {value}"
+        );
+        let answers: Vec<ThinkingSpaceAnswerDto> = serde_json::from_value(value)?;
+        assert!(
+            answers.is_empty(),
+            "attacker should see no answers, got {answers:?}"
+        );
+
+        // Explicitly targeting the victim's user_id used to work too.
+        let (status, value, _) = attacker
+            .get(
+                &app,
+                &format!(
+                    "/tools/thinking_space/answers?workflow_step_id={}&user_id={}",
+                    workflow_step.id, owner_id
+                ),
+            )
+            .await?;
+        assert!(
+            status.is_success(),
+            "expected success, got {status}: {value}"
+        );
+        let answers: Vec<ThinkingSpaceAnswerDto> = serde_json::from_value(value)?;
+        assert!(
+            answers.is_empty(),
+            "attacker should not see victim's answers even when targeting their user_id, got {answers:?}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_allow_cross_user_answer_update(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A question",
+                    "answer": "The original answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_answer: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .put(
+                &app,
+                &format!("/tools/thinking_space/answers/{}", owner_answer.id),
+                json!({ "answer": "hijacked" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "expected 404, got {status}: {value}"
+        );
+
+        let answer = thinking_space_answer::get_by_id(&pool, &owner_answer.id).await?;
+        assert_eq!(
+            answer.answer, "The original answer",
+            "answer should be unchanged"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_allow_cross_user_summary_update(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/summaries",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "summary": "The original summary",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_summary: ThinkingSpaceSummaryDto = serde_json::from_value(value)?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .post(
+                &app,
+                "/tools/thinking_space/summaries",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "summary_id": owner_summary.id,
+                    "summary": "hijacked",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "expected 404, got {status}: {value}"
+        );
+
+        let summary = thinking_space_summary::get_by_id(&pool, owner_summary.id).await?;
+        assert_eq!(
+            summary.summary, "The original summary",
+            "summary should be unchanged"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_answer_attached_to_another_users_root(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A root question",
+                    "answer": "A root answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_root: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A follow up question",
+                    "answer": "Injected content",
+                    "is_follow_up": true,
+                    "root_question_id": owner_root.id,
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "expected 404, got {status}: {value}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_reject_follow_up_question_pool_under_another_users_root(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A root question",
+                    "answer": "A root answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_root: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .post(
+                &app,
+                "/tools/thinking_space/follow_ups",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "root_question_id": owner_root.id,
+                    "follow_up_questions": ["An injected question"],
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "expected 404, got {status}: {value}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_not_allow_cross_user_follow_up_question_update(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A root question",
+                    "answer": "A root answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_root: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/follow_ups",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "root_question_id": owner_root.id,
+                    "follow_up_questions": ["Original question"],
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_follow_ups: ThinkingSpaceFollowUpQuestionDto = serde_json::from_value(value)?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .put(
+                &app,
+                &format!("/tools/thinking_space/follow_ups/{}", owner_follow_ups.id),
+                json!({ "follow_up_questions": ["hijacked"] })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "expected 404, got {status}: {value}"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_scope_list_thinking_space_follow_up_questions_to_caller(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step = setup_thinking_space_workflow_step(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/tools/thinking_space/answers",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "question": "A root question",
+                    "answer": "A root answer",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let owner_root: ThinkingSpaceAnswerDto = serde_json::from_value(value)?;
+
+        session
+            .post(
+                &app,
+                "/tools/thinking_space/follow_ups",
+                json!({
+                    "workflow_step_id": workflow_step.id,
+                    "root_question_id": owner_root.id,
+                    "follow_up_questions": ["Owner's suggested question"],
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let mut attacker = UserSession::new_guest();
+        attacker.signup_guest(&app).await?;
+
+        let (status, value, _) = attacker
+            .get(
+                &app,
+                &format!(
+                    "/tools/thinking_space/follow_ups?workflow_step_id={}",
+                    workflow_step.id
+                ),
+            )
+            .await?;
+        assert!(
+            status.is_success(),
+            "expected success, got {status}: {value}"
+        );
+        let follow_ups: Vec<ThinkingSpaceFollowUpQuestionDto> = serde_json::from_value(value)?;
+        assert!(
+            follow_ups.is_empty(),
+            "attacker should not see the owner's follow-up suggestions, got {follow_ups:?}"
         );
 
         Ok(())
