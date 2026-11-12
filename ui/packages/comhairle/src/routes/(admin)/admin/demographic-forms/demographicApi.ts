@@ -234,12 +234,16 @@ export function archiveQuestion(api: ApiClient, organizationId: string, question
 	});
 }
 
-export function createDemographicTag(api: ApiClient, organizationId: string, name: string) {
+/** Without an organisation the tag is a system category, which only super admins can create. */
+export function createDemographicTag(api: ApiClient, organizationId: string | null, name: string) {
 	return tryCatchAsync<Tag, ErrorType>(async () => {
-		const tag: DemographicTag = await api.CreateDemographicTag(
-			{ name },
-			{ queries: { organization_id: organizationId } }
-		);
+		const tag: DemographicTag =
+			organizationId === null
+				? await api.CreateDemographicDefaultTag({ name })
+				: await api.CreateDemographicTag(
+						{ name },
+						{ queries: { organization_id: organizationId } }
+					);
 		return { id: tag.id, name: tag.name };
 	});
 }

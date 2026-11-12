@@ -37,8 +37,9 @@ The API's implicit fork behavior remains available for existing callers.
 
 ## Consequences
 
-- Existing data for the five migrated defaults (age, ethnicity, gender, zipcode and political
-  party) keeps its UUIDs and version 1.
+- Legacy slug-keyed questions that held answers or were linked to a conversation are migrated
+  to Default demographic questions with new UUIDs at version 1. No defaults are seeded or
+  referenced by fixed id in code; Super Administrators manage them in the admin UI.
 - Forking loses the link to later default versions. The admin UI should say that a question
   is a fork and show the default it came from.
 - Forks can share a question's answers only with the Organization that made them.

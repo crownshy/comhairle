@@ -41,7 +41,6 @@
 		/** Forms that already include this question, used to warn before publishing changes */
 		usedInFormList: { id: string; name: string }[];
 		onCreateTag: (name: string) => Promise<Tag | null>;
-		canCreateTags?: boolean;
 		canDelete?: boolean;
 		onSave: (question: DemographicQuestion, options: SaveOptions) => void;
 		onDelete: () => void;
@@ -56,7 +55,6 @@
 		tags,
 		usedInFormList,
 		onCreateTag,
-		canCreateTags = true,
 		canDelete = true,
 		onSave,
 		onDelete,
@@ -253,20 +251,18 @@
 								{/each}
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
-						{#if canCreateTags}
-							<Input
-								class="flex-1"
-								bind:value={newTagName}
-								placeholder="New category"
-								aria-label="New category name"
-								onkeydown={(event) => event.key === 'Enter' && addNewTag()}
-							/>
-							<Button
-								variant="outline"
-								disabled={newTagName.trim() === '' || creatingTag}
-								onclick={addNewTag}>Add</Button
-							>
-						{/if}
+						<Input
+							class="flex-1"
+							bind:value={newTagName}
+							placeholder="New category"
+							aria-label="New category name"
+							onkeydown={(event) => event.key === 'Enter' && addNewTag()}
+						/>
+						<Button
+							variant="outline"
+							disabled={newTagName.trim() === '' || creatingTag}
+							onclick={addNewTag}>Add</Button
+						>
 					</div>
 				</div>
 

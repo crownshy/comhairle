@@ -50,7 +50,7 @@
 
 	const selectedOrganizationName = $derived(
 		data.organizations.find((org) => org.id === data.organizationId)?.name ??
-			(data.managingDefaults ? 'Default question bank' : 'Choose an organisation')
+			(data.managingDefaults ? '-- None --' : 'Choose an organisation')
 	);
 
 	function selectOrganization(organizationId: string) {
@@ -239,7 +239,7 @@
 	}
 
 	async function createTag(name: string): Promise<Tag | null> {
-		if (data.organizationId === null) return null;
+		if (data.organizationId === null && !data.managingDefaults) return null;
 		const result = await createDemographicTag(apiClient, data.organizationId, name);
 		if (result.err !== null) {
 			notifyError('Could not create the category. Try again.');
@@ -288,8 +288,8 @@
 					</Select.Trigger>
 					<Select.Content>
 						{#if data.isSuperAdmin}
-							<Select.Item value="defaults" label="Default question bank">
-								Default question bank
+							<Select.Item value="defaults" label="-- None --">
+								-- None --
 							</Select.Item>
 						{/if}
 						{#each data.organizations as organization (organization.id)}
@@ -320,10 +320,14 @@
 				<Tabs.List>
 					{#if !data.managingDefaults}
 						<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
+						<Tabs.Trigger value="questions">
+							Question bank ({data.questions.length})
+						</Tabs.Trigger>
+					{:else}
+						<Tabs.Trigger value="questions">
+							Default question bank ({data.questions.length})
+						</Tabs.Trigger>
 					{/if}
-					<Tabs.Trigger value="questions">
-						Question bank ({data.questions.length})
-					</Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="forms" class="mt-6">
 					<FormsTab
@@ -376,7 +380,6 @@
 		tags={data.tags}
 		{usedInFormList}
 		onCreateTag={createTag}
-		canCreateTags={!data.managingDefaults}
 		canDelete={!data.managingDefaults}
 		onSave={saveQuestion}
 		onDelete={deleteQuestion}

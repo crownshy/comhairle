@@ -175,85 +175,99 @@ CREATE TABLE demographics_consent (
 CREATE UNIQUE INDEX uq_demographics_consent_version_user
     ON demographics_consent (question_version_id, user_id) WHERE user_id IS NOT NULL;
 
--- System default questions. Fixed UUIDs let code refer to them (see demographics::defaults).
-INSERT INTO demographics_tag (id, organization_id, name) VALUES
-    ('de000004-0000-4000-8000-000000000001', NULL, 'Age'),
-    ('de000004-0000-4000-8000-000000000002', NULL, 'Ethnicity'),
-    ('de000004-0000-4000-8000-000000000003', NULL, 'Gender'),
-    ('de000004-0000-4000-8000-000000000004', NULL, 'Postcode'),
-    ('de000004-0000-4000-8000-000000000005', NULL, 'Political affiliation');
+-- Legacy slug-keyed questions that hold answers or are linked to a conversation become system
+-- questions with new UUIDs, so those answers and links carry over. Unused ones are dropped.
+CREATE TABLE legacy_question_migration (
+    slug TEXT PRIMARY KEY,
+    question_id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    version_id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    display_name TEXT NOT NULL,
+    question_text TEXT NOT NULL,
+    question_type TEXT NOT NULL,
+    location_format TEXT,
+    consent_text TEXT,
+    ordinal INT NOT NULL
+);
 
-INSERT INTO text_content (id, primary_locale, format) VALUES
-    ('de000005-0000-4000-8000-000000000001', 'en', 'plain'),
-    ('de000005-0000-4000-8000-000000000002', 'en', 'plain'),
-    ('de000005-0000-4000-8000-000000000003', 'en', 'plain'),
-    ('de000005-0000-4000-8000-000000000004', 'en', 'plain'),
-    ('de000005-0000-4000-8000-000000000005', 'en', 'plain'),
-    ('de000005-0000-4000-8000-000000000006', 'en', 'plain');
+INSERT INTO legacy_question_migration (
+    slug, display_name, question_text, question_type, location_format, consent_text, ordinal
+)
+SELECT
+    lq.slug,
+    COALESCE(w.display_name, lq.display_name),
+    COALESCE(w.question_text, lq.display_name),
+    COALESCE(w.question_type, CASE WHEN lq.response_type::TEXT = 'number' THEN 'number' ELSE 'any_string' END),
+    w.location_format,
+    w.consent_text,
+    COALESCE(w.ordinal, 100)
+FROM legacy_demographics_question lq
+LEFT JOIN (VALUES
+    ('age', 'Age', 'What is your age?', 'number', NULL, NULL, 1),
+    ('ethnicity', 'Ethnicity', 'What is your ethnicity?', 'any_string', NULL,
+        'Ethnicity is special category data. We only ask for it with your consent, and we use it to understand who takes part.', 2),
+    ('gender', 'Gender', 'What is your gender?', 'any_string', NULL, NULL, 3),
+    ('zipcode', 'Postcode', 'What is your postcode?', 'location', 'postcode', NULL, 4),
+    ('political_party', 'Political affiliation', 'What is your political affiliation?', 'any_string', NULL, NULL, 5)
+) AS w(slug, display_name, question_text, question_type, location_format, consent_text, ordinal)
+    ON w.slug = lq.slug
+WHERE EXISTS (SELECT 1 FROM legacy_demographics_response dr WHERE dr.question_slug = lq.slug)
+    OR EXISTS (SELECT 1 FROM legacy_conversation_demographics cd WHERE cd.question_slug = lq.slug);
 
-INSERT INTO text_translation (content_id, locale, content, ai_generated, requires_validation) VALUES
-    ('de000005-0000-4000-8000-000000000001', 'en', 'What is your age?', false, false),
-    ('de000005-0000-4000-8000-000000000002', 'en', 'What is your ethnicity?', false, false),
-    ('de000005-0000-4000-8000-000000000003', 'en', 'What is your gender?', false, false),
-    ('de000005-0000-4000-8000-000000000004', 'en', 'What is your postcode?', false, false),
-    ('de000005-0000-4000-8000-000000000005', 'en', 'What is your political affiliation?', false, false),
-    ('de000005-0000-4000-8000-000000000006', 'en',
-        'Ethnicity is special category data. We only ask for it with your consent, and we use it to understand who takes part.',
-        false, false);
+DO $$
+DECLARE
+    q RECORD;
+    question_text_id UUID;
+    consent_text_id UUID;
+    category_id UUID;
+BEGIN
+    FOR q IN SELECT * FROM legacy_question_migration ORDER BY ordinal, slug
+    LOOP
+        INSERT INTO text_content (primary_locale, format) VALUES ('en', 'plain')
+        RETURNING id INTO question_text_id;
+        INSERT INTO text_translation (content_id, locale, content, ai_generated, requires_validation)
+        VALUES (question_text_id, 'en', q.question_text, false, false);
 
-INSERT INTO demographics_question (id, organization_id) VALUES
-    ('de000001-0000-4000-8000-000000000001', NULL),
-    ('de000001-0000-4000-8000-000000000002', NULL),
-    ('de000001-0000-4000-8000-000000000003', NULL),
-    ('de000001-0000-4000-8000-000000000004', NULL),
-    ('de000001-0000-4000-8000-000000000005', NULL);
+        consent_text_id := NULL;
+        IF q.consent_text IS NOT NULL THEN
+            INSERT INTO text_content (primary_locale, format) VALUES ('en', 'plain')
+            RETURNING id INTO consent_text_id;
+            INSERT INTO text_translation (content_id, locale, content, ai_generated, requires_validation)
+            VALUES (consent_text_id, 'en', q.consent_text, false, false);
+        END IF;
 
-INSERT INTO demographics_question_tag (question_id, tag_id) VALUES
-    ('de000001-0000-4000-8000-000000000001', 'de000004-0000-4000-8000-000000000001'),
-    ('de000001-0000-4000-8000-000000000002', 'de000004-0000-4000-8000-000000000002'),
-    ('de000001-0000-4000-8000-000000000003', 'de000004-0000-4000-8000-000000000003'),
-    ('de000001-0000-4000-8000-000000000004', 'de000004-0000-4000-8000-000000000004'),
-    ('de000001-0000-4000-8000-000000000005', 'de000004-0000-4000-8000-000000000005');
+        -- The admin UI needs a category before a question can be republished.
+        INSERT INTO demographics_tag (organization_id, name) VALUES (NULL, q.display_name)
+        ON CONFLICT (name) WHERE organization_id IS NULL DO UPDATE SET name = EXCLUDED.name
+        RETURNING id INTO category_id;
 
-INSERT INTO demographics_question_version (
-    id, question_id, version_number, status, text_content_id, question_type,
-    location_format, special_category, consent_text_content_id, published_at
-) VALUES
-    ('de000002-0000-4000-8000-000000000001', 'de000001-0000-4000-8000-000000000001', 1, 'published',
-        'de000005-0000-4000-8000-000000000001', 'number', NULL, false, NULL, NOW()),
-    ('de000002-0000-4000-8000-000000000002', 'de000001-0000-4000-8000-000000000002', 1, 'published',
-        'de000005-0000-4000-8000-000000000002', 'any_string', NULL, true,
-        'de000005-0000-4000-8000-000000000006', NOW()),
-    ('de000002-0000-4000-8000-000000000003', 'de000001-0000-4000-8000-000000000003', 1, 'published',
-        'de000005-0000-4000-8000-000000000003', 'any_string', NULL, false, NULL, NOW()),
-    ('de000002-0000-4000-8000-000000000004', 'de000001-0000-4000-8000-000000000004', 1, 'published',
-        'de000005-0000-4000-8000-000000000004', 'location', 'postcode', false, NULL, NOW()),
-    ('de000002-0000-4000-8000-000000000005', 'de000001-0000-4000-8000-000000000005', 1, 'published',
-        'de000005-0000-4000-8000-000000000005', 'any_string', NULL, false, NULL, NOW());
+        INSERT INTO demographics_question (id, organization_id) VALUES (q.question_id, NULL);
+        INSERT INTO demographics_question_tag (question_id, tag_id) VALUES (q.question_id, category_id);
+        INSERT INTO demographics_question_version (
+            id, question_id, version_number, status, text_content_id, question_type,
+            location_format, special_category, consent_text_content_id, published_at
+        ) VALUES (
+            q.version_id, q.question_id, 1, 'published', question_text_id, q.question_type,
+            q.location_format, consent_text_id IS NOT NULL, consent_text_id, NOW()
+        );
+    END LOOP;
+END $$;
 
--- Move the answers collected through the old slug-keyed model onto the default question versions.
 -- Values use the shape each question type expects: numbers as JSON numbers, strings as JSON strings,
 -- and postcodes as a location object.
 INSERT INTO demographics_response (question_version_id, user_id, value, created_at, updated_at)
 SELECT
     m.version_id,
     dr.user_id,
-    CASE
-        WHEN dr.question_slug = 'age' THEN to_jsonb(dr.value::NUMERIC)
-        WHEN dr.question_slug = 'zipcode' THEN jsonb_build_object('postcode', dr.value)
+    CASE m.question_type
+        WHEN 'number' THEN to_jsonb(dr.value::NUMERIC)
+        WHEN 'location' THEN jsonb_build_object('postcode', dr.value)
         ELSE to_jsonb(dr.value)
     END,
     NOW(),
     NOW()
 FROM legacy_demographics_response dr
-JOIN (VALUES
-    ('age', 'de000002-0000-4000-8000-000000000001'::UUID),
-    ('ethnicity', 'de000002-0000-4000-8000-000000000002'::UUID),
-    ('gender', 'de000002-0000-4000-8000-000000000003'::UUID),
-    ('zipcode', 'de000002-0000-4000-8000-000000000004'::UUID),
-    ('political_party', 'de000002-0000-4000-8000-000000000005'::UUID)
-) AS m(slug, version_id) ON m.slug = dr.question_slug
-WHERE dr.value IS NOT NULL AND (dr.question_slug <> 'age' OR dr.value ~ '^-?[0-9]+(\.[0-9]+)?$');
+JOIN legacy_question_migration m ON m.slug = dr.question_slug
+WHERE dr.value IS NOT NULL AND (m.question_type <> 'number' OR dr.value ~ '^-?[0-9]+(\.[0-9]+)?$');
 
 -- Turn each conversation's old demographics link into a question step at the end of its workflow.
 -- Those steps ask the latest published version and are optional, as the old questions were.
@@ -267,14 +281,8 @@ BEGIN
         SELECT w.id AS workflow_id, m.question_id, m.display_name
         FROM legacy_conversation_demographics cd
         JOIN workflow w ON w.conversation_id = cd.conversation_id
-        JOIN (VALUES
-            ('age', 'de000001-0000-4000-8000-000000000001'::UUID, 'Age', 1),
-            ('ethnicity', 'de000001-0000-4000-8000-000000000002'::UUID, 'Ethnicity', 2),
-            ('gender', 'de000001-0000-4000-8000-000000000003'::UUID, 'Gender', 3),
-            ('zipcode', 'de000001-0000-4000-8000-000000000004'::UUID, 'Postcode', 4),
-            ('political_party', 'de000001-0000-4000-8000-000000000005'::UUID, 'Political affiliation', 5)
-        ) AS m(slug, question_id, display_name, ordinal) ON m.slug = cd.question_slug
-        ORDER BY cd.conversation_id, m.ordinal
+        JOIN legacy_question_migration m ON m.slug = cd.question_slug
+        ORDER BY cd.conversation_id, m.ordinal, m.slug
     LOOP
         INSERT INTO text_content (primary_locale, format) VALUES ('en', 'plain')
         RETURNING id INTO name_content_id;
@@ -308,6 +316,7 @@ BEGIN
     END LOOP;
 END $$;
 
+DROP TABLE legacy_question_migration;
 DROP TABLE legacy_conversation_demographics;
 DROP TABLE legacy_demographics_response;
 DROP TABLE legacy_demographics_question;
