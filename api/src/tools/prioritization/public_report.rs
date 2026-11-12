@@ -497,7 +497,7 @@ impl<'a> ReportSource<'a> {
             let reviews = proposal_response::list(
                 db,
                 &proposal.id,
-                ProposalResponseFilterOptions,
+                ProposalResponseFilterOptions::default(),
                 ProposalResponseOrderOptions,
             )
             .await?;
