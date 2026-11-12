@@ -27,6 +27,7 @@ describe('hasSectionBlocks', () => {
 		expect(hasSectionBlocks('polis')).toBe(true);
 		expect(hasSectionBlocks('heyform')).toBe(true);
 		expect(hasSectionBlocks('prioritization')).toBe(true);
+		expect(hasSectionBlocks('thinkingspace')).toBe(true);
 		expect(hasSectionBlocks('learn')).toBe(false);
 		expect(hasSectionBlocks(null)).toBe(false);
 	});
@@ -37,6 +38,7 @@ describe('toolTypeForSectionBlock', () => {
 		expect(toolTypeForSectionBlock('polis-key-stats')).toBe('polis');
 		expect(toolTypeForSectionBlock('polis-themes')).toBe('polis');
 		expect(toolTypeForSectionBlock('prioritization-proposal')).toBe('prioritization');
+		expect(toolTypeForSectionBlock('thinkingspace-questions')).toBe('thinkingspace');
 	});
 
 	it('is null for a type no tool owns', () => {

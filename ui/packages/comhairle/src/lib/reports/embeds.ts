@@ -2,6 +2,7 @@ import type { EmbeddedSectionBlock } from '@crownshy/api-client/api';
 import { HEYFORM_EMBEDDABLE_COMPONENTS } from './heyform/embeddableComponents';
 import { POLIS_EMBEDDABLE_COMPONENTS } from './polis/embeddableComponents';
 import { PRIORITIZATION_EMBEDDABLE_COMPONENTS } from './prioritization/embeddableComponents';
+import { THINKING_SPACE_EMBEDDABLE_COMPONENTS } from './thinking-space/embeddableComponents';
 
 export type SectionBlockMeta<T extends string = string> = {
 	type: T;
@@ -37,7 +38,8 @@ export type ReportEmbedProps = {
 const SECTION_BLOCKS_BY_TOOL: Record<string, SectionBlockMeta[]> = {
 	polis: POLIS_EMBEDDABLE_COMPONENTS,
 	heyform: HEYFORM_EMBEDDABLE_COMPONENTS,
-	prioritization: PRIORITIZATION_EMBEDDABLE_COMPONENTS
+	prioritization: PRIORITIZATION_EMBEDDABLE_COMPONENTS,
+	thinkingspace: THINKING_SPACE_EMBEDDABLE_COMPONENTS
 };
 
 export function sectionBlocksForTool(toolType: string | null | undefined): SectionBlockMeta[] {

@@ -1488,6 +1488,37 @@ export const PrioritizationInsightsResponse = z
 export type PrioritizationInsightsResponse = z.infer<
   typeof PrioritizationInsightsResponse
 >;
+export const ThinkingSpacePublicKeyStats = z
+  .object({
+    followUpsPerParticipant: z.union([z.number(), z.null()]).optional(),
+    participants: z.number().int().gte(0),
+  })
+  .passthrough();
+export type ThinkingSpacePublicKeyStats = z.infer<
+  typeof ThinkingSpacePublicKeyStats
+>;
+export const ThinkingSpacePublicQuestion = z
+  .object({
+    followUps: z.number().int().gte(0),
+    participants: z.number().int().gte(0),
+    question: z.string(),
+  })
+  .passthrough();
+export type ThinkingSpacePublicQuestion = z.infer<
+  typeof ThinkingSpacePublicQuestion
+>;
+export const ThinkingSpacePublicQuestions = z
+  .object({ questions: z.array(ThinkingSpacePublicQuestion) })
+  .passthrough();
+export type ThinkingSpacePublicQuestions = z.infer<
+  typeof ThinkingSpacePublicQuestions
+>;
+export const ThinkingSpacePublicThemes = z
+  .object({ themes: z.array(PublicTheme) })
+  .passthrough();
+export type ThinkingSpacePublicThemes = z.infer<
+  typeof ThinkingSpacePublicThemes
+>;
 export const ConversationRequest2 = z
   .object({
     question_intent: z.string(),
@@ -4451,6 +4482,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateResponse,
   RankedProposal,
   PrioritizationInsightsResponse,
+  ThinkingSpacePublicKeyStats,
+  ThinkingSpacePublicQuestion,
+  ThinkingSpacePublicQuestions,
+  ThinkingSpacePublicThemes,
   ConversationRequest2,
   ConverseResponseDto,
   AnswerStatus,
@@ -9239,6 +9274,96 @@ Create a response for prioritization tool proposal
       },
     ],
     response: ThinkingSpaceInsightsResponse,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/public_report/key_stats",
+    alias: "ThinkingSpaceGetPublicKeyStats",
+    description: `How many people shared a Thinking Space summary and how many follow-up questions they took on average. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/public_report/questions",
+    alias: "ThinkingSpaceGetPublicQuestions",
+    description: `Each opening question with how many people answered it and how many follow-ups they took. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicQuestions,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/public_report/themes",
+    alias: "ThinkingSpaceGetPublicThemes",
+    description: `The step&#x27;s latest themes with how many shared summaries each groups. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicThemes,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/report_preview/key_stats",
+    alias: "ThinkingSpacePreviewKeyStats",
+    description: `The same data as ThinkingSpaceGetPublicKeyStats, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicKeyStats,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/report_preview/questions",
+    alias: "ThinkingSpacePreviewQuestions",
+    description: `The same data as ThinkingSpaceGetPublicQuestions, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicQuestions,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/report_preview/themes",
+    alias: "ThinkingSpacePreviewThemes",
+    description: `The same data as ThinkingSpaceGetPublicThemes, for facilitators who can update the conversation, before the report is published.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: ThinkingSpacePublicThemes,
   },
   {
     method: "get",
