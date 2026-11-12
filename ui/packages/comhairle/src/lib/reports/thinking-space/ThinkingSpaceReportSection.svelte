@@ -15,11 +15,13 @@
 			metric={data.stats.participants}
 			subText="shared their summary"
 		/>
-		<MetricOverviewCard
-			superText="Follow-up questions"
-			metric={Number(data.stats.followUpsPerParticipant.toFixed(2))}
-			subText="per participant"
-		/>
+		{#if data.stats.followUpsPerParticipant != null}
+			<MetricOverviewCard
+				superText="Follow-up questions"
+				metric={Number(data.stats.followUpsPerParticipant.toFixed(2))}
+				subText="per participant"
+			/>
+		{/if}
 	</div>
 {:else if data.componentType === 'thinkingspace-questions'}
 	{#if data.questions.length === 0}

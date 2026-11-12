@@ -30,7 +30,7 @@ use crate::models::translations::{TextContentId, localize_translations};
 use crate::routes::auth::RequiredUser;
 use crate::routes::translations::LocaleExtractor;
 use crate::tools::public_report_data::anonymous::{
-    Count, FacilitatorText, PublicReportData, Score, public_report_data,
+    Count, FacilitatorText, MIN_ANSWERS_SHOWN, PublicReportData, Score, public_report_data,
 };
 use crate::tools::public_report_data::themes::{
     PublicTheme, latest_theme_collection, public_theme,
@@ -41,10 +41,6 @@ use crate::tools::public_report_data::{
 
 /// Where the theme collections of a Prioritization step come from (`sensemaking::harvest`).
 const THEME_ORIGIN: &str = "prioritization";
-
-/// The fewest answers a score or breakdown is built from. With fewer, a reader who knows who
-/// reviewed could work out one person's answers, so the count is shown and the rest withheld.
-const MIN_ANSWERS_SHOWN: usize = 3;
 
 /// How long a step's proposals, reviews and themes are served before reading them again, so
 /// a new review can take up to a minute to reach the report.

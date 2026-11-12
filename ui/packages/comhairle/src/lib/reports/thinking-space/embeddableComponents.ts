@@ -6,7 +6,9 @@ import type { SectionBlockMeta } from '../embeds';
  * with readers.
  */
 export type ThinkingSpaceEmbeddableComponentType =
-	'thinkingspace-key-stats' | 'thinkingspace-questions' | 'thinkingspace-themes';
+	| 'thinkingspace-key-stats'
+	| 'thinkingspace-questions'
+	| 'thinkingspace-themes';
 
 export const THINKING_SPACE_EMBEDDABLE_COMPONENTS: SectionBlockMeta<ThinkingSpaceEmbeddableComponentType>[] =
 	[

@@ -28,7 +28,7 @@ use crate::models::users::User;
 use crate::routes::auth::RequiredUser;
 use crate::routes::translations::LocaleExtractor;
 use crate::tools::public_report_data::anonymous::{
-    Count, FacilitatorText, PublicReportData, Score, public_report_data,
+    Count, FacilitatorText, MIN_ANSWERS_SHOWN, PublicReportData, Score, public_report_data,
 };
 use crate::tools::public_report_data::themes::{
     PublicTheme, latest_theme_collection, public_theme,
@@ -61,7 +61,9 @@ public_report_data! {
     pub struct ThinkingSpacePublicKeyStats {
         /// People who finished and agreed to share their summary with the organisers.
         pub participants: Count,
-        pub follow_ups_per_participant: Score,
+        /// `None` when fewer than `MIN_ANSWERS_SHOWN` people shared, so one person's count
+        /// can't be read back.
+        pub follow_ups_per_participant: Option<Score>,
     }
 }
 
@@ -404,14 +406,11 @@ fn key_stats(answers: &SharedAnswers) -> ThinkingSpacePublicKeyStats {
         .iter()
         .map(|opening_answer| answers.follow_ups_for(opening_answer))
         .sum();
-    let per_participant = if answers.participants == 0 {
-        0.0
-    } else {
-        follow_ups as f64 / answers.participants as f64
-    };
+    let enough_participants = answers.participants >= MIN_ANSWERS_SHOWN;
     ThinkingSpacePublicKeyStats {
         participants: Count(answers.participants as u64),
-        follow_ups_per_participant: Score(per_participant),
+        follow_ups_per_participant: enough_participants
+            .then(|| Score(follow_ups as f64 / answers.participants as f64)),
     }
 }
 
@@ -527,7 +526,7 @@ mod tests {
 
         let stats = key_stats(&answers);
         assert_eq!(stats.participants, Count(2));
-        assert_eq!(stats.follow_ups_per_participant, Score(1.5));
+        assert_eq!(stats.follow_ups_per_participant, None);
 
         let configured = [
             opening_question("Transport?", &["Còmhdhail?"]),
@@ -542,6 +541,25 @@ mod tests {
         let json = serde_json::to_value(&questions).unwrap().to_string();
         assert!(json.contains("Transport?"));
         assert!(!json.contains("private answer"));
+    }
+
+    #[test]
+    fn shows_follow_ups_per_participant_from_three_participants() {
+        let opening_answers: Vec<_> = (0..3)
+            .map(|_| answer(Uuid::new_v4(), None, "Transport?"))
+            .collect();
+        let follow_ups_by_opening_answer =
+            HashMap::from([(opening_answers[0].id, 2), (opening_answers[1].id, 1)]);
+        let answers = SharedAnswers {
+            participants: 3,
+            opening_answers,
+            follow_ups_by_opening_answer,
+        };
+
+        assert_eq!(
+            key_stats(&answers).follow_ups_per_participant,
+            Some(Score(1.0))
+        );
     }
 
     #[test]

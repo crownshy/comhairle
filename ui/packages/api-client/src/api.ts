@@ -1490,7 +1490,7 @@ export type PrioritizationInsightsResponse = z.infer<
 >;
 export const ThinkingSpacePublicKeyStats = z
   .object({
-    followUpsPerParticipant: z.number(),
+    followUpsPerParticipant: z.union([z.number(), z.null()]).optional(),
     participants: z.number().int().gte(0),
   })
   .passthrough();

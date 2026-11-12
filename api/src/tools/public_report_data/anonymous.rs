@@ -83,6 +83,10 @@ pub struct ScalePoint(pub u32);
 #[serde(transparent)]
 pub struct Score(pub f64);
 
+/// The fewest answers a `Score` or breakdown is built from. With fewer, a reader who knows who
+/// answered could work out one person's answers, so the count is shown and the rest withheld.
+pub const MIN_ANSWERS_SHOWN: usize = 3;
+
 /// Text the sensemaker wrote at a facilitator's request from many contributions together, such
 /// as a theme's description or an opinion group's summary, or that a facilitator wrote in its
 /// place. Never one person's words.

@@ -78,10 +78,10 @@ Thinking Space summary, another may have told participants it stays with the org
   proposal unranked when fewer than three answered the alignment question. The ranking
   lists those proposals last, without a score.
 - **Only aggregates leave Thinking Space.** It serves how many people shared a summary,
-  follow-ups per participant and per opening question, and themes. A participant's summary
-  and answers never leave, since the consent they give covers the organisers only. An
-  opening question's text comes from the step config, not the answer rows, because the
-  stored question is whatever the participant's request sent.
+  follow-ups per opening question, follow-ups per participant once three people have shared,
+  and themes. A participant's summary and answers never leave, since the consent they give
+  covers the organisers only. An opening question's text comes from the step config, not the
+  answer rows, because the stored question is whatever the participant's request sent.
 - **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
   the theme collection are read once per step and kept for 60 seconds, shared by every section
   block, so a regenerated summary can take up to a minute to reach the report. Polis votes
@@ -112,8 +112,8 @@ Thinking Space summary, another may have told participants it stays with the org
   room display still reads `PolisGetReportData` (#1254). Locking that down to admins (#1255)
   waits on the display moving.
 - Types stop identifiers and unmoderated text, but they can't stop small numbers from pointing
-  at a person. Prioritization applies the three-answer minimum. HeyForm question counts and
-  Polis opinion group sizes don't yet, and should adopt it.
+  at a person. Prioritization and Thinking Space apply the three-answer minimum. HeyForm
+  question counts and Polis opinion group sizes don't yet, and should adopt it.
 - Without a step's alignment question the ranking block comes back empty, and the report
   says the proposals can't be ranked, rather than showing the embed as unavailable.
 - A published report's embed shows "unavailable" only when its step or data is gone, not
