@@ -128,10 +128,7 @@ jobs:
 
       - 
         name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@1.95.0
 
       -
         name: Resolve cargo-nextest version
@@ -139,7 +136,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version=$(cargo search cargo-nextest --limit 1 | sed -n 's/^cargo-nextest = "\([^"]*\)".*/\1/p')
+          version=$(cargo search cargo-nextest --limit 1 --color never | sed -n 's/^cargo-nextest = "\([^"]*\)".*/\1/p')
           if [[ -z "$version" ]]; then
             echo "Failed to resolve cargo-nextest version" >&2
             exit 1
