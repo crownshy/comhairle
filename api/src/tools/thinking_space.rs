@@ -28,7 +28,7 @@ use crate::models::thinking_space_summary::{
     self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions, UpdateSummary,
 };
 use crate::models::translations::{
-    BuildTextTranslation, TextContentId, TextFormat, localize_translations,
+    BuildTextTranslation, TextContentId, TextFormat, TranslationScope, localize_translations,
 };
 use crate::models::workflow_step;
 use crate::routes::auth::{RequiredAdminUser, RequiredUser};
@@ -88,18 +88,19 @@ pub struct ThinkingSpaceSetupQuestion {
 impl ThinkingSpaceSetupQuestion {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<ThinkingSpaceQuestion, ComhairleError> {
         Ok(ThinkingSpaceQuestion {
             id: Uuid::new_v4(),
             text: self
                 .text
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
             intent: self
                 .intent
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
         })
     }
@@ -117,18 +118,19 @@ pub struct ThinkingSpaceToolSetup {
 impl ThinkingSpaceToolSetup {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
         Ok(ThinkingSpaceToolConfig {
             topic: self
                 .topic
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
             root_questions: {
                 let mut built = Vec::with_capacity(self.root_questions.len());
                 for question in self.root_questions {
-                    built.push(question.build_with_translations(db, locale).await?);
+                    built.push(question.build_with_translations(db, scope, locale).await?);
                 }
                 built
             },
@@ -157,10 +159,12 @@ impl ToolImpl for ThinkingSpaceTool {
 
     async fn setup(
         setup: &Self::Setup,
-        state: &Arc<ComhairleState>,
+        _state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
-        thinking_space_setup(&state.db, setup, locale).await
+        thinking_space_setup(db, setup, scope, locale).await
     }
 
     async fn clone_tool(
@@ -348,11 +352,15 @@ fn merge_additional_instructions(
 }
 
 async fn thinking_space_setup(
-    db: &PgPool,
+    db: &mut sqlx::PgConnection,
     config: &ThinkingSpaceToolSetup,
+    scope: TranslationScope,
     locale: &str,
 ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
-    config.clone().build_with_translations(db, locale).await
+    config
+        .clone()
+        .build_with_translations(db, scope, locale)
+        .await
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

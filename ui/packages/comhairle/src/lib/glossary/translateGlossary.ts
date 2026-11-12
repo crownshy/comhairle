@@ -1,5 +1,8 @@
 import type { LocalizedGlossary } from './types';
-import { aiTranslateContent } from '$lib/components/Translation/translationUtils';
+import {
+	aiTranslateContent,
+	type TextContentScope
+} from '$lib/components/Translation/translationUtils';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 /**
@@ -14,11 +17,12 @@ export async function translateGlossaryToLocale(
 	glossary: LocalizedGlossary,
 	targetLocale: string,
 	primaryLocale: string,
-	translate: (
-		text: string,
-		target: string,
-		primary: string
-	) => Promise<string> = aiTranslateContent
+	scope: TextContentScope,
+	translate: (text: string, target: string, primary: string) => Promise<string> = (
+		text,
+		target,
+		primary
+	) => aiTranslateContent(text, target, scope, primary)
 ): Promise<LocalizedGlossary> {
 	if (targetLocale === primaryLocale) return glossary;
 

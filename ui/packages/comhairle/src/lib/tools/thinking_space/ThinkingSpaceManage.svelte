@@ -167,7 +167,8 @@
 			const payloadWithNewlyCreatedTranslations =
 				await traverseTranslatableJsonAndCreateTranslations(
 					payload,
-					conversation.primaryLocale
+					conversation.primaryLocale,
+					{ type: 'conversation', id: conversation.id }
 				);
 			const resolvedToolConfig = resolveTranslatableJsonToTextContentIds(
 				payloadWithNewlyCreatedTranslations

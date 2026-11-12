@@ -15,8 +15,8 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::translations::{
-    ResolveWithTranslations, TextContentId, TextFormat, get_text_content_with_translations,
-    new_translation,
+    ResolveWithTranslations, TextContentId, TextFormat, TranslationScope,
+    get_text_content_with_translations, new_translation,
 };
 use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
 use crate::models::users::UserIden;
@@ -618,10 +618,12 @@ pub async fn list_with_translations(
 pub async fn setup_tool(
     setup: &ToolSetup,
     state: &Arc<ComhairleState>,
+    db: &mut PgConnection,
+    scope: TranslationScope,
     locale: &str,
 ) -> Result<ToolConfig, ComhairleError> {
     // Use the new trait method for setup
-    setup.setup(state, locale).await.map_err(|err| {
+    setup.setup(state, db, scope, locale).await.map_err(|err| {
         warn!("Tool setup error {err:#?}");
         err
     })
@@ -689,9 +691,34 @@ pub async fn create(
     is_live: bool,
     organization_id: Option<Uuid>,
 ) -> Result<WorkflowStep, ComhairleError> {
+    let mut transaction = state.db.begin().await?;
+    let workflow_step = create_in_transaction(
+        state,
+        &mut transaction,
+        new_workflow_step,
+        workflow_id,
+        primary_locale,
+        is_live,
+    )
+    .await?;
+    transaction.commit().await?;
+    Ok(workflow_step)
+}
+
+pub async fn create_in_transaction(
+    state: &Arc<ComhairleState>,
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    new_workflow_step: &CreateWorkflowStep,
+    workflow_id: Uuid,
+    primary_locale: &str,
+    is_live: bool,
+) -> Result<WorkflowStep, ComhairleError> {
+    let translation_scope = translation_scope_for_workflow(&state.db, workflow_id).await?;
+
     // Generate Translations
     let name_translation = new_translation(
-        &state.db,
+        transaction,
+        translation_scope,
         primary_locale,
         &new_workflow_step.name,
         TextFormat::Plain,
@@ -699,7 +726,8 @@ pub async fn create(
     .await?;
 
     let description_translation = new_translation(
-        &state.db,
+        transaction,
+        translation_scope,
         primary_locale,
         &new_workflow_step.description,
         TextFormat::Rich,
@@ -731,8 +759,14 @@ pub async fn create(
     values.push(serde_json::to_value(&new_workflow_step.tool_config)?.into());
 
     if let Some(data_protocol) = &new_workflow_step.data_protocol {
-        let dp_translation =
-            new_translation(&state.db, primary_locale, data_protocol, TextFormat::Rich).await?;
+        let dp_translation = new_translation(
+            transaction,
+            translation_scope,
+            primary_locale,
+            data_protocol,
+            TextFormat::Rich,
+        )
+        .await?;
         columns.push(WorkflowStepIden::DataProtocol);
         values.push(dp_translation.id.into());
     }
@@ -747,13 +781,11 @@ pub async fn create(
         values.push(serde_json::to_value(&live_tool_config)?.into());
     }
 
-    let mut transaction = state.db.begin().await?;
-
     // Check to see if there is already a
     // workflow set at this order no and if there
     // is make space for the new one
     shift_steps_if_in_conflict(
-        &mut transaction,
+        transaction,
         &workflow_id,
         new_workflow_step.step_order,
         true,
@@ -769,22 +801,39 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow_step_result = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     // Backfill user_progress for users already registered on this workflow,
     // so adding a step after registration doesn't leave them without rows
     // and unable to advance.
     user_progress::create_for_workflow_participants(
-        &mut transaction,
+        transaction,
         &workflow_step_result.id,
         &workflow_id,
     )
     .await?;
 
-    transaction.commit().await?;
-
     Ok(workflow_step_result)
+}
+
+pub async fn translation_scope_for_workflow(
+    db: &PgPool,
+    workflow_id: Uuid,
+) -> Result<TranslationScope, ComhairleError> {
+    let workflow = crate::models::workflow::get_by_id(db, &workflow_id).await?;
+    let conversation_id = match workflow.conversation_id {
+        Some(conversation_id) => conversation_id,
+        None => {
+            let event_id = workflow.event_id.ok_or_else(|| {
+                ComhairleError::BadRequest("Workflow has no resource owner".into())
+            })?;
+            crate::models::event::get_by_id(db, &event_id)
+                .await?
+                .conversation_id
+        }
+    };
+    Ok(TranslationScope::Conversation(conversation_id))
 }
 
 /// How many steps does this workflow have?
@@ -892,7 +941,9 @@ mod tests {
     use crate::models::model_test_helpers::{
         get_random_conversation_id, setup_default_app_and_session,
     };
-    use crate::models::translations::get_text_translation_by_content_and_locale;
+    use crate::models::translations::{
+        get_text_translation_by_content_and_locale, new_translation,
+    };
     use crate::models::user_progress::UpdateUserProgress;
     use crate::models::{self, workflow};
     use crate::routes::auth::SignupRequest;
@@ -1063,7 +1114,8 @@ mod tests {
         );
 
         let text = new_translation(
-            &pool,
+            &mut *pool.acquire().await?,
+            TranslationScope::Conversation(conversation_id),
             "en",
             "<p>Your votes are anonymous.</p>",
             TextFormat::Rich,
