@@ -15,7 +15,9 @@
 
 <TabContent>
 	{#if data.forms.length === 0}
-		<Callout class="mx-auto flex max-w-150 flex-col items-center gap-y-3 p-5">
+		<Callout
+			class="mx-auto mt-10 flex max-w-150 flex-col items-center gap-y-7 p-8 text-xl font-semibold"
+		>
 			No forms exist yet, create a new form
 			<Button
 				href={resolve(`/(admin)/admin/demographic-forms/[organisation_id]/forms/new`, {

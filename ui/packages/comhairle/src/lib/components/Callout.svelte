@@ -42,9 +42,9 @@
 <style>
 	.callout {
 		--_color: var(--color, oklch(50% 0 0));
-		--_border-color: oklch(from var(--_color) l c h / 0.8);
+		--_border-color: oklch(from var(--_color) l c h / 0.5);
 		border-color: var(--_border-color);
-		background-color: oklch(from var(--_color) l c h / 0.2);
+		background-color: oklch(from var(--_color) l c h / 0.1);
 		color: color-mix(var(--color-foreground) 85%, var(--_color));
 	}
 </style>

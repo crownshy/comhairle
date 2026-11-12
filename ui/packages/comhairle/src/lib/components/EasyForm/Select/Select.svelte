@@ -16,12 +16,19 @@
 		options: Option[];
 		defaultSelected?: Value;
 		placeholder?: Label;
+		selected?: string;
 	};
 
-	let { id, name, question, options, defaultSelected, placeholder }: Props = $props();
+	let {
+		id,
+		name,
+		question,
+		options,
+		defaultSelected,
+		selected = $bindable(defaultSelected),
+		placeholder
+	}: Props = $props();
 
-	// svelte-ignore state_referenced_locally
-	let selected = $state<Value | undefined>(defaultSelected);
 	let label = $derived.by(() => {
 		if (selected) {
 			return options.find((o) => o.value === selected)?.label;
