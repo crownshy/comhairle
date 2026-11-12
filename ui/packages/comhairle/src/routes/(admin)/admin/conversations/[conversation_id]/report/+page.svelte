@@ -140,13 +140,7 @@
 			data.reportEmbedSteps
 		)
 	);
-	const embeddedKeys = $derived(
-		new Set(
-			[summaryOnScreen, bodyOnScreen]
-				.flatMap(sectionBlocksInDocument)
-				.map((block) => `${block.workflowStepId}:${block.sectionBlock}`)
-		)
-	);
+	const embedded = $derived([summaryOnScreen, bodyOnScreen].flatMap(sectionBlocksInDocument));
 	const pages = $derived(
 		reportPages(bodyOnScreen, (pageNumber) => `Page ${pageNumber}`, 'Untitled page')
 	);
@@ -378,13 +372,17 @@
 	<AddChartDialog
 		bind:open={addingChart}
 		steps={data.reportEmbedSteps}
-		{embeddedKeys}
+		{embedded}
 		{published}
-		onPick={(step, block) =>
+		onPick={(step, block, item) =>
 			(activeEditor ?? bodyEditor)
 				?.chain()
 				.focus()
-				.setReportComponentEmbed({ toolStepId: step.id, componentType: block.type })
+				.setReportComponentEmbed({
+					toolStepId: step.id,
+					componentType: block.type,
+					config: item ? { item } : {}
+				})
 				.run()}
 	/>
 

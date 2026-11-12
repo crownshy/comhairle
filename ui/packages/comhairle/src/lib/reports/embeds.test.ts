@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+	embeddedSectionBlockLabel,
 	embeddedSectionBlocksForStep,
 	hasSectionBlocks,
 	publicResultsByStep,
@@ -55,6 +56,19 @@ describe('embeddedSectionBlocksForStep', () => {
 		).toEqual(['Key stats', 'Opinion groups']);
 	});
 
+	it('counts the distinct items of a per-item block', () => {
+		const embedded = [
+			{ workflowStepId: STEP_ID, sectionBlock: 'heyform-question', item: 'q1' },
+			{ workflowStepId: STEP_ID, sectionBlock: 'heyform-question', item: 'q2' },
+			{ workflowStepId: STEP_ID, sectionBlock: 'heyform-question', item: 'q1' },
+			{ workflowStepId: STEP_ID, sectionBlock: 'heyform-question' }
+		];
+
+		const [questions] = embeddedSectionBlocksForStep(embedded, STEP_ID, 'heyform');
+		expect(questions.itemCount).toBe(2);
+		expect(embeddedSectionBlockLabel(questions)).toBe('2 questions');
+	});
+
 	it("ignores embedded types the step's tool does not own", () => {
 		const embedded = [{ workflowStepId: STEP_ID, sectionBlock: 'not-a-section-block' }];
 
@@ -62,10 +76,10 @@ describe('embeddedSectionBlocksForStep', () => {
 	});
 });
 
-function embedNode(stepId: string, sectionBlock: string) {
+function embedNode(stepId: string, sectionBlock: string, item?: string) {
 	return {
 		type: 'reportComponentEmbed',
-		attrs: { toolStepId: stepId, componentType: sectionBlock }
+		attrs: { toolStepId: stepId, componentType: sectionBlock, config: item ? { item } : {} }
 	};
 }
 
@@ -76,13 +90,15 @@ describe('sectionBlocksInDocument', () => {
 			content: [
 				{ type: 'paragraph', content: [{ type: 'text', text: 'Intro' }] },
 				embedNode('step-1', 'polis-key-stats'),
-				{ type: 'blockquote', content: [embedNode('step-1', 'polis-opinion-groups')] }
+				{ type: 'blockquote', content: [embedNode('step-1', 'polis-opinion-groups')] },
+				embedNode('step-2', 'heyform-question', 'q1')
 			]
 		});
 
 		expect(sectionBlocksInDocument(document)).toEqual([
 			{ workflowStepId: 'step-1', sectionBlock: 'polis-key-stats' },
-			{ workflowStepId: 'step-1', sectionBlock: 'polis-opinion-groups' }
+			{ workflowStepId: 'step-1', sectionBlock: 'polis-opinion-groups' },
+			{ workflowStepId: 'step-2', sectionBlock: 'heyform-question', item: 'q1' }
 		]);
 	});
 
@@ -115,9 +131,11 @@ describe('publicResultsByStep', () => {
 			{
 				stepId: 'step-1',
 				stepName: 'Housing priorities',
-				sectionBlocks: sectionBlocksForTool('polis').filter((block) =>
-					['polis-key-stats', 'polis-opinion-groups'].includes(block.type)
-				)
+				sectionBlocks: sectionBlocksForTool('polis')
+					.filter((block) =>
+						['polis-key-stats', 'polis-opinion-groups'].includes(block.type)
+					)
+					.map((block) => ({ ...block, itemCount: 1 }))
 			}
 		]);
 	});

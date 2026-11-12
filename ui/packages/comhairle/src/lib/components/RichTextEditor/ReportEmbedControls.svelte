@@ -19,8 +19,9 @@
 	let selectedStep = $state<EmbeddableStep | null>(null);
 	let blockAwaitingConfirm = $state<SectionBlockMeta | null>(null);
 
+	// Per-item blocks need an item picked, which only the report page's add-chart dialog does.
 	const componentsForStep = $derived<SectionBlockMeta[]>(
-		sectionBlocksForTool(selectedStep?.toolType)
+		sectionBlocksForTool(selectedStep?.toolType).filter((block) => !block.itemName)
 	);
 
 	const title = $derived.by(() => {

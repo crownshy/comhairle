@@ -24,8 +24,9 @@ use crate::models::{conversation, event, report, workflow, workflow_step};
 use crate::tools::{ToolConfig, ToolImpl};
 
 /// Serve one section block's public data from a step running `Tool`, for example
-/// `serve_public_report_data::<PolisTool, _>(..)`. `build` turns that tool's config into the
-/// response.
+/// `serve_public_report_data::<PolisTool, _>(..)`. `item` says which one the block shows, for
+/// blocks like a HeyForm question, and must match the embed's. `build` turns that tool's config
+/// into the response.
 ///
 /// Returns `ResourceNotFound` when the step doesn't exist, its conversation's report isn't
 /// published, the report doesn't embed this section block for this step, or the step runs a
@@ -34,18 +35,18 @@ pub async fn serve_public_report_data<Tool: ToolImpl, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
+    item: Option<&str>,
     build: impl AsyncFnOnce(Tool::Config) -> Result<Data, ComhairleError>,
 ) -> Result<Data, ComhairleError>
 where
     ToolConfig: TryInto<Tool::Config>,
 {
-    let config = public_tool_config::<Tool>(db, workflow_step_id, section_block).await?;
+    let config = public_tool_config::<Tool>(db, workflow_step_id, section_block, item).await?;
     build(config).await
 }
 
 /// What readers will get once the report is published and embeds the section block, so the
-/// report editor can show it before then. Needs a user who can update the step's conversation,
-/// which for an event step is the event's conversation.
+/// report editor can show it before then.
 pub async fn serve_report_preview_data<Tool: ToolImpl, Data: PublicReportData>(
     state: &Arc<ComhairleState>,
     user: &User,
@@ -55,16 +56,29 @@ pub async fn serve_report_preview_data<Tool: ToolImpl, Data: PublicReportData>(
 where
     ToolConfig: TryInto<Tool::Config>,
 {
+    let config = preview_tool_config::<Tool>(state, user, workflow_step_id).await?;
+    build(config).await
+}
+
+/// The step's tool config, live or preview, for a user who can update the step's conversation
+/// (for an event step, the event's conversation). For report editing tools that only
+/// facilitators use, such as listing what a step could embed.
+pub async fn preview_tool_config<Tool: ToolImpl>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: &Uuid,
+) -> Result<Tool::Config, ComhairleError>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
     let step = workflow_step::get_by_id(&state.db, workflow_step_id).await?;
     let conversation_id = conversation_of_workflow(&state.db, &step.workflow_id).await?;
     ensure_can_update_conversation(state, user, &conversation_id).await?;
-
-    let config = tool_config_of::<Tool>(step).ok_or_else(|| {
+    tool_config_of::<Tool>(step).ok_or_else(|| {
         ComhairleError::ResourceNotFound(format!(
             "Report data for workflow step {workflow_step_id}"
         ))
-    })?;
-    build(config).await
+    })
 }
 
 async fn ensure_can_update_conversation(
@@ -92,6 +106,7 @@ async fn public_tool_config<Tool: ToolImpl>(
     db: &PgPool,
     workflow_step_id: &Uuid,
     section_block: &str,
+    item: Option<&str>,
 ) -> Result<Tool::Config, ComhairleError>
 where
     ToolConfig: TryInto<Tool::Config>,
@@ -125,6 +140,7 @@ where
     let requested = EmbeddedSectionBlock {
         workflow_step_id: *workflow_step_id,
         section_block: section_block.to_owned(),
+        item: item.map(str::to_owned),
     };
     if !embedded_section_blocks(db, &report)
         .await?
@@ -209,26 +225,26 @@ mod tests {
         let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
 
         assert_not_found(
-            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED, None).await,
             "step was served with no report",
         );
 
         report::create_for_conversation(&pool, conversation_id, "en").await?;
         embed_in_summary(&pool, conversation_id, &step.id, EMBEDDED).await?;
         assert_not_found(
-            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED, None).await,
             "step was served from an unpublished report",
         );
 
         set_published(&pool, conversation_id, true).await?;
-        let config = public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await?;
+        let config = public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED, None).await?;
         assert_eq!(
             Some(ToolConfig::Learn(config)),
             step.tool_config.or(Some(step.preview_tool_config)),
             "wrong tool config served"
         );
         let served =
-            serve_public_report_data::<LearnTool, _>(&pool, &step.id, EMBEDDED, async |_| {
+            serve_public_report_data::<LearnTool, _>(&pool, &step.id, EMBEDDED, None, async |_| {
                 Ok(ExampleSectionBlock {
                     participants: Count(3),
                 })
@@ -237,17 +253,21 @@ mod tests {
         assert_eq!(served.participants, Count(3), "built data not returned");
 
         assert_not_found(
-            public_tool_config::<LearnTool>(&pool, &step.id, NOT_EMBEDDED).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, NOT_EMBEDDED, None).await,
             "a section block the report doesn't embed was served",
         );
         assert_not_found(
-            public_tool_config::<PolisTool>(&pool, &step.id, EMBEDDED).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED, Some("question-1")).await,
+            "an item the report doesn't embed was served",
+        );
+        assert_not_found(
+            public_tool_config::<PolisTool>(&pool, &step.id, EMBEDDED, None).await,
             "step was served to another tool's endpoint",
         );
 
         set_published(&pool, conversation_id, false).await?;
         assert_not_found(
-            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED).await,
+            public_tool_config::<LearnTool>(&pool, &step.id, EMBEDDED, None).await,
             "step was still served after the report was unpublished",
         );
 

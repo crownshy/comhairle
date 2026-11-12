@@ -20,6 +20,9 @@ pub struct EmbeddedSectionBlock {
     pub workflow_step_id: Uuid,
     /// The section block type, as listed in the frontend registry (`lib/reports/embeds.ts`).
     pub section_block: String,
+    /// Which one of many the section block shows, for blocks like a HeyForm question. Stored
+    /// on the embed as `config.item`.
+    pub item: Option<String>,
 }
 
 /// Every section block embedded in the report's summary or body, in any language, without
@@ -64,6 +67,7 @@ fn collect_embeds(node: &Value, section_blocks: &mut Vec<EmbeddedSectionBlock>) 
             section_blocks.push(EmbeddedSectionBlock {
                 workflow_step_id,
                 section_block: section_block.to_owned(),
+                item: attributes["config"]["item"].as_str().map(str::to_owned),
             });
         }
     }
@@ -104,13 +108,40 @@ mod tests {
             vec![
                 EmbeddedSectionBlock {
                     workflow_step_id: step,
-                    section_block: "polis-key-stats".into()
+                    section_block: "polis-key-stats".into(),
+                    item: None,
                 },
                 EmbeddedSectionBlock {
                     workflow_step_id: step,
-                    section_block: "polis-opinion-groups".into()
+                    section_block: "polis-opinion-groups".into(),
+                    item: None,
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn should_read_the_item_an_embed_shows() {
+        let step = Uuid::new_v4();
+        let document = json!({
+            "type": "doc",
+            "content": [{
+                "type": EMBED_NODE_TYPE,
+                "attrs": {
+                    "toolStepId": step.to_string(),
+                    "componentType": "heyform-question",
+                    "config": { "item": "question-1" }
+                }
+            }]
+        });
+
+        assert_eq!(
+            section_blocks_in_document(&document.to_string()),
+            vec![EmbeddedSectionBlock {
+                workflow_step_id: step,
+                section_block: "heyform-question".into(),
+                item: Some("question-1".into()),
+            }]
         );
     }
 
