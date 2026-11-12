@@ -5,7 +5,11 @@
 	import type { ThinkingSpaceEmbedData } from './embedData';
 
 	/** Renders one embeddable Thinking Space section block from its public report data. */
-	let { data }: { data: ThinkingSpaceEmbedData } = $props();
+	type Props = {
+		data: ThinkingSpaceEmbedData;
+	};
+
+	let { data }: Props = $props();
 </script>
 
 {#if data.componentType === 'thinkingspace-key-stats'}

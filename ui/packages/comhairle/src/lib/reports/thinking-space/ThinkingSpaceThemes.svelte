@@ -6,7 +6,11 @@
 	 * The step's themes with how many shared summaries each groups. The summaries stay with the
 	 * organisers, so readers only get the count (ADR-0061).
 	 */
-	let { themes }: { themes: PublicTheme[] } = $props();
+	type Props = {
+		themes: PublicTheme[];
+	};
+
+	let { themes }: Props = $props();
 
 	const summaryCount = (count: number) => `${count} ${count === 1 ? 'summary' : 'summaries'}`;
 </script>
