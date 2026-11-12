@@ -715,29 +715,16 @@ mod tests {
         .await?;
         forms::publish_form(&pool, org_id, form.form.id, LOCALE).await?;
 
-        let user_id = create_user(&pool, "reporting_participant").await?;
-        let conversation_id = Uuid::new_v4();
-        let scope = TranslationScope::Conversation(conversation_id);
-        let mut transaction = pool.begin().await?;
-        let name =
-            new_translation(&mut transaction, scope, LOCALE, "Form", TextFormat::Plain).await?;
+        let workflow_id: Uuid =
+            sqlx::query_scalar("INSERT INTO workflow (name) VALUES ('Report') RETURNING id")
+                .fetch_one(&pool)
+                .await?;
+        let mut conn = pool.acquire().await?;
+        let scope = TranslationScope::System;
+        let name = new_translation(&mut conn, scope, LOCALE, "Form", TextFormat::Plain).await?;
         let description =
-            new_translation(&mut transaction, scope, LOCALE, "Form", TextFormat::Rich).await?;
-        sqlx::query(
-            "INSERT INTO conversation (id, title, short_description, description, owner_id)
-             VALUES ($1, $2, $2, $2, $3)",
-        )
-        .bind(conversation_id)
-        .bind(description.id)
-        .bind(user_id)
-        .execute(&mut *transaction)
-        .await?;
-        let workflow_id: Uuid = sqlx::query_scalar(
-            "INSERT INTO workflow (name, conversation_id) VALUES ('Report', $1) RETURNING id",
-        )
-        .bind(conversation_id)
-        .fetch_one(&mut *transaction)
-        .await?;
+            new_translation(&mut conn, scope, LOCALE, "Form", TextFormat::Rich).await?;
+        drop(conn);
         sqlx::query(
             "INSERT INTO workflow_step (workflow_id, name, description, step_order, tool_config)
             VALUES ($1, $2, $3, 1, $4)",
@@ -755,10 +742,23 @@ mod tests {
                 "required": false,
             }],
         }))
-        .execute(&mut *transaction)
+        .execute(&pool)
         .await?;
-        transaction.commit().await?;
 
+        let user_id = create_user(&pool, "reporting_participant").await?;
+        let conversation_id: Uuid = sqlx::query_scalar(
+            "INSERT INTO conversation (title, short_description, description, owner_id)
+             VALUES ($1, $1, $1, $2) RETURNING id",
+        )
+        .bind(description.id)
+        .bind(user_id)
+        .fetch_one(&pool)
+        .await?;
+        sqlx::query("UPDATE workflow SET conversation_id = $1 WHERE id = $2")
+            .bind(conversation_id)
+            .bind(workflow_id)
+            .execute(&pool)
+            .await?;
         sqlx::query("INSERT INTO user_profile (user_id, consented) VALUES ($1, true)")
             .bind(user_id)
             .execute(&pool)
