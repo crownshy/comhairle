@@ -5,9 +5,9 @@
 	expand.
 
 	Size line = this group's `total_members` and its share of all group members.
-	Representative comments are referenced by `tid`, so each is resolved back
-	to the full report comment (from `comments`) to render the vote bars; any that
-	don't resolve are skipped.
+	Representative comments are referenced by `tid`, so each is resolved to its
+	statement in `comments` to render the vote bars; any that don't resolve are
+	skipped.
 
 	The name + summary are NOT in the report payload today (Polis carries neither).
 	They come in via the optional `aiSummary` prop and render behind an "AI Generated"

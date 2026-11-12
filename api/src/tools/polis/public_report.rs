@@ -27,7 +27,7 @@ use crate::tools::public_report_data::anonymous::{
 use crate::tools::public_report_data::{serve_public_report_data, serve_report_preview_data};
 use crate::wiki_poll_service::ReportScope;
 use crate::wiki_poll_service::polis_service::{
-    CommentReportData, GroupVoteCounts, VoteCounts, WikiPollReport,
+    CommentReportData, GroupReportData, GroupVoteCounts, VoteCounts, WikiPollReport,
 };
 
 /// Public report data never shows pending statements, so this does not follow the step's
@@ -55,9 +55,8 @@ public_report_data! {
 public_report_data! {
     pub struct PolisPublicGroupVotes {
         pub group_id: OpinionGroupId,
-        pub agrees: Count,
-        pub disagrees: Count,
-        pub passes: Count,
+        #[serde(flatten)]
+        pub votes: PolisPublicVotes,
     }
 }
 
@@ -124,8 +123,8 @@ public_report_data! {
 
 public_report_data! {
     pub struct PolisPublicOpinionGroup {
-        pub group_id: OpinionGroupId,
-        pub total_members: Count,
+        #[serde(flatten)]
+        pub group: PolisPublicGroup,
         /// Points into `PolisPublicOpinionGroups::statements`.
         pub representative_comments: Vec<PolisPublicRepresentativeComment>,
     }
@@ -325,8 +324,8 @@ struct ReportSource<'a> {
     config: PolisToolConfig,
 }
 
-/// Facilitator-set theme tags per statement id.
-type Themes = HashMap<u32, Vec<String>>;
+/// Facilitator-set theme tags per statement.
+type Themes = HashMap<StatementId, Vec<ThemeLabel>>;
 
 impl<'a> ReportSource<'a> {
     fn new(state: &'a ComhairleState, workflow_step_id: Uuid, config: PolisToolConfig) -> Self {
@@ -358,7 +357,15 @@ impl<'a> ReportSource<'a> {
         Ok(rows
             .into_iter()
             .filter(|row| !row.themes.is_empty())
-            .filter_map(|row| Some((u32::try_from(row.polis_statement_id).ok()?, row.themes)))
+            .filter_map(|row| {
+                let statement_id = StatementId(u32::try_from(row.polis_statement_id).ok()?);
+                let labels = row
+                    .themes
+                    .into_iter()
+                    .map(ThemeLabel::from_facilitator_theme)
+                    .collect();
+                Some((statement_id, labels))
+            })
             .collect())
     }
 
@@ -440,8 +447,7 @@ fn opinion_groups(report: &WikiPollReport, themes: &Themes) -> PolisPublicOpinio
         .groups
         .iter()
         .map(|g| PolisPublicOpinionGroup {
-            group_id: OpinionGroupId(g.group_id),
-            total_members: Count(g.total_members),
+            group: group_size(g),
             representative_comments: g
                 .representative_comments
                 .iter()
@@ -472,9 +478,12 @@ fn public_statement(comment: &CommentReportData, themes: &Themes) -> PolisPublic
     PolisPublicStatement {
         statement_id: StatementId(comment.tid),
         text: ModeratedText::from_accepted(comment.text.clone()),
-        themes: themes_of(themes, comment.tid),
+        themes: themes
+            .get(&StatementId(comment.tid))
+            .cloned()
+            .unwrap_or_default(),
         overall_votes: votes(&comment.overall_votes),
-        group_votes: group_votes(&comment.group_votes),
+        group_votes: comment.group_votes.iter().map(group_votes).collect(),
     }
 }
 
@@ -486,37 +495,26 @@ fn votes(counts: &VoteCounts) -> PolisPublicVotes {
     }
 }
 
-fn group_votes(counts: &[GroupVoteCounts]) -> Vec<PolisPublicGroupVotes> {
-    counts
-        .iter()
-        .map(|g| PolisPublicGroupVotes {
-            group_id: OpinionGroupId(g.group_id),
-            agrees: Count(g.agrees.into()),
-            disagrees: Count(g.disagrees.into()),
-            passes: Count(g.passes.into()),
-        })
-        .collect()
+fn group_votes(counts: &GroupVoteCounts) -> PolisPublicGroupVotes {
+    PolisPublicGroupVotes {
+        group_id: OpinionGroupId(counts.group_id),
+        votes: PolisPublicVotes {
+            agrees: Count(counts.agrees.into()),
+            disagrees: Count(counts.disagrees.into()),
+            passes: Count(counts.passes.into()),
+        },
+    }
 }
 
 fn group_sizes(report: &WikiPollReport) -> Vec<PolisPublicGroup> {
-    report
-        .groups
-        .iter()
-        .map(|g| PolisPublicGroup {
-            group_id: OpinionGroupId(g.group_id),
-            total_members: Count(g.total_members),
-        })
-        .collect()
+    report.groups.iter().map(group_size).collect()
 }
 
-fn themes_of(themes: &Themes, statement_id: u32) -> Vec<ThemeLabel> {
-    themes
-        .get(&statement_id)
-        .into_iter()
-        .flatten()
-        .cloned()
-        .map(ThemeLabel::from_facilitator_theme)
-        .collect()
+fn group_size(group: &GroupReportData) -> PolisPublicGroup {
+    PolisPublicGroup {
+        group_id: OpinionGroupId(group.group_id),
+        total_members: Count(group.total_members),
+    }
 }
 
 #[cfg(test)]
@@ -536,7 +534,7 @@ mod tests {
     use crate::setup_server;
     use crate::test_helpers::{UserSession, extract, polis_tool_config, test_state};
     use crate::tools::ToolConfig;
-    use crate::wiki_poll_service::polis_service::{GroupReportData, RepresentativeComment};
+    use crate::wiki_poll_service::polis_service::RepresentativeComment;
     use crate::wiki_poll_service::{MockWikiPollService, WikiPoll, WikiPollService};
 
     /// Each endpoint's path and the section block type it serves.
@@ -913,7 +911,10 @@ mod tests {
             groups: vec![group(0, 3, &[1, 9])],
             participants: vec![],
         };
-        let themes = HashMap::from([(1, vec!["Transport".to_string()])]);
+        let themes = HashMap::from([(
+            StatementId(1),
+            vec![ThemeLabel::from_facilitator_theme("Transport".into())],
+        )]);
         let groups = opinion_groups(&report, &themes);
 
         assert_eq!(

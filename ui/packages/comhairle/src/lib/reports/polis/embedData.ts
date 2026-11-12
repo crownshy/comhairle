@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'svelte';
 import { apiClient } from '@crownshy/api-client/client';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import type {
@@ -8,25 +9,32 @@ import type {
 	PolisPublicStatement
 } from '@crownshy/api-client/api';
 import type { GroupSize, RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
+import type AreaOfConsensus from './AreaOfConsensus.svelte';
+import type ConsensusContinuum from './ConsensusContinuum.svelte';
+import type OpinionGroups from './OpinionGroups.svelte';
 import type { PolisEmbeddableComponentType } from './embeddableComponents';
+
+type AreaProps = ComponentProps<typeof AreaOfConsensus>;
+type ContinuumProps = ComponentProps<typeof ConsensusContinuum>;
+type OpinionGroupsProps = ComponentProps<typeof OpinionGroups>;
 
 /** What one Polis section block draws, from its public report-data endpoint (ADR-0061). */
 export type PolisEmbedData =
 	| { componentType: 'polis-key-stats'; stats: PolisPublicKeyStats }
 	| {
 			componentType: 'polis-area-consensus' | 'polis-area-disagreement';
-			statements: (VotedStatement & { is_seed: boolean })[];
-			groups: GroupSize[];
+			statements: AreaProps['comments'];
+			groups: AreaProps['groups'];
 	  }
 	| {
 			componentType: 'polis-consensus-continuum';
-			statements: (VotedStatement & { divisiveness: number })[];
-			groups: GroupSize[];
+			statements: ContinuumProps['comments'];
+			groups: ContinuumProps['groups'];
 	  }
 	| {
 			componentType: 'polis-opinion-groups';
-			statements: VotedStatement[];
-			groups: RepresentedGroup[];
+			statements: OpinionGroupsProps['comments'];
+			groups: OpinionGroupsProps['groups'];
 	  };
 
 /**
@@ -35,20 +43,20 @@ export type PolisEmbedData =
  */
 const ENDPOINTS = {
 	public: {
-		keyStats: apiClient.PolisGetPublicKeyStats,
-		consensus: apiClient.PolisGetPublicConsensus,
-		disagreement: apiClient.PolisGetPublicDisagreement,
-		consensusContinuum: apiClient.PolisGetPublicConsensusContinuum,
-		opinionGroups: apiClient.PolisGetPublicOpinionGroups
+		'polis-key-stats': apiClient.PolisGetPublicKeyStats,
+		'polis-area-consensus': apiClient.PolisGetPublicConsensus,
+		'polis-area-disagreement': apiClient.PolisGetPublicDisagreement,
+		'polis-consensus-continuum': apiClient.PolisGetPublicConsensusContinuum,
+		'polis-opinion-groups': apiClient.PolisGetPublicOpinionGroups
 	},
 	preview: {
-		keyStats: apiClient.PolisPreviewKeyStats,
-		consensus: apiClient.PolisPreviewConsensus,
-		disagreement: apiClient.PolisPreviewDisagreement,
-		consensusContinuum: apiClient.PolisPreviewConsensusContinuum,
-		opinionGroups: apiClient.PolisPreviewOpinionGroups
+		'polis-key-stats': apiClient.PolisPreviewKeyStats,
+		'polis-area-consensus': apiClient.PolisPreviewConsensus,
+		'polis-area-disagreement': apiClient.PolisPreviewDisagreement,
+		'polis-consensus-continuum': apiClient.PolisPreviewConsensusContinuum,
+		'polis-opinion-groups': apiClient.PolisPreviewOpinionGroups
 	}
-};
+} satisfies Record<'public' | 'preview', Record<PolisEmbeddableComponentType, unknown>>;
 
 /**
  * Load one section block's data. A preview falls back to the public endpoint, so someone
@@ -77,13 +85,15 @@ async function loadFrom(
 	const request = { queries: { workflow_step_id: workflowStepId } };
 	switch (componentType) {
 		case 'polis-key-stats':
-			return { componentType, stats: await endpoints.keyStats(request) };
+			return { componentType, stats: await endpoints[componentType](request) };
 		case 'polis-area-consensus':
-			return { componentType, ...toRankedStatements(await endpoints.consensus(request)) };
 		case 'polis-area-disagreement':
-			return { componentType, ...toRankedStatements(await endpoints.disagreement(request)) };
+			return {
+				componentType,
+				...toRankedStatements(await endpoints[componentType](request))
+			};
 		case 'polis-consensus-continuum': {
-			const continuum = await endpoints.consensusContinuum(request);
+			const continuum = await endpoints[componentType](request);
 			return {
 				componentType,
 				statements: continuum.statements.map((s) => ({
@@ -94,7 +104,7 @@ async function loadFrom(
 			};
 		}
 		case 'polis-opinion-groups': {
-			const opinionGroups = await endpoints.opinionGroups(request);
+			const opinionGroups = await endpoints[componentType](request);
 			return {
 				componentType,
 				statements: opinionGroups.statements.map(toVotedStatement),

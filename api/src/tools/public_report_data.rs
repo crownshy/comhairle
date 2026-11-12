@@ -57,7 +57,22 @@ where
 {
     let step = workflow_step::get_by_id(&state.db, workflow_step_id).await?;
     let conversation_id = conversation_of_workflow(&state.db, &step.workflow_id).await?;
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    ensure_can_update_conversation(state, user, &conversation_id).await?;
+
+    let config = tool_config_of::<Tool>(step).ok_or_else(|| {
+        ComhairleError::ResourceNotFound(format!(
+            "Report data for workflow step {workflow_step_id}"
+        ))
+    })?;
+    build(config).await
+}
+
+async fn ensure_can_update_conversation(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    conversation_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
     let can_update = permissions::can_perform_action(
         state,
         &conversation.id,
@@ -66,16 +81,11 @@ where
         Some(&conversation.owner_id),
     )
     .await?;
-    if !can_update {
-        return Err(ComhairleError::UserNotAuthorized);
+    if can_update {
+        Ok(())
+    } else {
+        Err(ComhairleError::UserNotAuthorized)
     }
-
-    let config = tool_config_of::<Tool>(step).ok_or_else(|| {
-        ComhairleError::ResourceNotFound(format!(
-            "Report data for workflow step {workflow_step_id}"
-        ))
-    })?;
-    build(config).await
 }
 
 async fn public_tool_config<Tool: ToolImpl>(
