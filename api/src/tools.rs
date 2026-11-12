@@ -16,6 +16,7 @@ use crate::tools::thinking_space::{
     ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
 };
 
+pub mod demographics;
 pub mod elicitation_bot;
 pub mod heyform;
 pub mod id;
@@ -26,6 +27,11 @@ pub mod public_report_data;
 pub mod stories;
 pub mod thinking_space;
 
+use demographics::{
+    DemographicFormTool, DemographicFormToolConfig, DemographicFormToolSetup,
+    DemographicQuestionTool, DemographicQuestionToolConfig, DemographicQuestionToolSetup,
+    DemographicReport,
+};
 use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
@@ -138,6 +144,8 @@ pub enum ToolConfig {
     Prioritization(PrioritizationToolConfig),
     #[translatable]
     ThinkingSpace(ThinkingSpaceToolConfig),
+    DemographicQuestion(DemographicQuestionToolConfig),
+    DemographicForm(DemographicFormToolConfig),
 }
 
 impl ToolConfig {
@@ -165,6 +173,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::sync_data(config, state).await
             }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::sync_data(config, state).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::sync_data(config, state).await
+            }
         }
     }
 
@@ -191,6 +205,12 @@ impl ToolConfig {
             )),
             ToolConfig::ThinkingSpace(config) => Ok(ToolConfig::ThinkingSpace(
                 thinking_space::ThinkingSpaceTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::DemographicQuestion(config) => Ok(ToolConfig::DemographicQuestion(
+                DemographicQuestionTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::DemographicForm(config) => Ok(ToolConfig::DemographicForm(
+                DemographicFormTool::clone_tool(config, state).await?,
             )),
         }
     }
@@ -223,6 +243,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::delete(config, state, workflow_step_id).await
             }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::delete(config, state, workflow_step_id).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::delete(config, state, workflow_step_id).await
+            }
         }
     }
 
@@ -248,6 +274,12 @@ impl ToolConfig {
             }
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::register_workers(config, state).await
+            }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::register_workers(config, state).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::register_workers(config, state).await
             }
         }
     }
@@ -275,6 +307,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => Ok(ToolExIm::ThinkingSpace(
                 thinking_space::ThinkingSpaceTool::export_tool(config).await?,
             )),
+            ToolConfig::DemographicQuestion(config) => Ok(ToolExIm::DemographicQuestion(
+                demographics::DemographicQuestionTool::export_tool(config).await?,
+            )),
+            ToolConfig::DemographicForm(config) => Ok(ToolExIm::DemographicForm(
+                demographics::DemographicFormTool::export_tool(config).await?,
+            )),
         }
     }
 }
@@ -289,6 +327,8 @@ pub enum ToolSetup {
     ElicitationBot(ElicitationBotToolSetup),
     Prioritization(PrioritizationToolSetup),
     ThinkingSpace(ThinkingSpaceToolSetup),
+    DemographicQuestion(DemographicQuestionToolSetup),
+    DemographicForm(DemographicFormToolSetup),
 }
 
 impl ToolSetup {
@@ -320,6 +360,12 @@ impl ToolSetup {
             ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
                 thinking_space::ThinkingSpaceTool::setup(setup, state, locale).await?,
             )),
+            ToolSetup::DemographicQuestion(setup) => Ok(ToolConfig::DemographicQuestion(
+                DemographicQuestionTool::setup(setup, state, locale).await?,
+            )),
+            ToolSetup::DemographicForm(setup) => Ok(ToolConfig::DemographicForm(
+                DemographicFormTool::setup(setup, state, locale).await?,
+            )),
         }
     }
 }
@@ -334,6 +380,8 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
         .merge(elicitation_bot::ElicitationBotTool::routes())
         .merge(prioritization::PrioritizationTool::routes())
         .merge(thinking_space::ThinkingSpaceTool::routes())
+        .merge(DemographicQuestionTool::routes())
+        .merge(DemographicFormTool::routes())
 }
 
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -345,6 +393,8 @@ pub enum ReportConfig {
     ElicitationBot(ElicitationBotReport),
     Prioritization(PrioritizationReport),
     ThinkingSpace(ThinkingSpaceReport),
+    DemographicQuestion(DemographicReport),
+    DemographicForm(DemographicReport),
 }
 
 /// Exported data for any tool, with one variant per tool's `ExportImport` type.
@@ -359,6 +409,8 @@ pub enum ToolExIm {
     ElicitationBot(<elicitation_bot::ElicitationBotTool as ToolImpl>::ExportImport),
     Prioritization(<prioritization::PrioritizationTool as ToolImpl>::ExportImport),
     ThinkingSpace(<thinking_space::ThinkingSpaceTool as ToolImpl>::ExportImport),
+    DemographicQuestion(<demographics::DemographicQuestionTool as ToolImpl>::ExportImport),
+    DemographicForm(<demographics::DemographicFormTool as ToolImpl>::ExportImport),
 }
 
 impl ToolExIm {
@@ -393,6 +445,16 @@ impl ToolExIm {
                 thinking_space::ThinkingSpaceTool::import_tool(export, state)
                     .await
                     .map(ToolConfig::ThinkingSpace)
+            }
+            ToolExIm::DemographicQuestion(export) => {
+                demographics::DemographicQuestionTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicQuestion)
+            }
+            ToolExIm::DemographicForm(export) => {
+                demographics::DemographicFormTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicForm)
             }
         }
     }

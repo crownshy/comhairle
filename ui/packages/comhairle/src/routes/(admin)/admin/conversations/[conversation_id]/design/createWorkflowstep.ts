@@ -12,6 +12,7 @@ import {
 	defaultStepCreationParams
 } from '$lib/workflow_templates';
 import { tryCatchAsync, type ErrorType, type Result } from '$lib/utils/errorHandling';
+import type { DemographicSelection } from '$lib/demographicCatalogue';
 
 /** The `tool_setup` field type expected by the create-step endpoint. */
 type CreateStepBody = Parameters<typeof apiClient.CreateConversationWorkflowStep>[0];
@@ -19,14 +20,16 @@ type CreateStepBody = Parameters<typeof apiClient.CreateConversationWorkflowStep
 /**
  * Resolve the starter `tool_setup` config for a palette creation key (the value on
  * {@link import('./tool_meta').ToolMeta.creationKey}). Returns `undefined` for an
- * unknown key so callers can bail cleanly.
+ * unknown key, or for a demographic key without a selection, so callers can bail cleanly.
  *
  * @param creationKey - e.g. `'Polis'`, `'Learn'`, `'Elicitation Bot'`.
  * @param conversation - needed because the elicitation-bot config is conversation-scoped.
+ * @param selection - the question or form a demographic key points at.
  */
 export function toolSetupForCreationKey(
 	creationKey: CreationKey,
-	conversationId?: LocalizedConversationDto['id']
+	conversationId?: LocalizedConversationDto['id'],
+	selection?: DemographicSelection
 ) {
 	switch (creationKey) {
 		case 'Polis':
@@ -46,6 +49,23 @@ export function toolSetupForCreationKey(
 			return basic_thinking_space_config();
 		case 'Prioritization':
 			return basic_prioritization_config;
+		case 'Demographic Question':
+			return selection
+				? {
+						type: 'demographicquestion' as const,
+						question_id: selection.id,
+						version: { type: 'latest' as const }
+					}
+				: undefined;
+		case 'Demographic Form':
+			return selection
+				? {
+						type: 'demographicform' as const,
+						form_id: selection.id,
+						version: { type: 'latest' as const },
+						questions: []
+					}
+				: undefined;
 		default: {
 			// Unreachable: `creationKey` is exhausted above. Assigning it to `never` makes a
 			// newly added CreationKey without a case here a compile error.
@@ -61,6 +81,7 @@ type CreateWorkflowStepParameters = {
 	workflowId: string;
 	// Highest step order out of all workflow steps
 	highestStepOrder: number;
+	selection?: DemographicSelection;
 };
 /**
  * Create a workflow step from a palette creation key and append it to the workflow.
@@ -72,7 +93,11 @@ export const createWorkflowStep = async (
 	params: CreateWorkflowStepParameters
 ): Promise<Result<'ok', WorkflowStepDto, ErrorType>> =>
 	tryCatchAsync<WorkflowStepDto, ErrorType>(async (ok, err) => {
-		const tool_setup = toolSetupForCreationKey(params.creationKey, params.conversationId);
+		const tool_setup = toolSetupForCreationKey(
+			params.creationKey,
+			params.conversationId,
+			params.selection
+		);
 		if (!tool_setup) {
 			throw err('Could not get tool config');
 		}
@@ -81,7 +106,7 @@ export const createWorkflowStep = async (
 
 		const createConversationWorkflowStep = await apiClient.CreateConversationWorkflowStep(
 			{
-				name: toolDefaults.name,
+				name: params.selection?.name ?? toolDefaults.name,
 				description: toolDefaults.description,
 				is_offline: false,
 				activation_rule: 'manual',
