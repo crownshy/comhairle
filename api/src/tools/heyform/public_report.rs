@@ -6,13 +6,15 @@
 //! participant typed.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
+use std::time::Duration;
 
 use aide::axum::ApiRouter;
 use aide::axum::routing::get_with;
 use axum::extract::{Json, Query, State};
 use heyform_sdk::LoginInput;
 use heyform_sdk::client::HeyFormClient;
+use moka::future::Cache;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -41,6 +43,26 @@ const YES_NO: &str = "yes_no";
 const CHOICE_KINDS: [&str; 3] = [YES_NO, "multiple_choice", "picture_choice"];
 /// Question kinds answered with a point on a scale.
 const SCALE_KINDS: [&str; 2] = ["rating", "opinion_scale"];
+
+/// How long a survey's insights are served before going back to HeyForm. Each load logs in
+/// and pages through every submission, and a published report can embed several questions
+/// from one survey for every reader, so they share one fetch.
+const INSIGHTS_FRESH_FOR: Duration = Duration::from_secs(60);
+
+/// Upper bound on cached surveys; well above anything one deployment hosts.
+const INSIGHTS_CACHE_CAPACITY: u64 = 1_000;
+
+/// Insights per HeyForm server and survey id.
+type InsightsCache = Cache<(String, String), Arc<Vec<InsightQuestion>>>;
+
+/// HeyForm clients are made per request, so the cache can't live on one the way Polis's
+/// report cache does.
+static INSIGHTS_CACHE: LazyLock<InsightsCache> = LazyLock::new(|| {
+    Cache::builder()
+        .max_capacity(INSIGHTS_CACHE_CAPACITY)
+        .time_to_live(INSIGHTS_FRESH_FOR)
+        .build()
+});
 
 public_report_data! {
     pub struct HeyFormPublicChoice {
@@ -191,12 +213,12 @@ async fn embeddable_questions(
     let config = preview_tool_config::<HeyFormTool>(&state, &user, &workflow_step_id).await?;
     let questions = load_insights(&config)
         .await?
-        .into_iter()
+        .iter()
         .filter_map(|question| {
             let kind = public_kind(question.kind.as_deref())?;
             Some(HeyFormEmbeddableQuestion {
-                id: question.id,
-                title: question.title,
+                id: question.id.clone(),
+                title: question.title.clone(),
                 kind: kind.to_owned(),
             })
         })
@@ -205,7 +227,20 @@ async fn embeddable_questions(
 }
 
 /// The same per-question breakdown the admin Insights tab shows, before it's cut down.
-async fn load_insights(config: &HeyFormToolConfig) -> Result<Vec<InsightQuestion>, ComhairleError> {
+/// Requests that miss at the same time wait on one fetch.
+async fn load_insights(
+    config: &HeyFormToolConfig,
+) -> Result<Arc<Vec<InsightQuestion>>, ComhairleError> {
+    let key = (config.server_url.clone(), config.survey_id.clone());
+    INSIGHTS_CACHE
+        .try_get_with(key, async { fetch_insights(config).await.map(Arc::new) })
+        .await
+        .map_err(|error: Arc<ComhairleError>| ComhairleError::HeyFormUnavailable(error.to_string()))
+}
+
+async fn fetch_insights(
+    config: &HeyFormToolConfig,
+) -> Result<Vec<InsightQuestion>, ComhairleError> {
     let client = HeyFormClient::new(heyform_base_url(&config.server_url))?;
     client
         .login(LoginInput {
@@ -226,12 +261,12 @@ async fn public_question(
     question_id: &str,
 ) -> Result<HeyFormPublicQuestion, ComhairleError> {
     let not_found = || ComhairleError::ResourceNotFound(format!("Question {question_id}"));
-    let question = load_insights(config)
-        .await?
-        .into_iter()
+    let insights = load_insights(config).await?;
+    let question = insights
+        .iter()
         .find(|question| question.id == question_id)
         .ok_or_else(not_found)?;
-    to_public_question(&question).ok_or_else(not_found)
+    to_public_question(question).ok_or_else(not_found)
 }
 
 /// The allow-listed kind, as a `&'static str` so it can go out as a fixed `Label`.
