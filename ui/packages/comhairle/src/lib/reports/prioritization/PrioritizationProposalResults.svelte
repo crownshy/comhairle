@@ -3,12 +3,10 @@
 	import { RankedProposal } from '@crownshy/api-client/api';
 	import ContentCard from '../ContentCard.svelte';
 	import { cn } from '$lib/utils';
-	import KdePlot from '$lib/components/Charts/KdePlot.svelte';
 	import Button, { buttonVariants } from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import type { ToolConfig, Question, ProposalSection } from '$lib/tools/prioritization';
-	import type { ComponentProps } from 'svelte';
+	import PrioritizationQuestionChart from './PrioritizationQuestionChart.svelte';
 
 	type Props = {
 		proposals: RankedProposal[];
@@ -17,22 +15,19 @@
 
 	let { proposals, toolConfig }: Props = $props();
 
-	function extractBarChartData(
+	function likertChoices(
 		question: Question<string>,
 		proposal: RankedProposal,
 		section?: ProposalSection
-	): ComponentProps<typeof BarChart>['data'] | undefined {
-		if (question.type.kind !== 'likert') return;
-		if (!('categories' in question.type)) return;
+	): { label: string; count: number }[] {
+		if (question.type.kind !== 'likert') return [];
 
-		const data = question.type.categories.map((category) => ({
-			category: category.label,
+		return question.type.categories.map((category) => ({
+			label: category.label,
 			count: extractQuestionResponses(proposal, question.id, section?.id).filter(
 				(response) => response.value === category.value
 			).length
 		}));
-
-		return data;
 	}
 
 	function extractQuestionResponses(
@@ -88,23 +83,23 @@
 	section?: ProposalSection
 )}
 	{#if question.type.kind === 'likert'}
-		<BarChart
-			data={extractBarChartData(question, proposal, section)}
-			x="category"
-			y="count"
-			axis="x"
+		<PrioritizationQuestionChart
+			chart={{ kind: 'likert', choices: likertChoices(question, proposal, section) }}
 		/>
 	{/if}
 	{#if question.type.kind === 'continuous'}
-		<KdePlot
-			minLabel={question.type.minLabel}
-			maxLabel={question.type.maxLabel}
-			data={{
-				[question.text]: extractQuestionResponses(proposal, question.id, section?.id).map(
-					(entry) => entry.value
-				)
-			} as Record<string, number[]>}
-			maxX={question.type.maxValue}
+		<PrioritizationQuestionChart
+			chart={{
+				kind: 'continuous',
+				label: question.text,
+				values: extractQuestionResponses(proposal, question.id, section?.id)
+					.map((entry) => entry.value)
+					.filter((value) => typeof value === 'number'),
+				min: question.type.minValue,
+				max: question.type.maxValue,
+				minLabel: question.type.minLabel,
+				maxLabel: question.type.maxLabel
+			}}
 		/>
 	{/if}
 	{#if question.type.kind === 'text'}
@@ -119,7 +114,11 @@
 	{/if}
 {/snippet}
 
-{#snippet questionHeader(question: Question, proposal: RankedProposal, section?: ProposalSection)}
+{#snippet questionHeader(
+	question: Question<string>,
+	proposal: RankedProposal,
+	section?: ProposalSection
+)}
 	<div>
 		<h4 class="mb-2 font-bold">{question.text}</h4>
 		<p class="text-muted-foreground text-xs">

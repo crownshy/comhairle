@@ -31,6 +31,8 @@ use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
 
+mod public_report;
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
     /// Questions asked once about the proposal as a whole.
@@ -281,6 +283,7 @@ impl ToolImpl for PrioritizationTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/prioritization/proposals",
                 post_with(create_proposal, |op| {
