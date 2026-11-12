@@ -24,6 +24,13 @@ pub struct VideoCallParticipant {
     pub role: String,
 }
 
+impl VideoCallParticipant {
+    /// Whether this person runs the call (moderator or facilitator) rather than taking part in it.
+    pub fn is_host(&self) -> bool {
+        self.role == "moderator" || self.role == "facilitator"
+    }
+}
+
 /// Represents a breakout room assignment with a list of participant UUIDs.
 ///
 /// Used to organize participants into smaller groups during a video call.
@@ -158,6 +165,40 @@ impl VideoCallState {
             breakout_session: None,
             main_room_recording_started: false,
         }
+    }
+
+    /// Puts a participant who isn't in a room yet into the room with the fewest people.
+    /// Hosts are never placed: they move between rooms themselves, and placing them would
+    /// list them as room members.
+    fn place_in_breakout_room(&mut self, user_id: Uuid) {
+        let is_host = self
+            .participants
+            .get(&user_id)
+            .is_some_and(VideoCallParticipant::is_host);
+        let already_placed = self
+            .breakout_rooms
+            .iter()
+            .any(|room| room.participants.contains(&user_id));
+        if is_host || already_placed {
+            return;
+        }
+
+        if let Some(emptiest_room) = self
+            .breakout_rooms
+            .iter_mut()
+            .min_by_key(|room| room.participants.len())
+        {
+            emptiest_room.participants.push(user_id);
+        }
+    }
+
+    /// Ids of everyone in the call who should be split into breakout rooms, hosts left out.
+    fn breakout_candidates(&self) -> Vec<Uuid> {
+        self.participants
+            .values()
+            .filter(|participant| !participant.is_host())
+            .map(|participant| participant.user_id)
+            .collect()
     }
 }
 
@@ -394,7 +435,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state(event_id, |call| {
                 // Check if the sender is authorized to broadcast
                 if let Some(sender) = call.participants.get(&connection.user.id)
-                    && (sender.role == "moderator" || sender.role == "facilitator")
+                    && sender.is_host()
                 {
                     // Return all participant user IDs
                     return Some(call.participants.keys().copied().collect::<Vec<Uuid>>());
@@ -441,7 +482,8 @@ impl VideoCallMessageHandler {
     ///
     /// If breakout rooms have been configured and the user is not already
     /// assigned to a room, they will be automatically assigned to the room
-    /// with the fewest participants.
+    /// with the fewest participants. Moderators and facilitators are never
+    /// auto-assigned.
     ///
     /// # Errors
     ///
@@ -514,7 +556,6 @@ impl VideoCallMessageHandler {
             }
         }
 
-        // Add the participant to the video call and auto-assign to breakout room if needed
         self.with_video_call_state_mut(&join_data.event_id, |call| {
             call.participants.insert(
                 user_id,
@@ -524,28 +565,7 @@ impl VideoCallMessageHandler {
                     role,
                 },
             );
-
-            // If breakout rooms exist, auto-assign the user to a room
-            if !call.breakout_rooms.is_empty() {
-                // Check if user is already in a breakout room
-                let already_assigned = call
-                    .breakout_rooms
-                    .iter()
-                    .any(|room| room.participants.contains(&user_id));
-
-                if !already_assigned {
-                    // Find the room with the fewest participants
-                    if let Some((room_index, _)) = call
-                        .breakout_rooms
-                        .iter()
-                        .enumerate()
-                        .min_by_key(|(_, room)| room.participants.len())
-                    {
-                        // Add user to the room with the fewest participants
-                        call.breakout_rooms[room_index].participants.push(user_id);
-                    }
-                }
-            }
+            call.place_in_breakout_room(user_id);
         })?;
 
         // Send the current state directly to the joining user
@@ -728,7 +748,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&state_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     call.status = new_status;
                     return true;
@@ -826,7 +846,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&request.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     // Remove the assistance request for this room
                     call.breakout_room_assistance_requests
@@ -897,7 +917,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&assignment_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     let breakout_rooms =
                         if let Some(ref explicit) = assignment_data.room_assignments {
@@ -916,11 +936,7 @@ impl VideoCallMessageHandler {
                                 })
                                 .collect()
                         } else {
-                            // Collect all participant IDs
-                            let mut participant_ids: Vec<Uuid> =
-                                call.participants.keys().copied().collect();
-
-                            // Shuffle participants randomly
+                            let mut participant_ids = call.breakout_candidates();
                             let mut rng = rand::thread_rng();
                             participant_ids.shuffle(&mut rng);
 
@@ -991,7 +1007,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&session_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     call.breakout_session = Some(BreakoutSession { ends });
                     return true;
@@ -1050,7 +1066,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&extension_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     // Update the end time if a session is active
                     if let Some(session) = &mut call.breakout_session {
@@ -1111,7 +1127,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&end_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     call.breakout_session = None;
                     return true;
@@ -1410,5 +1426,98 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
             }
             _ => Ok(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn call_with(participants: &[(Uuid, &str)], rooms: Vec<Vec<Uuid>>) -> VideoCallState {
+        let mut call = VideoCallState::new(Uuid::new_v4());
+        for (user_id, role) in participants {
+            call.participants.insert(
+                *user_id,
+                VideoCallParticipant {
+                    user_id: *user_id,
+                    username: None,
+                    role: role.to_string(),
+                },
+            );
+        }
+        call.breakout_rooms = rooms
+            .into_iter()
+            .map(|participants| BreakoutRoomAssignments { participants })
+            .collect();
+        call
+    }
+
+    fn room_of(call: &VideoCallState, user_id: Uuid) -> Option<usize> {
+        call.breakout_rooms
+            .iter()
+            .position(|room| room.participants.contains(&user_id))
+    }
+
+    #[test]
+    fn walk_in_participant_goes_to_the_emptiest_room() {
+        let (seated, walk_in) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(
+            &[(seated, "participant"), (walk_in, "participant")],
+            vec![vec![seated], vec![]],
+        );
+
+        call.place_in_breakout_room(walk_in);
+
+        assert_eq!(room_of(&call, walk_in), Some(1));
+    }
+
+    #[test]
+    fn hosts_are_never_placed_in_a_room() {
+        let (moderator, facilitator) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(
+            &[(moderator, "moderator"), (facilitator, "facilitator")],
+            vec![vec![], vec![]],
+        );
+
+        call.place_in_breakout_room(moderator);
+        call.place_in_breakout_room(facilitator);
+
+        assert_eq!(room_of(&call, moderator), None);
+        assert_eq!(room_of(&call, facilitator), None);
+    }
+
+    #[test]
+    fn rejoining_keeps_a_participant_in_their_room() {
+        let participant = Uuid::new_v4();
+        let mut call = call_with(
+            &[(participant, "participant")],
+            vec![vec![participant], vec![]],
+        );
+
+        call.place_in_breakout_room(participant);
+
+        assert_eq!(room_of(&call, participant), Some(0));
+        assert_eq!(call.breakout_rooms[1].participants.len(), 0);
+    }
+
+    #[test]
+    fn nobody_is_placed_before_rooms_exist() {
+        let participant = Uuid::new_v4();
+        let mut call = call_with(&[(participant, "participant")], vec![]);
+
+        call.place_in_breakout_room(participant);
+
+        assert!(call.breakout_rooms.is_empty());
+    }
+
+    #[test]
+    fn random_split_leaves_hosts_out() {
+        let (facilitator, participant) = (Uuid::new_v4(), Uuid::new_v4());
+        let call = call_with(
+            &[(facilitator, "facilitator"), (participant, "participant")],
+            vec![],
+        );
+
+        assert_eq!(call.breakout_candidates(), vec![participant]);
     }
 }
