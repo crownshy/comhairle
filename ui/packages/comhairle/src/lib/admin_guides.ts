@@ -488,13 +488,13 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				steps: [
 					'In **Process design**, select the step you want to configure.',
 					'Open the **Setup** tab to add the content participants will interact with, such as learning materials or poll questions. The options available depend on the [engagement tool](/admin/info/glossary#term-engagement-tool) you chose.',
-					'Open the **Configure** tab to edit the step’s **Name** and **Description**.',
-					'To make participants complete the step before moving on, open its actions menu :actions: in **Process design** and tick **Required**.',
-					'To let participants return to the step later, tick **Revisitable** in the same menu.'
+					'Open the **Configure** tab to edit the step’s **Name** and **Description**.'
 				],
 				tips: [
 					'The settings available under **Setup** depend on the **engagement tool** used for that step.',
-					'Use **Preview** as you configure your steps to check how they will appear and work for participants.'
+					'Use **Preview** as you configure your steps to check how they will appear and work for participants.',
+					'To make participants complete a step before moving on, open its actions menu :actions: in **Process design** and tick **Required**.',
+					'To let participants return to a step later, tick **Revisitable** in the same menu.'
 				]
 			},
 			{
@@ -769,7 +769,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Use **Report** to summarise what came out of your conversation, record its impact, and share the results.',
 				image: {
 					src: reportImage,
-					alt: 'The Report page under Results, with View Report and a Publish Report switch at the top, a Public when you publish box, then a Summary editor and a Report body editor, each with formatting tools and an Embed report component button.'
+					alt: 'The Report page under Results. At the top are View Report and a Publish Report switch, and a “Public when you publish” panel listing which results will be shared. Below are the Summary and Report body editors, each with formatting tools and an Embed report component button.'
 				},
 				steps: [
 					'Open **Report**. It becomes available after you launch the conversation.',
