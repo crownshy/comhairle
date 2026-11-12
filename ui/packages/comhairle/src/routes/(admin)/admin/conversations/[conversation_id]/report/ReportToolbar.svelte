@@ -32,8 +32,8 @@
 	const ONLY_IN_BODY = 'Goes in the report body, not the summary';
 
 	const transactions = trackEditorTransactions(() => editor);
-	const inTable = $derived(transactions.isActive((e) => e.isActive('table')));
-	const inLink = $derived(transactions.isActive((e) => e.isActive('link')));
+	const inTable = $derived(transactions.isActive((current) => current.isActive('table')));
+	const inLink = $derived(transactions.isActive((current) => current.isActive('link')));
 
 	function insertVideo(from: 'library' | 'external-url', url: string) {
 		if (from === 'library' || isVideoFileUrl(url)) {
@@ -50,7 +50,7 @@
 
 {#snippet toolButton(tool: Tool, disabled = false)}
 	{@const active = transactions.isActive(tool.isActive)}
-	{@const nothingToDo = transactions.isActive((e) => tool.isDisabled?.(e) ?? false)}
+	{@const nothingToDo = transactions.isActive((current) => tool.isDisabled?.(current) ?? false)}
 	<button
 		type="button"
 		class={cn(BUTTON_CLASS, active && ACTIVE_CLASS)}

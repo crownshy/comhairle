@@ -33,8 +33,8 @@ heading and subheading; bold, italic, underline and strikethrough; lists and quo
 alignment; link; then page break, image, video, audio and table. A page break is a
 horizontal rule and starts a new page (ADR-0069); the editor shows it as a labelled dashed
 line. The toolbar acts on whichever editor the cursor is in. Charts and page breaks only go
-in the body, so they are greyed out while the cursor is in the executive summary; media and
-tables work in both. Add a chart opens a dialog: pick the step, then pick the chart from live previews.
+in the body, so they are greyed out while the cursor is in the executive summary, and the
+summary turns away one typed (`---`), pasted or dropped there. Media and tables work in both. Add a chart opens a dialog: pick the step, then pick the chart from live previews.
 Selecting an image shows a small bar for its alignment (left, centre, right) and width (25%
 to 100% of the column), ported from the Learn editor on `demo/young-scot`. Both are stored
 as keys on the image node and laid out by the shared editor stylesheet, so the published
@@ -52,7 +52,8 @@ hint as placeholder text inside the empty editor: it can't be selected, goes the
 type and is never saved. Neither the summary nor a page has a frame around it, in the editor or the published
 report; in the editor a rule under the summary marks where the opening screen ends. An empty
 summary shows only to someone who can edit it, since readers don't see an empty summary at
-all. On the published report Read more is pinned to the bottom of the opening screen, like
+all. The published report applies the same rule, so an untouched report never shows readers
+the placeholder sentence. On the published report Read more is pinned to the bottom of the opening screen, like
 the participant step bar.
 
 Rejected: a starter draft with a section per step, its main charts embedded under italic
@@ -65,10 +66,17 @@ review: what anyone with the link can read and one line on what stays private. P
 saves what's on screen first. Charts carry no label of their own: one on every chart
 repeated the top bar and crowded the report.
 
-**5. Translations move into a dialog.** The page edits the main language. Translate opens
+**5. The editor is its own small TipTap wrapper, not `RichTextEditor`.** It shares the
+schema (`getBaseExtensions`) and the formatting commands (`formattingTools.ts`) with every
+other rich text editor. `RichTextEditor` brings its own toolbar, a bordered scroll box and a
+`value` that it writes back into the editor whenever it changes. Here one toolbar serves two
+editors, the editor is the page, and the text on screen is the only copy, so none of that
+fits.
+
+**6. Translations move into a dialog.** The page edits the main language. Translate opens
 the existing translation editor for the summary and the body.
 
-**6. Wide screens list the pages on the left, like tabs in a document editor.** From `xl` up
+**7. Wide screens list the pages on the left, like tabs in a document editor.** From `xl` up
 a Pages panel sits left of the report. It names each page as the published report does
 (ADR-0069), highlights the page scrolled to, jumps to a page when clicked, adds a page with
 + (a page break at the end) and deletes one from its menu. It takes over from the pills
@@ -85,5 +93,9 @@ so the white report meets it.
 - Impacts and facilitator notes stay on the page, below the report, marked as not part of
   the public report.
 - On narrow screens the toolbar scrolls sideways rather than wrapping.
-- The editor treats the API's placeholder text as unwritten by matching the sentence. If the
-  API's wording changes, `reportDocument.ts` has to follow.
+- The editor and the published report treat the API's placeholder text as unwritten by
+  matching the sentence. If the API's wording changes, `$lib/reports/reportDocument.ts` has
+  to follow.
+- Issue #1269 also asks for reordering pages by dragging and for dragging charts in from
+  the list. Neither is built yet. Authors see the public result through the editor's own
+  styling and a Preview link, not side by side.

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import type { Editor } from '@tiptap/core';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { ReportTranslations } from '@crownshy/api-client/api';
@@ -12,6 +11,7 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { cn } from '$lib/utils';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 	import { publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
 	import {
 		REPORT_COLUMN_CLASS,
@@ -21,12 +21,12 @@
 		REPORT_EYEBROW_CLASS
 	} from '$lib/reports/styles';
 	import { useTour } from '$lib/tours/useTour.svelte';
+	import ImageControls from '$lib/components/RichTextEditor/ImageControls.svelte';
 	import { reportTour } from './tour';
 	import ReportTopBar from './ReportTopBar.svelte';
 	import ReportTitle from './ReportTitle.svelte';
 	import ReportTextEditor from './ReportTextEditor.svelte';
 	import ReportToolbar from './ReportToolbar.svelte';
-	import ImageControls from '$lib/components/RichTextEditor/ImageControls.svelte';
 	import PagePills from './PagePills.svelte';
 	import PagesPanel from './PagesPanel.svelte';
 	import AddChartDialog from './AddChartDialog.svelte';
@@ -34,6 +34,7 @@
 	import TranslationsDialog from './TranslationsDialog.svelte';
 	import ImpactsAndNotes from './ImpactsAndNotes.svelte';
 	import { isUnwritten, reportPages, type ReportPage } from './reportDocument';
+	import { KeepBodyOnlyNodesOut } from './bodyOnlyNodes';
 
 	useTour(() => reportTour);
 
@@ -102,24 +103,22 @@
 		return textContentRes.ok.id;
 	}
 
-	// The API fills a new report with a placeholder sentence; the editor opens that as empty.
+	// A save puts the text in its source straight away, so these follow typing too. The API fills
+	// a new report with a placeholder sentence; the editor opens that as empty.
 	const savedSummary = $derived(summarySource.contents[primaryLocale] ?? '');
 	const savedBody = $derived(bodySource.contents[primaryLocale] ?? '');
-	const initialSummary = $derived(isUnwritten(savedSummary) ? '' : savedSummary);
-	const initialBody = $derived(isUnwritten(savedBody) ? '' : savedBody);
-
-	// What's on screen right now. Plain state rather than derived from the saved text, so the
-	// pills follow typing before the save lands.
-	let summaryOnScreen = $state(untrack(() => initialSummary));
-	let bodyOnScreen = $state(untrack(() => initialBody));
+	const summaryOnScreen = $derived(isUnwritten(savedSummary) ? '' : savedSummary);
+	const bodyOnScreen = $derived(isUnwritten(savedBody) ? '' : savedBody);
 
 	let published = $derived(report.isPublic);
+	let summaryEditor = $state<Editor>();
 	let bodyEditor = $state<Editor>();
 	let activeEditor = $state<Editor>();
 	let addingChart = $state(false);
 	let scroller = $state<HTMLElement>();
 	// Readers never see an empty summary, so it shows only to someone who can fill it.
-	const showSummary = $derived(canEdit || !isUnwritten(summaryOnScreen));
+	const hasSummary = $derived(!isUnwritten(summaryOnScreen));
+	const showSummary = $derived(canEdit || hasSummary);
 	// -1 is the summary, above the first page.
 	let currentPageIndex = $state(-1);
 	let reviewing = $state(false);
@@ -155,37 +154,39 @@
 		[summarySource.saveState, bodySource.saveState].find((state) => state !== 'idle') ?? 'idle'
 	);
 
-	function saveSummary(json: string) {
-		summaryOnScreen = json;
-		summarySource.saveSource(json);
-	}
-
-	function saveBody(json: string) {
-		bodyOnScreen = json;
-		bodySource.saveSource(json);
-	}
-
-	/** The document position just before the body's top-level node at `index`. */
+	/** The document position just before the body's top-level node at `index`, clamped to the end. */
 	function positionBefore(editor: Editor, index: number): number {
+		const document = editor.state.doc;
 		let position = 0;
-		for (let i = 0; i < index; i++) position += editor.state.doc.child(i).nodeSize;
+		for (let i = 0; i < Math.min(index, document.childCount); i++) {
+			position += document.child(i).nodeSize;
+		}
 		return position;
 	}
 
 	function pageElement(editor: Editor, reportPage: ReportPage): HTMLElement | undefined {
+		if (reportPage.firstNodeIndex >= editor.state.doc.childCount) return undefined;
 		const element = editor.view.nodeDOM(positionBefore(editor, reportPage.firstNodeIndex));
 		return element instanceof HTMLElement ? element : undefined;
 	}
 
+	// Counts as the end of the report, so the last page is current even when it's too short to
+	// reach the top.
+	const AT_END_TOLERANCE_PX = 4;
+	// A page is current once its top passes this far below the top of the report.
+	const CURRENT_PAGE_LINE_PX = 96;
+
 	/** The last page whose top has scrolled past the top of the report, or the last page at the end. */
 	function followScroll() {
 		if (!bodyEditor || !scroller) return;
-		const atEnd = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4;
+		const atEnd =
+			scroller.scrollTop + scroller.clientHeight >=
+			scroller.scrollHeight - AT_END_TOLERANCE_PX;
 		if (atEnd) {
 			currentPageIndex = pages.length - 1;
 			return;
 		}
-		const line = scroller.getBoundingClientRect().top + 96;
+		const line = scroller.getBoundingClientRect().top + CURRENT_PAGE_LINE_PX;
 		const editor = bodyEditor;
 		const passed = pages.findLastIndex(
 			(reportPage) =>
@@ -194,23 +195,29 @@
 		currentPageIndex = showSummary ? passed : Math.max(passed, 0);
 	}
 
-	function scrollBehavior(): 'auto' | 'smooth' {
-		return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-	}
-
 	function jumpToSummary() {
 		scroller?.scrollTo({ top: 0, behavior: scrollBehavior() });
 	}
 
+	/** Reads the page from the editor itself, which can be a keystroke ahead of `pages`. */
 	function jumpToPage(reportPage: ReportPage) {
 		if (!bodyEditor) return;
-		const element = pageElement(bodyEditor, reportPage);
-		if (!element) return;
-		element.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+		const livePages = reportPages(JSON.stringify(bodyEditor.getJSON()), String, '');
+		const livePage = livePages[pages.indexOf(reportPage)] ?? reportPage;
+		pageElement(bodyEditor, livePage)?.scrollIntoView({
+			behavior: scrollBehavior(),
+			block: 'start'
+		});
 	}
 
 	function addPage() {
 		if (!bodyEditor) return;
+		// An empty report is already one empty page, so a break would list a second.
+		if (pages.length === 1 && pages[0].empty) {
+			bodyEditor.chain().focus('end').scrollIntoView().run();
+			currentPageIndex = 0;
+			return;
+		}
 		bodyEditor.chain().focus('end').setHorizontalRule().scrollIntoView().run();
 		// The new page is the last one, one past the pages listed before it was added.
 		currentPageIndex = pages.length;
@@ -313,14 +320,19 @@
 							)}
 						>
 							<ReportTextEditor
-								initialValue={initialSummary}
+								initialValue={summaryOnScreen}
 								editable={canEdit}
 								label="Executive summary"
 								placeholder="A few sentences on what this conversation found. Readers see this first."
-								onChange={saveSummary}
+								extensions={[KeepBodyOnlyNodesOut]}
+								onChange={(json) => summarySource.saveSource(json)}
 								onFocus={(editor) => (activeEditor = editor)}
+								bind:editor={summaryEditor}
 							/>
 						</div>
+						{#if canEdit}
+							<ImageControls editor={summaryEditor} />
+						{/if}
 					</section>
 				{/if}
 
@@ -340,11 +352,11 @@
 					)}
 				>
 					<ReportTextEditor
-						initialValue={initialBody}
+						initialValue={bodyOnScreen}
 						editable={canEdit}
 						label="Report"
 						placeholder="Start writing, or add a chart from the toolbar."
-						onChange={saveBody}
+						onChange={(json) => bodySource.saveSource(json)}
 						onFocus={(editor) => (activeEditor = editor)}
 						bind:editor={bodyEditor}
 					/>
@@ -384,17 +396,14 @@
 		{supportedLanguages}
 		conversationId={conversation.id}
 		disabled={!canEdit}
-		onClosed={() => {
-			summaryOnScreen = initialSummary;
-			bodyOnScreen = initialBody;
-			editorsRevision += 1;
-		}}
+		onClosed={() => (editorsRevision += 1)}
 	/>
 {/if}
 
 <PublishDialog
 	bind:open={reviewing}
 	{published}
+	{hasSummary}
 	results={publicResults}
 	steps={data.reportEmbedSteps}
 	canPublish={canEdit}

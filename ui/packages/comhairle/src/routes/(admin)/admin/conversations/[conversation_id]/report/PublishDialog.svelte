@@ -10,6 +10,8 @@
 	type Props = {
 		open: boolean;
 		published: boolean;
+		/** Whether the summary has anything written in it, so it gets published too. */
+		hasSummary: boolean;
 		/** What the report embeds right now, per step (ADR-0061). */
 		results: PublicStepResults[];
 		steps: EmbeddableStep[];
@@ -17,7 +19,15 @@
 		canPublish: boolean;
 		onPublish: () => Promise<void>;
 	};
-	let { open = $bindable(), published, results, steps, canPublish, onPublish }: Props = $props();
+	let {
+		open = $bindable(),
+		published,
+		hasSummary,
+		results,
+		steps,
+		canPublish,
+		onPublish
+	}: Props = $props();
 
 	let publishing = $state(false);
 
@@ -59,7 +69,7 @@
 				<Globe class="text-primary size-5" />Anyone with the link can read
 			</p>
 			<ul class="flex flex-col gap-2 ps-7 text-base">
-				<li>The summary and the text</li>
+				<li>{hasSummary ? 'The summary and the text' : 'The text'}</li>
 				{#each results as step (step.stepId)}
 					{#each step.sectionBlocks as block (block.type)}
 						<li>

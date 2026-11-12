@@ -109,7 +109,7 @@
 						</div>
 						<span class="flex flex-col px-1">
 							<span class="text-base font-medium">{block.label}</span>
-							<span class="text-muted-foreground text-sm">{block.description}</span>
+							<span class="text-muted-foreground text-base">{block.description}</span>
 						</span>
 						{#if inReport}
 							<span
@@ -124,7 +124,7 @@
 		{/if}
 
 		<Dialog.Footer class="items-center sm:justify-between">
-			<p class="text-muted-foreground flex items-center gap-2 text-sm">
+			<p class="text-muted-foreground flex items-center gap-2 text-base">
 				<Globe class="size-4 shrink-0" />
 				{published
 					? 'The report is published, so a chart you add is public straight away.'

@@ -3,18 +3,14 @@
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { REPORT_COLUMN_CLASS } from '$lib/reports/styles';
+	import { hasReportContent } from '$lib/reports/reportDocument';
 	import { cn } from '$lib/utils';
 	import ReportCard from './ReportCard.svelte';
 	import ReportHeader from './ReportHeader.svelte';
 	import ReportHero from './ReportHero.svelte';
 	import ReportPager from './ReportPager.svelte';
 	import ReportThankYou from './ReportThankYou.svelte';
-	import {
-		cardHref,
-		hasReportContent,
-		readCardNumber,
-		splitReportIntoPages
-	} from './reportPages';
+	import { cardHref, readCardNumber, splitReportIntoPages } from './reportPages';
 
 	let { data } = $props();
 	let { conversation, report } = $derived(data);

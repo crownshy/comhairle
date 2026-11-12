@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isUnwritten, reportPages, type ReportDocument } from './reportDocument';
+import type { ReportNode } from '$lib/reports/reportDocument';
+import { isUnwritten, reportPages } from './reportDocument';
 
 const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 const heading = (text: string) => ({
@@ -7,7 +8,7 @@ const heading = (text: string) => ({
 	attrs: { level: 2 },
 	content: [{ type: 'text', text }]
 });
-const doc = (...content: ReportDocument['content']): ReportDocument => ({ type: 'doc', content });
+const doc = (...content: ReportNode[]) => ({ type: 'doc', content });
 
 describe('isUnwritten', () => {
 	it('treats missing, blank and the API default text as unwritten', () => {

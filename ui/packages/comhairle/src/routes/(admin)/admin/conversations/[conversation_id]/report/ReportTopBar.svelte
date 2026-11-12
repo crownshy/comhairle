@@ -56,7 +56,7 @@
 	);
 </script>
 
-<!-- What the report shares is always on screen (ADR-0061); clicking it shows the full list. -->
+<!-- What the report shares is always on screen (ADR-0061); clicking it lists each chart. -->
 <header
 	data-tour="report-publish"
 	class="px-gutter flex flex-wrap items-center gap-x-4 gap-y-2 border-b py-2"
@@ -79,7 +79,7 @@
 				<PencilLine class="size-4" aria-hidden="true" />Draft
 			{/if}
 		</span>
-		<span class="text-muted-foreground truncate">Text and {charts}</span>
+		<span class="text-muted-foreground truncate">{sharing}</span>
 	</button>
 
 	{#if canEdit}

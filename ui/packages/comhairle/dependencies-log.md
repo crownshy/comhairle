@@ -13,3 +13,11 @@ Don't worry about minor upgrades. If there's a major upgrade, consider putting s
 Provides toast functionality. Installed with shadcn-sonner.
 
 The shadcn installer tried to install `mode-watcher` as well, but I removed that as we don't have a dark mode.
+
+## 2026-11-12 `@tiptap/extensions`
+
+[#1269](https://github.com/crownshy/comhairle/issues/1269)
+
+TipTap's own utility extensions. The report editor uses its `Placeholder` to show a hint
+inside an empty summary or body that is never saved. `@tiptap/starter-kit` already depends
+on it, so this only makes the import direct.

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Editor } from '@tiptap/core';
+	import { Editor, type Extensions } from '@tiptap/core';
 	import { Placeholder } from '@tiptap/extensions';
 	import { getBaseExtensions, getEditorProps } from '$lib/components/RichTextEditor/editorConfig';
 	import { MarkdownTablePaste } from '$lib/components/RichTextEditor/extensions/markdownTablePaste';
@@ -18,6 +18,8 @@
 		label: string;
 		/** Shown inside the empty editor and never saved. */
 		placeholder: string;
+		/** Added to the shared rich text extensions, such as a rule about what this editor takes. */
+		extensions?: Extensions;
 	};
 
 	let {
@@ -27,7 +29,8 @@
 		onFocus,
 		editor = $bindable(),
 		label,
-		placeholder
+		placeholder,
+		extensions = []
 	}: Props = $props();
 
 	const EMPTY_DOCUMENT = { type: 'doc', content: [{ type: 'paragraph' }] };
@@ -47,7 +50,8 @@
 			extensions: [
 				...getBaseExtensions({ mode: 'editor' }),
 				MarkdownTablePaste,
-				Placeholder.configure({ placeholder })
+				Placeholder.configure({ placeholder }),
+				...extensions
 			],
 			content: detected.content,
 			contentType: detected.type,
