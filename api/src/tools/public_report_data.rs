@@ -8,13 +8,19 @@
 pub mod anonymous;
 pub mod embeds;
 
+use std::sync::Arc;
+
 use anonymous::PublicReportData;
 use embeds::{EmbeddedSectionBlock, embedded_section_blocks};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::{event, report, workflow, workflow_step};
+use crate::models::permissions::conversation::Action;
+use crate::models::permissions::{self};
+use crate::models::users::User;
+use crate::models::{conversation, event, report, workflow, workflow_step};
 use crate::tools::{ToolConfig, ToolImpl};
 
 /// Serve one section block's public data from a step running `Tool`, for example
@@ -24,13 +30,6 @@ use crate::tools::{ToolConfig, ToolImpl};
 /// Returns `ResourceNotFound` when the step doesn't exist, its conversation's report isn't
 /// published, the report doesn't embed this section block for this step, or the step runs a
 /// different tool, so an anonymous caller can't tell these apart.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "first caller is the Polis public endpoints (#1253)"
-    )
-)]
 pub async fn serve_public_report_data<Tool: ToolImpl, Data: PublicReportData>(
     db: &PgPool,
     workflow_step_id: &Uuid,
@@ -42,6 +41,51 @@ where
 {
     let config = public_tool_config::<Tool>(db, workflow_step_id, section_block).await?;
     build(config).await
+}
+
+/// What readers will get once the report is published and embeds the section block, so the
+/// report editor can show it before then. Needs a user who can update the step's conversation,
+/// which for an event step is the event's conversation.
+pub async fn serve_report_preview_data<Tool: ToolImpl, Data: PublicReportData>(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    workflow_step_id: &Uuid,
+    build: impl AsyncFnOnce(Tool::Config) -> Result<Data, ComhairleError>,
+) -> Result<Data, ComhairleError>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
+    let step = workflow_step::get_by_id(&state.db, workflow_step_id).await?;
+    let conversation_id = conversation_of_workflow(&state.db, &step.workflow_id).await?;
+    ensure_can_update_conversation(state, user, &conversation_id).await?;
+
+    let config = tool_config_of::<Tool>(step).ok_or_else(|| {
+        ComhairleError::ResourceNotFound(format!(
+            "Report data for workflow step {workflow_step_id}"
+        ))
+    })?;
+    build(config).await
+}
+
+async fn ensure_can_update_conversation(
+    state: &Arc<ComhairleState>,
+    user: &User,
+    conversation_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
+    let can_update = permissions::can_perform_action(
+        state,
+        &conversation.id,
+        Action::Update,
+        &user.id,
+        Some(&conversation.owner_id),
+    )
+    .await?;
+    if can_update {
+        Ok(())
+    } else {
+        Err(ComhairleError::UserNotAuthorized)
+    }
 }
 
 async fn public_tool_config<Tool: ToolImpl>(
@@ -89,10 +133,18 @@ where
         return Err(not_found());
     }
 
+    tool_config_of::<Tool>(step).ok_or_else(not_found)
+}
+
+/// The step's live config, or its draft before launch. `None` when the step runs another tool.
+fn tool_config_of<Tool: ToolImpl>(step: workflow_step::WorkflowStep) -> Option<Tool::Config>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
     step.tool_config
         .unwrap_or(step.preview_tool_config)
         .try_into()
-        .map_err(|_| not_found())
+        .ok()
 }
 
 /// Event workflows have no `conversation_id` of their own, only through their event.

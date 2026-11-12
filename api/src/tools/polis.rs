@@ -18,6 +18,8 @@ use thiserror::Error;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+mod public_report;
+
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
@@ -309,6 +311,7 @@ impl ToolImpl for PolisTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/polis/report_data",
                 get_with(get_report_data, |op| {
@@ -1366,7 +1369,7 @@ pub struct LocalizedStatement {
     pub polis_statement_id: i32,
     /// The text to display in the requested locale.
     pub text: String,
-    /// Locale of `text` — the requested locale when translated, else the source.
+    /// Locale of `text`: the requested locale when translated, else the source.
     pub display_locale: String,
     /// Locale the statement was originally authored/detected in, if known.
     pub source_locale: Option<String>,
@@ -1383,7 +1386,7 @@ pub struct LocalizedStatement {
 /// Resolve a live Polis statement into the participant's chosen locale. Falls
 /// back to the original text (with `is_translation = false`) whenever no aux row
 /// exists yet, the locale matches the source, or no translation has been stored
-/// for that locale — so the caller always has something to render.
+/// for that locale, so the caller always has something to render.
 #[instrument(err(Debug), skip(state))]
 async fn localized_statement(
     State(state): State<Arc<ComhairleState>>,
@@ -1414,7 +1417,7 @@ async fn localized_statement(
         requires_validation: false,
     };
 
-    // Already in the requested locale — nothing to translate.
+    // Already in the requested locale, so nothing to translate.
     if aux.source_locale.as_deref() == Some(query.locale.as_str()) {
         return Ok((StatusCode::OK, Json(original)));
     }
