@@ -107,7 +107,7 @@ mod tests {
     use super::{VersionStatus, forms, questions, report, steps};
     use crate::error::ComhairleError;
     use crate::models::organization::{self, CreateOrganization, OrganizationType};
-    use crate::models::translations::{TextFormat, new_translation};
+    use crate::models::translations::{TextFormat, TranslationScope, new_translation};
     use crate::routes::auth::SignupRequest;
     use crate::test_helpers::test_state;
     use crate::tools::demographics::{
@@ -719,8 +719,12 @@ mod tests {
             sqlx::query_scalar("INSERT INTO workflow (name) VALUES ('Report') RETURNING id")
                 .fetch_one(&pool)
                 .await?;
-        let name = new_translation(&pool, LOCALE, "Form", TextFormat::Plain).await?;
-        let description = new_translation(&pool, LOCALE, "Form", TextFormat::Rich).await?;
+        let mut conn = pool.acquire().await?;
+        let scope = TranslationScope::System;
+        let name = new_translation(&mut conn, scope, LOCALE, "Form", TextFormat::Plain).await?;
+        let description =
+            new_translation(&mut conn, scope, LOCALE, "Form", TextFormat::Rich).await?;
+        drop(conn);
         sqlx::query(
             "INSERT INTO workflow_step (workflow_id, name, description, step_order, tool_config)
             VALUES ($1, $2, $3, 1, $4)",

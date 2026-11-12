@@ -14,7 +14,7 @@ use super::validation::{invalid, validate_question_draft};
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::translations::{
-    TextContentId, TextFormat, localize_translations, new_translation_in_connection,
+    TextContentId, TextFormat, TranslationScope, localize_translations, new_translation,
 };
 
 const VERSION_COLUMNS: [DemographicQuestionVersionIden; 14] = [
@@ -579,13 +579,19 @@ async fn replace_tags(
     Ok(())
 }
 
+/// System default questions (no owner) get system-scoped text so every organization can read it.
+fn translation_scope_for(owner: Option<Uuid>) -> TranslationScope {
+    owner.map_or(TranslationScope::System, TranslationScope::Organization)
+}
+
 async fn write_text(
     conn: &mut PgConnection,
+    scope: TranslationScope,
     locale: &str,
     content: &str,
 ) -> Result<TextContentId, ComhairleError> {
     Ok(
-        new_translation_in_connection(conn, locale, content, TextFormat::Plain)
+        new_translation(conn, scope, locale, content, TextFormat::Plain)
             .await?
             .id,
     )
@@ -593,17 +599,19 @@ async fn write_text(
 
 async fn write_draft_text(
     conn: &mut PgConnection,
+    owner: Option<Uuid>,
     locale: &str,
     input: &QuestionDraftInput,
 ) -> Result<DraftText, ComhairleError> {
-    let text = write_text(&mut *conn, locale, input.text.trim()).await?;
+    let scope = translation_scope_for(owner);
+    let text = write_text(&mut *conn, scope, locale, input.text.trim()).await?;
     let consent = match (input.special_category, input.consent_text.as_deref()) {
-        (true, Some(consent)) => Some(write_text(&mut *conn, locale, consent.trim()).await?),
+        (true, Some(consent)) => Some(write_text(&mut *conn, scope, locale, consent.trim()).await?),
         _ => None,
     };
     let mut options = Vec::with_capacity(input.options.len());
     for label in &input.options {
-        options.push(write_text(&mut *conn, locale, label.trim()).await?);
+        options.push(write_text(&mut *conn, scope, locale, label.trim()).await?);
     }
     Ok(DraftText {
         text,
@@ -757,7 +765,7 @@ pub async fn create_question(
         .values([question_id.into(), owner.into()])?
         .build_sqlx(PostgresQueryBuilder);
     sqlx::query_with(&sql, values).execute(&mut *conn).await?;
-    let texts = write_draft_text(conn, locale, input).await?;
+    let texts = write_draft_text(conn, owner, locale, input).await?;
     insert_draft_version(conn, question_id, 1, input, &texts).await?;
     replace_tags(conn, question_id, &input.tag_ids).await?;
     tx.commit().await?;
@@ -803,7 +811,7 @@ pub async fn update_draft(
     reject_if_archived(conn, question_id).await?;
     let draft_id = require_draft(conn, question_id).await?;
     validate_tag_ids(conn, owner, &input.tag_ids).await?;
-    let texts = write_draft_text(conn, locale, input).await?;
+    let texts = write_draft_text(conn, owner, locale, input).await?;
     save_draft_fields(conn, draft_id, input, &texts).await?;
     replace_tags(conn, question_id, &input.tag_ids).await?;
     tx.commit().await?;

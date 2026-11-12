@@ -365,10 +365,10 @@ impl ToolSetup {
                 thinking_space::ThinkingSpaceTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::DemographicQuestion(setup) => Ok(ToolConfig::DemographicQuestion(
-                DemographicQuestionTool::setup(setup, state, locale).await?,
+                DemographicQuestionTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::DemographicForm(setup) => Ok(ToolConfig::DemographicForm(
-                DemographicFormTool::setup(setup, state, locale).await?,
+                DemographicFormTool::setup(setup, state, db, scope, locale).await?,
             )),
         }
     }
