@@ -632,12 +632,15 @@ export const PolisPublicRepresentativeComment = z
 export type PolisPublicRepresentativeComment = z.infer<
   typeof PolisPublicRepresentativeComment
 >;
+export const PolisPublicGroupSummary = z
+  .object({ description: z.string(), name: z.string() })
+  .passthrough();
+export type PolisPublicGroupSummary = z.infer<typeof PolisPublicGroupSummary>;
 export const PolisPublicOpinionGroup = z
   .object({
-    description: z.union([z.string(), z.null()]).optional(),
     groupId: z.number().int().gte(0),
-    name: z.union([z.string(), z.null()]).optional(),
     representativeComments: z.array(PolisPublicRepresentativeComment),
+    summary: z.union([PolisPublicGroupSummary, z.null()]).optional(),
     totalMembers: z.number().int().gte(0),
   })
   .passthrough();
@@ -4200,6 +4203,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PolisPublicPlacedStatement,
   PolisPublicConsensusContinuum,
   PolisPublicRepresentativeComment,
+  PolisPublicGroupSummary,
   PolisPublicOpinionGroup,
   PolisPublicStatement,
   PolisPublicOpinionGroups,

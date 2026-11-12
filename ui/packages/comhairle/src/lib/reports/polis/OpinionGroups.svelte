@@ -18,12 +18,13 @@
 	import type { RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionGroupCard from './OpinionGroupCard.svelte';
+	import type { GroupSummaries } from './groupSummaries';
 
 	type Props = {
 		comments: VotedStatement[];
 		groups: RepresentedGroup[];
 		/** AI-generated name + summary per group, keyed by `group_id`. */
-		groupSummaries?: Record<number, { name: string; summary: string }>;
+		groupSummaries?: GroupSummaries;
 		/**
 		 * Frozen-snapshot render (ADR-0012): the group nav chips are interactive, so a static
 		 * snapshot drops them (every group is already shown by default) and freezes each card.

@@ -13,6 +13,7 @@ import type AreaOfConsensus from './AreaOfConsensus.svelte';
 import type ConsensusContinuum from './ConsensusContinuum.svelte';
 import type OpinionGroups from './OpinionGroups.svelte';
 import type { PolisEmbeddableComponentType } from './embeddableComponents';
+import { toGroupSummaries } from './groupSummaries';
 
 type AreaProps = ComponentProps<typeof AreaOfConsensus>;
 type ContinuumProps = ComponentProps<typeof ConsensusContinuum>;
@@ -44,11 +45,10 @@ export type PolisEmbedData =
 			groups: GroupSize[];
 	  };
 
-/** A theme as `ThemesSection` lists it, with the statements filed under it. */
+/** A theme with the accepted statements filed under it. */
 export type PolisEmbedTheme = {
 	title: string;
 	description: string;
-	contributions: number;
 	statements: VotedStatement[];
 };
 
@@ -126,7 +126,12 @@ async function loadFrom(
 				componentType,
 				statements: opinionGroups.statements.map(toVotedStatement),
 				groups: opinionGroups.groups.map(toRepresentedGroup),
-				groupSummaries: toGroupSummaries(opinionGroups.groups)
+				groupSummaries: toGroupSummaries(
+					opinionGroups.groups.map((group) => ({
+						groupId: group.groupId,
+						...group.summary
+					}))
+				)
 			};
 		}
 		case 'polis-themes': {
@@ -136,25 +141,12 @@ async function loadFrom(
 				themes: themes.themes.map((theme) => ({
 					title: theme.title,
 					description: theme.description,
-					contributions: theme.statements.length,
 					statements: theme.statements.map(toVotedStatement)
 				})),
 				groups: themes.groups.map(toGroupSize)
 			};
 		}
 	}
-}
-
-/** The groups the sensemaker has named and summarised, in the shape `OpinionGroups` reads. */
-export function toGroupSummaries(
-	groups: PolisPublicOpinionGroup[]
-): Record<number, { name: string; summary: string }> {
-	const summaries: Record<number, { name: string; summary: string }> = {};
-	for (const group of groups) {
-		if (!group.name || !group.description) continue;
-		summaries[group.groupId] = { name: group.name, summary: group.description };
-	}
-	return summaries;
 }
 
 /**

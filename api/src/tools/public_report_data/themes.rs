@@ -1,8 +1,6 @@
 //! The step's latest theme collection with the contributions filed under each theme. What a
 //! published report may show of it is each tool's call (ADR-0061).
 
-use std::collections::HashMap;
-
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -11,7 +9,8 @@ use crate::models::statement::{self, Statement};
 use crate::models::statement_theme;
 use crate::models::theme::{self, Theme};
 
-/// A theme with the contributions filed under it, for tools that serve those too.
+/// A theme with the contributions filed under it. These include contributions moderation
+/// hasn't accepted, so a tool must match them against its own public data before serving any.
 pub struct ThemeWithStatements {
     pub theme: Theme,
     pub statements: Vec<Statement>,
@@ -33,17 +32,7 @@ pub async fn latest_theme_collection(
     let statements = statement::list_for_theme_collection(db, collection.id).await?;
     let assignments = statement_theme::list_for_theme_collection(db, collection.id).await?;
 
-    let statements_by_id: HashMap<Uuid, Statement> =
-        statements.into_iter().map(|s| (s.id, s)).collect();
-    let mut statements_by_theme: HashMap<Uuid, Vec<Statement>> = HashMap::new();
-    for assignment in assignments {
-        if let Some(statement) = statements_by_id.get(&assignment.statement_id) {
-            statements_by_theme
-                .entry(assignment.theme_id)
-                .or_default()
-                .push(statement.clone());
-        }
-    }
+    let mut statements_by_theme = statement_theme::statements_by_theme(statements, assignments);
 
     Ok(Some(
         themes

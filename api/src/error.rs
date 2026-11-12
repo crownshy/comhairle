@@ -102,10 +102,10 @@ pub enum ComhairleError {
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
-    /// A HeyForm fetch failed for a cached load, where the original error is shared between
-    /// the requests that waited on it and can't be handed back as is.
-    #[error("HeyForm results unavailable: {0}")]
-    HeyFormUnavailable(String),
+    /// A cached load for public report data failed, where the original error is shared
+    /// between the requests that waited on it and can't be handed back as is.
+    #[error("Report data unavailable: {0}")]
+    ReportDataUnavailable(String),
 
     #[error("Ragflow error: {0}")]
     RagflowError(#[from] RagflowError),

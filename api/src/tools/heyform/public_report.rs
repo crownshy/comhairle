@@ -235,7 +235,9 @@ async fn load_insights(
     INSIGHTS_CACHE
         .try_get_with(key, async { fetch_insights(config).await.map(Arc::new) })
         .await
-        .map_err(|error: Arc<ComhairleError>| ComhairleError::HeyFormUnavailable(error.to_string()))
+        .map_err(|error: Arc<ComhairleError>| {
+            ComhairleError::ReportDataUnavailable(error.to_string())
+        })
 }
 
 async fn fetch_insights(

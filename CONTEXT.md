@@ -312,8 +312,15 @@ _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` fla
 One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Participants can read a step's reasons from the statement composer as the published moderation policy (ADR-0059). Editing the policy never rewrites reasons already recorded.
 _Avoid_: rejection code, category letter.
 
+**Theme tag**:
+A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. Shown on a statement as a chip.
+_Avoid_: theme (bare, now means a [[#theme]] in a theme collection).
+
 **Theme**:
-A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
+One entry in a **theme collection**: a title and description the [[#sensemaker]] wrote, with the step's contributions (for Polis, statements) filed under it. A step can have many collections; the report reads the latest one per origin tool. Facilitators can add, edit and pin themes in the Theme Explorer. Different from a [[#theme-tag]], which a facilitator puts on one statement.
+
+**Sensemaker**:
+The LLM service that reads a step's contributions at a facilitator's request and writes theme collections and summaries (for Polis: a consensus summary, a disagreement summary, and a name and summary per opinion group). For Polis it reads every statement, accepted or not, so its text can echo statements moderation rejected. On a published report that text is `GeneratedText` (ADR-0061).
 
 **Opinion group**:
 A cluster of participants who voted similarly, discovered by Polis's math (PCA + k-means), labelled A/B/C… Backed by `GroupReportData` (`group_id`, `members`, `total_members`, `representative_comments`). A single Polis poll yields a **variable** number of opinion groups (typically 1–5, not a fixed two), so all report components render N groups, not a hardcoded A/B pair. **Not** a demographic segment, recruitment cohort, or any admin-defined set — it is derived purely from vote patterns.
@@ -336,7 +343,7 @@ _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Embeddable section block**:
-The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*), **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list. HeyForm has one, *Question results*, embedded once per question with the question id in the embed's `config.item`; only choice, rating and opinion scale questions are offered.
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*, *Themes*), **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list. HeyForm has one, *Question results*, embedded once per question with the question id in the embed's `config.item`; only choice, rating and opinion scale questions are offered.
 _Avoid_: report piece (use "section block" for the embeddable unit).
 
 **Report component embed**:
