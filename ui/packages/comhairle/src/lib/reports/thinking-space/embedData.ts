@@ -15,16 +15,16 @@ export type ThinkingSpaceEmbedData =
 
 const ENDPOINTS = {
 	public: {
-		keyStats: apiClient.ThinkingSpaceGetPublicKeyStats,
-		questions: apiClient.ThinkingSpaceGetPublicQuestions,
-		themes: apiClient.ThinkingSpaceGetPublicThemes
+		'thinkingspace-key-stats': apiClient.ThinkingSpaceGetPublicKeyStats,
+		'thinkingspace-questions': apiClient.ThinkingSpaceGetPublicQuestions,
+		'thinkingspace-themes': apiClient.ThinkingSpaceGetPublicThemes
 	},
 	preview: {
-		keyStats: apiClient.ThinkingSpacePreviewKeyStats,
-		questions: apiClient.ThinkingSpacePreviewQuestions,
-		themes: apiClient.ThinkingSpacePreviewThemes
+		'thinkingspace-key-stats': apiClient.ThinkingSpacePreviewKeyStats,
+		'thinkingspace-questions': apiClient.ThinkingSpacePreviewQuestions,
+		'thinkingspace-themes': apiClient.ThinkingSpacePreviewThemes
 	}
-};
+} satisfies Record<'public' | 'preview', Record<ThinkingSpaceEmbeddableComponentType, unknown>>;
 
 /**
  * Load one section block's data. A preview falls back to the public endpoint, as the Polis
@@ -52,10 +52,13 @@ async function loadFrom(
 	const request = { queries: { workflow_step_id: workflowStepId } };
 	switch (componentType) {
 		case 'thinkingspace-key-stats':
-			return { componentType, stats: await endpoints.keyStats(request) };
+			return { componentType, stats: await endpoints[componentType](request) };
 		case 'thinkingspace-questions':
-			return { componentType, questions: (await endpoints.questions(request)).questions };
+			return {
+				componentType,
+				questions: (await endpoints[componentType](request)).questions
+			};
 		case 'thinkingspace-themes':
-			return { componentType, themes: (await endpoints.themes(request)).themes };
+			return { componentType, themes: (await endpoints[componentType](request)).themes };
 	}
 }

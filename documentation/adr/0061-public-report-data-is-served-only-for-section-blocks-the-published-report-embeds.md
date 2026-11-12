@@ -79,7 +79,9 @@ Thinking Space summary, another may have told participants it stays with the org
   lists those proposals last, without a score.
 - **Only aggregates leave Thinking Space.** It serves how many people shared a summary,
   follow-ups per participant and per opening question, and themes. A participant's summary
-  and answers never leave, since the consent they give covers the organisers only.
+  and answers never leave, since the consent they give covers the organisers only. An
+  opening question's text comes from the step config, not the answer rows, because the
+  stored question is whatever the participant's request sent.
 - **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
   the theme collection are read once per step and kept for 60 seconds, shared by every section
   block, so a regenerated summary can take up to a minute to reach the report. Polis votes

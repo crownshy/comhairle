@@ -1,7 +1,7 @@
 <script lang="ts">
 	import MetricOverviewCard from '$lib/reports/MetricOverviewCard.svelte';
-	import ThemesSection from '$lib/reports/ThemesSection.svelte';
 	import * as Table from '$lib/components/ui/table';
+	import ThinkingSpaceThemes from './ThinkingSpaceThemes.svelte';
 	import type { ThinkingSpaceEmbedData } from './embedData';
 
 	/** Renders one embeddable Thinking Space section block from its public report data. */
@@ -17,7 +17,7 @@
 		/>
 		<MetricOverviewCard
 			superText="Follow-up questions"
-			metric={Number(data.stats.followUpsPerParticipant.toFixed(1))}
+			metric={Number(data.stats.followUpsPerParticipant.toFixed(2))}
 			subText="per participant"
 		/>
 	</div>
@@ -34,7 +34,7 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each data.questions as question (question.question)}
+				{#each data.questions as question, index (index)}
 					<Table.Row>
 						<Table.Cell class="text-base text-wrap!">{question.question}</Table.Cell>
 						<Table.Cell class="text-right text-base">{question.participants}</Table.Cell
@@ -46,5 +46,5 @@
 		</Table.Root>
 	{/if}
 {:else if data.componentType === 'thinkingspace-themes'}
-	<ThemesSection themes={data.themes} noun={{ one: 'summary', other: 'summaries' }} />
+	<ThinkingSpaceThemes themes={data.themes} />
 {/if}

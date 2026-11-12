@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import EmbedState from '../EmbedState.svelte';
+	import { loadEmbed } from '../embedLoad.svelte';
 	import type { ReportEmbedProps } from '../embeds';
-	import ThinkingSpaceReportSection from './ThinkingSpaceReportSection.svelte';
-	import { loadThinkingSpaceEmbedData, type ThinkingSpaceEmbedData } from './embedData';
+	import { loadThinkingSpaceEmbedData } from './embedData';
 	import type { ThinkingSpaceEmbeddableComponentType } from './embeddableComponents';
 
 	/**
@@ -12,36 +11,20 @@
 	 */
 	let { toolStepId, componentType, preview = false }: ReportEmbedProps = $props();
 
-	let data = $state<ThinkingSpaceEmbedData | null>(null);
-	let loading = $state(true);
-
-	$effect(() => {
-		const stepId = toolStepId;
-		const blockType = componentType as ThinkingSpaceEmbeddableComponentType;
-		const fromPreview = preview;
-		let cancelled = false;
-		loading = true;
-		data = null;
-
-		(async () => {
-			const result = await tryCatchAsync(() =>
-				loadThinkingSpaceEmbedData(stepId, blockType, fromPreview)
-			);
-			if (cancelled) return;
-			if (result.err === null) data = result.ok;
-			loading = false;
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	});
+	const embed = loadEmbed(() => [
+		loadThinkingSpaceEmbedData(
+			toolStepId,
+			componentType as ThinkingSpaceEmbeddableComponentType,
+			preview
+		),
+		import('./ThinkingSpaceReportSection.svelte').then((module) => module.default)
+	]);
 </script>
 
-{#if loading}
+{#if embed.loading}
 	<EmbedState state="loading" />
-{:else if !data}
+{:else if !embed.loaded}
 	<EmbedState state="unavailable" />
 {:else}
-	<ThinkingSpaceReportSection {data} />
+	<embed.loaded.Section data={embed.loaded.data} />
 {/if}
