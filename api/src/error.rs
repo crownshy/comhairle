@@ -470,6 +470,12 @@ impl IntoResponse for ComhairleError {
             ComhairleError::WorkerError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::HeyFormError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::RagflowError(ref err) => Into::<StatusCode>::into(err),
+            // Only the participant's answers being too sparse to summarize
+            // gets a distinct status; any other inner variant (template
+            // errors, model/extractor failures) stays a 500 below.
+            ComhairleError::ThinkingSpaceGenerationError(
+                sensemakar::thinking_space::ThinkingSpaceError::InsufficientAnswers,
+            ) => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

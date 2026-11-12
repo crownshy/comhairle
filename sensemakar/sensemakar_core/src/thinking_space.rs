@@ -41,6 +41,10 @@ pub enum ThinkingSpaceError {
     RigExtractorError(#[from] Box<StructuredOutputError>),
     #[error("Statement serialization error {0}")]
     QuestionChainSeializationError(#[from] serde_json::Error),
+    #[error("summary generation produced no usable output after {attempts} attempts")]
+    SuspiciousSummary { attempts: usize },
+    #[error("participant's answers did not contain enough content to summarize")]
+    InsufficientAnswers,
 }
 
 impl FollowUpQuestionGenerator {
@@ -75,6 +79,41 @@ pub struct InterviewSummary {
     pub areas_of_uncertainty: String,
 }
 
+/// Below this many words, `summary` reads as a stub rather than a real
+/// personal statement (the extractor's "even with default values" preamble
+/// can make a model submit the literal schema type name, "string", instead
+/// of refusing to answer).
+const MIN_SUMMARY_WORDS: usize = 8;
+
+/// Told to the model (see `summarize_interview.md`'s `<QualityCheck>` block)
+/// as the value to submit instead of fabricating a summary when the
+/// participant's answers are too sparse or incoherent to summarize honestly.
+const INSUFFICIENT_INPUT_SENTINEL: &str = "UNABLE_TO_SUMMARIZE";
+
+impl InterviewSummary {
+    /// The model deliberately declined rather than fabricating a summary.
+    /// Distinct from `is_suspicious`: this is a stable, expected response to
+    /// the input given, so retrying the same question_chain won't help.
+    fn is_insufficient_input(&self) -> bool {
+        self.summary
+            .trim()
+            .eq_ignore_ascii_case(INSUFFICIENT_INPUT_SENTINEL)
+    }
+
+    fn is_suspicious(&self) -> bool {
+        is_placeholder(&self.summary)
+            || is_placeholder(&self.areas_of_uncertainty)
+            || self.summary.split_whitespace().count() < MIN_SUMMARY_WORDS
+    }
+}
+
+fn is_placeholder(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed.is_empty() || trimmed.eq_ignore_ascii_case("string")
+}
+
+const MAX_SUMMARY_ATTEMPTS: usize = 3;
+
 impl SummaryGenerator {
     pub async fn run_with_model(
         &self,
@@ -87,13 +126,28 @@ impl SummaryGenerator {
             .retries(2)
             .build();
         let question_list = serde_json::to_string(&question_chain)?;
-        let summary = extractor
-            .extract(question_list)
-            .await
-            .map_err(Box::new)?
-            .output;
 
-        Ok(summary)
+        for attempt in 1..=MAX_SUMMARY_ATTEMPTS {
+            let summary = extractor
+                .extract(question_list.clone())
+                .await
+                .map_err(Box::new)?
+                .output;
+
+            if summary.is_insufficient_input() {
+                return Err(ThinkingSpaceError::InsufficientAnswers);
+            }
+
+            if !summary.is_suspicious() {
+                return Ok(summary);
+            }
+
+            tracing::warn!(attempt, "thinking space summary looked suspicious, retrying");
+        }
+
+        Err(ThinkingSpaceError::SuspiciousSummary {
+            attempts: MAX_SUMMARY_ATTEMPTS,
+        })
     }
 }
 
@@ -104,8 +158,64 @@ mod tests {
 
     use crate::{
         test_helpers::test_model,
-        thinking_space::{FollowUpQuestionGenerator, FollowUpQuestions, SummaryGenerator},
+        thinking_space::{
+            FollowUpQuestionGenerator, FollowUpQuestions, InterviewSummary, SummaryGenerator,
+        },
     };
+
+    #[test]
+    fn regression_insufficient_input_sentinel_is_detected() {
+        let summary = InterviewSummary {
+            summary: "UNABLE_TO_SUMMARIZE".into(),
+            areas_of_uncertainty: "UNABLE_TO_SUMMARIZE".into(),
+        };
+
+        assert!(summary.is_insufficient_input());
+    }
+
+    #[test]
+    fn regression_insufficient_input_sentinel_is_not_mistaken_for_real_content() {
+        let summary = InterviewSummary {
+            summary: "I think this policy would really help my community access resources."
+                .into(),
+            areas_of_uncertainty:
+                "I am unsure whether older residents would take advantage of it.".into(),
+        };
+
+        assert!(!summary.is_insufficient_input());
+    }
+
+    #[test]
+    fn regression_suspicious_summary_detects_placeholder_string() {
+        let summary = InterviewSummary {
+            summary: "string".into(),
+            areas_of_uncertainty: "Some genuine uncertainty text here".into(),
+        };
+
+        assert!(summary.is_suspicious());
+    }
+
+    #[test]
+    fn regression_suspicious_summary_detects_too_short_summary() {
+        let summary = InterviewSummary {
+            summary: "Fine.".into(),
+            areas_of_uncertainty: "None noted.".into(),
+        };
+
+        assert!(summary.is_suspicious());
+    }
+
+    #[test]
+    fn regression_summary_with_real_content_is_not_suspicious() {
+        let summary = InterviewSummary {
+            summary: "I think this policy would really help my community access resources."
+                .into(),
+            areas_of_uncertainty:
+                "I am unsure whether older residents would take advantage of it.".into(),
+        };
+
+        assert!(!summary.is_suspicious());
+    }
 
     #[test]
     fn regression_follow_up_prompt_example_matches_output_type() {
