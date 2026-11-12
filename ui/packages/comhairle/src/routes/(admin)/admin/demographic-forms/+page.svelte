@@ -313,9 +313,9 @@
 			<Tabs.Root bind:value={tab} class="mt-6">
 				<Tabs.List>
 					<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
-					<Tabs.Trigger value="questions"
-						>Question bank ({data.questions.length})</Tabs.Trigger
-					>
+					<Tabs.Trigger value="questions">
+						Question bank ({data.questions.length})
+					</Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="forms" class="mt-6">
 					<FormsTab

@@ -25,7 +25,7 @@
 
 <div
 	data-purpose="callout"
-	class={cn('callout mb-5 rounded-md border px-5 py-3', className)}
+	class={cn('callout rounded-md border px-5 py-3', className)}
 	style="--_color: var(--color, var(--{getColour(variant)}))"
 >
 	{@render children()}

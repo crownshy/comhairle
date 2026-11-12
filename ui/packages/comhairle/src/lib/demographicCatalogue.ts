@@ -54,7 +54,7 @@ export async function listPublishedDemographicQuestions(
 ): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
 		const questions = await apiClient.ListDemographicQuestions({
-			queries: { organization: organizationId ?? undefined }
+			queries: { organization_id: organizationId ?? undefined }
 		});
 		return questions.flatMap((question) => publishedQuestionItem(question) ?? []).sort(byName);
 	});
@@ -65,7 +65,7 @@ export async function listPublishedDemographicForms(
 ): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
 		const forms = await apiClient.ListDemographicForms({
-			queries: { organization: organizationId ?? undefined }
+			queries: { organization_id: organizationId ?? undefined }
 		});
 		return forms.flatMap((form) => publishedFormItem(form) ?? []).sort(byName);
 	});
