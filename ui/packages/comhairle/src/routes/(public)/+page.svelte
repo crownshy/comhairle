@@ -70,7 +70,7 @@
 			<SearchBar
 				placeholder={m.conversations_search()}
 				aria-label={m.conversations_search()}
-				value={QueryParams.get<ConversationsParams>('search')}
+				value={QueryParams.get<ConversationsParams>('search') as string}
 				oninput={useDebounce((event) => {
 					QueryParams.set<ConversationsParams>(
 						'search',
