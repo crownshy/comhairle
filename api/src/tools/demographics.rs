@@ -100,8 +100,6 @@ impl ToolImpl for DemographicQuestionTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
-        _db: &mut sqlx::PgConnection,
-        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         Ok(setup.clone())
@@ -347,8 +345,6 @@ impl ToolImpl for DemographicFormTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
-        _db: &mut sqlx::PgConnection,
-        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         Ok(setup.clone())
