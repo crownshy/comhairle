@@ -98,16 +98,6 @@ pub struct ConsentInput {
     pub granted: bool,
 }
 
-/// The demographic answers collected by the signup form.
-#[derive(Debug, Default)]
-pub struct SignupAnswers {
-    pub age: Option<i32>,
-    pub ethnicity: Option<String>,
-    pub gender: Option<String>,
-    pub zipcode: Option<String>,
-    pub political_party: Option<String>,
-}
-
 /// The answer to a single or multi select question.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

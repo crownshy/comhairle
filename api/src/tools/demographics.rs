@@ -280,6 +280,16 @@ impl ToolImpl for DemographicQuestionTool {
                 .route_layer(requires(SystemAction::DemographicDefaultManage)),
             )
             .api_route(
+                "/demographics/defaults/tags",
+                post_with(create_default_tag, |op| {
+                    op.id("CreateDemographicDefaultTag")
+                        .tag("Demographics")
+                        .security_requirement("JWT")
+                        .response::<201, Json<DemographicTag>>()
+                })
+                .route_layer(requires(SystemAction::DemographicDefaultManage)),
+            )
+            .api_route(
                 "/demographics/defaults/{question_id}/draft",
                 put_with(update_default_draft, |op| {
                     op.id("UpdateDemographicDefaultDraft")
@@ -1013,6 +1023,15 @@ async fn create_default(
     Ok((StatusCode::CREATED, Json(question)))
 }
 
+#[instrument(skip(state, body))]
+async fn create_default_tag(
+    State(state): State<Arc<ComhairleState>>,
+    Json(body): Json<CreateTagInput>,
+) -> Result<(StatusCode, Json<DemographicTag>), ComhairleError> {
+    let tag = questions::create_tag(&state.db, None, &body.name).await?;
+    Ok((StatusCode::CREATED, Json(tag)))
+}
+
 #[instrument(skip(state, locale, body))]
 async fn update_default_draft(
     State(state): State<Arc<ComhairleState>>,
@@ -1114,15 +1133,28 @@ mod tests {
     use sqlx::PgPool;
     use uuid::Uuid;
 
+    use crate::models::demographics::questions;
     use crate::setup_server;
     use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
 
-    const DEFAULT_QUESTION_COUNT: usize = 5;
+    /// Publishes one system default question, with a system tag, so tests do not rely on seed data.
+    async fn publish_default_question(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
+        let tag = questions::create_tag(pool, None, "Age").await?;
+        let draft = serde_json::from_value(json!({
+            "text": "What is your age?",
+            "question_type": "number",
+            "tag_ids": [tag.id],
+        }))?;
+        let created = questions::create_question(pool, None, &draft, "en").await?;
+        questions::publish_question(pool, None, created.question.id, "en").await?;
+        Ok(created.question.id)
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_show_system_questions_without_organization_but_block_changes(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        let default_id = publish_default_question(&pool).await?;
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1136,13 +1168,8 @@ mod tests {
             "admins outside an organization can list questions"
         );
         let questions = questions.as_array().ok_or("questions should be a list")?;
-        assert_eq!(questions.len(), DEFAULT_QUESTION_COUNT);
+        assert_eq!(questions.len(), 1);
         assert!(questions.iter().all(|q| q["organization_id"].is_null()));
-
-        let default_id = questions[0]["id"]
-            .as_str()
-            .ok_or("question id")?
-            .to_string();
         let (status, _, _) = admin
             .get(&app, &format!("/tools/demographics/questions/{default_id}"))
             .await?;
@@ -1192,6 +1219,19 @@ mod tests {
             "only super admins manage system defaults"
         );
 
+        let (status, _, _) = admin
+            .post(
+                &app,
+                "/tools/demographics/defaults/tags",
+                json!({ "name": "Not allowed" }).to_string().into(),
+            )
+            .await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "only super admins create system categories"
+        );
+
         Ok(())
     }
 
@@ -1199,6 +1239,7 @@ mod tests {
     async fn should_only_manage_organizations_the_admin_belongs_to(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
+        publish_default_question(&pool).await?;
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1234,7 +1275,7 @@ mod tests {
                 .as_array()
                 .ok_or("questions should be a list")?
                 .len(),
-            DEFAULT_QUESTION_COUNT
+            1
         );
 
         let (status, forms, _) = member.get(&app, &paramsd_forms).await?;
@@ -1270,7 +1311,7 @@ mod tests {
                 .as_array()
                 .ok_or("questions should be a list")?
                 .len(),
-            DEFAULT_QUESTION_COUNT,
+            1,
             "system defaults stay readable without a selected organization"
         );
 

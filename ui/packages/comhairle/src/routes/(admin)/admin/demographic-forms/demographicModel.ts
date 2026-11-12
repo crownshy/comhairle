@@ -42,11 +42,6 @@ export const defaultPlaceholder = (kind: QuestionKind, datePrecision: DatePrecis
 	kind === 'date' ? DATE_PLACEHOLDERS[datePrecision] : DEFAULT_PLACEHOLDERS[kind];
 
 const TAG_COLOR_CLASSES: Record<string, string> = {
-	Age: 'bg-blue-100 text-blue-900 outline-blue-300 dark:bg-blue-950 dark:text-blue-100',
-	Gender: 'bg-purple-100 text-purple-900 outline-purple-300 dark:bg-purple-950 dark:text-purple-100',
-	Ethnicity:
-		'bg-amber-100 text-amber-900 outline-amber-300 dark:bg-amber-950 dark:text-amber-100',
-	Postcode: 'bg-green-100 text-green-900 outline-green-300 dark:bg-green-950 dark:text-green-100',
 	Custom: 'bg-slate-100 text-slate-800 outline-slate-300 dark:bg-slate-800 dark:text-slate-100',
 	'Special category': 'bg-red-100 text-red-900 outline-red-300 dark:bg-red-950 dark:text-red-100'
 };

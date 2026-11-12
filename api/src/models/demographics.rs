@@ -4,7 +4,6 @@
 //! responses point at a question version, so an answer always records exactly what was
 //! asked. See CONTEXT.md (Demographics) and ADRs 0051-0054.
 
-pub mod defaults;
 pub mod forms;
 pub mod questions;
 pub mod report;
@@ -100,7 +99,6 @@ mod tests {
     use sqlx::PgPool;
     use uuid::Uuid;
 
-    use super::defaults::{ETHNICITY_VERSION_ID, GENDER_VERSION_ID};
     use super::responses::{self, ConsentState};
     use super::types::{
         DemographicFormDraftInput, QuestionDraftInput, QuestionVersionDto, ResponseInput,
@@ -119,9 +117,6 @@ mod tests {
     use crate::tools::{ToolConfig, ToolImpl};
 
     const LOCALE: &str = "en";
-    const AGE_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000001);
-    const ETHNICITY_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000002);
-    const GENDER_QUESTION_ID: Uuid = Uuid::from_u128(0xde000001_0000_4000_8000_000000000003);
 
     type TestResult = Result<(), Box<dyn Error>>;
 
@@ -168,21 +163,39 @@ mod tests {
     }
 
     async fn first_tag_id(pool: &PgPool) -> Result<Uuid, Box<dyn Error>> {
-        let tags = questions::list_tags(pool, None).await?;
-        Ok(tags.first().ok_or("seeded tag missing")?.id)
+        if let Some(tag) = questions::list_tags(pool, None).await?.first() {
+            return Ok(tag.id);
+        }
+        Ok(questions::create_tag(pool, None, "Test category").await?.id)
     }
 
     /// Creates a question with a draft v1 and publishes it, returning the published version.
     async fn publish_new_question(
         pool: &PgPool,
         org_id: Uuid,
+        draft: Value,
+    ) -> Result<QuestionVersionDto, Box<dyn Error>> {
+        publish_owned_question(pool, Some(org_id), draft).await
+    }
+
+    /// Like `publish_new_question`, but owned by the system so every Organization inherits it.
+    async fn publish_default_question(
+        pool: &PgPool,
+        draft: Value,
+    ) -> Result<QuestionVersionDto, Box<dyn Error>> {
+        publish_owned_question(pool, None, draft).await
+    }
+
+    async fn publish_owned_question(
+        pool: &PgPool,
+        owner: Option<Uuid>,
         mut draft: Value,
     ) -> Result<QuestionVersionDto, Box<dyn Error>> {
         draft["tag_ids"] = json!([first_tag_id(pool).await?]);
         let created =
-            questions::create_question(pool, Some(org_id), &question_input(draft), LOCALE).await?;
+            questions::create_question(pool, owner, &question_input(draft), LOCALE).await?;
         let published =
-            questions::publish_question(pool, Some(org_id), created.question.id, LOCALE).await?;
+            questions::publish_question(pool, owner, created.question.id, LOCALE).await?;
         Ok(published
             .latest_published
             .ok_or("publish left no version")?)
@@ -272,15 +285,20 @@ mod tests {
         pool: PgPool,
     ) -> TestResult {
         let org_id = create_org(&pool).await?;
+        let default = publish_default_question(
+            &pool,
+            json!({"text": "What is your age?", "question_type": "number"}),
+        )
+        .await?;
+        let question_id = default.version.question_id;
 
-        let start = questions::start_draft(&pool, Some(org_id), AGE_QUESTION_ID, LOCALE).await;
+        let start = questions::start_draft(&pool, Some(org_id), question_id, LOCALE).await;
         assert!(matches!(start, Err(ComhairleError::ResourceNotFound(_))));
-        let archive =
-            questions::archive_question(&pool, Some(org_id), AGE_QUESTION_ID, LOCALE).await;
+        let archive = questions::archive_question(&pool, Some(org_id), question_id, LOCALE).await;
         assert!(matches!(archive, Err(ComhairleError::ResourceNotFound(_))));
 
         let visible = questions::list_questions(&pool, Some(org_id), LOCALE).await?;
-        assert!(visible.iter().any(|q| q.question.id == AGE_QUESTION_ID));
+        assert!(visible.iter().any(|q| q.question.id == question_id));
         Ok(())
     }
 
@@ -409,7 +427,17 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_gate_special_category_answers_on_consent(pool: PgPool) -> TestResult {
         let user_id = create_user(&pool, "participant").await?;
-        let version_id = ETHNICITY_VERSION_ID;
+        let ethnicity = publish_default_question(
+            &pool,
+            json!({
+                "text": "What is your ethnicity?",
+                "question_type": "text",
+                "special_category": true,
+                "consent_text": "We only ask with your consent.",
+            }),
+        )
+        .await?;
+        let version_id = ethnicity.version.id;
         let answer = ResponseInput {
             value: json!("Irish"),
             conversation_id: None,
@@ -422,9 +450,6 @@ mod tests {
         let refused = responses::put_response(&pool, user_id, version_id, &answer, LOCALE).await;
         assert!(matches!(refused, Err(ComhairleError::Unprocessable(_))));
 
-        let ethnicity = questions::load_latest_published(&pool, ETHNICITY_QUESTION_ID, LOCALE)
-            .await?
-            .ok_or("ethnicity default should be published")?;
         let mut conn = pool.acquire().await?;
         assert_eq!(
             responses::consent_state(&mut conn, user_id, version_id).await?,
@@ -450,10 +475,12 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_reuse_answer_only_for_the_exact_question_version(pool: PgPool) -> TestResult {
         let user_id = create_user(&pool, "returning_participant").await?;
-        let gender_v1 = questions::load_latest_published(&pool, GENDER_QUESTION_ID, LOCALE)
-            .await?
-            .ok_or("gender default should be published")?;
-        assert_eq!(gender_v1.version.id, GENDER_VERSION_ID);
+        let gender_v1 = publish_default_question(
+            &pool,
+            json!({"text": "What is your gender?", "question_type": "text"}),
+        )
+        .await?;
+        let gender_question_id = gender_v1.version.question_id;
 
         responses::put_response(
             &pool,
@@ -474,9 +501,9 @@ mod tests {
         assert_eq!(reused.value, json!("Prefer to describe"));
         drop(conn);
 
-        questions::start_draft(&pool, None, GENDER_QUESTION_ID, LOCALE).await?;
+        questions::start_draft(&pool, None, gender_question_id, LOCALE).await?;
         let republished =
-            questions::publish_question(&pool, None, GENDER_QUESTION_ID, LOCALE).await?;
+            questions::publish_question(&pool, None, gender_question_id, LOCALE).await?;
         let gender_v2 = republished
             .latest_published
             .ok_or("gender v2 should be published")?;
@@ -494,6 +521,11 @@ mod tests {
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_keep_submitted_answers_and_only_allow_anonymising(pool: PgPool) -> TestResult {
         let user_id = create_user(&pool, "unchanging_participant").await?;
+        let gender = publish_default_question(
+            &pool,
+            json!({"text": "What is your gender?", "question_type": "text"}),
+        )
+        .await?;
         let answer = |value: Value| ResponseInput {
             value,
             conversation_id: None,
@@ -502,7 +534,7 @@ mod tests {
         let saved = responses::put_response(
             &pool,
             user_id,
-            GENDER_VERSION_ID,
+            gender.version.id,
             &answer(json!("Woman")),
             LOCALE,
         )
@@ -510,7 +542,7 @@ mod tests {
         let repeated = responses::put_response(
             &pool,
             user_id,
-            GENDER_VERSION_ID,
+            gender.version.id,
             &answer(json!("Woman")),
             LOCALE,
         )
@@ -520,7 +552,7 @@ mod tests {
         let changed = responses::put_response(
             &pool,
             user_id,
-            GENDER_VERSION_ID,
+            gender.version.id,
             &answer(json!("Man")),
             LOCALE,
         )
@@ -550,6 +582,42 @@ mod tests {
                 .fetch_one(&pool)
                 .await?;
         assert_eq!(kept, json!("Woman"));
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_keep_answers_without_a_user_when_the_user_is_deleted(
+        pool: PgPool,
+    ) -> TestResult {
+        let user_id = create_user(&pool, "leaving_participant").await?;
+        let age = publish_default_question(
+            &pool,
+            json!({"text": "What is your age?", "question_type": "number"}),
+        )
+        .await?;
+        let saved = responses::put_response(
+            &pool,
+            user_id,
+            age.version.id,
+            &ResponseInput {
+                value: json!(40),
+                conversation_id: None,
+            },
+            LOCALE,
+        )
+        .await?;
+
+        sqlx::query("DELETE FROM comhairle_user WHERE id = $1")
+            .bind(user_id)
+            .execute(&pool)
+            .await?;
+
+        let owner: Option<Uuid> =
+            sqlx::query_scalar("SELECT user_id FROM demographics_response WHERE id = $1")
+                .bind(saved.id)
+                .fetch_one(&pool)
+                .await?;
+        assert_eq!(owner, None, "the answer should be kept without its user");
         Ok(())
     }
 

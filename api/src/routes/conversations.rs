@@ -2524,20 +2524,31 @@ mod tests {
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_export_conversation_demographics(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        use crate::models::demographics::defaults::{
-            AGE_VERSION_ID, ETHNICITY_VERSION_ID, GENDER_VERSION_ID,
-        };
+        use crate::models::demographics::questions;
         use crate::models::demographics::responses::{record_response, set_consent};
+        use crate::models::demographics::types::QuestionVersionDto;
         use crate::models::{user_participation, user_profile};
         use crate::routes::auth::SignupRequest;
 
-        const DEFAULT_QUESTION_IDS: [Uuid; 5] = [
-            Uuid::from_u128(0xde000001_0000_4000_8000_000000000001),
-            Uuid::from_u128(0xde000001_0000_4000_8000_000000000002),
-            Uuid::from_u128(0xde000001_0000_4000_8000_000000000003),
-            Uuid::from_u128(0xde000001_0000_4000_8000_000000000004),
-            Uuid::from_u128(0xde000001_0000_4000_8000_000000000005),
-        ];
+        async fn publish_default_question(
+            pool: &PgPool,
+            draft: serde_json::Value,
+        ) -> Result<QuestionVersionDto, Box<dyn Error>> {
+            let mut draft = draft;
+            let tag = match questions::list_tags(pool, None).await?.into_iter().next() {
+                Some(tag) => tag,
+                None => questions::create_tag(pool, None, "Test category").await?,
+            };
+            draft["tag_ids"] = json!([tag.id]);
+            let created =
+                questions::create_question(pool, None, &serde_json::from_value(draft)?, "en")
+                    .await?;
+            let published =
+                questions::publish_question(pool, None, created.question.id, "en").await?;
+            Ok(published
+                .latest_published
+                .ok_or("publish left no version")?)
+        }
 
         async fn answer(
             pool: &PgPool,
@@ -2557,6 +2568,27 @@ mod tests {
             .await?;
             Ok(())
         }
+
+        let age = publish_default_question(
+            &pool,
+            json!({"text": "What is your age?", "question_type": "number"}),
+        )
+        .await?;
+        let gender = publish_default_question(
+            &pool,
+            json!({"text": "What is your gender?", "question_type": "text"}),
+        )
+        .await?;
+        let ethnicity = publish_default_question(
+            &pool,
+            json!({
+                "text": "What is your ethnicity?",
+                "question_type": "text",
+                "special_category": true,
+                "consent_text": "We only ask with your consent.",
+            }),
+        )
+        .await?;
 
         let state = Arc::new(test_state().db(pool.clone()).call()?);
         let app = setup_server(state.clone()).await?;
@@ -2591,7 +2623,7 @@ mod tests {
         let workflow: crate::routes::workflows::dto::WorkflowDto =
             serde_json::from_value(workflow)?;
 
-        for question_id in DEFAULT_QUESTION_IDS {
+        for question in [&age, &gender, &ethnicity] {
             let (status, _, _) = admin_session
                 .create_workflow_step(
                     &app,
@@ -2606,7 +2638,7 @@ mod tests {
                         "required": false,
                         "tool_setup": {
                             "type": "demographicquestion",
-                            "question_id": question_id,
+                            "question_id": question.version.question_id,
                             "version": { "type": "latest" }
                         },
                     }),
@@ -2631,29 +2663,24 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user1.id,
                 consented: true,
-                ethnicity: None,
-                age: None,
-                gender: None,
-                zipcode: None,
-                political_party: None,
             },
         )
         .await?;
-        answer(&pool, user1.id, conversation.id, AGE_VERSION_ID, json!(25)).await?;
+        answer(&pool, user1.id, conversation.id, age.version.id, json!(25)).await?;
         answer(
             &pool,
             user1.id,
             conversation.id,
-            GENDER_VERSION_ID,
+            gender.version.id,
             json!("Female"),
         )
         .await?;
-        set_consent(&pool, user1.id, ETHNICITY_VERSION_ID, true, "en").await?;
+        set_consent(&pool, user1.id, ethnicity.version.id, true, "en").await?;
         answer(
             &pool,
             user1.id,
             conversation.id,
-            ETHNICITY_VERSION_ID,
+            ethnicity.version.id,
             json!("Asian"),
         )
         .await?;
@@ -2674,20 +2701,15 @@ mod tests {
             &user_profile::CreateUserProfile {
                 user_id: user2.id,
                 consented: false, // This user should not appear in export
-                ethnicity: None,
-                age: None,
-                gender: None,
-                zipcode: None,
-                political_party: None,
             },
         )
         .await?;
-        answer(&pool, user2.id, conversation.id, AGE_VERSION_ID, json!(30)).await?;
+        answer(&pool, user2.id, conversation.id, age.version.id, json!(30)).await?;
         answer(
             &pool,
             user2.id,
             conversation.id,
-            GENDER_VERSION_ID,
+            gender.version.id,
             json!("Male"),
         )
         .await?;

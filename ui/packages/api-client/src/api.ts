@@ -418,14 +418,7 @@ export const UserProfileDto = z
   .passthrough();
 export type UserProfileDto = z.infer<typeof UserProfileDto>;
 export const UpsertUserProfileRequest = z
-  .object({
-    age: z.union([z.number(), z.null()]),
-    consented: z.union([z.boolean(), z.null()]),
-    ethnicity: z.union([z.string(), z.null()]),
-    gender: z.union([z.string(), z.null()]),
-    politicalParty: z.union([z.string(), z.null()]),
-    zipcode: z.union([z.string(), z.null()]),
-  })
+  .object({ consented: z.union([z.boolean(), z.null()]) })
   .partial()
   .passthrough();
 export type UpsertUserProfileRequest = z.infer<typeof UpsertUserProfileRequest>;
@@ -3458,6 +3451,10 @@ export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
 export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
+export const RecorderWebhookResponse = z
+  .object({ success: z.boolean() })
+  .passthrough();
+export type RecorderWebhookResponse = z.infer<typeof RecorderWebhookResponse>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -4324,6 +4321,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DeleteRecordingResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
+  RecorderWebhookResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -5204,6 +5202,14 @@ curl -X POST \
     description: `Enqueue a background job to transcribe and categorize a single audio recording.`,
     requestFormat: "json",
     response: ProcessRecordingResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/recorder_webhook",
+    alias: "RecorderWebhook",
+    description: `Webhook jitsi-recorder calls when a triggered recording session ends. Authenticated by an HMAC signature derived from the recording id.`,
+    requestFormat: "json",
+    response: z.object({ success: z.boolean() }).passthrough(),
   },
   {
     method: "post",
@@ -7388,6 +7394,20 @@ See [&#x60;QuestionDto&#x60;] and [&#x60;QuestionVersionDto&#x60;] for the full 
     alias: "PublishDemographicDefault",
     requestFormat: "json",
     response: QuestionDto,
+  },
+  {
+    method: "post",
+    path: "/tools/demographics/defaults/tags",
+    alias: "CreateDemographicDefaultTag",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ name: z.string() }).passthrough(),
+      },
+    ],
+    response: DemographicTag,
   },
   {
     method: "get",
