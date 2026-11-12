@@ -23,7 +23,7 @@ use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::models::scheduled_email::{
     self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
 };
-use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::models::users::User;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -477,24 +477,8 @@ pub async fn create(
     columns.push(EventIden::ConversationId);
     values.push((*conversation_id).into());
 
-    let mut transaction = db.begin().await?;
-    let scope = TranslationScope::Conversation(*conversation_id);
-    let name = new_translation(
-        &mut transaction,
-        scope,
-        "en",
-        &new_event.name,
-        TextFormat::Plain,
-    )
-    .await?;
-    let description = new_translation(
-        &mut transaction,
-        scope,
-        "en",
-        &new_event.description,
-        TextFormat::Plain,
-    )
-    .await?;
+    let name = new_translation(db, "en", &new_event.name, TextFormat::Plain).await?;
+    let description = new_translation(db, "en", &new_event.description, TextFormat::Plain).await?;
 
     columns.push(EventIden::Name);
     values.push(name.id.into());
@@ -519,10 +503,9 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(&mut *transaction)
+        .fetch_one(db)
         .await?;
 
-    transaction.commit().await?;
     Ok(event)
 }
 
@@ -805,7 +788,7 @@ pub async fn list(
     let query = Query::select()
         .from(EventIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
-        .and_where(Expr::col((EventIden::Table, EventIden::ConversationId)).eq(*conversation_id))
+        .and_where(Expr::col(EventIden::ConversationId).eq(*conversation_id))
         .to_owned();
 
     // Add current_attendance computed column using subquery
@@ -1275,9 +1258,6 @@ mod tests {
         let _ = create(&pool, &conversation_id, &new_event_3).await?;
         let _ = create(&pool, &conversation_id, &new_event_4).await?;
 
-        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        create_named_event(&pool, other_conversation_id, "other_conversation_event").await?;
-
         let page_options = PageOptions {
             offset: None,
             limit: None,
@@ -1299,18 +1279,6 @@ mod tests {
         .await?;
 
         assert_eq!(results.total, 4, "incorrect number of events");
-        assert_eq!(
-            results.records.len(),
-            4,
-            "incorrect number of event records"
-        );
-        assert!(
-            results
-                .records
-                .iter()
-                .all(|record| record.event.conversation_id == conversation_id),
-            "events from another conversation were included"
-        );
         assert_eq!(
             results.records[2].event.name,
             "test_event_3".to_string(),

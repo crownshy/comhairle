@@ -71,8 +71,7 @@
 			apiClient.CreateTextContent({
 				content,
 				format: 'rich',
-				primary_locale: conversation.primaryLocale,
-				scope: { type: 'conversation', id: conversation.id }
+				primary_locale: conversation.primaryLocale
 			})
 		);
 

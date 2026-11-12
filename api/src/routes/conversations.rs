@@ -2146,14 +2146,12 @@ mod tests {
         let create_privacy_policy = json!({
             "primary_locale": "en",
             "format": "plain",
-            "content": "Test privacy policy",
-            "scope": { "type": "conversation", "id": conversation.id }
+            "content": "Test privacy policy"
         });
         let create_faqs = json!({
             "primary_locale": "en",
             "format": "plain",
-            "content": "Test faqs",
-            "scope": { "type": "conversation", "id": conversation.id }
+            "content": "Test faqs"
         });
         let (_, privacy_policy_res, _) = session
             .post(

@@ -10,8 +10,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
-use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
-use crate::models::{SqlxResultExt, proposal, workflow_step};
+use crate::models::SqlxResultExt;
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 /// A single translatable body section of a [`crate::models::proposal::Proposal`].
 ///
@@ -47,25 +47,7 @@ pub async fn create(
     body: &str,
     locale: &str,
 ) -> Result<ProposalSection, ComhairleError> {
-    let proposal = proposal::get_by_id(db, proposal_id).await?;
-    let step = workflow_step::get_by_id(db, &proposal.workflow_step_id).await?;
-    let scope = workflow_step::translation_scope_for_workflow(db, step.workflow_id).await?;
-    let mut transaction = db.begin().await?;
-    let section =
-        create_in_transaction(&mut transaction, proposal_id, position, body, locale, scope).await?;
-    transaction.commit().await?;
-    Ok(section)
-}
-
-pub async fn create_in_transaction(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    proposal_id: &Uuid,
-    position: i32,
-    body: &str,
-    locale: &str,
-    scope: TranslationScope,
-) -> Result<ProposalSection, ComhairleError> {
-    let content = new_translation(transaction, scope, locale, body, TextFormat::Rich).await?;
+    let content = new_translation(db, locale, body, TextFormat::Rich).await?;
 
     let (sql, values) = Query::insert()
         .into_table(ProposalSectionIden::Table)
@@ -78,9 +60,7 @@ pub async fn create_in_transaction(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let section = query_as_with(&sql, values)
-        .fetch_one(&mut **transaction)
-        .await?;
+    let section = query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(section)
 }

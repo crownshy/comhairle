@@ -208,10 +208,7 @@
 			if (glossary.length > 0) {
 				for (const locale of newlyAddedLanguages) {
 					const translation = await tryCatchAsync(() =>
-						translateGlossaryToLocale(glossary, locale, primaryLocale, {
-							type: 'conversation',
-							id: conversation.id
-						})
+						translateGlossaryToLocale(glossary, locale, primaryLocale)
 					);
 					if (translation.err !== null) {
 						notifications.send({

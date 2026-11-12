@@ -110,7 +110,6 @@ export const OrganizationAction = z.enum([
   "organization_read",
   "organization_update",
   "organization_delete",
-  "organization_translate",
   "list_permission",
   "grant_permission",
   "revoke_permission",
@@ -484,22 +483,11 @@ export const TextFormat = z.union([
   z.literal("rich"),
 ]);
 export type TextFormat = z.infer<typeof TextFormat>;
-export const TranslationScope = z.union([
-  z.object({ type: z.literal("system") }).passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("conversation") })
-    .passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("organization") })
-    .passthrough(),
-]);
-export type TranslationScope = z.infer<typeof TranslationScope>;
 export const CreateTextContentRequest = z
   .object({
     content: z.string(),
     format: TextFormat,
     primary_locale: z.string(),
-    scope: TranslationScope,
   })
   .passthrough();
 export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
@@ -561,25 +549,6 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
-export const TranslateTextContentSourceRequest = z
-  .object({ source_content: z.string(), source_locale: z.string() })
-  .passthrough();
-export type TranslateTextContentSourceRequest = z.infer<
-  typeof TranslateTextContentSourceRequest
->;
-export const TranslatedText = z
-  .object({ content: z.string(), requires_validation: z.boolean() })
-  .passthrough();
-export type TranslatedText = z.infer<typeof TranslatedText>;
-export const TranslateTextRequest = z
-  .object({
-    scope: TranslationScope,
-    source_content: z.string(),
-    source_locale: z.string(),
-    target_locale: z.string(),
-  })
-  .passthrough();
-export type TranslateTextRequest = z.infer<typeof TranslateTextRequest>;
 export const PolisPublicKeyStats = z
   .object({
     participants: z.number().int().gte(0),
@@ -3792,10 +3761,6 @@ export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
 export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
-export const RecorderWebhookResponse = z
-  .object({ success: z.boolean() })
-  .passthrough();
-export type RecorderWebhookResponse = z.infer<typeof RecorderWebhookResponse>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -4362,7 +4327,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UnreadCount,
   NotificationDelivery,
   TextFormat,
-  TranslationScope,
   CreateTextContentRequest,
   TextContentDto,
   TextTranslationDto,
@@ -4370,9 +4334,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
-  TranslateTextContentSourceRequest,
-  TranslatedText,
-  TranslateTextRequest,
   PolisPublicKeyStats,
   PolisPublicGroup,
   PolisPublicGroupVotes,
@@ -4703,7 +4664,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DeleteRecordingResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
-  RecorderWebhookResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -5584,14 +5544,6 @@ curl -X POST \
     description: `Enqueue a background job to transcribe and categorize a single audio recording.`,
     requestFormat: "json",
     response: ProcessRecordingResponse,
-  },
-  {
-    method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/recorder_webhook",
-    alias: "RecorderWebhook",
-    description: `Webhook jitsi-recorder calls when a triggered recording session ends. Authenticated by an HMAC signature derived from the recording id.`,
-    requestFormat: "json",
-    response: z.object({ success: z.boolean() }).passthrough(),
   },
   {
     method: "post",
@@ -9543,39 +9495,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
   {
     method: "post",
-    path: "/translations/:text_content_id/:locale/translate-source",
-    alias: "TranslateTextContentSource",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: TranslateTextContentSourceRequest,
-      },
-    ],
-    response: TranslatedText,
-  },
-  {
-    method: "post",
     path: "/translations/:text_content_id/translate",
     alias: "GenerateAllTranslations",
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
-  },
-  {
-    method: "post",
-    path: "/translations/translate",
-    alias: "TranslateText",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: TranslateTextRequest,
-      },
-    ],
-    response: TranslatedText,
   },
   {
     method: "get",

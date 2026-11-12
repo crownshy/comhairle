@@ -71,9 +71,6 @@ pub enum Action {
     #[serde(rename = "organization_delete")]
     #[strum(serialize = "organization_delete")]
     Delete,
-    #[serde(rename = "organization_translate")]
-    #[strum(serialize = "organization_translate")]
-    Translate,
     #[serde(rename = "list_permission")]
     #[strum(serialize = "list_permission")]
     ListPermission,
@@ -118,9 +115,6 @@ pub enum Role {
     #[serde(rename = "organization_member")]
     #[strum(serialize = "organization_member")]
     Member,
-    #[serde(rename = "translator")]
-    #[strum(serialize = "translator")]
-    Translator,
 }
 
 impl PermissionRole for Role {
@@ -133,7 +127,6 @@ impl PermissionRole for Role {
         match self {
             Self::Admin => ALL_ACTIONS.as_slice(),
             Self::Member => &[Action::Read],
-            Self::Translator => &[Action::Read, Action::Translate],
         }
     }
 }
@@ -149,14 +142,6 @@ mod tests {
         assert!(Role::Admin.allows(Action::RevokePermission));
         assert!(Role::Admin.allows(Action::RemoveMember));
         assert_eq!(Action::RESOURCE_TYPE, ResourceType::Organization);
-    }
-
-    #[test]
-    fn translators_can_read_and_translate_but_not_update() {
-        assert!(Role::Translator.allows(Action::Read));
-        assert!(Role::Translator.allows(Action::Translate));
-        assert!(!Role::Translator.allows(Action::Update));
-        assert!(!Role::Translator.allows(Action::GrantPermission));
     }
 
     #[test]

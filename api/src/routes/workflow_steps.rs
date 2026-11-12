@@ -24,8 +24,7 @@ use crate::middleware::permissions::{PermissionRequirement, authorize as permiss
 use crate::models::permissions::ConversationResource;
 use crate::models::permissions::conversation::Action;
 use crate::models::translations::{
-    CollectTextContentIds, TextContentId, TranslationScope, get_text_content_with_translations,
-    localize_translations,
+    CollectTextContentIds, TextContentId, get_text_content_with_translations, localize_translations,
 };
 use crate::models::workflow_step::{
     self, ActivationRule, CreateWorkflowStep, PartialWorkflowStep, WithToolConfig, setup_tool,
@@ -126,15 +125,8 @@ async fn create_workflow_step(
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    let mut transaction = state.db.begin().await?;
-    let preview_tool_config = setup_tool(
-        &payload.tool_setup,
-        &state,
-        &mut transaction,
-        TranslationScope::Conversation(conversation_id),
-        &conversation.primary_locale,
-    )
-    .await?;
+    let preview_tool_config =
+        setup_tool(&payload.tool_setup, &state, &conversation.primary_locale).await?;
 
     let new_step = CreateWorkflowStep {
         name: payload.name,
@@ -149,18 +141,16 @@ async fn create_workflow_step(
         data_protocol: None,
     };
 
-    let workflow_step = workflow_step::create_in_transaction(
+    let workflow_step = workflow_step::create(
         &state,
-        &mut transaction,
         &new_step,
         workflow_id,
         &conversation.primary_locale,
         conversation.is_live,
         conversation.organization_id,
     )
-    .await?;
-    transaction.commit().await?;
-    let workflow_step = workflow_step.into();
+    .await?
+    .into();
     Ok((StatusCode::CREATED, Json(workflow_step)))
 }
 

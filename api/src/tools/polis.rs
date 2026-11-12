@@ -249,8 +249,6 @@ impl ToolImpl for PolisTool {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
-        _db: &mut sqlx::PgConnection,
-        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function

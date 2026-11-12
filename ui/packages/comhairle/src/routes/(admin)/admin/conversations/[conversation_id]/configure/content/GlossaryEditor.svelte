@@ -249,30 +249,14 @@
 
 			if (sourceTerms && !termsOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(
-						sourceTerms,
-						activeLocale,
-						{
-							type: 'conversation',
-							id: conversation.id
-						},
-						primaryLocale
-					)
+					aiTranslateContent(sourceTerms, activeLocale, primaryLocale)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.terms[activeLocale] = result.ok;
 			}
 			if (sourceTip && !tipOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(
-						sourceTip,
-						activeLocale,
-						{
-							type: 'conversation',
-							id: conversation.id
-						},
-						primaryLocale
-					)
+					aiTranslateContent(sourceTip, activeLocale, primaryLocale)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.tooltips[activeLocale] = result.ok;

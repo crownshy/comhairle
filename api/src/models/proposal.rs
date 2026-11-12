@@ -11,9 +11,9 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::SqlxResultExt;
 use crate::models::proposal_section::{self, ProposalSection};
 use crate::models::translations::{TextContentId, TextFormat, new_translation};
-use crate::models::{SqlxResultExt, workflow_step};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "proposal_evaluation_proposal")]
@@ -53,17 +53,7 @@ pub async fn create(
     new_proposal: &CreateProposal,
     locale: &str,
 ) -> Result<(Proposal, Vec<ProposalSection>), ComhairleError> {
-    let step = workflow_step::get_by_id(db, workflow_step_id).await?;
-    let scope = workflow_step::translation_scope_for_workflow(db, step.workflow_id).await?;
-    let mut transaction = db.begin().await?;
-    let title = new_translation(
-        &mut transaction,
-        scope,
-        locale,
-        &new_proposal.title,
-        TextFormat::Plain,
-    )
-    .await?;
+    let title = new_translation(db, locale, &new_proposal.title, TextFormat::Plain).await?;
 
     let (sql, values) = Query::insert()
         .into_table(ProposalIden::Table)
@@ -72,25 +62,15 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let proposal: Proposal = query_as_with(&sql, values)
-        .fetch_one(&mut *transaction)
-        .await?;
+    let proposal: Proposal = query_as_with(&sql, values).fetch_one(db).await?;
 
     let mut sections = Vec::with_capacity(new_proposal.sections.len());
     for (index, body) in new_proposal.sections.iter().enumerate() {
-        let section = proposal_section::create_in_transaction(
-            &mut transaction,
-            &proposal.id,
-            index as i32,
-            body,
-            locale,
-            scope,
-        )
-        .await?;
+        let section =
+            proposal_section::create(db, &proposal.id, index as i32, body, locale).await?;
         sections.push(section);
     }
 
-    transaction.commit().await?;
     Ok((proposal, sections))
 }
 

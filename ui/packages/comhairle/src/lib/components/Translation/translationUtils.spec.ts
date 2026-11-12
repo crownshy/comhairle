@@ -79,10 +79,7 @@ describe('Translation utils', () => {
 				}
 			};
 
-			const result = await traverseTranslatableJsonAndCreateTranslations(payload, 'en', {
-				type: 'conversation',
-				id: NIL_UUID
-			});
+			const result = await traverseTranslatableJsonAndCreateTranslations(payload, 'en');
 
 			expect(dispatchRequest).toHaveBeenCalledTimes(3);
 			expect(typeof result.title).toBe('string');
@@ -136,10 +133,7 @@ describe('Translation utils', () => {
 				}
 			];
 
-			const result = await traverseTranslatableJsonAndCreateTranslations(payload, 'en', {
-				type: 'conversation',
-				id: NIL_UUID
-			});
+			const result = await traverseTranslatableJsonAndCreateTranslations(payload, 'en');
 
 			expect(dispatchRequest).toHaveBeenCalledTimes(6);
 

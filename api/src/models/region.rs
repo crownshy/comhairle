@@ -16,7 +16,7 @@ use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::organization::OrganizationIden;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
-use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "region")]
@@ -116,23 +116,9 @@ pub async fn create(
     let mut columns = new_region.columns();
     let mut values = new_region.values();
 
-    let mut transaction = db.begin().await?;
-    let name_translation = new_translation(
-        &mut transaction,
-        TranslationScope::System,
-        locale,
-        &new_region.name,
-        TextFormat::Plain,
-    )
-    .await?;
-    let description_translation = new_translation(
-        &mut transaction,
-        TranslationScope::System,
-        locale,
-        &new_region.description,
-        TextFormat::Plain,
-    )
-    .await?;
+    let name_translation = new_translation(db, locale, &new_region.name, TextFormat::Plain).await?;
+    let description_translation =
+        new_translation(db, locale, &new_region.description, TextFormat::Plain).await?;
 
     columns.push(RegionIden::Name);
     values.push(name_translation.id.into());
@@ -147,11 +133,8 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let region = query_as_with(&sql, values)
-        .fetch_one(&mut *transaction)
-        .await?;
+    let region = query_as_with(&sql, values).fetch_one(db).await?;
 
-    transaction.commit().await?;
     Ok(region)
 }
 

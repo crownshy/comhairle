@@ -65,8 +65,6 @@ impl ToolImpl for ElicitationBotTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
-        _db: &mut sqlx::PgConnection,
-        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         elicitation_bot_setup(setup).await

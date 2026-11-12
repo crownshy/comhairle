@@ -17,7 +17,7 @@ use super::report_impact::{self};
 use super::{workflow, workflow_step};
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
-use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::routes::feedback::dto::FeedbackDto;
 use crate::routes::report_impacts::dto::ReportImpactDto;
 use crate::routes::reports::ReportView;
@@ -259,18 +259,15 @@ pub async fn create_for_conversation(
         ReportIden::SectionConfigs,
     ];
 
-    let mut transaction = db.begin().await?;
     let summary = new_translation(
-        &mut transaction,
-        TranslationScope::Conversation(conversation_id),
+        db,
         locale,
         "Summary to be filled out by facilitator",
         TextFormat::Rich,
     )
     .await?;
     let body = new_translation(
-        &mut transaction,
-        TranslationScope::Conversation(conversation_id),
+        db,
         locale,
         "Body to be filled out by facilitator",
         TextFormat::Rich,
@@ -291,14 +288,13 @@ pub async fn create_for_conversation(
         .build_sqlx(PostgresQueryBuilder);
 
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(&mut *transaction)
+        .fetch_one(db)
         .await
         .map_err(|e| ComhairleError::FailedToCreateResource {
             resource_type: "Report".into(),
             error: e,
         })?;
 
-    transaction.commit().await?;
     Ok(report)
 }
 

@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
-use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, new_translation_in_connection};
 use crate::models::{SqlxResultExt, users};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
@@ -145,15 +145,11 @@ pub async fn create_with_administrator(
     administrator_id: Uuid,
 ) -> Result<Organization, ComhairleError> {
     let mut transaction = db.begin().await?;
-    let organization_id = Uuid::new_v4();
     let mut columns = new_org.columns();
     let mut values = new_org.values();
-    columns.insert(0, OrganizationIden::Id);
-    values.insert(0, organization_id.into());
 
-    let description_translation = new_translation(
+    let description_translation = new_translation_in_connection(
         &mut transaction,
-        TranslationScope::Organization(organization_id),
         locale,
         &new_org.description,
         TextFormat::Plain,
@@ -163,9 +159,8 @@ pub async fn create_with_administrator(
     columns.push(OrganizationIden::Description);
     values.push(description_translation.id.into());
 
-    let mission_translation = new_translation(
+    let mission_translation = new_translation_in_connection(
         &mut transaction,
-        TranslationScope::Organization(organization_id),
         locale,
         &new_org.mission,
         TextFormat::Plain,

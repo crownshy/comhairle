@@ -147,7 +147,7 @@ impl PermissionRole for Role {
 
         match self {
             Self::Admin => ALL_ACTIONS.as_slice(),
-            Self::ContentEditor => &[Action::Read, Action::Update, Action::Translate],
+            Self::ContentEditor => &[Action::Read, Action::Update],
             Self::Observer => &[Action::Read],
             Self::Moderator => &[Action::Read, Action::Moderate],
             Self::Translator => &[Action::Read, Action::Translate],
@@ -166,7 +166,6 @@ mod tests {
         assert_eq!(Role::Observer.as_ref(), "observer");
         assert!(Role::ContentEditor.allows(Action::Read));
         assert!(Role::ContentEditor.allows(Action::Update));
-        assert!(Role::ContentEditor.allows(Action::Translate));
         assert!(!Role::ContentEditor.allows(Action::GrantPermission));
         assert!(Role::Observer.allows(Action::Read));
         assert!(!Role::Observer.allows(Action::Update));
@@ -182,9 +181,7 @@ mod tests {
                 let expected = match role {
                     Role::Admin => true,
                     Role::Observer => action == Action::Read,
-                    Role::ContentEditor => {
-                        matches!(action, Action::Read | Action::Update | Action::Translate)
-                    }
+                    Role::ContentEditor => matches!(action, Action::Read | Action::Update),
                     Role::Moderator => matches!(action, Action::Read | Action::Moderate),
                     Role::Translator => matches!(action, Action::Read | Action::Translate),
                     Role::DataAccess => matches!(action, Action::Read | Action::Export),

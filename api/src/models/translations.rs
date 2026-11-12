@@ -6,11 +6,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{Alias, Expr, Func, JoinType, LockType, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
-use sqlx::{PgConnection, PgPool, query_as_with};
+use sqlx::{PgPool, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -40,14 +40,6 @@ use crate::translation_service::TranslationService;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct TextContentId(pub Uuid);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", content = "id", rename_all = "snake_case")]
-pub enum TranslationScope {
-    System,
-    Conversation(Uuid),
-    Organization(Uuid),
-}
 
 impl TextContentId {
     /// Creates a new TextContentId with a random UUID.
@@ -356,8 +348,7 @@ pub trait BuildTextTranslation {
     /// Returns [`ComhairleError`] if the underlying insert fails.
     async fn build_text_translation(
         self,
-        db: &mut PgConnection,
-        scope: TranslationScope,
+        db: &PgPool,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError>;
@@ -369,12 +360,11 @@ impl BuildTextTranslation for String {
 
     async fn build_text_translation(
         self,
-        db: &mut PgConnection,
-        scope: TranslationScope,
+        db: &PgPool,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError> {
-        let translation = new_translation(db, scope, locale, &self, format).await?;
+        let translation = new_translation(db, locale, &self, format).await?;
         Ok(translation.id)
     }
 }
@@ -385,15 +375,12 @@ impl<T: BuildTextTranslation + Send> BuildTextTranslation for Option<T> {
 
     async fn build_text_translation(
         self,
-        db: &mut PgConnection,
-        scope: TranslationScope,
+        db: &PgPool,
         locale: &str,
         format: TextFormat,
     ) -> Result<Self::Built, ComhairleError> {
         match self {
-            Some(v) => Ok(Some(
-                v.build_text_translation(db, scope, locale, format).await?,
-            )),
+            Some(v) => Ok(Some(v.build_text_translation(db, locale, format).await?)),
             None => Ok(None),
         }
     }
@@ -612,8 +599,6 @@ pub struct TextContent {
     pub primary_locale: String,
     /// The format of the text content (plain, markdown, or rich)
     pub format: TextFormat,
-    pub conversation_id: Option<Uuid>,
-    pub organization_id: Option<Uuid>,
     /// Timestamp when this content was created
     pub created_at: DateTime<Utc>,
     /// Timestamp when this content was last updated
@@ -647,12 +632,10 @@ pub struct TextTranslation {
     pub updated_at: DateTime<Utc>,
 }
 
-const TEXT_CONTENT_DEFAULT_COLUMNS: [TextContentIden; 7] = [
+const TEXT_CONTENT_DEFAULT_COLUMNS: [TextContentIden; 5] = [
     TextContentIden::Id,
     TextContentIden::PrimaryLocale,
     TextContentIden::Format,
-    TextContentIden::ConversationId,
-    TextContentIden::OrganizationId,
     TextContentIden::CreatedAt,
     TextContentIden::UpdatedAt,
 ];
@@ -678,7 +661,6 @@ pub struct CreateTextContent {
     pub primary_locale: String,
     /// The format of the text content
     pub format: TextFormat,
-    pub scope: TranslationScope,
 }
 
 impl CreateTextContent {
@@ -688,13 +670,7 @@ impl CreateTextContent {
     ///
     /// A vector of TextContentIden enum values representing the database columns.
     pub fn columns(&self) -> Vec<TextContentIden> {
-        let mut columns = vec![TextContentIden::PrimaryLocale, TextContentIden::Format];
-        match self.scope {
-            TranslationScope::System => {}
-            TranslationScope::Conversation(_) => columns.push(TextContentIden::ConversationId),
-            TranslationScope::Organization(_) => columns.push(TextContentIden::OrganizationId),
-        }
-        columns
+        vec![TextContentIden::PrimaryLocale, TextContentIden::Format]
     }
 
     /// Returns the values to be inserted into the database columns.
@@ -703,17 +679,10 @@ impl CreateTextContent {
     ///
     /// A vector of sea_query::SimpleExpr values corresponding to the columns.
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let mut values = vec![
+        vec![
             self.primary_locale.clone().into(),
             self.format.to_string().into(),
-        ];
-        match self.scope {
-            TranslationScope::System => {}
-            TranslationScope::Conversation(id) | TranslationScope::Organization(id) => {
-                values.push(id.into())
-            }
-        }
-        values
+        ]
     }
 }
 
@@ -898,8 +867,8 @@ pub async fn create_text_content<'connection>(
 /// or a `ComhairleError::ResourceNotFound` if not found.
 
 #[instrument(err(Debug), skip(db))]
-pub async fn get_text_content_by_id<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn get_text_content_by_id(
+    db: &PgPool,
     id: &TextContentId,
 ) -> Result<TextContent, ComhairleError> {
     let (sql, values) = Query::select()
@@ -910,25 +879,6 @@ pub async fn get_text_content_by_id<'connection>(
 
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
-        .await
-        .resolve_db_err("Text Content")?;
-
-    Ok(text_content)
-}
-
-pub async fn get_text_content_by_id_for_update(
-    db: &mut PgConnection,
-    id: &TextContentId,
-) -> Result<TextContent, ComhairleError> {
-    let (sql, values) = Query::select()
-        .columns(TEXT_CONTENT_DEFAULT_COLUMNS)
-        .from(TextContentIden::Table)
-        .and_where(Expr::col(TextContentIden::Id).eq(id.as_uuid().to_owned()))
-        .lock(LockType::Update)
-        .build_sqlx(PostgresQueryBuilder);
-
-    let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
-        .fetch_one(&mut *db)
         .await
         .resolve_db_err("Text Content")?;
 
@@ -955,8 +905,8 @@ pub async fn get_text_content_by_id_for_update(
 /// * The text content with the given ID does not exist
 /// * The database operation fails
 #[instrument(err(Debug), skip(db))]
-pub async fn update_text_content<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn update_text_content(
+    db: &PgPool,
     id: &TextContentId,
     update: &UpdateTextContent,
 ) -> Result<TextContent, ComhairleError> {
@@ -1101,8 +1051,8 @@ pub async fn get_text_translation_by_id(
 /// or a `ComhairleError` on database failure. Returns an empty vector
 /// if no translations are found for the content.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_text_translations_by_content_id<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn get_text_translations_by_content_id(
+    db: &PgPool,
     content_id: &TextContentId,
 ) -> Result<Vec<TextTranslation>, ComhairleError> {
     let (sql, values) = Query::select()
@@ -1135,8 +1085,8 @@ pub async fn get_text_translations_by_content_id<'connection>(
 /// or a `ComhairleError::ResourceNotFound` if no translation exists
 /// for the given content and locale combination.
 #[instrument(err(Debug), skip(db))]
-pub async fn get_text_translation_by_content_and_locale<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn get_text_translation_by_content_and_locale(
+    db: &PgPool,
     content_id: &TextContentId,
     locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
@@ -1176,8 +1126,8 @@ pub async fn get_text_translation_by_content_and_locale<'connection>(
 /// * The database operation fails
 /// * The updated locale would create a duplicate (content_id, locale) pair
 #[instrument(err(Debug), skip(db))]
-pub async fn update_text_translation<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn update_text_translation(
+    db: &PgPool,
     id: &Uuid,
     update: &UpdateTextTranslation,
 ) -> Result<TextTranslation, ComhairleError> {
@@ -1213,8 +1163,8 @@ pub async fn update_text_translation<'connection>(
 /// Returns a `Result` containing the deleted `TextTranslation` on success,
 /// or a `ComhairleError::ResourceNotFound` if the translation doesn't exist.
 #[instrument(err(Debug), skip(db))]
-pub async fn delete_text_translation<'connection>(
-    db: impl sqlx::Executor<'connection, Database = sqlx::Postgres>,
+pub async fn delete_text_translation(
+    db: &PgPool,
     id: &Uuid,
 ) -> Result<TextTranslation, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -1297,31 +1247,18 @@ pub async fn auto_generate_all_translations(
     translator: &Arc<dyn TranslationService>,
     text_content_id: &TextContentId,
 ) -> Result<Vec<TextTranslation>, ComhairleError> {
-    let mut connection = db.acquire().await?;
-    auto_generate_all_translations_in_connection(&mut connection, translator, text_content_id).await
-}
-
-pub async fn auto_generate_all_translations_in_connection(
-    db: &mut PgConnection,
-    translator: &Arc<dyn TranslationService>,
-    text_content_id: &TextContentId,
-) -> Result<Vec<TextTranslation>, ComhairleError> {
-    let text_content = get_text_content_by_id(&mut *db, text_content_id).await?;
-    let translations = get_text_translations_by_content_id(&mut *db, text_content_id).await?;
+    let text_content = get_text_content_by_id(db, text_content_id).await?;
+    let translations = get_text_translations_by_content_id(db, text_content_id).await?;
     let mut result: Vec<TextTranslation> = vec![];
     for translation in translations.iter() {
         if translation.locale != text_content.primary_locale {
-            let new_translation = auto_generate_translation_in_connection(
-                db,
-                translator,
-                text_content_id,
-                &translation.locale,
-            )
-            .await?;
+            let new_translation =
+                auto_generate_translation(db, translator, text_content_id, &translation.locale)
+                    .await?;
             result.push(new_translation);
         }
     }
-    Ok(result)
+    return Ok(result);
 }
 
 /// Update this translation using the primary local
@@ -1333,24 +1270,13 @@ pub async fn auto_generate_translation(
     text_content_id: &TextContentId,
     locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
-    let mut connection = db.acquire().await?;
-    auto_generate_translation_in_connection(&mut connection, translator, text_content_id, locale)
-        .await
-}
-
-pub async fn auto_generate_translation_in_connection(
-    db: &mut PgConnection,
-    translator: &Arc<dyn TranslationService>,
-    text_content_id: &TextContentId,
-    locale: &str,
-) -> Result<TextTranslation, ComhairleError> {
-    let text_content = get_text_content_by_id(&mut *db, text_content_id).await?;
+    let text_content = get_text_content_by_id(db, text_content_id).await?;
 
     let translation =
-        get_text_translation_by_content_and_locale(&mut *db, text_content_id, locale).await?;
+        get_text_translation_by_content_and_locale(db, text_content_id, locale).await?;
 
     let reference_text = get_text_translation_by_content_and_locale(
-        &mut *db,
+        db,
         &text_content.id,
         &text_content.primary_locale,
     )
@@ -1365,7 +1291,7 @@ pub async fn auto_generate_translation_in_connection(
         .await?;
 
     let updated_translation = update_text_translation(
-        &mut *db,
+        db,
         &translation.id,
         &UpdateTextTranslation {
             content: Some(translated_text),
@@ -1378,26 +1304,34 @@ pub async fn auto_generate_translation_in_connection(
     Ok(updated_translation)
 }
 
-#[instrument(err(Debug), skip(conn))]
+#[instrument(err(Debug), skip(db))]
 pub async fn new_translation(
-    conn: &mut sqlx::PgConnection,
-    scope: TranslationScope,
+    db: &PgPool,
+    locale: &str,
+    content: &str,
+    format: TextFormat,
+) -> Result<TextContent, ComhairleError> {
+    let mut connection = db.acquire().await?;
+    new_translation_in_connection(&mut connection, locale, content, format).await
+}
+
+pub async fn new_translation_in_connection(
+    db: &mut sqlx::PgConnection,
     locale: &str,
     content: &str,
     format: TextFormat,
 ) -> Result<TextContent, ComhairleError> {
     let translation = create_text_content(
-        &mut *conn,
+        &mut *db,
         &CreateTextContent {
             primary_locale: locale.to_owned(),
             format,
-            scope,
         },
     )
     .await?;
 
     create_text_translation(
-        &mut *conn,
+        &mut *db,
         &CreateTextTranslation {
             content_id: translation.id,
             locale: locale.to_owned(),
@@ -1512,30 +1446,9 @@ mod tests {
     async fn should_resolve_translations_for_arbitrary_list(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let trans_a = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text a",
-            TextFormat::Plain,
-        )
-        .await?;
-        let trans_b = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text b",
-            TextFormat::Plain,
-        )
-        .await?;
-        let trans_c = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text c",
-            TextFormat::Plain,
-        )
-        .await?;
+        let trans_a = new_translation(&pool, "en", "Test text a", TextFormat::Plain).await?;
+        let trans_b = new_translation(&pool, "en", "Test text b", TextFormat::Plain).await?;
+        let trans_c = new_translation(&pool, "en", "Test text c", TextFormat::Plain).await?;
 
         let ids = [trans_a.id, trans_b.id, trans_c.id];
 
@@ -1564,30 +1477,9 @@ mod tests {
     async fn should_resolve_translations_to_primary_locale_if_locale_translation_missing(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let trans_a = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text a",
-            TextFormat::Plain,
-        )
-        .await?;
-        let trans_b = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text b",
-            TextFormat::Plain,
-        )
-        .await?;
-        let trans_c = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test text c",
-            TextFormat::Plain,
-        )
-        .await?;
+        let trans_a = new_translation(&pool, "en", "Test text a", TextFormat::Plain).await?;
+        let trans_b = new_translation(&pool, "en", "Test text b", TextFormat::Plain).await?;
+        let trans_c = new_translation(&pool, "en", "Test text c", TextFormat::Plain).await?;
 
         let ids = [trans_a.id, trans_b.id, trans_c.id];
 
@@ -1604,22 +1496,9 @@ mod tests {
     async fn should_collect_text_content_ids_for_struct(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let title = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test title",
-            TextFormat::Plain,
-        )
-        .await?;
-        let description = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test description",
-            TextFormat::Plain,
-        )
-        .await?;
+        let title = new_translation(&pool, "en", "Test title", TextFormat::Plain).await?;
+        let description =
+            new_translation(&pool, "en", "Test description", TextFormat::Plain).await?;
 
         let mut out: HashSet<TextContentId> = HashSet::new();
         let test_translation = TestWithTranslations {
@@ -1642,22 +1521,9 @@ mod tests {
     async fn should_resolve_translations_for_struct_fields(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let title = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test title",
-            TextFormat::Plain,
-        )
-        .await?;
-        let description = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Test description",
-            TextFormat::Plain,
-        )
-        .await?;
+        let title = new_translation(&pool, "en", "Test title", TextFormat::Plain).await?;
+        let description =
+            new_translation(&pool, "en", "Test description", TextFormat::Plain).await?;
 
         let mut out: HashSet<TextContentId> = HashSet::new();
         let test_translation = TestWithTranslations {
@@ -1699,30 +1565,9 @@ mod tests {
             other_field: String,
         }
 
-        let root_title = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Root title",
-            TextFormat::Plain,
-        )
-        .await?;
-        let nested_a = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Nested a",
-            TextFormat::Plain,
-        )
-        .await?;
-        let nested_b = new_translation(
-            &mut *pool.acquire().await?,
-            TranslationScope::System,
-            "en",
-            "Nested b",
-            TextFormat::Plain,
-        )
-        .await?;
+        let root_title = new_translation(&pool, "en", "Root title", TextFormat::Plain).await?;
+        let nested_a = new_translation(&pool, "en", "Nested a", TextFormat::Plain).await?;
+        let nested_b = new_translation(&pool, "en", "Nested b", TextFormat::Plain).await?;
 
         let root = Root {
             title: root_title.id,

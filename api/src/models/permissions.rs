@@ -1309,8 +1309,6 @@ pub fn roles_for_action<A: PermissionAction>(action: A) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::translations::{TextContentIden, TextFormat};
-
     const ADMINISTRATOR_GROUP_MIGRATION: i64 = 20261015161308;
 
     async fn create_legacy_permission_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
@@ -1323,16 +1321,6 @@ mod tests {
         Ok(())
     }
 
-    async fn insert_legacy_text_content(pool: &PgPool) -> Result<Uuid, sqlx::Error> {
-        let (sql, values) = Query::insert()
-            .into_table(TextContentIden::Table)
-            .columns([TextContentIden::PrimaryLocale, TextContentIden::Format])
-            .values_panic(["en".into(), TextFormat::Plain.to_string().into()])
-            .returning_col(TextContentIden::Id)
-            .build_sqlx(PostgresQueryBuilder);
-        sqlx::query_scalar_with(&sql, values).fetch_one(pool).await
-    }
-
     #[sqlx::test(migrations = false)]
     async fn legacy_migration_preserves_all_grants_and_audit_fields(
         pool: PgPool,
@@ -1343,9 +1331,15 @@ mod tests {
         )
         .fetch_one(&pool)
         .await?;
-        let description_id = insert_legacy_text_content(&pool).await?;
+        let description = models::translations::new_translation(
+            &pool,
+            "en",
+            "Legacy Organization",
+            models::translations::TextFormat::Plain,
+        )
+        .await?;
         let organization_id: Uuid = sqlx::query_scalar("INSERT INTO organization (name, description, mission, org_type) VALUES ('Legacy Organization', $1, $1, 'other') RETURNING id")
-            .bind(description_id).fetch_one(&pool).await?;
+            .bind(description.id).fetch_one(&pool).await?;
         sqlx::query("UPDATE comhairle_user SET organization_id = $1 WHERE id = $2")
             .bind(organization_id)
             .bind(user_id)
@@ -1355,7 +1349,7 @@ mod tests {
             "INSERT INTO conversation (title, short_description, description, owner_id)
              VALUES ($1, $1, $1, $2) RETURNING id",
         )
-        .bind(description_id)
+        .bind(description.id)
         .bind(user_id)
         .fetch_one(&pool)
         .await?;
@@ -1468,10 +1462,16 @@ mod tests {
         )
         .fetch_one(&pool)
         .await?;
-        let description_id = insert_legacy_text_content(&pool).await?;
+        let description = models::translations::new_translation(
+            &pool,
+            "en",
+            "Existing Organization",
+            models::translations::TextFormat::Plain,
+        )
+        .await?;
         let mut tx = pool.begin().await?;
         let (organization_id, members_group): (Uuid, Uuid) = sqlx::query_as("INSERT INTO organization (name, description, mission, org_type) VALUES ('Existing Organization', $1, $1, 'other') RETURNING id, user_group_id")
-            .bind(description_id).fetch_one(&mut *tx).await?;
+            .bind(description.id).fetch_one(&mut *tx).await?;
         for user_id in [administrator_id, member_id] {
             sqlx::query("INSERT INTO user_group_member (group_id, user_id) VALUES ($1, $2)")
                 .bind(members_group)
