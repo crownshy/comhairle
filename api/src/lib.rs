@@ -280,7 +280,6 @@ pub async fn build_router_and_spec(
         )
         .nest("/permissions", routes::permissions::router())
         .nest_api_service("/docs", docs_routes())
-        .nest("/demographics", routes::demographics::router())
         .finish_api_with(&mut api, api_docs)
         .layer(option_layer(
             rate_limiters.map(|l| l.lenient_rate_limiter()),
