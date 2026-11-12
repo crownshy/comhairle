@@ -5,7 +5,7 @@ describe('toVotedStatement', () => {
 	it('maps a public statement onto the shape the report components read', () => {
 		expect(
 			toVotedStatement({
-				tid: 1,
+				statementId: 1,
 				text: 'More buses',
 				themes: ['Transport'],
 				overallVotes: { agrees: 3, disagrees: 1, passes: 0 },

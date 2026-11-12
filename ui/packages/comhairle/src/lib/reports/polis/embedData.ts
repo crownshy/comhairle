@@ -4,6 +4,7 @@ import type {
 	PolisPublicGroup,
 	PolisPublicKeyStats,
 	PolisPublicOpinionGroup,
+	PolisPublicRankedStatements,
 	PolisPublicStatement
 } from '@crownshy/api-client/api';
 import type { GroupSize, RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
@@ -77,28 +78,10 @@ async function loadFrom(
 	switch (componentType) {
 		case 'polis-key-stats':
 			return { componentType, stats: await endpoints.keyStats(request) };
-		case 'polis-area-consensus': {
-			const ranked = await endpoints.consensus(request);
-			return {
-				componentType,
-				statements: ranked.statements.map((s) => ({
-					...toVotedStatement(s),
-					is_seed: s.isSeed
-				})),
-				groups: ranked.groups.map(toGroupSize)
-			};
-		}
-		case 'polis-area-disagreement': {
-			const ranked = await endpoints.disagreement(request);
-			return {
-				componentType,
-				statements: ranked.statements.map((s) => ({
-					...toVotedStatement(s),
-					is_seed: s.isSeed
-				})),
-				groups: ranked.groups.map(toGroupSize)
-			};
-		}
+		case 'polis-area-consensus':
+			return { componentType, ...toRankedStatements(await endpoints.consensus(request)) };
+		case 'polis-area-disagreement':
+			return { componentType, ...toRankedStatements(await endpoints.disagreement(request)) };
 		case 'polis-consensus-continuum': {
 			const continuum = await endpoints.consensusContinuum(request);
 			return {
@@ -127,7 +110,7 @@ async function loadFrom(
  */
 export function toVotedStatement(statement: PolisPublicStatement): VotedStatement {
 	return {
-		tid: statement.tid,
+		tid: statement.statementId,
 		text: statement.text,
 		topics: statement.themes,
 		overall_votes: statement.overallVotes,
@@ -140,6 +123,16 @@ export function toVotedStatement(statement: PolisPublicStatement): VotedStatemen
 	};
 }
 
+function toRankedStatements(ranked: PolisPublicRankedStatements) {
+	return {
+		statements: ranked.statements.map((statement) => ({
+			...toVotedStatement(statement),
+			is_seed: statement.isSeed
+		})),
+		groups: ranked.groups.map(toGroupSize)
+	};
+}
+
 function toGroupSize(group: PolisPublicGroup): GroupSize {
 	return { group_id: group.groupId, total_members: group.totalMembers };
 }
@@ -147,6 +140,8 @@ function toGroupSize(group: PolisPublicGroup): GroupSize {
 function toRepresentedGroup(group: PolisPublicOpinionGroup): RepresentedGroup {
 	return {
 		...toGroupSize(group),
-		representative_comments: group.representativeComments
+		representative_comments: group.representativeComments.map(({ statementId }) => ({
+			tid: statementId
+		}))
 	};
 }

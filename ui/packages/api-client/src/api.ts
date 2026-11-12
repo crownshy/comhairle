@@ -590,9 +590,9 @@ export const PolisPublicRankedStatement = z
     groupVotes: z.array(PolisPublicGroupVotes),
     isSeed: z.boolean(),
     overallVotes: PolisPublicVotes,
+    statementId: z.number().int().gte(0),
     text: z.string(),
     themes: z.array(z.string()),
-    tid: z.number().int().gte(0),
   })
   .passthrough();
 export type PolisPublicRankedStatement = z.infer<
@@ -612,9 +612,9 @@ export const PolisPublicPlacedStatement = z
     divisiveness: z.number(),
     groupVotes: z.array(PolisPublicGroupVotes),
     overallVotes: PolisPublicVotes,
+    statementId: z.number().int().gte(0),
     text: z.string(),
     themes: z.array(z.string()),
-    tid: z.number().int().gte(0),
   })
   .passthrough();
 export type PolisPublicPlacedStatement = z.infer<
@@ -629,16 +629,16 @@ export const PolisPublicConsensusContinuum = z
 export type PolisPublicConsensusContinuum = z.infer<
   typeof PolisPublicConsensusContinuum
 >;
-export const PolisPublicRepresentativeStatement = z
-  .object({ tid: z.number().int().gte(0) })
+export const PolisPublicRepresentativeComment = z
+  .object({ statementId: z.number().int().gte(0) })
   .passthrough();
-export type PolisPublicRepresentativeStatement = z.infer<
-  typeof PolisPublicRepresentativeStatement
+export type PolisPublicRepresentativeComment = z.infer<
+  typeof PolisPublicRepresentativeComment
 >;
 export const PolisPublicOpinionGroup = z
   .object({
     groupId: z.number().int().gte(0),
-    representativeComments: z.array(PolisPublicRepresentativeStatement),
+    representativeComments: z.array(PolisPublicRepresentativeComment),
     totalMembers: z.number().int().gte(0),
   })
   .passthrough();
@@ -647,9 +647,9 @@ export const PolisPublicStatement = z
   .object({
     groupVotes: z.array(PolisPublicGroupVotes),
     overallVotes: PolisPublicVotes,
+    statementId: z.number().int().gte(0),
     text: z.string(),
     themes: z.array(z.string()),
-    tid: z.number().int().gte(0),
   })
   .passthrough();
 export type PolisPublicStatement = z.infer<typeof PolisPublicStatement>;
@@ -3912,7 +3912,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PolisPublicRankedStatements,
   PolisPublicPlacedStatement,
   PolisPublicConsensusContinuum,
-  PolisPublicRepresentativeStatement,
+  PolisPublicRepresentativeComment,
   PolisPublicOpinionGroup,
   PolisPublicStatement,
   PolisPublicOpinionGroups,
@@ -7491,7 +7491,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/polis/public_report/key_stats",
     alias: "PolisGetPublicKeyStats",
-    description: `Participant, accepted statement and vote counts for a Polis step. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
+    description: `Participant, accepted statement and vote counts. 404 unless the conversation&#x27;s published report embeds this section block for the step.`,
     requestFormat: "json",
     parameters: [
       {

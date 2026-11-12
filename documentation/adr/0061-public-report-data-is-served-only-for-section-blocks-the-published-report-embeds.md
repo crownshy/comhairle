@@ -55,8 +55,8 @@ Thinking Space summary, another may have told participants it stays with the org
   needs a reviewer to agree it can't identify a person. A future moderation report is the one
   expected exception, and it gets its own ADR.
 - **Facilitators preview the same data.** Each tool's public endpoints have preview twins that
-  skip the published and embedded checks but need permission to update the conversation.
-  They run the same builders and return the same types, so the report editor, the add-chart
+  skip the published and embedded checks but need permission to update the conversation
+  (for an event step, the event's conversation). They run the same builders and return the same types, so the report editor, the add-chart
   dialog and the report preview show what readers will get before the report is published.
 - **Frontend registry.** `lib/reports/embeds.ts` lists each tool's section blocks (metadata
   only) and `lib/reports/ReportEmbedLive.svelte` maps a tool to the component that loads and
@@ -66,7 +66,8 @@ Thinking Space summary, another may have told participants it stays with the org
 
 - Each tool's embeds ship as their own PR with their endpoints: Polis #1253, HeyForm #1259,
   Prioritization #1260, Thinking Space #1261. Each declares its responses with
-  `public_report_data!` and calls `serve_public_report_data` with its section block type.
+  `public_report_data!`, calls `serve_public_report_data` with its section block type, and
+  calls `serve_report_preview_data` for the preview twin.
 - The Polis embeds read `/tools/polis/public_report/` and `/tools/polis/report_preview/`
   (#1253), accepted statements only, whatever `strict_moderation` says. Divisiveness goes out
   as a share of the most divisive statement's, since the continuum only needs it relative. The
