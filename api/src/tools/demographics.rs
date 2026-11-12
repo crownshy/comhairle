@@ -734,8 +734,14 @@ async fn start_question_draft(
     LocaleExtractor(locale): LocaleExtractor,
     Path(question_id): Path<Uuid>,
 ) -> Result<Json<QuestionDto>, ComhairleError> {
-    let org = required_organization(&state, &admin, params.organization_id).await?;
-    let question = questions::start_draft(&state.db, Some(org), question_id, &locale).await?;
+    let org = selected_organization(&state, &admin, params.organization_id).await?;
+    if org.is_none()
+        && !has_resource_permission(&state, SystemRole::SuperAdmin.system_triplet()?, &admin.id)
+            .await?
+    {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+    let question = questions::start_draft(&state.db, org, question_id, &locale).await?;
     Ok(Json(question))
 }
 

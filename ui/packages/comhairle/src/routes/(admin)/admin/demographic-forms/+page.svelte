@@ -40,7 +40,7 @@
 	};
 	type QuestionSaveOptions = { publish: boolean; asNew: boolean };
 
-	let tab = $state('forms');
+	let tab = $derived(data.managingDefaults ? 'questions' : 'forms');
 	let formEdit = $state<FormEdit | null>(null);
 	let questionEdit = $state<QuestionEdit | null>(null);
 	// Id of the row saved most recently. Shown highlighted until the next thing the user does.
@@ -50,7 +50,7 @@
 
 	const selectedOrganizationName = $derived(
 		data.organizations.find((org) => org.id === data.organizationId)?.name ??
-			'Choose an organisation'
+			(data.managingDefaults ? 'Default question bank' : 'Choose an organisation')
 	);
 
 	function selectOrganization(organizationId: string) {
@@ -58,7 +58,8 @@
 		questionEdit = null;
 		highlightId = null;
 		const url = new URL(page.url);
-		url.searchParams.set('organization', organizationId);
+		if (organizationId === 'defaults') url.searchParams.delete('organization');
+		else url.searchParams.set('organization', organizationId);
 		goto(url, { replaceState: true, noScroll: true, keepFocus: true });
 	}
 
@@ -161,7 +162,7 @@
 
 	function editQuestion(questionId: string, focusConsent = false) {
 		const question = data.questions.find((q) => q.id === questionId);
-		if (question?.isDefault) {
+		if (question?.isDefault && !data.managingDefaults) {
 			notifyError('Duplicate the default question in the question bank before editing it.');
 			return;
 		}
@@ -188,7 +189,7 @@
 	}
 
 	async function saveQuestion(question: DemographicQuestion, options: QuestionSaveOptions) {
-		if (data.organizationId === null) return;
+		if (!data.canEdit) return;
 		const addsToForm = questionEdit?.addsToForm ?? false;
 		const original = data.questions.find((q) => q.id === question.id);
 		const unchangedText =
@@ -279,13 +280,18 @@
 				<span class="text-base font-medium">Organisation</span>
 				<Select.Root
 					type="single"
-					value={data.organizationId ?? ''}
+					value={data.organizationId ?? (data.managingDefaults ? 'defaults' : '')}
 					onValueChange={selectOrganization}
 				>
 					<Select.Trigger id="organization-picker" class="w-72">
 						{selectedOrganizationName}
 					</Select.Trigger>
 					<Select.Content>
+						{#if data.isSuperAdmin}
+							<Select.Item value="defaults" label="Default question bank">
+								Default question bank
+							</Select.Item>
+						{/if}
 						{#each data.organizations as organization (organization.id)}
 							<Select.Item value={organization.id} label={organization.name}>
 								{organization.name}
@@ -296,7 +302,7 @@
 			</div>
 		{/if}
 
-		{#if data.organizationId === null}
+		{#if data.organizationId === null && !data.managingDefaults}
 			<div class="border-border bg-card mt-6 flex flex-col gap-2 rounded-xl border p-8">
 				<h2 class="text-lg font-semibold">
 					{data.organizations.length === 0
@@ -312,7 +318,9 @@
 		{:else}
 			<Tabs.Root bind:value={tab} class="mt-6">
 				<Tabs.List>
-					<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
+					{#if !data.managingDefaults}
+						<Tabs.Trigger value="forms">Forms ({data.forms.length})</Tabs.Trigger>
+					{/if}
 					<Tabs.Trigger value="questions"
 						>Question bank ({data.questions.length})</Tabs.Trigger
 					>
@@ -332,6 +340,7 @@
 					<QuestionBankTab
 						questions={data.questions}
 						canEdit={data.canEdit}
+						canEditDefaults={data.managingDefaults}
 						{highlightId}
 						onEdit={editQuestion}
 						onDuplicate={duplicateQuestion}
@@ -367,6 +376,8 @@
 		tags={data.tags}
 		{usedInFormList}
 		onCreateTag={createTag}
+		canCreateTags={!data.managingDefaults}
+		canDelete={!data.managingDefaults}
 		onSave={saveQuestion}
 		onDelete={deleteQuestion}
 		onClose={() => (questionEdit = null)}
