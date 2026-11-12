@@ -34,7 +34,7 @@
 	import TranslationsDialog from './TranslationsDialog.svelte';
 	import ImpactsAndNotes from './ImpactsAndNotes.svelte';
 	import { isUnwritten, reportPages, type ReportPage } from './reportDocument';
-	import { KeepBodyOnlyNodesOut } from './bodyOnlyNodes';
+	import { KeepPageBreaksOut } from './pageBreaks';
 
 	useTour(() => reportTour);
 
@@ -324,7 +324,7 @@
 								editable={canEdit}
 								label="Executive summary"
 								placeholder="A few sentences on what this conversation found. Readers see this first."
-								extensions={[KeepBodyOnlyNodesOut]}
+								extensions={[KeepPageBreaksOut]}
 								onChange={(json) => summarySource.saveSource(json)}
 								onFocus={(editor) => (activeEditor = editor)}
 								bind:editor={summaryEditor}
@@ -381,7 +381,7 @@
 		{embeddedKeys}
 		{published}
 		onPick={(step, block) =>
-			bodyEditor
+			(activeEditor ?? bodyEditor)
 				?.chain()
 				.focus()
 				.setReportComponentEmbed({ toolStepId: step.id, componentType: block.type })
@@ -396,7 +396,11 @@
 		{supportedLanguages}
 		conversationId={conversation.id}
 		disabled={!canEdit}
-		onClosed={() => (editorsRevision += 1)}
+		onClosed={() => {
+			// Both editors remount, so the one last focused no longer exists.
+			activeEditor = undefined;
+			editorsRevision += 1;
+		}}
 	/>
 {/if}
 

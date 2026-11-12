@@ -20,7 +20,7 @@
 	type Props = {
 		/** The editor the cursor is in: the summary or the body. */
 		editor: Editor | undefined;
-		/** Charts and page breaks only go in the body, not the summary. */
+		/** Page breaks only go in the body, not the summary. */
 		inBody: boolean;
 		onAddChart: () => void;
 	};
@@ -29,7 +29,7 @@
 	const BUTTON_CLASS =
 		'text-muted-foreground hover:bg-accent hover:text-foreground flex size-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-40';
 	const ACTIVE_CLASS = 'bg-accent text-foreground';
-	const ONLY_IN_BODY = 'Goes in the report body, not the summary';
+	const ONLY_IN_BODY = 'Page breaks go in the report body, not the summary';
 
 	const transactions = trackEditorTransactions(() => editor);
 	const inTable = $derived(transactions.isActive((current) => current.isActive('table')));
@@ -84,8 +84,8 @@
 	<button
 		type="button"
 		class="bg-accent text-primary hover:bg-accent/70 flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-base font-medium transition-colors disabled:opacity-40"
-		title={inBody ? 'Add a chart' : ONLY_IN_BODY}
-		disabled={!inBody}
+		title="Add a chart"
+		disabled={!editor}
 		onclick={onAddChart}
 	>
 		<ChartNoAxesColumn class="size-5" />Chart

@@ -32,9 +32,10 @@ that says what publishing shares sits a single horizontal toolbar: Add a chart; 
 heading and subheading; bold, italic, underline and strikethrough; lists and quote;
 alignment; link; then page break, image, video, audio and table. A page break is a
 horizontal rule and starts a new page (ADR-0069); the editor shows it as a labelled dashed
-line. The toolbar acts on whichever editor the cursor is in. Charts and page breaks only go
-in the body, so they are greyed out while the cursor is in the executive summary, and the
-summary turns away one typed (`---`), pasted or dropped there. Media and tables work in both. Add a chart opens a dialog: pick the step, then pick the chart from live previews.
+line. The toolbar acts on whichever editor the cursor is in. Charts, media and tables work in
+both, so a chart can sit in the executive summary too. Page breaks only go in the body, since
+they split it into pages: the tool is greyed out while the cursor is in the summary, and the
+summary turns away one typed (`---`), pasted or dropped there. Add a chart opens a dialog: pick the step, then pick the chart from live previews.
 Selecting an image shows a small bar for its alignment (left, centre, right) and width (25%
 to 100% of the column), ported from the Learn editor on `demo/young-scot`. Both are stored
 as keys on the image node and laid out by the shared editor stylesheet, so the published
