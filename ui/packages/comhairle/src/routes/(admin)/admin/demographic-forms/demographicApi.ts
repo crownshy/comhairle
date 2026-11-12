@@ -118,11 +118,13 @@ export function formDraftInput(form: DemographicForm): DemographicFormDraftInput
 	};
 }
 
-export async function loadDemographics(api: ApiClient, organizationId: string) {
-	const queries = { organization_id: organizationId };
+export async function loadDemographics(api: ApiClient, organizationId: string | null) {
+	const queries = { organization_id: organizationId ?? undefined };
 	const [questions, forms, tags] = await Promise.all([
-		api.ListDemographicQuestions({ queries }),
-		api.ListDemographicForms({ queries }),
+		organizationId === null
+			? api.ListDemographicDefaults()
+			: api.ListDemographicQuestions({ queries }),
+		organizationId === null ? Promise.resolve([]) : api.ListDemographicForms({ queries }),
 		api.ListDemographicTags({ queries })
 	]);
 	return {
@@ -135,19 +137,23 @@ export async function loadDemographics(api: ApiClient, organizationId: string) {
 /** Saves the question's draft, starting a new draft from the latest published version when needed. Resolves to the question id. */
 export function persistQuestion(
 	api: ApiClient,
-	organizationId: string,
+	organizationId: string | null,
 	question: DemographicQuestion,
 	publish: boolean
 ) {
 	return tryCatchAsync<string, ErrorType>(async () => {
-		if (question.isDefault) {
+		if (question.isDefault && organizationId !== null) {
 			throw new Error('Duplicate the default question before editing it.');
 		}
 		const body = questionDraftInput(question);
-		const queries = { organization_id: organizationId };
+		const queries = { organization_id: organizationId ?? undefined };
 		let questionId = question.id;
 		if (questionId === null) {
-			questionId = (await api.CreateDemographicQuestion(body, { queries })).id;
+			questionId = (
+				organizationId === null
+					? await api.CreateDemographicDefault(body)
+					: await api.CreateDemographicQuestion(body, { queries })
+			).id;
 		} else {
 			if (question.draftVersion === null) {
 				await api.StartDemographicQuestionDraft(undefined, {
@@ -155,16 +161,28 @@ export function persistQuestion(
 					queries
 				});
 			}
-			await api.UpdateDemographicQuestionDraft(body, {
-				params: { question_id: questionId },
-				queries
-			});
+			if (organizationId === null) {
+				await api.UpdateDemographicDefaultDraft(body, {
+					params: { question_id: questionId }
+				});
+			} else {
+				await api.UpdateDemographicQuestionDraft(body, {
+					params: { question_id: questionId },
+					queries
+				});
+			}
 		}
 		if (publish) {
-			await api.PublishDemographicQuestion(undefined, {
-				params: { question_id: questionId },
-				queries
-			});
+			if (organizationId === null) {
+				await api.PublishDemographicDefault(undefined, {
+					params: { question_id: questionId }
+				});
+			} else {
+				await api.PublishDemographicQuestion(undefined, {
+					params: { question_id: questionId },
+					queries
+				});
+			}
 		}
 		return questionId;
 	});

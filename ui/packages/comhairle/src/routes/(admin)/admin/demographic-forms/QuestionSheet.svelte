@@ -41,6 +41,8 @@
 		/** Forms that already include this question, used to warn before publishing changes */
 		usedInFormList: { id: string; name: string }[];
 		onCreateTag: (name: string) => Promise<Tag | null>;
+		canCreateTags?: boolean;
+		canDelete?: boolean;
 		onSave: (question: DemographicQuestion, options: SaveOptions) => void;
 		onDelete: () => void;
 		onClose: () => void;
@@ -54,6 +56,8 @@
 		tags,
 		usedInFormList,
 		onCreateTag,
+		canCreateTags = true,
+		canDelete = true,
 		onSave,
 		onDelete,
 		onClose
@@ -249,18 +253,20 @@
 								{/each}
 							</DropdownMenu.Content>
 						</DropdownMenu.Root>
-						<Input
-							class="flex-1"
-							bind:value={newTagName}
-							placeholder="New category"
-							aria-label="New category name"
-							onkeydown={(event) => event.key === 'Enter' && addNewTag()}
-						/>
-						<Button
-							variant="outline"
-							disabled={newTagName.trim() === '' || creatingTag}
-							onclick={addNewTag}>Add</Button
-						>
+						{#if canCreateTags}
+							<Input
+								class="flex-1"
+								bind:value={newTagName}
+								placeholder="New category"
+								aria-label="New category name"
+								onkeydown={(event) => event.key === 'Enter' && addNewTag()}
+							/>
+							<Button
+								variant="outline"
+								disabled={newTagName.trim() === '' || creatingTag}
+								onclick={addNewTag}>Add</Button
+							>
+						{/if}
 					</div>
 				</div>
 
@@ -327,7 +333,7 @@
 						</div>
 					{/if}
 				</div>
-				{#if !isNew}
+				{#if !isNew && canDelete}
 					<AlertDialog.Root>
 						<AlertDialog.Trigger
 							class={buttonVariants({ variant: 'destructiveOutline' })}

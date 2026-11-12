@@ -15,12 +15,20 @@
 	type Props = {
 		questions: SavedQuestion[];
 		canEdit: boolean;
+		canEditDefaults?: boolean;
 		onEdit: (questionId: string) => void;
 		onDuplicate: (questionId: string) => void;
 		highlightId?: string | null;
 	};
 
-	let { questions, canEdit, onEdit, onDuplicate, highlightId = null }: Props = $props();
+	let {
+		questions,
+		canEdit,
+		canEditDefaults = false,
+		onEdit,
+		onDuplicate,
+		highlightId = null
+	}: Props = $props();
 
 	$effect(() => {
 		if (!highlightId) return;
@@ -152,7 +160,8 @@
 								<div class="flex gap-2">
 									{#if question.isDefault}
 										<Badge variant="secondary" class="text-sm">Default</Badge>
-									{:else}
+									{/if}
+									{#if !question.isDefault || canEditDefaults}
 										<Button
 											variant="outline"
 											size="sm"
