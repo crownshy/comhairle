@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-import { groupParticipantsByRoom } from './breakoutRoomAssignments';
+import { applyRoomEdits, groupParticipantsByRoom } from './breakoutRoomAssignments';
 
 const participant = (user_id: string, role = 'participant'): VideoCallParticipant => ({
 	user_id,
@@ -56,5 +56,41 @@ describe('groupParticipantsByRoom', () => {
 
 	it('returns no rooms when there is no breakout plan', () => {
 		expect(groupParticipantsByRoom([participant('a')], [])).toEqual([]);
+	});
+});
+
+describe('applyRoomEdits', () => {
+	it('sends the edited layout as it is', () => {
+		expect(
+			applyRoomEdits(
+				[['a'], ['b', 'c']],
+				[{ participants: ['a', 'b'] }, { participants: ['c'] }]
+			)
+		).toEqual([['a'], ['b', 'c']]);
+	});
+
+	it('keeps a room the facilitator emptied, so later rooms keep their numbers', () => {
+		expect(
+			applyRoomEdits(
+				[[], ['a', 'b'], ['c']],
+				[{ participants: ['a'] }, { participants: ['b'] }, { participants: ['c'] }]
+			)
+		).toEqual([[], ['a', 'b'], ['c']]);
+	});
+
+	it('leaves someone placed after the dialog opened in their current room', () => {
+		expect(
+			applyRoomEdits(
+				[['a'], ['b']],
+				[{ participants: ['a'] }, { participants: ['b', 'late'] }]
+			)
+		).toEqual([['a'], ['b', 'late']]);
+	});
+
+	it('never has fewer rooms than are open now', () => {
+		expect(applyRoomEdits([['a']], [{ participants: ['a'] }, { participants: [] }])).toEqual([
+			['a'],
+			[]
+		]);
 	});
 });

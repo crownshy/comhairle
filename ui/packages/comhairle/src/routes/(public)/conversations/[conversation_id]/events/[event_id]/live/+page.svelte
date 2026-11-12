@@ -8,7 +8,7 @@
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
-	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
+	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
 	import { MeetingAttendance } from './meetingAttendance.svelte';
@@ -113,6 +113,7 @@
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
 
 	let showCreateBreakout = $state(false);
+	let showEditBreakout = $state(false);
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showEndMeeting = $state(false);
@@ -237,7 +238,7 @@
 	});
 
 	let preassignedBreakoutRooms = $derived(
-		groupParticipantsByRoom(allParticipants, videoCallService.breakoutRooms)
+		groupParticipantsByRoom(inCallParticipants, videoCallService.breakoutRooms)
 	);
 
 	$effect(() => {
@@ -339,9 +340,10 @@
 		handleEnterBreakoutRoom(roomIndex);
 	});
 
-	// Detect mid-session room reassignment (moderator moved a participant)
+	// Follow a mid-session room change made from the Move people dialog. Facilitators follow
+	// too; this only fires when the assignment changes, so their own room hopping is untouched.
 	$effect(() => {
-		if (!isBreakoutActive || isModerator || !user || !jitsiRoom.ready) {
+		if (!isBreakoutActive || !user || !jitsiRoom.ready) {
 			trackedRoomIndex = null;
 			return;
 		}
@@ -353,7 +355,6 @@
 			// First assignment — just start tracking
 			trackedRoomIndex = assignedRoom;
 		} else if (assignedRoom !== null && assignedRoom !== tracked && tracked !== null) {
-			// Room changed mid-session — moderator moved us
 			handleEnterBreakoutRoom(assignedRoom);
 			pushNotice({ message: `You've been moved to Breakout room #${assignedRoom + 1}` });
 			trackedRoomIndex = assignedRoom;
@@ -523,6 +524,17 @@
 
 		// Auto-switch to breakout rooms tab
 		activePanel = 'breakoutRooms';
+	}
+
+	function handleEditBreakout(config: {
+		maxPerRoom: number;
+		roomAssignments: VideoCallParticipant[][];
+	}) {
+		const editedRooms = config.roomAssignments.map((room) => room.map((p) => p.user_id));
+		const roomAssignments = applyRoomEdits(editedRooms, videoCallService.breakoutRooms);
+		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
+		showEditBreakout = false;
+		showToast('Breakout rooms updated');
 	}
 
 	function handleEnterBreakoutRoom(roomIndex: number) {
@@ -867,6 +879,7 @@
 							onUpdateTime={handleUpdateTime}
 							onEndSession={handleEndSessionPressed}
 							onBroadcastMessage={() => (showBroadcast = true)}
+							onEditRooms={() => (showEditBreakout = true)}
 						/>
 					{:else}
 						<AgendaPanel
@@ -1048,12 +1061,24 @@
 <!-- Dialogs -->
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
-	participants={allParticipants}
+	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
 	onCreate={handleCreateBreakout}
+/>
+
+<CreateBreakoutDialog
+	bind:open={showEditBreakout}
+	participants={inCallParticipants}
+	initialAssignments={preassignedBreakoutRooms}
+	title="Move people between rooms"
+	confirmLabel="Save"
+	showDuration={false}
+	fixedRooms
+	onClose={() => (showEditBreakout = false)}
+	onCreate={handleEditBreakout}
 />
 
 <BroadcastMessageDialog

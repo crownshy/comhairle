@@ -901,7 +901,9 @@ impl VideoCallMessageHandler {
                 {
                     let breakout_rooms =
                         if let Some(ref explicit) = assignment_data.room_assignments {
-                            // Use explicit assignments, filtering to known participants
+                            // Empty rooms are kept: room numbers are positions in this list,
+                            // so dropping one would renumber the rooms after it and send
+                            // their participants to the wrong Jitsi room.
                             explicit
                                 .iter()
                                 .map(|room_ids| BreakoutRoomAssignments {
@@ -912,7 +914,6 @@ impl VideoCallMessageHandler {
                                         .collect(),
                                     room_jid: None,
                                 })
-                                .filter(|room| !room.participants.is_empty())
                                 .collect()
                         } else {
                             // Collect all participant IDs
