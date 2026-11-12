@@ -22,3 +22,6 @@ tower-http = { version = "0.6", features = ["trace"] }
 askama = "0.12"
 nix = { version = "0.27", features = ["signal", "process"] }
 jsonwebtoken = "9"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"

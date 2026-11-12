@@ -8,7 +8,9 @@ use axum::{
     Json, Router,
 };
 use chrono::{DateTime, Utc};
+use hmac::{Hmac, Mac};
 use redis::AsyncCommands;
+use sha2::Sha256;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::os::unix::process::ExitStatusExt;
@@ -44,6 +46,11 @@ struct RecordingSession {
     s3_bucket: String,
     s3_path: String,
     webhook_url: String,
+    /// Per-recording HMAC secret, carried from the start request through to
+    /// the completion webhook (see `send_webhook`). None for callers that
+    /// predate comhairle-api's signed-webhook contract (e.g. manual/test
+    /// POSTs) - the webhook goes out unsigned in that case, same as before.
+    webhook_secret: Option<String>,
     nickname: String,
     local_file_path: Option<String>,
     s3_url: Option<String>,
@@ -55,9 +62,24 @@ struct RecordingSession {
 #[derive(Debug, Deserialize)]
 struct StartRecordingRequest {
     room_name: String,
-    s3_bucket: String,
-    s3_path: String,
+    /// comhairle-api passes this per request (main room vs. breakout rooms
+    /// live under different MUC components) - falls back to this
+    /// deployment's Config::muc_domain when absent, same as before that
+    /// changed.
+    #[serde(default)]
+    muc_domain: Option<String>,
+    /// Both unset => this recorder's own default bucket/generated path
+    /// (comhairle-api doesn't set these - see RecordingSession::s3_bucket
+    /// above; the recorder's own bucket is scratch space comhairle-api
+    /// re-uploads out of via the completion webhook's download_url, not the
+    /// final destination). Manual/test POSTs can still set them explicitly.
+    #[serde(default)]
+    s3_bucket: Option<String>,
+    #[serde(default)]
+    s3_path: Option<String>,
     webhook_url: String,
+    #[serde(default)]
+    webhook_secret: Option<String>,
     #[serde(default = "default_nickname")]
     nickname: String,
     /// Optional JWT token for Jitsi authentication. If not provided, uses anonymous auth.
@@ -174,7 +196,11 @@ struct RecordingsListResponse {
     recordings: Vec<RecordingResponse>,
 }
 
-/// Webhook notification payload
+/// Webhook notification payload. Field names/shape must match comhairle-api's
+/// `RecorderWebhookPayload` (routes::audio_recordings) - `download_url` is a
+/// presigned S3 GET URL, not the plain s3://bucket/key form RecordingSession
+/// keeps internally, since comhairle-api fetches it over plain HTTP to
+/// re-upload into the tenant's own bucket.
 #[derive(Debug, Serialize)]
 struct WebhookPayload {
     session_id: Uuid,
@@ -182,14 +208,18 @@ struct WebhookPayload {
     status: RecordingStatus,
     started_at: DateTime<Utc>,
     ended_at: Option<DateTime<Utc>>,
-    s3_url: Option<String>,
+    download_url: Option<String>,
     duration_seconds: Option<u64>,
 }
 
 /// Application state shared across handlers
 #[derive(Clone)]
 struct AppState {
-    redis_client: redis::Client,
+    // One multiplexed connection, cloned per request - cloning just hands out
+    // another handle onto the same background connection (cheap, no new TCP
+    // handshake), unlike redis_client.get_multiplexed_async_connection() which
+    // reconnects from scratch on every call.
+    redis_con: redis::aio::MultiplexedConnection,
     s3_client: aws_sdk_s3::Client,
     http_client: reqwest::Client,
     room_sessions: Arc<RwLock<HashMap<String, (Uuid, u32)>>>,
@@ -211,7 +241,11 @@ struct Config {
     port: u16,
     default_s3_bucket: String,
     default_webhook_url: String,
-    event_sync_token: String,
+    /// Unset when the Prosody event_sync component isn't wired up for this
+    /// deployment (e.g. comhairle-triggered recording, where comhairle-api
+    /// calls POST /recordings directly instead) - the webhook routes below
+    /// reject every request in that case rather than failing to start.
+    event_sync_token: Option<String>,
     /// Both unset => webhook-triggered recordings join anonymously (fails if the
     /// Jitsi deployment requires JWT auth). Both set => a token is minted per
     /// room for the Prosody-triggered path, matching this deployment's
@@ -225,12 +259,7 @@ struct Config {
 // Redis Operations
 // ============================================================================
 
-async fn save_session(redis_client: &redis::Client, session: &RecordingSession) -> Result<()> {
-    let mut con = redis_client
-        .get_multiplexed_async_connection()
-        .await
-        .context("Failed to get Redis connection")?;
-
+async fn save_session(mut con: redis::aio::MultiplexedConnection, session: &RecordingSession) -> Result<()> {
     let key = format!("recording:{}", session.session_id);
     let value = serde_json::to_string(session).context("Failed to serialize session")?;
 
@@ -245,12 +274,7 @@ async fn save_session(redis_client: &redis::Client, session: &RecordingSession) 
     Ok(())
 }
 
-async fn load_session(redis_client: &redis::Client, session_id: Uuid) -> Result<RecordingSession> {
-    let mut con = redis_client
-        .get_multiplexed_async_connection()
-        .await
-        .context("Failed to get Redis connection")?;
-
+async fn load_session(mut con: redis::aio::MultiplexedConnection, session_id: Uuid) -> Result<RecordingSession> {
     let key = format!("recording:{}", session_id);
     let value: String = con
         .get(&key)
@@ -260,12 +284,7 @@ async fn load_session(redis_client: &redis::Client, session_id: Uuid) -> Result<
     serde_json::from_str(&value).context("Failed to deserialize session")
 }
 
-async fn list_all_sessions(redis_client: &redis::Client) -> Result<Vec<RecordingSession>> {
-    let mut con = redis_client
-        .get_multiplexed_async_connection()
-        .await
-        .context("Failed to get Redis connection")?;
-
+async fn list_all_sessions(mut con: redis::aio::MultiplexedConnection) -> Result<Vec<RecordingSession>> {
     let session_ids: Vec<String> = con
         .smembers("recording:all")
         .await
@@ -274,7 +293,7 @@ async fn list_all_sessions(redis_client: &redis::Client) -> Result<Vec<Recording
     let mut sessions = Vec::new();
     for id_str in session_ids {
         if let Ok(session_id) = Uuid::parse_str(&id_str) {
-            if let Ok(session) = load_session(redis_client, session_id).await {
+            if let Ok(session) = load_session(con.clone(), session_id).await {
                 sessions.push(session);
             }
         }
@@ -305,6 +324,7 @@ async fn upload_to_s3(
         .bucket(bucket)
         .key(key)
         .body(body)
+        .content_type("audio/ogg")
         .send()
         .await
         .context("Failed to upload to S3")?;
@@ -315,20 +335,75 @@ async fn upload_to_s3(
     Ok(s3_url)
 }
 
+/// A short-lived presigned GET URL for the just-uploaded object - comhairle-api
+/// fetches the recording over plain HTTP from this (see `WebhookPayload`)
+/// rather than being granted any direct access to this recorder's bucket.
+async fn presigned_download_url(
+    s3_client: &aws_sdk_s3::Client,
+    bucket: &str,
+    key: &str,
+) -> Result<String> {
+    let presigning_config =
+        aws_sdk_s3::presigning::PresigningConfig::expires_in(std::time::Duration::from_secs(
+            3600,
+        ))
+        .context("Failed to build presigning config")?;
+
+    let presigned = s3_client
+        .get_object()
+        .bucket(bucket)
+        .key(key)
+        .presigned(presigning_config)
+        .await
+        .context("Failed to presign download URL")?;
+
+    Ok(presigned.uri().to_string())
+}
+
 // ============================================================================
 // Webhook Notification
 // ============================================================================
 
+type HmacSha256 = Hmac<Sha256>;
+
+/// Mirrors comhairle-api's `build_webhook_signature` (routes::auth) exactly -
+/// same HMAC-SHA256 over `"{timestamp}.{body}"`, same `sha256=<hex>` encoding -
+/// so `verify_webhook_signature` on the receiving end agrees.
+fn sign_webhook_body(timestamp: &str, body: &str, secret: &str) -> Result<String> {
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .context("Failed to initialize HMAC")?;
+    mac.update(format!("{}.{}", timestamp, body).as_bytes());
+    Ok(format!("sha256={}", hex::encode(mac.finalize().into_bytes())))
+}
+
 async fn send_webhook(
     http_client: &reqwest::Client,
     webhook_url: &str,
+    webhook_secret: Option<&str>,
     payload: &WebhookPayload,
 ) -> Result<()> {
     info!("Sending webhook to {}", webhook_url);
 
-    let response = http_client
+    let body = serde_json::to_string(payload).context("Failed to serialize webhook payload")?;
+
+    let mut request = http_client
         .post(webhook_url)
-        .json(payload)
+        .header("Content-Type", "application/json");
+
+    // Unsigned when no secret was given at session start - back-compat for
+    // callers that predate comhairle-api's signed-webhook contract (manual/
+    // test POSTs to /recordings). comhairle-api itself always sets one.
+    if let Some(secret) = webhook_secret {
+        let timestamp = Utc::now().timestamp().to_string();
+        let signature = sign_webhook_body(&timestamp, &body, secret)
+            .context("Failed to sign webhook body")?;
+        request = request
+            .header("X-Webhook-Timestamp", timestamp)
+            .header("X-Webhook-Signature", signature);
+    }
+
+    let response = request
+        .body(body)
         .send()
         .await
         .context("Failed to send webhook")?;
@@ -352,12 +427,19 @@ async fn send_webhook(
 async fn start_gst_meet_process(
     config: &Config,
     room_name: &str,
+    muc_domain: Option<&str>,
     nickname: &str,
     output_file: &str,
     jwt_token: Option<&str>,
 ) -> Result<tokio::process::Child> {
+    // Opus in an Ogg container, not WAV - comhairle-api's transcription
+    // pipeline already maps AudioFormat::Ogg to AWS Transcribe's OGG_OPUS
+    // media format (see amazon_transcriber.rs::to_aws_media_format), so this
+    // needs no decode step downstream. 32kbps/voip-tuned is comfortably
+    // clear for speech and ~20-40x smaller than the raw PCM wavenc produced -
+    // what was filling the pod's ephemeral-storage limit and bloating S3.
     let recv_pipeline = format!(
-        "audiomixer name=audio ! audioconvert ! audioresample ! wavenc ! filesink location={}",
+        "audiomixer name=audio ! audioconvert ! audioresample ! opusenc bitrate=32000 audio-type=voip ! oggmux ! filesink location={}",
         output_file
     );
 
@@ -370,7 +452,7 @@ async fn start_gst_meet_process(
         .arg("--xmpp-domain")
         .arg(&config.xmpp_domain)
         .arg("--muc-domain")
-        .arg(&config.muc_domain)
+        .arg(muc_domain.unwrap_or(&config.muc_domain))
         .arg("--room-name")
         .arg(room_name)
         .arg("--nick")
@@ -417,7 +499,7 @@ async fn monitor_recording_process(
         session_id, status
     );
 
-    let mut session = match load_session(&state.redis_client, session_id).await {
+    let mut session = match load_session(state.redis_con.clone(), session_id).await {
         Ok(s) => s,
         Err(e) => {
             error!("Failed to load session {}: {}", session_id, e);
@@ -445,14 +527,14 @@ async fn monitor_recording_process(
         session.status = RecordingStatus::Failed;
         session.error_message = Some("Recording process exited with non-zero status".to_string());
 
-        if let Err(e) = save_session(&state.redis_client, &session).await {
+        if let Err(e) = save_session(state.redis_con.clone(), &session).await {
             error!("Failed to save failed session: {}", e);
         }
         return;
     }
 
     session.status = RecordingStatus::Uploading;
-    if let Err(e) = save_session(&state.redis_client, &session).await {
+    if let Err(e) = save_session(state.redis_con.clone(), &session).await {
         error!("Failed to update session status to uploading: {}", e);
     }
 
@@ -494,16 +576,24 @@ async fn monitor_recording_process(
             "Failed to upload to S3 after {} retries",
             max_retries
         ));
-        if let Err(e) = save_session(&state.redis_client, &session).await {
+        if let Err(e) = save_session(state.redis_con.clone(), &session).await {
             error!("Failed to save failed session: {}", e);
         }
         return;
     }
 
     session.status = RecordingStatus::Completed;
-    if let Err(e) = save_session(&state.redis_client, &session).await {
+    if let Err(e) = save_session(state.redis_con.clone(), &session).await {
         error!("Failed to save completed session: {}", e);
     }
+
+    let download_url = match presigned_download_url(&state.s3_client, &session.s3_bucket, &session.s3_path).await {
+        Ok(url) => Some(url),
+        Err(e) => {
+            warn!("Failed to presign download URL (webhook will omit it): {}", e);
+            None
+        }
+    };
 
     let webhook_payload = WebhookPayload {
         session_id: session.session_id,
@@ -511,11 +601,18 @@ async fn monitor_recording_process(
         status: session.status.clone(),
         started_at: session.started_at,
         ended_at: session.ended_at,
-        s3_url: session.s3_url.clone(),
+        download_url,
         duration_seconds: session.duration_seconds,
     };
 
-    if let Err(e) = send_webhook(&state.http_client, &session.webhook_url, &webhook_payload).await {
+    if let Err(e) = send_webhook(
+        &state.http_client,
+        &session.webhook_url,
+        session.webhook_secret.as_deref(),
+        &webhook_payload,
+    )
+    .await
+    {
         warn!("Failed to send webhook (non-critical): {}", e);
     }
 
@@ -535,11 +632,13 @@ async fn monitor_recording_process(
 async fn start_recording_for_room(
     state: &AppState,
     room_name: String,
+    muc_domain: Option<String>,
     nickname: String,
     jwt_token: Option<String>,
-    s3_bucket: String,
-    s3_path: String,
+    s3_bucket: Option<String>,
+    s3_path: Option<String>,
     webhook_url: String,
+    webhook_secret: Option<String>,
 ) -> Result<RecordingSession> {
     let session_id = Uuid::new_v4();
 
@@ -549,8 +648,14 @@ async fn start_recording_for_room(
         .context("Failed to create recording directory")?;
 
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("recording_{}_{}.wav", room_name, timestamp);
+    let filename = format!("recording_{}_{}.ogg", room_name, timestamp);
     let local_file_path = format!("{}/{}", session_dir, filename);
+
+    // comhairle-api's trigger_recording doesn't set these - this bucket/path is
+    // just this recorder's own scratch space, re-uploaded elsewhere via the
+    // completion webhook's presigned download_url, not the final destination.
+    let s3_bucket = s3_bucket.unwrap_or_else(|| state.config.default_s3_bucket.clone());
+    let s3_path = s3_path.unwrap_or_else(|| format!("recordings/{}/{}.ogg", room_name, timestamp));
 
     let session = RecordingSession {
         session_id,
@@ -561,6 +666,7 @@ async fn start_recording_for_room(
         s3_bucket,
         s3_path,
         webhook_url,
+        webhook_secret,
         nickname: nickname.clone(),
         local_file_path: Some(local_file_path.clone()),
         s3_url: None,
@@ -568,13 +674,14 @@ async fn start_recording_for_room(
         error_message: None,
     };
 
-    save_session(&state.redis_client, &session)
+    save_session(state.redis_con.clone(), &session)
         .await
         .context("Failed to save session")?;
 
     let child = start_gst_meet_process(
         &state.config,
         &room_name,
+        muc_domain.as_deref(),
         &nickname,
         &local_file_path,
         jwt_token.as_deref(),
@@ -604,11 +711,13 @@ async fn start_recording(
     let session = start_recording_for_room(
         &state,
         req.room_name,
+        req.muc_domain,
         req.nickname,
         req.jwt_token,
         req.s3_bucket,
         req.s3_path,
         req.webhook_url,
+        req.webhook_secret,
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -652,10 +761,9 @@ fn check_event_sync_token(state: &AppState, headers: &HeaderMap) -> Result<(), (
         .get("x-event-sync-token")
         .and_then(|v| v.to_str().ok());
 
-    if token == Some(state.config.event_sync_token.as_str()) {
-        Ok(())
-    } else {
-        Err((StatusCode::UNAUTHORIZED, "Invalid event sync token".to_string()))
+    match &state.config.event_sync_token {
+        Some(expected) if token == Some(expected.as_str()) => Ok(()),
+        _ => Err((StatusCode::UNAUTHORIZED, "Invalid event sync token".to_string())),
     }
 }
 
@@ -676,23 +784,61 @@ async fn room_created_webhook(
     };
 
     let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-    let s3_path = format!("recordings/{}/{}.wav", room_name, timestamp);
+    let s3_path = format!("recordings/{}/{}.ogg", room_name, timestamp);
 
     let jwt_token = generate_jwt_token(&state.config, &room_name, &nickname);
 
     start_recording_for_room(
         &state,
         room_name,
+        None,
         nickname,
         jwt_token,
-        state.config.default_s3_bucket.clone(),
-        s3_path,
+        Some(state.config.default_s3_bucket.clone()),
+        Some(s3_path),
         state.config.default_webhook_url.clone(),
+        None,
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(StatusCode::OK)
+}
+
+/// SIGTERMs the gst-meet process recording `room_name`, if one is active.
+/// `monitor_recording_process` picks up the resulting signalled exit as a
+/// clean stop (see its `stopped_cleanly` check) and runs the usual
+/// upload+webhook completion from there - this function only has to ask the
+/// process to stop, not wait for or drive that.
+///
+/// Returns whether a session was actually found and signalled, so callers
+/// (comhairle-api included) can treat "nothing to stop" as a normal,
+/// non-error outcome - stop requests are expected to race session completion
+/// sometimes.
+async fn stop_recording_for_room(state: &AppState, room_name: &str) -> bool {
+    let entry = state.room_sessions.write().await.remove(room_name);
+
+    let Some((session_id, pid)) = entry else {
+        warn!(
+            "Stop requested for room {} but no active recording session found",
+            room_name
+        );
+        return false;
+    };
+
+    info!(
+        "Stopping recording for room {} - session {} (pid {})",
+        room_name, session_id, pid
+    );
+
+    if let Err(e) = nix::sys::signal::kill(
+        nix::unistd::Pid::from_raw(pid as i32),
+        nix::sys::signal::Signal::SIGTERM,
+    ) {
+        warn!("Failed to send SIGTERM to gst-meet pid {}: {}", pid, e);
+    }
+
+    true
 }
 
 async fn room_destroyed_webhook(
@@ -703,33 +849,29 @@ async fn room_destroyed_webhook(
     check_event_sync_token(&state, &headers)?;
 
     let room_name = event.target_room_name();
-    let entry = state.room_sessions.write().await.remove(&room_name);
-
-    let Some((session_id, pid)) = entry else {
-        warn!(
-            "room/destroyed received for {} but no active recording session found",
-            room_name
-        );
-        return Ok(StatusCode::OK);
-    };
-
-    info!(
-        "Room destroyed: {} - stopping recording session {} (pid {})",
-        room_name, session_id, pid
-    );
-
-    if let Err(e) = nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid as i32), nix::sys::signal::Signal::SIGTERM)
-    {
-        warn!("Failed to send SIGTERM to gst-meet pid {}: {}", pid, e);
-    }
+    stop_recording_for_room(&state, &room_name).await;
 
     Ok(StatusCode::OK)
+}
+
+/// comhairle-api's hangup-detection hook: called when a room's last
+/// participant leaves (main room) or a breakout session/reassignment ends,
+/// since there's no Prosody room/destroyed webhook wired up for the
+/// comhairle-triggered path (see `room_destroyed_webhook` above, which only
+/// the dead Prosody integration ever called). Idempotent and side-effect-free
+/// if the recording already finished on its own.
+async fn stop_recording(
+    State(state): State<AppState>,
+    Path(room_name): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stopped = stop_recording_for_room(&state, &room_name).await;
+    Ok(Json(serde_json::json!({ "stopped": stopped })))
 }
 
 async fn list_recordings(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let sessions = list_all_sessions(&state.redis_client).await.map_err(|e| {
+    let sessions = list_all_sessions(state.redis_con.clone()).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to list sessions: {}", e),
@@ -745,7 +887,7 @@ async fn get_recording(
     State(state): State<AppState>,
     Path(session_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let session = load_session(&state.redis_client, session_id)
+    let session = load_session(state.redis_con.clone(), session_id)
         .await
         .map_err(|_| (StatusCode::NOT_FOUND, "Recording not found".to_string()))?;
 
@@ -784,7 +926,7 @@ struct NewRecordingTemplate;
 async fn ui_list_recordings(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let sessions = list_all_sessions(&state.redis_client).await.map_err(|e| {
+    let sessions = list_all_sessions(state.redis_con.clone()).await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to list sessions: {}", e),
@@ -853,8 +995,7 @@ fn load_config() -> Result<Config> {
             .unwrap_or(3001),
         default_s3_bucket: std::env::var("DEFAULT_S3_BUCKET").unwrap_or_default(),
         default_webhook_url: std::env::var("DEFAULT_WEBHOOK_URL").unwrap_or_default(),
-        event_sync_token: std::env::var("EVENT_SYNC_TOKEN")
-            .context("EVENT_SYNC_TOKEN must be set to authenticate incoming Prosody room events")?,
+        event_sync_token: std::env::var("EVENT_SYNC_TOKEN").ok(),
         jwt_app_id: std::env::var("JWT_APP_ID").ok(),
         jwt_app_secret: std::env::var("JWT_APP_SECRET").ok(),
     })
@@ -881,7 +1022,7 @@ async fn main() -> Result<()> {
     let redis_client =
         redis::Client::open(redis_url.as_str()).context("Failed to create Redis client")?;
 
-    redis_client
+    let redis_con = redis_client
         .get_multiplexed_async_connection()
         .await
         .context("Failed to connect to Redis")?;
@@ -896,7 +1037,7 @@ async fn main() -> Result<()> {
     let port = config.port;
 
     let state = AppState {
-        redis_client,
+        redis_con,
         s3_client,
         http_client,
         room_sessions: Arc::new(RwLock::new(HashMap::new())),
@@ -909,6 +1050,7 @@ async fn main() -> Result<()> {
         .route("/recordings", post(start_recording))
         .route("/recordings", get(list_recordings))
         .route("/recordings/{session_id}", get(get_recording))
+        .route("/recordings/room/{room_name}/stop", post(stop_recording))
         .route("/events/room/created", post(room_created_webhook))
         .route("/events/room/destroyed", post(room_destroyed_webhook))
         .layer(TraceLayer::new_for_http())
