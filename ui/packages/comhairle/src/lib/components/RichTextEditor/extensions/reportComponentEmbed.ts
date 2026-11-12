@@ -1,12 +1,13 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
 import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
+import { embedItem } from '$lib/reports/embeds';
 
 /**
  * A report component embedded into the report's `summary` document.
  *
  * Per ADR-0012 the node stores ONLY a reference (`toolStepId` / `componentType` / `config`).
- * There is no baked HTML — every surface mounts the real, live component against current data:
+ * There is no baked HTML; every surface mounts the real, live component against current data:
  * - in the editor, the node view below mounts `ReportEmbedLive`;
  * - on the published page, the report renderer walks the document and interleaves
  *   `ReportEmbedLive` at each embed node (see the public report page).
@@ -30,12 +31,6 @@ declare module '@tiptap/core' {
 			}) => ReturnType;
 		};
 	}
-}
-
-/** The item a per-item section block shows, such as a HeyForm question id. */
-function embedItem(config: unknown): string | undefined {
-	const item = (config as { item?: unknown } | null)?.item;
-	return typeof item === 'string' ? item : undefined;
 }
 
 export const ReportComponentEmbed = Node.create({

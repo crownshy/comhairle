@@ -7,6 +7,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
 	import { embedKey, sectionBlocksForTool, type SectionBlockMeta } from '$lib/reports/embeds';
+	import type { EmbeddedSectionBlock } from '@crownshy/api-client/api';
 	import { loadEmbedItems, type EmbedItem } from '$lib/reports/embedItems';
 	import type { EmbeddableStep } from '$lib/components/RichTextEditor/ReportEmbedControls.svelte';
 	import { cn } from '$lib/utils';
@@ -14,12 +15,14 @@
 	type Props = {
 		open: boolean;
 		steps: EmbeddableStep[];
-		/** `embedKey` of every chart the report already embeds. */
-		embeddedKeys: Set<string>;
+		/** Every chart the report already embeds. */
+		embedded: EmbeddedSectionBlock[];
 		published: boolean;
 		onPick: (step: EmbeddableStep, block: SectionBlockMeta, item?: string) => void;
 	};
-	let { open = $bindable(), steps, embeddedKeys, published, onPick }: Props = $props();
+	let { open = $bindable(), steps, embedded, published, onPick }: Props = $props();
+
+	const embeddedKeys = $derived(new Set(embedded.map(embedKey)));
 
 	/** One chart to pick: a section block, or one item of a per-item block. */
 	type Tile = { block: SectionBlockMeta; item?: EmbedItem };
@@ -44,18 +47,16 @@
 		const offer = perItem
 			? `Pick from its ${perItem.itemName?.other}`
 			: `${blocks.length} charts`;
-		const inReport = [...embeddedKeys].filter((key) => key.startsWith(`${step.id}:`)).length;
+		const inReport = embedded.filter((embed) => embed.workflowStepId === step.id).length;
 		return inReport > 0 ? `${offer}, ${inReport} in the report` : offer;
 	}
 
-	function isInReport(step: EmbeddableStep, tile: Tile) {
-		return embeddedKeys.has(
-			embedKey({
-				workflowStepId: step.id,
-				sectionBlock: tile.block.type,
-				item: tile.item?.id
-			})
-		);
+	function tileKey(step: EmbeddableStep, tile: Tile) {
+		return embedKey({
+			workflowStepId: step.id,
+			sectionBlock: tile.block.type,
+			item: tile.item?.id
+		});
 	}
 
 	function pick(tile: Tile) {
@@ -110,8 +111,8 @@
 				<p class="text-muted-foreground text-base">Loading charts…</p>
 			{:then loaded}
 				<div class="grid max-h-[60vh] gap-3 overflow-y-auto sm:grid-cols-2">
-					{#each loaded ?? [] as tile (`${tile.block.type}:${tile.item?.id ?? ''}`)}
-						{@const inReport = isInReport(selectedStep, tile)}
+					{#each loaded ?? [] as tile (tileKey(selectedStep, tile))}
+						{@const inReport = embeddedKeys.has(tileKey(selectedStep, tile))}
 						<button
 							type="button"
 							class={cn(

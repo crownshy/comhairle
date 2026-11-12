@@ -12,7 +12,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { cn } from '$lib/utils';
 	import { scrollBehavior } from '$lib/utils/reducedMotion';
-	import { embedKey, publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
+	import { publicResultsByStep, sectionBlocksInDocument } from '$lib/reports/embeds';
 	import {
 		REPORT_COLUMN_CLASS,
 		REPORT_EDITOR_HOVER_CLASS,
@@ -140,9 +140,7 @@
 			data.reportEmbedSteps
 		)
 	);
-	const embeddedKeys = $derived(
-		new Set([summaryOnScreen, bodyOnScreen].flatMap(sectionBlocksInDocument).map(embedKey))
-	);
+	const embedded = $derived([summaryOnScreen, bodyOnScreen].flatMap(sectionBlocksInDocument));
 	const pages = $derived(
 		reportPages(bodyOnScreen, (pageNumber) => `Page ${pageNumber}`, 'Untitled page')
 	);
@@ -374,7 +372,7 @@
 	<AddChartDialog
 		bind:open={addingChart}
 		steps={data.reportEmbedSteps}
-		{embeddedKeys}
+		{embedded}
 		{published}
 		onPick={(step, block, item) =>
 			(activeEditor ?? bodyEditor)

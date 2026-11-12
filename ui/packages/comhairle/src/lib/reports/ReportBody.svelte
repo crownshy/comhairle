@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
+	import { embedItem } from '$lib/reports/embeds';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { toSlug } from '$lib/utils/casingUtils';
 
@@ -99,10 +100,7 @@
 					kind: 'embed',
 					toolStepId: String(node.attrs?.toolStepId ?? ''),
 					componentType: String(node.attrs?.componentType ?? ''),
-					item:
-						typeof node.attrs?.config?.item === 'string'
-							? node.attrs.config.item
-							: undefined
+					item: embedItem(node.attrs?.config)
 				});
 			} else {
 				run.push(node);

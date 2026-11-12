@@ -20,8 +20,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use super::{
-    HeyFormTool, HeyFormToolConfig, InsightQuestion, build_survey_insights, fetch_all_submissions,
-    heyform_base_url,
+    HeyFormTool, HeyFormToolConfig, InsightChoice, InsightQuestion, build_survey_insights,
+    fetch_all_submissions, heyform_base_url,
 };
 use crate::ComhairleState;
 use crate::error::ComhairleError;
@@ -30,14 +30,15 @@ use crate::tools::public_report_data::anonymous::{
     Count, FacilitatorText, Label, ScalePoint, public_report_data,
 };
 use crate::tools::public_report_data::{
-    check_can_update_step, serve_public_report_data, serve_report_preview_data,
+    preview_tool_config, serve_public_report_data, serve_report_preview_data,
 };
 
 /// The section block type, as the report stores it (`lib/reports/embeds.ts`).
-const QUESTION: &str = "heyform-question";
+const QUESTION_SECTION_BLOCK: &str = "heyform-question";
 
+const YES_NO: &str = "yes_no";
 /// Question kinds answered by picking from the facilitator's choices.
-const CHOICE_KINDS: [&str; 3] = ["yes_no", "multiple_choice", "picture_choice"];
+const CHOICE_KINDS: [&str; 3] = [YES_NO, "multiple_choice", "picture_choice"];
 /// Question kinds answered with a point on a scale.
 const SCALE_KINDS: [&str; 2] = ["rating", "opinion_scale"];
 
@@ -154,7 +155,7 @@ async fn get_question(
     let question = serve_public_report_data::<HeyFormTool, _>(
         &state.db,
         &workflow_step_id,
-        QUESTION,
+        QUESTION_SECTION_BLOCK,
         Some(&question_id),
         async |config| public_question(&config, &question_id).await,
     )
@@ -187,12 +188,7 @@ async fn embeddable_questions(
     RequiredUser(user): RequiredUser,
     Query(StepQuery { workflow_step_id }): Query<StepQuery>,
 ) -> Result<Json<Vec<HeyFormEmbeddableQuestion>>, ComhairleError> {
-    let step = check_can_update_step(&state, &user, &workflow_step_id).await?;
-    let config: HeyFormToolConfig = step
-        .tool_config
-        .unwrap_or(step.preview_tool_config)
-        .try_into()
-        .map_err(|_| ComhairleError::WorkflowStepHasWrongType("HeyForm".into()))?;
+    let config = preview_tool_config::<HeyFormTool>(&state, &user, &workflow_step_id).await?;
     let questions = load_insights(&config)
         .await?
         .into_iter()
@@ -270,12 +266,12 @@ fn to_public_question(question: &InsightQuestion) -> Option<HeyFormPublicQuestio
 fn choice_counts(question: &InsightQuestion) -> Vec<HeyFormPublicChoice> {
     let reported = question.choices.as_deref().unwrap_or_default();
     let defined = defined_choices(question.properties.as_ref());
-    if defined.is_empty() && question.kind.as_deref() == Some("yes_no") {
+    if defined.is_empty() && question.kind.as_deref() == Some(YES_NO) {
         return reported
             .iter()
             .map(|choice| HeyFormPublicChoice {
                 label: FacilitatorText::from_facilitator(choice.label.clone()),
-                count: Count(choice.count.max(0) as u64),
+                count: reported_count(choice),
             })
             .collect();
     }
@@ -283,14 +279,16 @@ fn choice_counts(question: &InsightQuestion) -> Vec<HeyFormPublicChoice> {
         .into_iter()
         .map(|(id, label)| HeyFormPublicChoice {
             label: FacilitatorText::from_facilitator(label),
-            count: Count(
-                reported
-                    .iter()
-                    .find(|choice| choice.id == id)
-                    .map_or(0, |choice| choice.count.max(0) as u64),
-            ),
+            count: reported
+                .iter()
+                .find(|choice| choice.id == id)
+                .map_or(Count(0), reported_count),
         })
         .collect()
+}
+
+fn reported_count(choice: &InsightChoice) -> Count {
+    Count(choice.count.max(0) as u64)
 }
 
 fn defined_choices(properties: Option<&HashMap<String, Value>>) -> Vec<(String, String)> {

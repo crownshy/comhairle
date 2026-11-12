@@ -46,8 +46,7 @@ where
 }
 
 /// What readers will get once the report is published and embeds the section block, so the
-/// report editor can show it before then. Needs a user who can update the step's conversation,
-/// which for an event step is the event's conversation.
+/// report editor can show it before then.
 pub async fn serve_report_preview_data<Tool: ToolImpl, Data: PublicReportData>(
     state: &Arc<ComhairleState>,
     user: &User,
@@ -57,26 +56,29 @@ pub async fn serve_report_preview_data<Tool: ToolImpl, Data: PublicReportData>(
 where
     ToolConfig: TryInto<Tool::Config>,
 {
-    let step = check_can_update_step(state, user, workflow_step_id).await?;
-    let config = tool_config_of::<Tool>(step).ok_or_else(|| {
-        ComhairleError::ResourceNotFound(format!(
-            "Report data for workflow step {workflow_step_id}"
-        ))
-    })?;
+    let config = preview_tool_config::<Tool>(state, user, workflow_step_id).await?;
     build(config).await
 }
 
-/// The step, when the user can update its conversation. For report editing tools that only
+/// The step's tool config, live or preview, for a user who can update the step's conversation
+/// (for an event step, the event's conversation). For report editing tools that only
 /// facilitators use, such as listing what a step could embed.
-pub async fn check_can_update_step(
+pub async fn preview_tool_config<Tool: ToolImpl>(
     state: &Arc<ComhairleState>,
     user: &User,
     workflow_step_id: &Uuid,
-) -> Result<workflow_step::WorkflowStep, ComhairleError> {
+) -> Result<Tool::Config, ComhairleError>
+where
+    ToolConfig: TryInto<Tool::Config>,
+{
     let step = workflow_step::get_by_id(&state.db, workflow_step_id).await?;
     let conversation_id = conversation_of_workflow(&state.db, &step.workflow_id).await?;
     ensure_can_update_conversation(state, user, &conversation_id).await?;
-    Ok(step)
+    tool_config_of::<Tool>(step).ok_or_else(|| {
+        ComhairleError::ResourceNotFound(format!(
+            "Report data for workflow step {workflow_step_id}"
+        ))
+    })
 }
 
 async fn ensure_can_update_conversation(

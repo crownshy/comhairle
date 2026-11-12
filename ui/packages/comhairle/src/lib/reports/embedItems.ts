@@ -1,16 +1,14 @@
-import { apiClient } from '@crownshy/api-client/client';
+import { listEmbeddableQuestions } from './heyform/embedData';
 
 /** Something a per-item section block can show, such as one HeyForm question. */
 export type EmbedItem = { id: string; label: string };
 
-/** How each per-item section block lists what a step could embed, for the add-chart dialog. */
+/**
+ * How each per-item section block lists what a step could embed, for the add-chart dialog.
+ * Adding a per-item block means one entry here, next to its entry in `embeds.ts`.
+ */
 const ITEM_LOADERS: Record<string, (workflowStepId: string) => Promise<EmbedItem[]>> = {
-	'heyform-question': async (workflowStepId) => {
-		const questions = await apiClient.HeyFormListEmbeddableQuestions({
-			queries: { workflow_step_id: workflowStepId }
-		});
-		return questions.map((question) => ({ id: question.id, label: question.title }));
-	}
+	'heyform-question': listEmbeddableQuestions
 };
 
 export async function loadEmbedItems(

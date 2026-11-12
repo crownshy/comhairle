@@ -1,6 +1,7 @@
 import { apiClient } from '@crownshy/api-client/client';
 import type { HeyFormPublicQuestion, HeyFormPublicScale } from '@crownshy/api-client/api';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import type { EmbedItem } from '../embedItems';
 
 /**
  * Load one question's public results (ADR-0061). A preview tries the facilitator endpoint first
@@ -18,6 +19,14 @@ export async function loadHeyFormQuestion(
 		if (previewed.err === null) return previewed.ok;
 	}
 	return apiClient.HeyFormGetPublicQuestion(request);
+}
+
+/** The step's questions that can go public, for the add-chart dialog. */
+export async function listEmbeddableQuestions(workflowStepId: string): Promise<EmbedItem[]> {
+	const questions = await apiClient.HeyFormListEmbeddableQuestions({
+		queries: { workflow_step_id: workflowStepId }
+	});
+	return questions.map((question) => ({ id: question.id, label: question.title }));
 }
 
 /** One answer per person who picked each point, the shape the admin scale chart draws from. */

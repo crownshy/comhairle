@@ -85,6 +85,12 @@ export function embeddedSectionBlockLabel(block: EmbeddedSectionBlockMeta): stri
 	return `${block.itemCount} ${noun}`;
 }
 
+/** The item a per-item section block shows, from an embed node's `config`. */
+export function embedItem(config: unknown): string | undefined {
+	const item = (config as { item?: unknown } | null | undefined)?.item;
+	return typeof item === 'string' ? item : undefined;
+}
+
 /** Identifies one embed: step, block and, for a per-item block, the item. */
 export function embedKey(sectionBlock: EmbeddedSectionBlock): string {
 	return [sectionBlock.workflowStepId, sectionBlock.sectionBlock, sectionBlock.item ?? ''].join(
@@ -94,7 +100,7 @@ export function embedKey(sectionBlock: EmbeddedSectionBlock): string {
 
 type DocumentNode = {
 	type?: string;
-	attrs?: { toolStepId?: unknown; componentType?: unknown; config?: { item?: unknown } };
+	attrs?: { toolStepId?: unknown; componentType?: unknown; config?: unknown };
 	content?: DocumentNode[];
 };
 
@@ -119,10 +125,11 @@ export function sectionBlocksInDocument(document: string): EmbeddedSectionBlock[
 			typeof toolStepId === 'string' &&
 			typeof componentType === 'string'
 		) {
+			const item = embedItem(config);
 			found.push({
 				workflowStepId: toolStepId,
 				sectionBlock: componentType,
-				...(typeof config?.item === 'string' && { item: config.item })
+				...(item && { item })
 			});
 		}
 		node.content?.forEach(visit);
