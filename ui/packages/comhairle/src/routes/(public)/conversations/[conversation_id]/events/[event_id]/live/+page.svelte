@@ -1063,6 +1063,7 @@
 	bind:open={showCreateBreakout}
 	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
+	showFacilitators
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
@@ -1073,6 +1074,7 @@
 	bind:open={showEditBreakout}
 	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
+	showFacilitators
 	title="Move people between rooms"
 	confirmLabel="Save"
 	showDuration={false}

@@ -59,3 +59,8 @@ export function applyRoomEdits(
 
 	return result;
 }
+
+/** Whether an event role can run a breakout room (moderators and facilitators). */
+export function isFacilitatorRole(role: string): boolean {
+	return role === 'moderator' || role === 'facilitator';
+}

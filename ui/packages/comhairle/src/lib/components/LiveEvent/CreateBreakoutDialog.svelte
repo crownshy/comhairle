@@ -2,6 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
+	import { isFacilitatorRole } from '$lib/utils/breakoutRoomAssignments';
 	import { X, RefreshCw, Clock, Pin, Users, Crown } from 'lucide-svelte';
 
 	interface Props {
@@ -15,6 +16,11 @@
 		enableModerators?: boolean;
 		/** user_ids that start out flagged as moderators. */
 		moderatorIds?: string[];
+		/**
+		 * Label facilitators and moderators (by their event role), read-only, and count the
+		 * rooms that have none. Used in the live call.
+		 */
+		showFacilitators?: boolean;
 		/** Show the "Time left" duration input. Off for pre-assignment (no live timer). */
 		showDuration?: boolean;
 		/** Label for the confirm button. */
@@ -42,6 +48,7 @@
 		initialAssignments,
 		enableModerators = false,
 		moderatorIds,
+		showFacilitators = false,
 		showDuration = true,
 		confirmLabel = 'Create',
 		title = 'Create breakout rooms',
@@ -104,10 +111,14 @@
 		moderators = withToggled(moderators, userId);
 	}
 
-	/** Rooms that have no moderator assigned — surfaced as a hint. */
+	function leadsRoom(p: VideoCallParticipant): boolean {
+		if (enableModerators) return moderators.has(p.user_id);
+		return showFacilitators && isFacilitatorRole(p.role);
+	}
+
 	let roomsMissingModerator = $derived(
-		enableModerators
-			? roomAssignments.filter((room) => !room.some((p) => moderators.has(p.user_id))).length
+		enableModerators || showFacilitators
+			? roomAssignments.filter((room) => !room.some(leadsRoom)).length
 			: 0
 	);
 
@@ -335,10 +346,15 @@
 				{/if}
 			</div>
 
-			{#if enableModerators && roomsMissingModerator > 0 && roomAssignments.length > 0}
+			{#if roomsMissingModerator > 0 && roomAssignments.length > 0}
 				<p class="shrink-0 text-sm text-amber-600">
-					{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a moderator.
-					Use the crown to assign one per room.
+					{#if enableModerators}
+						{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a
+						moderator. Use the crown to assign one per room.
+					{:else}
+						{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a
+						facilitator.
+					{/if}
 				</p>
 			{/if}
 
@@ -415,6 +431,10 @@
 											>
 												<Crown class="h-3.5 w-3.5" />
 											</button>
+										{:else if leadsRoom(p)}
+											<span class="text-muted-foreground text-xs"
+												>Facilitator</span
+											>
 										{/if}
 										{#if !fixedRooms}
 											<button
