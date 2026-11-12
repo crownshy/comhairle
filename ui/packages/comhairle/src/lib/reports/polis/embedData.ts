@@ -13,6 +13,7 @@ import type AreaOfConsensus from './AreaOfConsensus.svelte';
 import type ConsensusContinuum from './ConsensusContinuum.svelte';
 import type OpinionGroups from './OpinionGroups.svelte';
 import type { PolisEmbeddableComponentType } from './embeddableComponents';
+import { toGroupSummaries } from './groupSummaries';
 
 type AreaProps = ComponentProps<typeof AreaOfConsensus>;
 type ContinuumProps = ComponentProps<typeof ConsensusContinuum>;
@@ -25,6 +26,7 @@ export type PolisEmbedData =
 			componentType: 'polis-area-consensus' | 'polis-area-disagreement';
 			statements: AreaProps['comments'];
 			groups: AreaProps['groups'];
+			summary: AreaProps['summary'];
 	  }
 	| {
 			componentType: 'polis-consensus-continuum';
@@ -35,7 +37,20 @@ export type PolisEmbedData =
 			componentType: 'polis-opinion-groups';
 			statements: OpinionGroupsProps['comments'];
 			groups: OpinionGroupsProps['groups'];
+			groupSummaries: OpinionGroupsProps['groupSummaries'];
+	  }
+	| {
+			componentType: 'polis-themes';
+			themes: PolisEmbedTheme[];
+			groups: GroupSize[];
 	  };
+
+/** A theme with the accepted statements filed under it. */
+export type PolisEmbedTheme = {
+	title: string;
+	description: string;
+	statements: VotedStatement[];
+};
 
 /**
  * Each section block's endpoints. The preview ones need a facilitator who can update the
@@ -47,14 +62,16 @@ const ENDPOINTS = {
 		'polis-area-consensus': apiClient.PolisGetPublicConsensus,
 		'polis-area-disagreement': apiClient.PolisGetPublicDisagreement,
 		'polis-consensus-continuum': apiClient.PolisGetPublicConsensusContinuum,
-		'polis-opinion-groups': apiClient.PolisGetPublicOpinionGroups
+		'polis-opinion-groups': apiClient.PolisGetPublicOpinionGroups,
+		'polis-themes': apiClient.PolisGetPublicThemes
 	},
 	preview: {
 		'polis-key-stats': apiClient.PolisPreviewKeyStats,
 		'polis-area-consensus': apiClient.PolisPreviewConsensus,
 		'polis-area-disagreement': apiClient.PolisPreviewDisagreement,
 		'polis-consensus-continuum': apiClient.PolisPreviewConsensusContinuum,
-		'polis-opinion-groups': apiClient.PolisPreviewOpinionGroups
+		'polis-opinion-groups': apiClient.PolisPreviewOpinionGroups,
+		'polis-themes': apiClient.PolisPreviewThemes
 	}
 } satisfies Record<'public' | 'preview', Record<PolisEmbeddableComponentType, unknown>>;
 
@@ -108,7 +125,25 @@ async function loadFrom(
 			return {
 				componentType,
 				statements: opinionGroups.statements.map(toVotedStatement),
-				groups: opinionGroups.groups.map(toRepresentedGroup)
+				groups: opinionGroups.groups.map(toRepresentedGroup),
+				groupSummaries: toGroupSummaries(
+					opinionGroups.groups.map((group) => ({
+						groupId: group.groupId,
+						...group.summary
+					}))
+				)
+			};
+		}
+		case 'polis-themes': {
+			const themes = await endpoints[componentType](request);
+			return {
+				componentType,
+				themes: themes.themes.map((theme) => ({
+					title: theme.title,
+					description: theme.description,
+					statements: theme.statements.map(toVotedStatement)
+				})),
+				groups: themes.groups.map(toGroupSize)
 			};
 		}
 	}
@@ -139,7 +174,8 @@ function toRankedStatements(ranked: PolisPublicRankedStatements) {
 			...toVotedStatement(statement),
 			is_seed: statement.isSeed
 		})),
-		groups: ranked.groups.map(toGroupSize)
+		groups: ranked.groups.map(toGroupSize),
+		summary: ranked.summary ?? undefined
 	};
 }
 

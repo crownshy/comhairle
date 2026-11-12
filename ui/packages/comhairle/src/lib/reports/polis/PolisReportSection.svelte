@@ -3,6 +3,7 @@
 	import AreaOfConsensus from './AreaOfConsensus.svelte';
 	import ConsensusContinuum from './ConsensusContinuum.svelte';
 	import OpinionGroups from './OpinionGroups.svelte';
+	import PolisThemes from './PolisThemes.svelte';
 	import type { PolisEmbedData } from './embedData';
 
 	/**
@@ -37,11 +38,27 @@
 		/>
 	</div>
 {:else if data.componentType === 'polis-area-consensus'}
-	<AreaOfConsensus title="Area of consensus" comments={data.statements} groups={data.groups} />
+	<AreaOfConsensus
+		title="Area of consensus"
+		comments={data.statements}
+		groups={data.groups}
+		summary={data.summary}
+	/>
 {:else if data.componentType === 'polis-area-disagreement'}
-	<AreaOfConsensus title="Area of disagreement" comments={data.statements} groups={data.groups} />
+	<AreaOfConsensus
+		title="Area of disagreement"
+		comments={data.statements}
+		groups={data.groups}
+		summary={data.summary}
+	/>
 {:else if data.componentType === 'polis-consensus-continuum'}
 	<ConsensusContinuum comments={data.statements} groups={data.groups} />
 {:else if data.componentType === 'polis-opinion-groups'}
-	<OpinionGroups comments={data.statements} groups={data.groups} />
+	<OpinionGroups
+		comments={data.statements}
+		groups={data.groups}
+		groupSummaries={data.groupSummaries}
+	/>
+{:else if data.componentType === 'polis-themes'}
+	<PolisThemes themes={data.themes} groups={data.groups} />
 {/if}

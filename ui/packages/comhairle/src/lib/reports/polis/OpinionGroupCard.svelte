@@ -9,11 +9,9 @@
 	statement in `comments` to render the vote bars; any that don't resolve are
 	skipped.
 
-	The name + summary are NOT in the report payload today (Polis carries neither).
-	They come in via the optional `aiSummary` prop and render behind an "AI Generated"
-	badge. The live report leaves it undefined for now (so the whole block is hidden);
-	Storybook passes it to demo the eventual AI-generated version. Once we have a source
-	(likely an on-demand "generate group summaries" agent), the caller fills this in.
+	The name + summary come from the sensemaker's Polis summary through the optional
+	`aiSummary` prop and render behind an "AI Generated" badge. Without one the block is
+	hidden.
 
 	Dumb: takes the group, an optional AI name/summary, and the full comment list.
 	Collapse is local view state.
@@ -25,6 +23,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
+	import type { GroupSummary } from './groupSummaries';
 
 	type Props = {
 		group: RepresentedGroup;
@@ -36,7 +35,7 @@
 		 * AI-generated name + summary for this group. Omitted in the live report today
 		 * (the block is hidden); Storybook passes it to demo the generated version.
 		 */
-		aiSummary?: { name: string; summary: string };
+		aiSummary?: GroupSummary;
 		/** Frozen-snapshot render (ADR-0012): show every statement, drop the dead expand toggle. */
 		frozen?: boolean;
 	};

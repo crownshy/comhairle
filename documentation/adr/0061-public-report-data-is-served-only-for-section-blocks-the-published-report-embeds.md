@@ -50,10 +50,25 @@ Thinking Space summary, another may have told participants it stays with the org
   ids, pids, emails and raw strings can't reach a public response. Polis and HeyForm added:
   `StatementId` and `OpinionGroupId` (Polis's own numbering for statements and groups, which
   says nothing about who wrote or joined them), `FacilitatorText` (themes, survey questions
-  and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale). Participant text can only
-  go out as `ModeratedText`, which is built from accepted content only. Adding a building block
-  needs a reviewer to agree it can't identify a person. A future moderation report is the one
-  expected exception, and it gets its own ADR.
+  and choice labels, which facilitators write) and `ScalePoint` (a point on a rating scale).
+  Themes added `GeneratedText` (what the sensemaker wrote from many contributions at a
+  facilitator's request, such as a theme's description or an opinion group's summary, or what
+  a facilitator wrote in its place). The sensemaker reads every Polis statement, including
+  ones moderation rejected, so its text can paraphrase or quote one. We accept that because a
+  facilitator asks for the text and can read it in Insights before embedding it; a reviewer
+  should weigh that when approving `GeneratedText`. Participant text can only go out as
+  `ModeratedText`, which is built from accepted content only. Adding a building block needs a
+  reviewer to agree it can't identify a person. A future moderation report is the one expected
+  exception, and it gets its own ADR.
+- **Themes are served per tool from the shared loader.** `public_report_data::themes` reads a
+  step's latest theme collection for one origin tool. It doesn't filter by moderation, so each
+  tool must match a theme's contributions against its own public data. Polis joins them to the
+  accepted-only report, so a theme only shows statements the report already serves, with
+  their vote bars.
+- **A step's stored context is cached for a minute.** Theme tags, the sensemaker summary and
+  the theme collection are read once per step and kept for 60 seconds, shared by every section
+  block, so a regenerated summary can take up to a minute to reach the report. Polis votes
+  stay on the client's own report cache.
 - **Some section blocks are embedded once per item.** A HeyForm question is one section
   block, `heyform-question`, with the question id stored on the embed as `config.item`. The
   gate matches the item too, so embedding one question doesn't publish the rest of the form.

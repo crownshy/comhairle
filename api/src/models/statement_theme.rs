@@ -2,6 +2,8 @@
 //! statement can match more than one theme, so this is many-to-many rather than a
 //! `theme_id` column on `statement`.
 
+use std::collections::HashMap;
+
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use sqlx::PgPool;
@@ -9,6 +11,7 @@ use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::statement::Statement;
 use crate::models::theme::ThemeIden;
 
 #[derive(FromRow, Debug, Clone)]
@@ -77,6 +80,26 @@ pub async fn list_for_theme_collection(
     let rows = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(rows)
+}
+
+/// The statements filed under each theme, from a collection's statements and assignments.
+/// An assignment whose statement isn't in `statements` is skipped.
+pub fn statements_by_theme(
+    statements: Vec<Statement>,
+    assignments: Vec<StatementTheme>,
+) -> HashMap<Uuid, Vec<Statement>> {
+    let statements_by_id: HashMap<Uuid, Statement> =
+        statements.into_iter().map(|s| (s.id, s)).collect();
+    let mut by_theme: HashMap<Uuid, Vec<Statement>> = HashMap::new();
+    for assignment in assignments {
+        if let Some(statement) = statements_by_id.get(&assignment.statement_id) {
+            by_theme
+                .entry(assignment.theme_id)
+                .or_default()
+                .push(statement.clone());
+        }
+    }
+    by_theme
 }
 
 #[cfg(test)]
