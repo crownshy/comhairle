@@ -51,7 +51,8 @@
 	}
 </script>
 
-<SideBar.Root collapsible="icon" variant="floating">
+<!-- No gap on the right, so a white page such as the report editor meets the sidebar. -->
+<SideBar.Root collapsible="icon" variant="floating" class="pe-0">
 	<SideBar.Header
 		class="flex flex-col gap-2 pt-5 pr-3 pb-3 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>

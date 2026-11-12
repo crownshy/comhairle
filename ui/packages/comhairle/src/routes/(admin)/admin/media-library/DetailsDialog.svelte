@@ -163,50 +163,52 @@
 				</div>
 				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
 					<Form class="flex flex-col" handleSubmission={updateMedia}>
-						<DetailsField
-							label="Name"
-							initialValue={initialName}
-							{editable}
-							field="name"
-							{readOnlyField}
-						/>
-						<DetailsField
-							label="Alt"
-							initialValue={initialAlt}
-							{editable}
-							field="alt"
-							{readOnlyField}
-						/>
-						<section class="grid grid-cols-2">
-							<div>
-								{@render readOnlyField('Type', capitalise(type ?? ''))}
-							</div>
-							<div>
-								{@render readOnlyField(
-									'Format',
-									Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
-								)}
-							</div>
-							<div>
-								{@render readOnlyField(
-									'Created at',
-									new Date(createdAt).toLocaleString()
-								)}
-							</div>
-						</section>
+						{#snippet children(isSubmitting)}
+							<DetailsField
+								label="Name"
+								initialValue={initialName}
+								{editable}
+								field="name"
+								{readOnlyField}
+							/>
+							<DetailsField
+								label="Alt"
+								initialValue={initialAlt}
+								{editable}
+								field="alt"
+								{readOnlyField}
+							/>
+							<section class="grid grid-cols-2">
+								<div>
+									{@render readOnlyField('Type', capitalise(type ?? ''))}
+								</div>
+								<div>
+									{@render readOnlyField(
+										'Format',
+										Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
+									)}
+								</div>
+								<div>
+									{@render readOnlyField(
+										'Created at',
+										new Date(createdAt).toLocaleString()
+									)}
+								</div>
+							</section>
 
-						<div class="mt-4 self-end">
-							{#if editable}
-								<Button
-									variant="outline"
-									onclick={() => (editable = false)}
-									type="button"
-								>
-									Cancel
-								</Button>
-								<Submit class="ml-2" text="Update" />
-							{/if}
-						</div>
+							<div class="mt-4 self-end">
+								{#if editable}
+									<Button
+										variant="outline"
+										onclick={() => (editable = false)}
+										type="button"
+									>
+										Cancel
+									</Button>
+									<Submit class="ml-2" text="Update" {isSubmitting} />
+								{/if}
+							</div>
+						{/snippet}
 					</Form>
 				</aside>
 			</div>

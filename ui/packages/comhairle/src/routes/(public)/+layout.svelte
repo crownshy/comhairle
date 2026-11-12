@@ -68,7 +68,8 @@
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed && !isLivePage && !isRoomDisplay && !isStepPage}
+	<!-- The report pages by its own pager, so a footer would only sit under it. -->
+	{#if !isEmbed && !isLivePage && !isRoomDisplay && !isStepPage && !isReportPage}
 		<Footer />
 	{/if}
 </div>

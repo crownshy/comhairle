@@ -5,16 +5,6 @@
 //! request never are, so they can't reach a public endpoint by accident. Fixed text from our own
 //! code goes in a [`Label`]. Adding a new building block here needs a reviewer to agree it can't
 //! identify a person.
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        unused_macros,
-        unused_imports,
-        reason = "first users are the Polis public endpoints (#1253)"
-    )
-)]
-
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -58,6 +48,58 @@ impl ModeratedText {
     }
 }
 
+/// Polis's number for a statement, used to match a statement to its vote bars and groups. Polis
+/// numbers statements in the order they were written, so it says nothing about who wrote one.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct StatementId(pub u32);
+
+/// Polis's number for an opinion group, counting from 0 within one conversation.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct OpinionGroupId(pub u32);
+
+/// Text a facilitator wrote, such as a theme they tagged statements with, a survey question or
+/// one of its choices. Build it only from what facilitators set up, never from anything a
+/// participant typed.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct FacilitatorText(String);
+
+impl FacilitatorText {
+    pub fn from_facilitator(text: String) -> Self {
+        Self(text)
+    }
+}
+
+/// A point on a rating or opinion scale, such as 4 on a 1 to 5 rating.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(transparent)]
+pub struct ScalePoint(pub u32);
+
+/// An aggregate number that isn't a count, such as a summed rating, a mean, or the edge of a
+/// scale bucket. Built from many people's answers together, never from one person's.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq)]
+#[serde(transparent)]
+pub struct Score(pub f64);
+
+/// The fewest answers a `Score` or breakdown is built from. With fewer, a reader who knows who
+/// answered could work out one person's answers, so the count is shown and the rest withheld.
+pub const MIN_ANSWERS_SHOWN: usize = 3;
+
+/// Text the sensemaker wrote at a facilitator's request from many contributions together, such
+/// as a theme's description or an opinion group's summary, or that a facilitator wrote in its
+/// place. Never one person's words.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct GeneratedText(String);
+
+impl GeneratedText {
+    pub fn from_sensemaking(text: String) -> Self {
+        Self(text)
+    }
+}
+
 macro_rules! building_blocks {
     ($($building_block:ty),*) => {
         $(
@@ -67,7 +109,19 @@ macro_rules! building_blocks {
     };
 }
 
-building_blocks!(Count, Label, Share, ModeratedText, bool);
+building_blocks!(
+    Count,
+    Label,
+    Share,
+    ModeratedText,
+    StatementId,
+    OpinionGroupId,
+    FacilitatorText,
+    ScalePoint,
+    Score,
+    GeneratedText,
+    bool
+);
 
 impl<T: PublicReportData> sealed::Sealed for Option<T> {}
 impl<T: PublicReportData> PublicReportData for Option<T> {}

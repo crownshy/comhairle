@@ -24,7 +24,7 @@ export function sectionTabClass(active: boolean, className?: string): string {
  */
 export function subTabClass(active: boolean): string {
 	return cn(
-		'focus-inset text-foreground inline-flex h-10 items-center px-3.5 -mx-2 px-2 text-base font-medium whitespace-nowrap transition-opacity',
+		'focus-inset text-foreground inline-flex h-10 items-center px-3.5 text-base font-medium whitespace-nowrap transition-opacity',
 		active ? 'text-primary' : 'opacity-70 hover:opacity-100'
 	);
 }

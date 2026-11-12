@@ -30,6 +30,8 @@ use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
 
+mod public_report;
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
     /// Questions asked once about the proposal as a whole.
@@ -272,6 +274,7 @@ impl ToolImpl for PrioritizationTool {
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/prioritization/proposals",
                 post_with(create_proposal, |op| {
@@ -720,13 +723,18 @@ async fn create_proposal_response(
 #[instrument(err(Debug), skip(state))]
 async fn list_proposal_responses(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     Path(proposal_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<ProposalResponseDto>>), ComhairleError> {
+    // A participant may only ever see their own response to a proposal —
+    // admins get every response via the separate RequiredAdminUser-gated
+    // insights endpoint, which passes user_id: None deliberately.
     let responses = proposal_response::list(
         &state.db,
         &proposal_id,
-        ProposalResponseFilterOptions,
+        ProposalResponseFilterOptions {
+            user_id: Some(user.id),
+        },
         ProposalResponseOrderOptions,
     )
     .await?
@@ -792,7 +800,7 @@ async fn get_prioritization_insights(
         let proposal_responses = proposal_response::list(
             &state.db,
             &proposal.id,
-            ProposalResponseFilterOptions,
+            ProposalResponseFilterOptions::default(),
             ProposalResponseOrderOptions,
         )
         .await?;
@@ -847,7 +855,7 @@ mod tests {
     };
     use crate::models::proposal_response::Response;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
-    use crate::test_helpers::prioritization_tool_config;
+    use crate::test_helpers::{UserSession, prioritization_tool_config};
     use crate::tools::ToolConfig;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -1050,22 +1058,12 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let (proposal_a, _) = proposal::create(
+        let (proposal, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
-                title: "Proposal A".to_string(),
-                sections: vec!["Proposal A".to_string()],
-            },
-            "en",
-        )
-        .await?;
-        let (proposal_b, _) = proposal::create(
-            &pool,
-            &workflow_step.id,
-            &CreateProposal {
-                title: "Proposal B".to_string(),
-                sections: vec!["Proposal B".to_string()],
+                title: "A proposal".to_string(),
+                sections: vec!["A proposal".to_string()],
             },
             "en",
         )
@@ -1105,77 +1103,63 @@ mod tests {
             ],
         };
 
-        // Two distinct users each respond to both proposals, so each proposal
-        // ends up with two responses. Same-user re-posts now upsert (single row
-        // per (proposal, user)) so duplicate users would collapse.
-        session.signup_guest(&app).await?;
-        session
+        // Two distinct participants respond to the same proposal. Each must
+        // only ever see their own response when listing — not the other's.
+        let mut user_a = UserSession::new_guest();
+        user_a.signup_guest(&app).await?;
+        user_a
             .post(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
                 json!(create_response_a).to_string().into(),
             )
             .await?;
-        session
+
+        let mut user_b = UserSession::new_guest();
+        user_b.signup_guest(&app).await?;
+        user_b
             .post(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
                 json!(create_response_b).to_string().into(),
             )
             .await?;
 
-        session.signup_guest(&app).await?;
-        session
-            .post(
-                &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
-                json!(create_response_a).to_string().into(),
-            )
-            .await?;
-        session
-            .post(
-                &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
-                json!(create_response_b).to_string().into(),
-            )
-            .await?;
-
-        let (_, value, _) = session
+        let (_, value, _) = user_a
             .get(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
             )
             .await?;
-        let proposal_a_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        let user_a_view: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        assert_eq!(
+            user_a_view.len(),
+            1,
+            "user A should only see their own response"
+        );
+        assert_eq!(
+            user_a_view[0].user_id,
+            user_a.id.expect("user A should have an id after signup"),
+            "user A's response should be their own"
+        );
 
-        let (_, value, _) = session
+        let (_, value, _) = user_b
             .get(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
             )
             .await?;
-        let proposal_b_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
-
-        assert_eq!(proposal_a_responses.len(), 2, "incorrect a total");
-        assert_eq!(proposal_b_responses.len(), 2, "incorrect b total");
+        let user_b_view: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        assert_eq!(
+            user_b_view.len(),
+            1,
+            "user B should only see their own response"
+        );
+        assert_eq!(
+            user_b_view[0].user_id,
+            user_b.id.expect("user B should have an id after signup"),
+            "user B's response should be their own"
+        );
 
         Ok(())
     }

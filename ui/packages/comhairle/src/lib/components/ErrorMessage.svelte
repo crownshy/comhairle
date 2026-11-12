@@ -3,11 +3,12 @@
 
 	interface Props {
 		children: Snippet;
+		size?: 'sm' | 'md' | 'lg' | 'xl';
 	}
 
-	let { children }: Props = $props();
+	let { children, size = 'md' }: Props = $props();
 </script>
 
-<span class="text-destructive font-semibold" aria-live="polite">
+<span class="text-destructive font-semibold text-{size}" aria-live="polite">
 	{@render children()}
 </span>

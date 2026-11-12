@@ -7,9 +7,11 @@
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
-	import { groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
+	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
+	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
+	import { MeetingAttendance } from './meetingAttendance.svelte';
 	import type {
 		JitsiConferenceEvent,
 		JitsiDisplayNameChangeEvent
@@ -25,6 +27,7 @@
 	import NoticeDialog from '$lib/components/LiveEvent/NoticeDialog.svelte';
 	import EndMeetingDialog from '$lib/components/LiveEvent/EndMeetingDialog.svelte';
 	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
+	import MeetingLeftScreen from '$lib/components/LiveEvent/MeetingLeftScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type {
@@ -46,6 +49,8 @@
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
+	import { mediaTimedOutDuringSwitch } from './roomSwitch';
+	import { nudgeBackToTab } from './tabNudge';
 
 	let { data }: PageProps = $props();
 
@@ -93,17 +98,22 @@
 		return () => videoCallService.leaveCall(eventId);
 	});
 
-	let hasJoinedCall = $state(false);
+	const attendance = new MeetingAttendance(() => callStatus);
 	const jitsiRoom = new JitsiRoom();
-	let roomContext = $state<RoomContext>('plenary');
 	let currentJitsiRoomName = $state<string>('');
 	/** This client's own Jitsi participant id, used to detect our own rename events. */
 	let localParticipantId = $state<string | null>(null);
+	/** When Jitsi last left a room, so a slow join after it can be spotted */
+	let roomSwitchStartedAt: number | null = null;
+	let stopTabNudge: (() => void) | null = null;
+	/** Bumber to rebuild the Jitsi iframe when the mic and camera fail to reconnect */
+	let jitsiInstance = $state(0);
 
 	/** Mock breakout rooms for dev testing */
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
 
 	let showCreateBreakout = $state(false);
+	let showEditBreakout = $state(false);
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showEndMeeting = $state(false);
@@ -135,19 +145,7 @@
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
 	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
 
-	let meetingPhase = $derived.by(() => {
-		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
-		if (callStatus === null) {
-			phase = 'loading';
-		} else if (hasJoinedCall && callStatus === 'Ended') {
-			phase = 'ended';
-		} else if (hasJoinedCall) {
-			phase = 'incall';
-		} else {
-			phase = 'lobby';
-		}
-		return phase;
-	});
+	let meetingPhase = $derived(attendance.phase);
 
 	/** True if any moderator/facilitator (other than current user) is in the lobby. */
 	let hostPresent = $derived(
@@ -157,7 +155,23 @@
 	);
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
+
+	/** Which room this client is in. The join and leave handlers write it, and it drops back
+	 *  to plenary whenever a breakout session starts or ends. That reset has to cover
+	 *  facilitators too: one who was in a room when someone else ended the session would
+	 *  otherwise see "Leave breakout room" in plenary at the next session. */
+	let roomContext: RoomContext = $derived.by(() => {
+		void isBreakoutActive;
+		return 'plenary';
+	});
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
+
+	/** Moderators are moved into their room once per session, so leaving early to help
+	 *  another room is not undone. Resets with the session, like roomContext. */
+	let moderatorAutoEnteredThisSession = $derived.by(() => {
+		void isBreakoutActive;
+		return false;
+	});
 
 	/** Which side panel tab is showing. Moderators land on the rooms list as soon as a
 	 *  breakout starts, everyone else on the agenda. Writable, because the tab buttons and
@@ -224,7 +238,7 @@
 	});
 
 	let preassignedBreakoutRooms = $derived(
-		groupParticipantsByRoom(allParticipants, videoCallService.breakoutRooms)
+		groupParticipantsByRoom(inCallParticipants, videoCallService.breakoutRooms)
 	);
 
 	$effect(() => {
@@ -256,6 +270,18 @@
 		jitsiRoom.syncReady(
 			isBreakoutActive ? breakoutRooms.length || mockBreakoutRooms.length : null
 		);
+	});
+
+	// Report each breakout room's real Jitsi jid to the backend as soon as it exists, so
+	// it can trigger a recorder for that room. Gated on the backend's own room_jid still
+	// being null, so this naturally stops re-sending once the server broadcasts back that
+	// it has recorded the jid - no separate "already sent" bookkeeping needed.
+	$effect(() => {
+		breakoutRooms.forEach((room, index) => {
+			if (room.room_jid) return;
+			const jid = jitsiRoom.jidForIndex(index);
+			if (jid) videoCallService.reportBreakoutRoomLive(eventId, index, jid);
+		});
 	});
 
 	// Watch for new assistance requests (host only)
@@ -292,13 +318,6 @@
 		}
 	});
 
-	// Auto-join when call is in progress (moderator started it)
-	$effect(() => {
-		if (callStatus === 'InProgress' && !hasJoinedCall) {
-			hasJoinedCall = true;
-		}
-	});
-
 	// Reset mobile sheet collapse state when a participant enters a breakout room (peek)
 	$effect(() => {
 		if (inBreakoutRoom && !isModerator) {
@@ -306,27 +325,25 @@
 		}
 	});
 
-	// Auto-enter participants into their assigned breakout room
+	// Move everyone into their assigned breakout room once Jitsi has the rooms
 	$effect(() => {
-		if (
-			isBreakoutActive &&
-			!isModerator &&
-			jitsiRoom.ready &&
-			typeof roomContext === 'string'
-		) {
-			const assignedRoom = user ? videoCallService.getUserBreakoutRoom(user.id) : null;
-			// Use assigned room from backend, or default to room 0 for mock testing
-			handleEnterBreakoutRoom(assignedRoom ?? 0);
-		}
-		if (!isBreakoutActive && typeof roomContext !== 'string' && !isModerator) {
-			roomContext = 'plenary';
-			// Jitsi automatically moves participants back when rooms are removed
-		}
+		if (!isBreakoutActive || !jitsiRoom.ready || typeof roomContext !== 'string') return;
+
+		const roomIndex = breakoutAutoEnterRoom({
+			isModerator,
+			assignedRoom: user ? videoCallService.getUserBreakoutRoom(user.id) : null,
+			moderatorAlreadyAutoEntered: moderatorAutoEnteredThisSession
+		});
+		if (roomIndex === null) return;
+
+		if (isModerator) moderatorAutoEnteredThisSession = true;
+		handleEnterBreakoutRoom(roomIndex);
 	});
 
-	// Detect mid-session room reassignment (moderator moved a participant)
+	// Follow a mid-session room change made from the Move people dialog. Facilitators follow
+	// too; this only fires when the assignment changes, so their own room hopping is untouched.
 	$effect(() => {
-		if (!isBreakoutActive || isModerator || !user || !jitsiRoom.ready) {
+		if (!isBreakoutActive || !user || !jitsiRoom.ready) {
 			trackedRoomIndex = null;
 			return;
 		}
@@ -338,7 +355,6 @@
 			// First assignment — just start tracking
 			trackedRoomIndex = assignedRoom;
 		} else if (assignedRoom !== null && assignedRoom !== tracked && tracked !== null) {
-			// Room changed mid-session — moderator moved us
 			handleEnterBreakoutRoom(assignedRoom);
 			pushNotice({ message: `You've been moved to Breakout room #${assignedRoom + 1}` });
 			trackedRoomIndex = assignedRoom;
@@ -379,14 +395,6 @@
 		}
 	});
 
-	// When callStatus becomes 'Ended', hang up Jitsi for ALL participants
-	$effect(() => {
-		if (callStatus === 'Ended' && jitsiRoom.connected) {
-			jitsiRoom.hangup();
-			hasJoinedCall = false;
-		}
-	});
-
 	// Watch for broadcast messages (participants only — moderator gets toast confirmation)
 	$effect(() => {
 		if (lastBroadcast) {
@@ -400,6 +408,7 @@
 	onDestroy(() => {
 		if (countdownInterval) clearInterval(countdownInterval);
 		if (toastTimeout) clearTimeout(toastTimeout);
+		stopTabNudge?.();
 	});
 
 	function pushNotice(notice: { message: string; actionLabel?: string; onAction?: () => void }) {
@@ -423,7 +432,7 @@
 		videoCallService.changeCallState(eventId, 'Waiting');
 		videoCallService.setAgendaItem(eventId, 0);
 		videoCallService.endBreakoutSession(eventId);
-		hasJoinedCall = false;
+		attendance.reset();
 		roomContext = 'plenary';
 		showCreateBreakout = false;
 		breakoutDialogItem = null;
@@ -453,8 +462,8 @@
 	}
 
 	function handleStartMeeting() {
-		// Only render Jitsi — don't broadcast InProgress until moderator is actually in the call
-		hasJoinedCall = true;
+		// Only render Jitsi. Don't broadcast InProgress until the moderator is actually in the call.
+		attendance.start();
 	}
 
 	function handleSetAgendaItem(index: number) {
@@ -515,6 +524,17 @@
 
 		// Auto-switch to breakout rooms tab
 		activePanel = 'breakoutRooms';
+	}
+
+	function handleEditBreakout(config: {
+		maxPerRoom: number;
+		roomAssignments: VideoCallParticipant[][];
+	}) {
+		const editedRooms = config.roomAssignments.map((room) => room.map((p) => p.user_id));
+		const roomAssignments = applyRoomEdits(editedRooms, videoCallService.breakoutRooms);
+		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
+		showEditBreakout = false;
+		showToast('Breakout rooms updated');
 	}
 
 	function handleEnterBreakoutRoom(roomIndex: number) {
@@ -612,7 +632,7 @@
 		}
 
 		// Step 2: Remove all breakout rooms - Jitsi should auto-return participants to main room
-		await jitsiRoom.closeAll();
+		await jitsiRoom.removeAll();
 
 		// Step 3: Wait a moment for rooms to be removed
 		await new Promise((resolve) => setTimeout(resolve, 500));
@@ -648,10 +668,27 @@
 		if (isModerator && callStatus === 'Waiting') {
 			videoCallService.changeCallState(eventId, 'InProgress');
 		}
+
+		stopTabNudge?.();
+		stopTabNudge = null;
+
+		if (mediaTimedOutDuringSwitch(roomSwitchStartedAt, Date.now())) {
+			pushNotice({
+				message: "Your microphone and camera didn't reconnect when you changed rooms.",
+				actionLabel: 'Reconnect',
+				onAction: reconnectVideo
+			});
+		}
+		roomSwitchStartedAt = null;
 	}
 
 	function handleVideoConferenceLeft() {
 		videoCallService.reportVideoLeft(eventId);
+		roomSwitchStartedAt = Date.now();
+		// Firefox holds Jitsi's mic and camera request until the tab is focused again.
+		if (document.hidden && !stopTabNudge) {
+			stopTabNudge = nudgeBackToTab('Rejoin your call');
+		}
 	}
 
 	function handleDisplayNameChange(data: JitsiDisplayNameChangeEvent) {
@@ -659,6 +696,14 @@
 		if (data?.id && data.id === localParticipantId) {
 			videoCallService.reportVideoJoined(eventId, data.displayname ?? data.displayName);
 		}
+	}
+
+	/** Rebuild the Jitsi iframe, which asks for the mic and camera afresh */
+	function reconnectVideo() {
+		roomSwitchStartedAt = null;
+		jitsiRoom.reset();
+		roomContext = 'plenary';
+		jitsiInstance += 1;
 	}
 </script>
 
@@ -691,6 +736,8 @@
 		{isModerator}
 		onResetCall={resetCall}
 	/>
+{:else if meetingPhase === 'left'}
+	<MeetingLeftScreen title={event?.name ?? 'Meeting'} onRejoin={() => attendance.rejoin()} />
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
@@ -772,31 +819,34 @@
 
 				<!-- Jitsi iframe -->
 				<div class="relative flex-1 overflow-hidden">
-					<JitsiMeet
-						roomName={plenaryRoomName}
-						{jwt}
-						onApiReady={(api) => jitsiRoom.attach(api)}
-						onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
-						onVideoConferenceJoined={handleVideoConferenceJoined}
-						onVideoConferenceLeft={handleVideoConferenceLeft}
-						onDisplayNameChange={handleDisplayNameChange}
-						startWithAudioMuted={true}
-						configOverwrite={{
-							toolbarButtons: [
-								'microphone',
-								'camera',
-								'chat',
-								'raisehand',
-								'tileview',
-								'fullscreen',
-								'settings',
-								'hangup'
-							],
-							prejoinPageEnabled: false,
-							disableDeepLinking: true,
-							hideConferenceSubject: true
-						}}
-					/>
+					{#key jitsiInstance}
+						<JitsiMeet
+							roomName={plenaryRoomName}
+							{jwt}
+							onApiReady={(api) => jitsiRoom.attach(api)}
+							onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
+							onVideoConferenceJoined={handleVideoConferenceJoined}
+							onVideoConferenceLeft={handleVideoConferenceLeft}
+							onReadyToClose={() => attendance.leave()}
+							onDisplayNameChange={handleDisplayNameChange}
+							startWithAudioMuted={true}
+							configOverwrite={{
+								toolbarButtons: [
+									'microphone',
+									'camera',
+									'chat',
+									'raisehand',
+									'tileview',
+									'fullscreen',
+									'settings',
+									'hangup'
+								],
+								prejoinPageEnabled: false,
+								disableDeepLinking: true,
+								hideConferenceSubject: true
+							}}
+						/>
+					{/key}
 				</div>
 			</div>
 
@@ -829,6 +879,7 @@
 							onUpdateTime={handleUpdateTime}
 							onEndSession={handleEndSessionPressed}
 							onBroadcastMessage={() => (showBroadcast = true)}
+							onEditRooms={() => (showEditBreakout = true)}
 						/>
 					{:else}
 						<AgendaPanel
@@ -1010,12 +1061,26 @@
 <!-- Dialogs -->
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
-	participants={allParticipants}
+	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
+	showFacilitators
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
 	onCreate={handleCreateBreakout}
+/>
+
+<CreateBreakoutDialog
+	bind:open={showEditBreakout}
+	participants={inCallParticipants}
+	initialAssignments={preassignedBreakoutRooms}
+	showFacilitators
+	title="Move people between rooms"
+	confirmLabel="Save"
+	showDuration={false}
+	fixedRooms
+	onClose={() => (showEditBreakout = false)}
+	onCreate={handleEditBreakout}
 />
 
 <BroadcastMessageDialog

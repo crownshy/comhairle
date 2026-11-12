@@ -5,6 +5,7 @@ pub mod config;
 pub mod db;
 mod docs;
 pub mod error;
+pub mod jitsi_recorder;
 pub mod mailer;
 mod middleware;
 pub mod models;
@@ -120,6 +121,15 @@ impl ComhairleState {
             .as_ref()
             .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
     }
+
+    fn required_jitsi_recorder_config(
+        &self,
+    ) -> Result<&config::JitsiRecorderConfig, ComhairleError> {
+        self.config
+            .jitsi_recorder
+            .as_ref()
+            .ok_or(ComhairleError::NoJitsiRecorderConfigured)
+    }
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -171,7 +181,6 @@ pub async fn build_router_and_spec(
     let auth_router = routes::auth::router(rate_limiters.as_ref()).await;
 
     let router = ApiRouter::new()
-        .route("/health", axum::routing::get(health_check))
         .nest("/auth", auth_router)
         .nest(
             "/user",
@@ -271,12 +280,13 @@ pub async fn build_router_and_spec(
         )
         .nest("/permissions", routes::permissions::router())
         .nest_api_service("/docs", docs_routes())
-        .nest("/demographics", routes::demographics::router())
         .finish_api_with(&mut api, api_docs)
-        // Place before metrics route so metrics isn't rate limited
         .layer(option_layer(
             rate_limiters.map(|l| l.lenient_rate_limiter()),
-        ));
+        ))
+        // /health & /metrics endpoints placed after global rate limiter ^ applied
+        // so that those endpoints aren't rate limited
+        .route("/health", axum::routing::get(health_check));
 
     #[cfg(not(test))]
     let router = router

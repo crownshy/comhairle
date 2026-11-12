@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}New Recording — Jitsi Recorder{% endblock %}
+
+{% block head %}
+<style>
+  h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+  form { max-width: 540px; }
+  label { display: block; margin-bottom: 0.25rem; font-weight: bold; font-size: 0.9rem; }
+  input[type=text] { width: 100%; box-sizing: border-box; padding: 0.4rem 0.6rem; margin-bottom: 1rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95rem; }
+  button { padding: 0.5rem 1.25rem; background: #2563eb; color: white; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+  button:hover { background: #1d4ed8; }
+  small { color: #666; font-weight: normal; }
+  #result { max-width: 540px; margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none; }
+  #result.ok  { background: #d1fae5; color: #065f46; }
+  #result.err { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Start a New Recording</h2>
+<form id="form">
+  <label for="room_name">Room Name *</label>
+  <input type="text" id="room_name" required placeholder="my-meeting">
+
+  <label for="s3_bucket">S3 Bucket *</label>
+  <input type="text" id="s3_bucket" required placeholder="my-recordings-bucket">
+
+  <label for="s3_path">S3 Path *</label>
+  <input type="text" id="s3_path" required placeholder="recordings/my-meeting.wav">
+
+  <label for="webhook_url">Webhook URL *</label>
+  <input type="text" id="webhook_url" required placeholder="https://example.com/webhook">
+
+  <label for="nickname">Nickname <small>(optional, default: recorder-bot)</small></label>
+  <input type="text" id="nickname" placeholder="recorder-bot">
+
+  <label for="jwt_token">JWT Token <small>(optional)</small></label>
+  <input type="text" id="jwt_token">
+
+  <button type="submit">Start Recording</button>
+</form>
+<div id="result"></div>
+<script>
+  document.getElementById('form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const body = {
+      room_name:   document.getElementById('room_name').value,
+      s3_bucket:   document.getElementById('s3_bucket').value,
+      s3_path:     document.getElementById('s3_path').value,
+      webhook_url: document.getElementById('webhook_url').value,
+    };
+    const nickname = document.getElementById('nickname').value;
+    if (nickname) body.nickname = nickname;
+    const jwt = document.getElementById('jwt_token').value;
+    if (jwt) body.jwt_token = jwt;
+
+    const result = document.getElementById('result');
+    try {
+      const resp = await fetch('/recordings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      result.style.display = 'block';
+      if (resp.ok) {
+        result.className = 'ok';
+        result.textContent = 'Recording started! Session ID: ' + data.session_id;
+      } else {
+        result.className = 'err';
+        result.textContent = 'Error: ' + JSON.stringify(data);
+      }
+    } catch (err) {
+      result.style.display = 'block';
+      result.className = 'err';
+      result.textContent = 'Request failed: ' + err.message;
+    }
+  });
+</script>
+{% endblock %}

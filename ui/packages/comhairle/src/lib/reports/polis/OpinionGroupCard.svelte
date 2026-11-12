@@ -5,38 +5,37 @@
 	expand.
 
 	Size line = this group's `total_members` and its share of all group members.
-	Representative comments carry only `{ text, tid }`, so each tid is resolved back
-	to the full report comment (from `comments`) to render the vote bars; any that
-	don't resolve are skipped.
+	Representative comments are referenced by `tid`, so each is resolved to its
+	statement in `comments` to render the vote bars; any that don't resolve are
+	skipped.
 
-	The name + summary are NOT in the report payload today (Polis carries neither).
-	They come in via the optional `aiSummary` prop and render behind an "AI Generated"
-	badge. The live report leaves it undefined for now (so the whole block is hidden);
-	Storybook passes it to demo the eventual AI-generated version. Once we have a source
-	(likely an on-demand "generate group summaries" agent), the caller fills this in.
+	The name + summary come from the sensemaker's Polis summary through the optional
+	`aiSummary` prop and render behind an "AI Generated" badge. Without one the block is
+	hidden.
 
 	Dumb: takes the group, an optional AI name/summary, and the full comment list.
 	Collapse is local view state.
 -->
 <script lang="ts">
-	import type { ReportComment, ReportGroup } from '$lib/tools/polis/reportTypes';
+	import type { GroupSize, RepresentedGroup, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import { m } from '$lib/paraglide/messages';
 	import * as Card from '$lib/components/ui/card';
 	import { ChevronDown, Sparkles } from '@lucide/svelte';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
+	import type { GroupSummary } from './groupSummaries';
 
 	type Props = {
-		group: ReportGroup;
+		group: RepresentedGroup;
 		/** All report comments, used to resolve representative-comment tids to bars. */
-		comments: ReportComment[];
+		comments: VotedStatement[];
 		/** All opinion groups, so each statement block draws OVERALL + one bar per group. */
-		groups: ReportGroup[];
+		groups: GroupSize[];
 		/**
 		 * AI-generated name + summary for this group. Omitted in the live report today
 		 * (the block is hidden); Storybook passes it to demo the generated version.
 		 */
-		aiSummary?: { name: string; summary: string };
+		aiSummary?: GroupSummary;
 		/** Frozen-snapshot render (ADR-0012): show every statement, drop the dead expand toggle. */
 		frozen?: boolean;
 	};
@@ -59,7 +58,7 @@
 	const repComments = $derived(
 		group.representative_comments
 			.map((r) => byTid.get(r.tid))
-			.filter((c): c is ReportComment => c !== undefined)
+			.filter((c): c is VotedStatement => c !== undefined)
 	);
 	const visible = $derived(
 		frozen || expanded ? repComments : repComments.slice(0, COLLAPSED_ROWS)

@@ -31,3 +31,36 @@ export function groupParticipantsByRoom(
 
 	return roomAssignments;
 }
+
+/**
+ * Turn a facilitator's edited room layout into the assignments to send mid-session.
+ *
+ * The edit dialog works from a snapshot taken when it opened. Anyone placed in a room after
+ * that (a late joiner, for example) is missing from the edit, so they keep the room they are
+ * in now rather than ending up with no room at all. The room count never drops below the
+ * current one, because each index maps to a Jitsi room that already exists.
+ */
+export function applyRoomEdits(
+	editedRooms: string[][],
+	currentRooms: BreakoutRoomAssignments[]
+): string[][] {
+	const roomCount = Math.max(editedRooms.length, currentRooms.length);
+	const result = Array.from({ length: roomCount }, (_, index) => [...(editedRooms[index] ?? [])]);
+	const placed = new Set(editedRooms.flat());
+
+	currentRooms.forEach((room, index) => {
+		room.participants
+			.filter((userId) => !placed.has(userId))
+			.forEach((userId) => {
+				result[index].push(userId);
+				placed.add(userId);
+			});
+	});
+
+	return result;
+}
+
+/** Whether an event role can run a breakout room (moderators and facilitators). */
+export function isFacilitatorRole(role: string): boolean {
+	return role === 'moderator' || role === 'facilitator';
+}

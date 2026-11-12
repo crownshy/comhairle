@@ -5,15 +5,21 @@ import { JitsiRoom } from './jitsiRoom.svelte';
 
 type SentCommand = [string, ...unknown[]];
 
-function fakeApi(options: { listed?: Record<string, JitsiBreakoutRoom> | Error } = {}) {
+type Listing = Record<string, JitsiBreakoutRoom> | Error;
+
+/** `listed` is what every listing returns; `listings` returns each in turn, then repeats the last. */
+function fakeApi(options: { listed?: Listing; listings?: Listing[] } = {}) {
 	const sent: SentCommand[] = [];
+	const listings = options.listings ?? [options.listed ?? {}];
+	let listCount = 0;
 	const api = {
 		executeCommand: (command: string, ...args: unknown[]) => {
 			sent.push([command, ...args]);
 		},
 		listBreakoutRooms: async () => {
-			if (options.listed instanceof Error) throw options.listed;
-			return options.listed ?? {};
+			const listing = listings[Math.min(listCount++, listings.length - 1)];
+			if (listing instanceof Error) throw listing;
+			return listing;
 		},
 		dispose: () => {}
 	} as unknown as JitsiMeetExternalApi;
@@ -79,20 +85,69 @@ describe('JitsiRoom', () => {
 		]);
 	});
 
-	it('closes every room on the list Jitsi hands back, not the one it last pushed', async () => {
+	it('removes every room on the list Jitsi hands back, not the one it last pushed', async () => {
 		const { api, sent } = fakeApi({
 			listed: roomsPayload(
-				{ id: 'main', isMainRoom: true },
-				{ id: 'three', name: 'Breakout room #3' }
+				{ id: 'main', jid: 'main@conf', isMainRoom: true },
+				{ id: 'three', jid: 'three@breakout', name: 'Breakout room #3' }
 			)
 		});
 		const room = new JitsiRoom();
 		room.attach(api);
 		room.setRooms(breakouts);
 
-		await room.closeAll();
+		await room.removeAll();
 
-		expect(sent).toEqual([['closeBreakoutRoom', 'three']]);
+		expect(sent).toEqual([
+			['closeBreakoutRoom', 'three'],
+			['removeBreakoutRoom', 'three@breakout']
+		]);
+	});
+
+	it('waits for closed rooms to empty before removing them', async () => {
+		vi.useFakeTimers();
+		const occupied = roomsPayload({
+			id: 'one',
+			jid: 'one@breakout',
+			name: 'Breakout room #1',
+			participants: { 'someone@conf': {} }
+		});
+		const emptied = roomsPayload({ id: 'one', jid: 'one@breakout', name: 'Breakout room #1' });
+		const { api, sent } = fakeApi({ listings: [occupied, occupied, emptied] });
+		const room = new JitsiRoom();
+		room.attach(api);
+
+		const removing = room.removeAll();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(sent).toEqual([['closeBreakoutRoom', 'one']]);
+
+		await vi.advanceTimersByTimeAsync(250);
+		await removing;
+		expect(sent).toEqual([
+			['closeBreakoutRoom', 'one'],
+			['removeBreakoutRoom', 'one@breakout']
+		]);
+		vi.useRealTimers();
+	});
+
+	it('removes the rooms anyway if they never empty', async () => {
+		vi.useFakeTimers();
+		const occupied = roomsPayload({
+			id: 'one',
+			jid: 'one@breakout',
+			name: 'Breakout room #1',
+			participants: { 'someone@conf': {} }
+		});
+		const { api, sent } = fakeApi({ listed: occupied });
+		const room = new JitsiRoom();
+		room.attach(api);
+
+		const removing = room.removeAll();
+		await vi.advanceTimersByTimeAsync(5000);
+		await removing;
+
+		expect(sent.at(-1)).toEqual(['removeBreakoutRoom', 'one@breakout']);
+		vi.useRealTimers();
 	});
 
 	it('falls back to the rooms it was told about when Jitsi will not list them', async () => {
@@ -101,11 +156,13 @@ describe('JitsiRoom', () => {
 		room.attach(api);
 		room.setRooms(breakouts);
 
-		await room.closeAll();
+		await room.removeAll();
 
 		expect(sent).toEqual([
 			['closeBreakoutRoom', 'one'],
-			['closeBreakoutRoom', 'two']
+			['closeBreakoutRoom', 'two'],
+			['removeBreakoutRoom', 'one@breakout'],
+			['removeBreakoutRoom', 'two@breakout']
 		]);
 	});
 
@@ -139,5 +196,65 @@ describe('JitsiRoom', () => {
 
 		expect(room.rooms).toEqual([]);
 		expect(room.ready).toBe(false);
+	});
+
+	describe('when a session ends and another starts', () => {
+		const secondSession = roomsPayload(
+			{ id: 'main', jid: 'main@conf', name: 'Main room', isMainRoom: true },
+			{ id: 'new-one', jid: 'new-one@breakout', name: 'Breakout room #1' },
+			{ id: 'new-two', jid: 'new-two@breakout', name: 'Breakout room #2' }
+		);
+
+		function endFirstSession() {
+			const { api, sent } = fakeApi();
+			const room = new JitsiRoom();
+			room.attach(api);
+			room.setRooms(breakouts);
+			room.syncReady(2);
+			room.syncReady(null);
+			return { room, sent };
+		}
+
+		it('forgets the old rooms on every client, not just the one that ended it', () => {
+			const { room } = endFirstSession();
+
+			expect(room.rooms).toEqual([]);
+		});
+
+		it('is not ready for the next session until its own rooms exist', () => {
+			const { room } = endFirstSession();
+			room.setRooms(breakouts);
+
+			room.syncReady(2);
+
+			expect(room.ready).toBe(false);
+		});
+
+		it('joins the new room when Jitsi still lists an old one with the same name', () => {
+			const { room, sent } = endFirstSession();
+			room.setRooms(
+				roomsPayload(...Object.values(breakouts), ...Object.values(secondSession))
+			);
+
+			room.syncReady(2);
+			expect(room.ready).toBe(true);
+			expect(room.joinBreakout(0)).toBe(true);
+			expect(room.joinBreakout(1)).toBe(true);
+
+			expect(sent).toEqual([
+				['joinBreakoutRoom', 'new-one@breakout'],
+				['joinBreakoutRoom', 'new-two@breakout']
+			]);
+		});
+
+		it('does not forget rooms when no session was running', () => {
+			const room = new JitsiRoom();
+			room.setRooms(breakouts);
+
+			room.syncReady(null);
+			room.syncReady(2);
+
+			expect(room.ready).toBe(true);
+		});
 	});
 });

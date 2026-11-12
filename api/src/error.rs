@@ -93,8 +93,19 @@ pub enum ComhairleError {
     #[error("No categorization service configured")]
     NoCategorizationServiceConfigured,
 
+    #[error("No jitsi recorder configured")]
+    NoJitsiRecorderConfigured,
+
+    #[error("Jitsi recorder error: {0}")]
+    JitsiRecorderError(String),
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
+
+    /// A cached load for public report data failed, where the original error is shared
+    /// between the requests that waited on it and can't be handed back as is.
+    #[error("Report data unavailable: {0}")]
+    ReportDataUnavailable(String),
 
     #[error("Ragflow error: {0}")]
     RagflowError(#[from] RagflowError),
@@ -459,6 +470,12 @@ impl IntoResponse for ComhairleError {
             ComhairleError::WorkerError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::HeyFormError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::RagflowError(ref err) => Into::<StatusCode>::into(err),
+            // Only the participant's answers being too sparse to summarize
+            // gets a distinct status; any other inner variant (template
+            // errors, model/extractor failures) stays a 500 below.
+            ComhairleError::ThinkingSpaceGenerationError(
+                sensemakar::thinking_space::ThinkingSpaceError::InsufficientAnswers,
+            ) => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

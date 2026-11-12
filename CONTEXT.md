@@ -207,20 +207,71 @@ _Avoid_: OTP-only bootstrap, manual pre-provisioning.
 The first-access email sent to newly created Organization Administrators at creation time, containing a one-time password reset link with 24-hour validity so they set their own password before first login.
 _Avoid_: Magic-link sign-in email, plaintext password email.
 
+### Demographics
+
+**Demographic question**:
+A UUID-identified question asked of participants, with translatable question text, one or more Question categories, one Question type, and a Question version history. Owned by an Organization, or a system Default demographic question.
+_Avoid_: Demographic (ambiguous), field, attribute, slug.
+
+**Question version**:
+An immutable snapshot of a Demographic question's text, type, options and validation, numbered v1, v2, v3 and so on. Numbers are never reused. Publishing a new version is the only way to change what participants are asked.
+
+**Question draft**:
+The editable, unpublished state of a Demographic question. Publishing a draft creates the next Question version. A Question draft is not visible to participants and does not change any Demographic form that uses the question.
+
+**Question type**:
+The kind of answer a Demographic question takes: Number, Single select, Multiple select, Date or Any string.
+_Avoid_: Response type, kind.
+
+**Date precision**:
+The granularity of a Date question's answer, chosen per question as YYYY/MM/DD, YYYY/MM or YYYY.
+
+**Question category**:
+A label on a Demographic question, drawn from the Organization's tag catalogue. A question may have several.
+_Avoid_: Tag (the catalogue entry is a tag, but the category is the question's link to it).
+
+**Special category question**:
+A Demographic question that collects sensitive data, such as ethnicity, pregnancy status or caring responsibilities. Participants must give Consent before it is asked.
+
+**Consent**:
+A participant's recorded agreement to a Special category question, given to the admin's consent text for one Question version. Declining skips the question even when it is required, and no answer is stored.
+
+**Default demographic question**:
+A Demographic question defined by a Super Administrator for the whole system. Organizations inherit it into their question bank by its shared UUID. In the admin UI, Organizations must explicitly duplicate it before editing. The duplicate is an Organization-owned question with a new UUID and starts at v1 when first published.
+
+**Demographic form**:
+A UUID-identified, named collection of Demographic questions drawn from one Organization's question bank. It starts as a Draft and becomes v1 when first published.
+
+**Form version**:
+An immutable snapshot of a Demographic form, numbered v1, v2 and so on. Each Form version pins the Question versions it contained when published. A later Question draft does not change a Form version that has not been re-published.
+
+**Demographic response**:
+A participant's answer to one Question version. It belongs to the participant and is reused by any Conversation that asks the same Question version, so the question is skipped. It is anonymised when the user is deleted.
+_Avoid_: Answer when referring to the stored record.
+
+**Form step**:
+A Workflow step that asks a whole Demographic form, set to follow the latest Form version until launch or to a specific one. Launching a Conversation fixes every step to the version it was on at that moment. It may turn individual questions off or change their required flag for that Conversation only, without changing the form.
+
+**Question step**:
+A Workflow step that asks one Demographic question from the question bank.
+
+**Archive (demographics)**:
+The retirement of a published Demographic question or form. Archived items are hidden from pickers for new use, but Conversations that already use them keep their pinned versions. Published items are never hard deleted.
+
 ### Polis admin (Discuss step)
 
-The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Insights`**. Moderation is its own page under Engage (ADR-0055). civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
+The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup`**. Moderation (ADR-0055) and Insights (ADR-0060) are their own pages under Engage. civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
 
 **Moderation**:
 Polis statement review, on the **Moderate** page under Engage (`/admin/conversations/<id>/moderate`, one page per Polis step). Sync statements from Polis, split composite statements, and accept or reject each one with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Seeds are written in **Setup**, not here. **Moderate** is the sidebar and page label; **Moderation** is the activity.
 _Avoid_: Statements (design label), Moderation subtab (removed from the step editor, ADR-0055).
 
 **Insights**:
-A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
-_Avoid_: Report (that's the conversation-level tab — a different, global concept).
+A **per-Step report**: the read-only analytics surface for a single Step, on the **Insights** page under Engage (`/admin/conversations/<id>/insights`, one page per Step that has Insights, ADR-0060). For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, Prioritisation, HeyForm; not Learn) gets its own Insights page.
+_Avoid_: Report (that's the conversation-level tab, a different, global concept), Insights subtab (removed from the step editor, ADR-0060).
 
 **Report**:
-The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** subtab.
+The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** page.
 _Avoid_: Insights (that's per-Step).
 
 **Participants** (Polis admin):
@@ -261,8 +312,15 @@ _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` fla
 One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Participants can read a step's reasons from the statement composer as the published moderation policy (ADR-0059). Editing the policy never rewrites reasons already recorded.
 _Avoid_: rejection code, category letter.
 
+**Theme tag**:
+A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. Shown on a statement as a chip.
+_Avoid_: theme (bare, now means a [[#theme]] in a theme collection).
+
 **Theme**:
-A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
+One entry in a **theme collection**: a title and description the [[#sensemaker]] wrote, with the step's contributions (for Polis, statements) filed under it. A step can have many collections; the report reads the latest one per origin tool. Facilitators can add, edit and pin themes in the Theme Explorer. Different from a [[#theme-tag]], which a facilitator puts on one statement.
+
+**Sensemaker**:
+The LLM service that reads a step's contributions at a facilitator's request and writes theme collections and summaries (for Polis: a consensus summary, a disagreement summary, and a name and summary per opinion group). For Polis it reads every statement, accepted or not, so its text can echo statements moderation rejected. On a published report that text is `GeneratedText` (ADR-0061).
 
 **Opinion group**:
 A cluster of participants who voted similarly, discovered by Polis's math (PCA + k-means), labelled A/B/C… Backed by `GroupReportData` (`group_id`, `members`, `total_members`, `representative_comments`). A single Polis poll yields a **variable** number of opinion groups (typically 1–5, not a fixed two), so all report components render N groups, not a hardcoded A/B pair. **Not** a demographic segment, recruitment cohort, or any admin-defined set — it is derived purely from vote patterns.
@@ -285,7 +343,7 @@ _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Embeddable section block**:
-The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*, *Themes*), **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list. HeyForm has one, *Question results*, embedded once per question with the question id in the embed's `config.item`; only choice, rating and opinion scale questions are offered.
 _Avoid_: report piece (use "section block" for the embeddable unit).
 
 **Report component embed**:
@@ -307,8 +365,9 @@ _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate con
 The short rich text an admin writes at the top of the End of engagement report (`report.summary`). Participants see it on the report's opening screen, under the "Final report" label. Reports made before the summary and body were split keep their whole text in `summary` and have no executive summary.
 
 **Report body**:
-The full End of engagement report (`report.body`), with its embedded components. Its H2 headings make the **report sections** (one pill each) and its H3 headings and horizontal rules make the **report cards** the participant pages through. See [ADR-0058](documentation/adr/0058-the-public-report-pages-by-its-own-headings.md).
-_Avoid_: card for a [[#report-component]] (a report card is one page of the report body).
+The full End of engagement report (`report.body`), with its embedded components. Each **page break** (a horizontal rule) starts a new **report page**, shown to the participant as one card with its own pill, named by the page's first line of text. Headings are only text styles. See [ADR-0069](documentation/adr/0069-the-report-pages-at-its-page-breaks.md).
+_Avoid_: card for a [[#report-component]] (a report card is one page of the report body); report section for a page.
+
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
 
 ### Room display

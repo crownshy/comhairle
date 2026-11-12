@@ -1,12 +1,13 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { mount, unmount } from 'svelte';
 import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';
+import { embedItem } from '$lib/reports/embeds';
 
 /**
  * A report component embedded into the report's `summary` document.
  *
  * Per ADR-0012 the node stores ONLY a reference (`toolStepId` / `componentType` / `config`).
- * There is no baked HTML — every surface mounts the real, live component against current data:
+ * There is no baked HTML; every surface mounts the real, live component against current data:
  * - in the editor, the node view below mounts `ReportEmbedLive`;
  * - on the published page, the report renderer walks the document and interleaves
  *   `ReportEmbedLive` at each embed node (see the public report page).
@@ -114,23 +115,20 @@ export const ReportComponentEmbed = Node.create({
 					.run();
 			});
 
-			// Embedding is what makes a step's results public (ADR-0061), so say so on every embed.
-			const publicNote = document.createElement('p');
-			publicNote.classList.add('report-embed__public-note');
-			publicNote.textContent = 'Public when published';
-
+			// not-prose keeps the editor's typography out of the chart, as on the published page.
 			const body = document.createElement('div');
-			body.classList.add('report-embed__body');
+			body.classList.add('report-embed__body', 'not-prose');
 
 			dom.appendChild(remove);
-			dom.appendChild(publicNote);
 			dom.appendChild(body);
 
 			const component = mount(ReportEmbedLive, {
 				target: body,
 				props: {
 					toolStepId: (node.attrs.toolStepId as string) ?? '',
-					componentType: (node.attrs.componentType as string) ?? ''
+					componentType: (node.attrs.componentType as string) ?? '',
+					item: embedItem(node.attrs.config),
+					preview: true
 				}
 			});
 
