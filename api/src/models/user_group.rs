@@ -10,7 +10,8 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::organization::OrganizationIden;
+use crate::models::organization::{self, OrganizationIden};
+use crate::models::users;
 
 pub const CACHE_TTL_SECONDS: u64 = 300;
 
@@ -42,6 +43,13 @@ pub enum OrganizationGroup {
 }
 
 impl OrganizationGroup {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Members => "member",
+            Self::Admins => "administrator",
+        }
+    }
+
     fn column(self) -> OrganizationIden {
         match self {
             Self::Members => OrganizationIden::UserGroupId,
@@ -329,13 +337,15 @@ pub async fn organization_team(
 
 /// Add a user to one of an Organization's groups. Administrators are always members, so
 /// joining the administrators group also joins the members group.
+///
+/// Returns whether the user newly joined the requested group.
 pub async fn add_organization_member(
     state: &Arc<ComhairleState>,
     organization_id: Uuid,
     group: OrganizationGroup,
     user_id: Uuid,
     caller_id: Uuid,
-) -> Result<(), ComhairleError> {
+) -> Result<bool, ComhairleError> {
     use super::permissions::organization::Action;
     use super::permissions::{self};
     if user_id == caller_id {
@@ -394,16 +404,62 @@ pub async fn add_organization_member(
         insert.values([group_id.into(), user_id.into()])?;
     }
     insert.on_conflict(OnConflict::new().do_nothing().to_owned());
+    insert.returning_col(UserGroupMemberIden::GroupId);
     let (sql, values) = insert.build_sqlx(PostgresQueryBuilder);
-    sqlx::query_with(&sql, values)
-        .execute(&mut *transaction)
+    let joined_groups: Vec<Uuid> = sqlx::query_scalar_with(&sql, values)
+        .fetch_all(&mut *transaction)
         .await?;
     transaction
         .commit()
         .await
         .map_err(permissions::permission_database_error)?;
     invalidate_memberships(state, user_id).await;
-    Ok(())
+    let requested_group = match group {
+        OrganizationGroup::Members => members_group,
+        OrganizationGroup::Admins => admins_group,
+    };
+    Ok(joined_groups.contains(&requested_group))
+}
+
+/// Email an existing user to say they were added to an Organization. A failed email is
+/// logged rather than returned so it can never undo the addition.
+pub async fn notify_organization_addition(
+    state: &Arc<ComhairleState>,
+    organization_id: Uuid,
+    user_id: Uuid,
+    group: OrganizationGroup,
+) {
+    let (user, organization) = match tokio::try_join!(
+        users::get_user_by_id(&user_id, &state.db),
+        organization::get_by_id(&state.db, &organization_id),
+    ) {
+        Ok(found) => found,
+        Err(error) => {
+            tracing::warn!("Could not load details for the organization addition email: {error}");
+            return;
+        }
+    };
+    let Some(email) = user.email else {
+        return;
+    };
+
+    let subject = format!("You have been added to {}", organization.name);
+    let admin_sign_in_link = format!("{}/auth/login?backTo=/admin", state.config.domain);
+    let sent = state.mailer.send_email(
+        &email,
+        &subject,
+        "organization_team_onboarding.html",
+        minijinja::context! {
+            subject => &subject,
+            organization_name => &organization.name,
+            role_label => group.label(),
+            admin_sign_in_link,
+        },
+        None,
+    );
+    if let Err(error) = sent {
+        tracing::warn!("Could not send the organization addition email: {error}");
+    }
 }
 
 /// Remove a user from one of an Organization's groups. Leaving the administrators group

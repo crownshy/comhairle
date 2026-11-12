@@ -66,6 +66,10 @@ grant typed actions.
   `revoke_role` persist changes; callers must enforce access. Assignment saves
   reauthorize inside the transaction. Membership workflows are in
   [../user_group.rs](../user_group.rs).
+- **Organization additions send one email.** A user who newly joins an
+  Organization, through a group membership or by gaining an organization role in
+  an assignment save, is emailed via `notify_organization_addition`. Repeat saves
+  and removals send nothing.
 - **Self-demotion is restricted.** Organization assignment saves reject changes
   to the caller's own direct roles and removal of an inherited administrator role
   through a group they belong to. Membership workflows also forbid self-changes.
