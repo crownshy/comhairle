@@ -8,7 +8,7 @@ const meta = {
 	argTypes: {
 		value: {
 			control: 'text',
-			description: 'Content as Markdown or ProseMirror JSON',
+			description: 'Content as Markdown or ProseMirror JSON'
 		},
 		placeholder: {
 			control: 'text',
@@ -90,19 +90,19 @@ You can also add links and images.`,
 export const WithJSONContent: Story = {
 	args: {
 		value: JSON.stringify({
-			"type": "doc",
-			"content": [
+			type: 'doc',
+			content: [
 				{
-					"type": "heading",
-					"attrs": { "level": 1 },
-					"content": [{ "type": "text", "text": "Hello from JSON!" }]
+					type: 'heading',
+					attrs: { level: 1 },
+					content: [{ type: 'text', text: 'Hello from JSON!' }]
 				},
 				{
-					"type": "paragraph",
-					"content": [
-						{ "type": "text", "text": "This content is loaded from " },
-						{ "type": "text", "marks": [{ "type": "bold" }], "text": "ProseMirror JSON" },
-						{ "type": "text", "text": " format." }
+					type: 'paragraph',
+					content: [
+						{ type: 'text', text: 'This content is loaded from ' },
+						{ type: 'text', marks: [{ type: 'bold' }], text: 'ProseMirror JSON' },
+						{ type: 'text', text: ' format.' }
 					]
 				}
 			]

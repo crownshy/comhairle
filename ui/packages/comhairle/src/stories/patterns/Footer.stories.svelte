@@ -13,4 +13,3 @@
 <Story name="Footer Component">
 	<Footer />
 </Story>
-

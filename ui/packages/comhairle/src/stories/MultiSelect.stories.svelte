@@ -10,8 +10,8 @@
 		argTypes: {
 			placeholder: { control: 'text' },
 			emptyMessage: { control: 'text' },
-			disabled: { control: 'boolean' },
-		},
+			disabled: { control: 'boolean' }
+		}
 	});
 
 	const languages: Option[] = [
@@ -24,7 +24,7 @@
 		{ value: 'ja', label: 'Japanese' },
 		{ value: 'ko', label: 'Korean' },
 		{ value: 'zh', label: 'Chinese' },
-		{ value: 'ar', label: 'Arabic' },
+		{ value: 'ar', label: 'Arabic' }
 	];
 </script>
 

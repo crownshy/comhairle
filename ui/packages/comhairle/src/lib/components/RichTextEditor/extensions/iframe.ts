@@ -38,18 +38,21 @@ export const Iframe = Node.create<IframeOptions>({
 				default: null,
 				parseHTML: (element) => {
 					const src = element.getAttribute('src');
-					return validateIframeUrl(src, this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS);
+					return validateIframeUrl(
+						src,
+						this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
+					);
 				},
 				renderHTML: (attributes) => {
 					const validSrc = validateIframeUrl(
-						attributes.src, 
+						attributes.src,
 						this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
 					);
-					
+
 					if (!validSrc) {
 						return {};
 					}
-					
+
 					return { src: validSrc };
 				}
 			},
@@ -75,8 +78,10 @@ export const Iframe = Node.create<IframeOptions>({
 			sandbox: {
 				default: 'allow-scripts allow-same-origin allow-presentation allow-popups',
 				parseHTML: (element) => {
-					return element.getAttribute('sandbox') || 
-						'allow-scripts allow-same-origin allow-presentation allow-popups';
+					return (
+						element.getAttribute('sandbox') ||
+						'allow-scripts allow-same-origin allow-presentation allow-popups'
+					);
 				}
 			},
 			referrerpolicy: {
@@ -94,14 +99,17 @@ export const Iframe = Node.create<IframeOptions>({
 				tag: 'iframe',
 				getAttrs: (element) => {
 					if (typeof element === 'string') return false;
-					
+
 					const src = element.getAttribute('src');
-					const validSrc = validateIframeUrl(src, this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS);
-					
+					const validSrc = validateIframeUrl(
+						src,
+						this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
+					);
+
 					if (!validSrc) {
 						return false;
 					}
-					
+
 					return {};
 				}
 			}
@@ -110,32 +118,39 @@ export const Iframe = Node.create<IframeOptions>({
 
 	renderHTML({ HTMLAttributes }) {
 		const validSrc = validateIframeUrl(
-			HTMLAttributes.src, 
+			HTMLAttributes.src,
 			this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
 		);
-		
+
 		if (!validSrc) {
 			return [
-				'div', 
-				{ 
+				'div',
+				{
 					...this.options.HTMLAttributes,
 					class: `${this.options.HTMLAttributes.class} iframe-blocked`
-				}, 
-				['p', { style: 'text-align: center; padding: 2rem; color: #666;' }, 
+				},
+				[
+					'p',
+					{ style: 'text-align: center; padding: 2rem; color: #666;' },
 					'⚠️ Video embed blocked for security reasons'
 				]
 			];
 		}
 
 		return [
-			'div', 
-			this.options.HTMLAttributes, 
-			['iframe', {
-				...HTMLAttributes,
-				src: validSrc,
-				sandbox: HTMLAttributes.sandbox || 'allow-scripts allow-same-origin allow-presentation allow-popups',
-				referrerpolicy: HTMLAttributes.referrerpolicy || 'no-referrer-when-downgrade'
-			}]
+			'div',
+			this.options.HTMLAttributes,
+			[
+				'iframe',
+				{
+					...HTMLAttributes,
+					src: validSrc,
+					sandbox:
+						HTMLAttributes.sandbox ||
+						'allow-scripts allow-same-origin allow-presentation allow-popups',
+					referrerpolicy: HTMLAttributes.referrerpolicy || 'no-referrer-when-downgrade'
+				}
+			]
 		];
 	},
 
@@ -145,14 +160,14 @@ export const Iframe = Node.create<IframeOptions>({
 				(options: { src: string }) =>
 				({ tr, dispatch, state }) => {
 					const validSrc = validateIframeUrl(
-						options.src, 
+						options.src,
 						this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
 					);
 
 					const { selection } = tr;
-					
-					const node = this.type.create({ 
-						src: validSrc || options.src, 
+
+					const node = this.type.create({
+						src: validSrc || options.src,
 						allowfullscreen: this.options.allowFullscreen,
 						sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
 						referrerpolicy: 'no-referrer-when-downgrade'

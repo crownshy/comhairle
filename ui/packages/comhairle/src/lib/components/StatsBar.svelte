@@ -21,21 +21,21 @@
 		>
 			<div class="inline-flex items-center justify-center gap-2 self-stretch">
 				<div
-					class="flex-1 justify-start font-['Inter'] text-sm font-medium leading-tight text-lime-50"
+					class="flex-1 justify-start font-['Inter'] text-sm leading-tight font-medium text-lime-50"
 				>
 					{stat.name}
 				</div>
 			</div>
 
 			<div
-				class="justify-start self-stretch font-['Inter'] text-3xl font-semibold leading-9 text-lime-50"
+				class="justify-start self-stretch font-['Inter'] text-3xl leading-9 font-semibold text-lime-50"
 			>
 				{stat.amount}
 				{stat.unit}
 			</div>
 			{#if stat.change}
 				<div
-					class="justify-start self-stretch font-['Inter'] text-sm font-semibold leading-tight text-stone-400"
+					class="justify-start self-stretch font-['Inter'] text-sm leading-tight font-semibold text-stone-400"
 				>
 					{stat.change}
 					{stat.from}
