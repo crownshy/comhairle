@@ -2,8 +2,6 @@ import { tryFetch, tryCatchAsync } from '$lib/utils/errorHandling';
 import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import type { MediaDto } from '@crownshy/api-client/api';
-import MediaSchema from '$lib/schemas/MediaSchema';
-import Media from '$lib/interfaces/Media.svelte';
 import { HttpStatus } from '$lib/utils/constants';
 
 export async function load({ fetch, depends }: LoadEvent) {
@@ -29,18 +27,6 @@ export async function load({ fetch, depends }: LoadEvent) {
 }
 
 export const actions = {
-	upload: async ({ request, fetch }: RequestEvent) => {
-		const data = await request.formData();
-
-		const media = new Media.uploader();
-		const response = await tryCatchAsync(() =>
-			media.upload('/api/media', data, { fetchRef: fetch, schema: MediaSchema })
-		);
-
-		if (response.err !== null) {
-			return fail(HttpStatus.UnprocessableContent);
-		}
-	},
 	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
 		const media = data.getAll('media') as string[];

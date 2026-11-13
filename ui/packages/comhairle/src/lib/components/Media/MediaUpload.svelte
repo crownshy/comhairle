@@ -11,14 +11,11 @@
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media from '$lib/interfaces/Media.svelte';
 	import FileIcon from '$lib/components/FileIcon.svelte';
-	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { notifications } from '$lib/notifications.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
-		clientSide?: boolean;
 		oncomplete?: (media: MediaDto) => void;
 	}
-	const { clientSide, oncomplete, ...props }: Props = $props();
+	const { oncomplete, ...props }: Props = $props();
 
 	let uploadForm: HTMLFormElement | null = $state(null);
 	let file = $state<File | null>(null);
@@ -26,36 +23,28 @@
 	let nameInput = $state<Input | null>(null);
 	let open = $state<boolean>(false);
 
-	const media = new Media();
+	const mediaUploader = new Media.uploader();
 
 	async function handleSubmission(formData: FormData) {
-		const response = await media.upload('/api/media', formData, {
-			schema: MediaSchema
-		});
+		const [media] = Media.normalise(formData.get(MediaSchema.media.name) as File | null);
+		const name = formData.get(MediaSchema.name.name) as string | null;
+		const alt = formData.get(MediaSchema.alt.name) as string | null;
 
-		if (response.err !== null) {
-			notifications.send({
-				message: 'Failed to upload. Please try again',
-				priority: 'ERROR'
-			});
+		if (!media || !name || !alt) {
 			return;
 		}
 
-		const mediaDto = await tryCatchAsync(() => response.ok.json());
-		if (mediaDto.err !== null) {
-			notifications.send({
-				message: 'Failed to parse result. Please try refreshing',
-				priority: 'ERROR'
-			});
+		const upload = await mediaUploader.upload({
+			media,
+			name,
+			alt
+		});
+
+		if (upload.err !== null) {
 			return;
 		}
 
-		notifications.send({
-			message: 'Successfully uploaded',
-			priority: 'SUCCESS'
-		});
-
-		oncomplete?.(mediaDto.ok as MediaDto);
+		oncomplete?.(upload.ok);
 	}
 </script>
 
@@ -74,65 +63,72 @@
 >
 	<Dialog.Portal>
 		<Dialog.Content class="min-w-138  rounded-2xl p-8">
-			<Form
-				bind:ref={uploadForm}
-				method="POST"
-				action="/admin/media-library?/upload"
-				enctype="multipart/form-data"
-				class="flex flex-col"
-				handleSubmission={clientSide ? handleSubmission : undefined}
-				onsubmit={() => (open = false)}
-			>
-				<FileInput
-					{...MediaSchema.media}
-					bind:this={fileInput}
-					onfile={(newFile) => {
-						file = newFile;
-						nameInput?.setValue(Media.getFilename(file.name));
-					}}
-					class={file !== null ? 'hidden' : ''}
-				/>
-				{#if file}
-					<div
-						class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
-					>
-						<div class="flex basis-3/5 flex-row items-center gap-2">
-							<FileIcon {file} />
-							<span>{file.name}</span>
+			<div class="flex flex-col items-center gap-y-2">
+				<Form
+					bind:ref={uploadForm}
+					enctype="multipart/form-data"
+					class="flex flex-col"
+					{handleSubmission}
+					onsubmit={() => (open = false)}
+				>
+					<FileInput
+						{...MediaSchema.media}
+						bind:this={fileInput}
+						onfile={(newFile) => {
+							file = newFile;
+							nameInput?.setValue(Media.getFilename(file.name));
+						}}
+						class={file !== null ? 'hidden' : ''}
+					/>
+					{#if file}
+						<div
+							class="flex w-full min-w-0 flex-row items-center justify-between rounded-lg p-3 text-xs font-medium shadow-xs"
+						>
+							<div class="flex basis-3/5 flex-row items-center gap-2">
+								<FileIcon {file} />
+								<span>{file.name}</span>
+							</div>
+							<div class="flex flex-row items-center justify-evenly gap-4">
+								<span class="text-muted-foreground">
+									{Media.getExtension(file.name)?.toUpperCase()}
+								</span>
+								<span class="text-muted-foreground">
+									{Media.formatBytes(file.size)}
+								</span>
+								<Button
+									title="Remove file"
+									aria-label="Remove file"
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:text-destructive/80 rounded-sm"
+									onclick={() => {
+										file = null;
+										nameInput?.setValue('');
+										nameInput?.setError('');
+										fileInput?.clear();
+									}}
+								>
+									<Trash2 />
+								</Button>
+							</div>
 						</div>
-						<div class="flex flex-row items-center justify-evenly gap-4">
-							<span class="text-muted-foreground"
-								>{Media.getExtension(file.name)?.toUpperCase()}</span
-							>
-							<span class="text-muted-foreground">{Media.formatBytes(file.size)}</span
-							>
-							<Button
-								title="Remove file"
-								aria-label="Remove file"
-								variant="ghost"
-								size="sm"
-								class="text-destructive hover:text-destructive/80 rounded-sm"
-								onclick={() => {
-									file = null;
-									nameInput?.setValue('');
-									nameInput?.setError('');
-									fileInput?.clear();
-								}}
-							>
-								<Trash2 />
-							</Button>
-						</div>
-					</div>
-				{/if}
-				<Input {...MediaSchema.name} bind:this={nameInput} label="Filename" type="text" />
-				<Input
-					{...MediaSchema.alt}
-					label="Alt"
-					type="text"
-					placeholder="e.g. Company logo"
-				/>
-				<Submit class="mt-7 self-end" text="Upload" />
-			</Form>
+					{/if}
+					<Input
+						{...MediaSchema.name}
+						bind:this={nameInput}
+						label="Filename"
+						type="text"
+					/>
+					<Input
+						{...MediaSchema.alt}
+						label="Alt"
+						type="text"
+						placeholder="e.g. Company logo"
+					/>
+					<Submit class="mt-7 self-end" text="Upload" />
+				</Form>
+				<div class="bg-primary rounded-full"></div>
+			</div>
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>

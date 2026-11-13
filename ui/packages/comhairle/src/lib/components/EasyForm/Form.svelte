@@ -10,13 +10,7 @@
 		handleSubmission?: (formData: FormData) => Promise<void>;
 	}
 
-	let {
-		children,
-		ref = $bindable(),
-		handleSubmission,
-		method = 'POST',
-		...props
-	}: Props = $props();
+	let { children, ref = $bindable(), handleSubmission, ...props }: Props = $props();
 
 	let isSubmitting = $state<boolean>(false);
 
@@ -28,7 +22,7 @@
 </script>
 
 <form
-	{method}
+	method="POST"
 	{...props}
 	bind:this={ref}
 	use:enhance={async ({ cancel, formData }) => {
