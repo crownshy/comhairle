@@ -4063,7 +4063,7 @@ export const UploadMediaDto = z
   .passthrough();
 export type UploadMediaDto = z.infer<typeof UploadMediaDto>;
 export const UploadMediaResponseDto = z
-  .object({ presignedUploadUrl: z.string() })
+  .object({ media: MediaDto, presignedUploadUrl: z.string() })
   .passthrough();
 export type UploadMediaResponseDto = z.infer<typeof UploadMediaResponseDto>;
 export const MediaEditableFields = z
@@ -6861,7 +6861,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: UploadMediaDto,
       },
     ],
-    response: z.object({ presignedUploadUrl: z.string() }).passthrough(),
+    response: UploadMediaResponseDto,
   },
   {
     method: "get",

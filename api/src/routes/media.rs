@@ -87,10 +87,11 @@ async fn upload(
         content_type,
     };
 
-    media::create(&state.db, &create_media, &user.id).await?;
+    let new_media = media::create(&state.db, &create_media, &user.id).await?;
 
     let response = UploadMediaResponseDto {
         presigned_upload_url: presigned_url,
+        media: new_media.into(),
     };
 
     Ok((StatusCode::CREATED, Json(response.into())))

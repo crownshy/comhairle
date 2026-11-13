@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::routes::media::dto::MediaDto;
 
 /// Incoming form type from the upload request
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -31,6 +32,7 @@ pub struct UploadMediaDto {
 #[serde(rename_all = "camelCase")]
 pub struct UploadMediaResponseDto {
     pub presigned_upload_url: String,
+    pub media: MediaDto,
 }
 
 /// A media record, which references an upload in the bulk_storage_service.
