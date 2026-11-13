@@ -25,7 +25,7 @@
 
 	const { onconfirm }: Props = $props();
 
-	async function getData(): Promise<Result<'ok', MediaDto[], string>> {
+	async function getData(): Promise<Result<MediaDto[], string>> {
 		const request = await tryCatchAsync(() => apiClient.ListMedia());
 		if (request.err !== null) {
 			return {

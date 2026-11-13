@@ -44,7 +44,7 @@ export async function loadRoleManagement(
 	api: RoleManagementApi,
 	resourceType: RoleResourceType,
 	resourceId: string
-): Promise<Result<'ok', RoleManagementData, RoleManagementLoadError[]>> {
+): Promise<Result<RoleManagementData, RoleManagementLoadError[]>> {
 	const params = { resource_type: resourceType, resource_id: resourceId };
 	const [roles, assignments, users, organizations] = await Promise.all([
 		tryCatchAsync(() => api.GetPermissionRoles({ params: { resource_type: resourceType } })),

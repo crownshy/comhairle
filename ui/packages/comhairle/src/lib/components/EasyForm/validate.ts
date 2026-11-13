@@ -22,7 +22,7 @@ function notFile(value: FormDataEntryValue): value is string {
 	return typeof value === 'string';
 }
 
-export function validate(form: FormData, schema: Schema): Result<'ok', true, ValidationErr> {
+export function validate(form: FormData, schema: Schema): Result<true, ValidationErr> {
 	for (const name of form.keys()) {
 		if (!(name in schema)) {
 			return { ok: null, err: 'KEY_NOT_FOUND' };

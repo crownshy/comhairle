@@ -8,7 +8,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	type Props = Omit<TranslatableFieldBaseProps, 'availableDocuments'> & {
-		streamedAvailableDocuments: Promise<Result<'ok', ComhairleDocument[], ErrorType>>;
+		streamedAvailableDocuments: Promise<Result<ComhairleDocument[], ErrorType>>;
 	} & TranslatableFieldInputProps;
 
 	let { streamedAvailableDocuments, ...props }: Props = $props();
