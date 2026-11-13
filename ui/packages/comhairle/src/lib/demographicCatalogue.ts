@@ -51,7 +51,7 @@ function byName(a: PublishedDemographicItem, b: PublishedDemographicItem): numbe
 /** Lists what the hosting organisation offers; without one the API only returns system defaults. */
 export async function listPublishedDemographicQuestions(
 	organizationId: string | null
-): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
+): Promise<Result<PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
 		const questions = await apiClient.ListDemographicQuestions({
 			queries: { organization_id: organizationId ?? undefined }
@@ -62,7 +62,7 @@ export async function listPublishedDemographicQuestions(
 
 export async function listPublishedDemographicForms(
 	organizationId: string | null
-): Promise<Result<'ok', PublishedDemographicItem[], ErrorType>> {
+): Promise<Result<PublishedDemographicItem[], ErrorType>> {
 	return tryCatchAsync(async () => {
 		const forms = await apiClient.ListDemographicForms({
 			queries: { organization_id: organizationId ?? undefined }
