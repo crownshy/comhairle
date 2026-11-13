@@ -664,7 +664,11 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             response["actions"],
-            json!(["conversation_read", "conversation_update"])
+            json!([
+                "conversation_read",
+                "conversation_update",
+                "conversation_translate"
+            ])
         );
 
         let permissions_url = format!("/permissions/conversation/{conversation_id}");
@@ -701,7 +705,8 @@ mod tests {
             json!([
                 "conversation_read",
                 "conversation_update",
-                "conversation_moderate"
+                "conversation_moderate",
+                "conversation_translate"
             ])
         );
 
@@ -717,7 +722,11 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             response["actions"],
-            json!(["conversation_read", "conversation_update"])
+            json!([
+                "conversation_read",
+                "conversation_update",
+                "conversation_translate"
+            ])
         );
 
         let (status, _, _) = owner.delete(&app, &revoke_url).await?;
@@ -761,7 +770,7 @@ mod tests {
             &state,
             GrantRoleRequest {
                 actor_id: ActorId::User(translator_id),
-                permission_triplet: system::Role::Translator.system_triplet()?,
+                permission_triplet: system::Role::Admin.system_triplet()?,
                 granted_by: &admin_id,
                 grant_reason: "System actions endpoint test",
             },
@@ -772,7 +781,26 @@ mod tests {
             .get(&app, &format!("/user/actions/system/{SYSTEM_RESOURCE_ID}"))
             .await?;
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(response["actions"], json!(["translate"]));
+        assert_eq!(
+            response["actions"],
+            json!(
+                system::Action::iter()
+                    .filter(|action| system::Role::Admin.allows(*action))
+                    .collect::<Vec<_>>()
+            )
+        );
+
+        grant_role(
+            &state,
+            GrantRoleRequest {
+                actor_id: ActorId::User(translator_id),
+                permission_triplet: organization_permissions::Role::Translator
+                    .triplet(&organization_id)?,
+                granted_by: &admin_id,
+                grant_reason: "Organization actions endpoint test",
+            },
+        )
+        .await?;
 
         let (_, response, _) = translator
             .get(
@@ -780,7 +808,10 @@ mod tests {
                 &format!("/user/actions/organization/{organization_id}"),
             )
             .await?;
-        assert_eq!(response["actions"], json!([]));
+        assert_eq!(
+            response["actions"],
+            json!(organization_permissions::Role::Translator.actions())
+        );
 
         Ok(())
     }
