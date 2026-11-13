@@ -628,7 +628,7 @@
 				<span class={cn(latestOverLimit && 'text-destructive')}
 					>{#if isLatestEdited}{latestWordCount} / {MAX_SUMMARY_WORDS}{/if}</span
 				>
-				<div class="flex gap-2">
+				<div class="flex flex-col gap-2 sm:flex-row">
 					<Button
 						variant="outline"
 						size="lg"
