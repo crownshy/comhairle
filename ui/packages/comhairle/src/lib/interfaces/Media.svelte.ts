@@ -1,61 +1,105 @@
-import { validate, type ValidationErr } from '$lib/components/EasyForm';
-import { tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
-import type { Schema } from '$lib/components/EasyForm';
+import { tryCatchAsync, type Result } from '$lib/utils/errorHandling';
 import { MediaContentType } from '@crownshy/api-client/api';
+import { apiClient } from '@crownshy/api-client/client';
+
+type Step = 'idle' | 'creating' | 'uploading' | 'completed';
+
+type UploaderData = {
+	file: File;
+	// User defined name of the file
+	name: string;
+	// Alt text for the media
+	alt: string;
+};
 
 type Opts = {
 	maxSize?: number; // in bytes
-	schema?: Schema; // Schema for validation
-	fetchRef?: typeof fetch; // If used on the backend and we need to use the alternate fetch
 };
 
 class Uploader {
-	async upload(
-		to: string,
-		formData: FormData,
-		opts?: Opts
-	): Promise<Result<'ok', Response, ValidationErr | FetchErr>> {
-		if (opts?.schema) {
-			const form = validate(formData, opts.schema);
+	#step = $state<Step>('idle');
+	#error = $state<string>();
+	#currentBytes = $state<number>(0);
+	#totalBytes = $state<number>(0);
 
-			if (form.err !== null) {
-				return { ok: null, err: form.err };
-			}
+	#uploadFile(url: string, file: File): Promise<Result<true, string>> {
+		return new Promise((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+			xhr.open('PUT', url, true);
+			xhr.upload.onprogress = (e) => {
+				if (e.lengthComputable) {
+					this.#currentBytes = e.loaded;
+					this.#totalBytes = e.total;
+				}
+			};
+			xhr.onloadend = () => {
+				if (xhr.status >= 200 && xhr.status < 300) {
+					this.#currentBytes = this.#totalBytes;
+					resolve({ ok: true, err: null });
+				} else {
+					reject({ ok: null, err: `bad HTTP status ${xhr.status}` });
+				}
+			};
+			xhr.onerror = () => reject({ ok: null, err: 'network error' });
+			xhr.send(file);
+		});
+	}
+
+	async upload(data: UploaderData, opts?: Opts) {
+		this.reset();
+
+		this.#step = 'creating';
+
+		if (opts?.maxSize && data.file.size) {
+			this.#error = `Max file size (${formatBytes(opts.maxSize)}) exceeded`;
+			return;
 		}
 
-		if (opts?.maxSize) {
-			for (const key of formData.keys()) {
-				const field = formData.get(key);
-				if (field instanceof File && field.size > opts.maxSize) {
-					return { ok: null, err: 'MAX_SIZE_EXCEEDED' };
-				}
-			}
-		}
+		this.#totalBytes = data.file.size;
 
-		const response = await tryFetch(
-			to,
-			{
-				method: 'POST',
-				credentials: 'include',
-				body: formData,
-				headers: {
-					enctype: 'multipart/form-data'
-				}
-			},
-			opts?.fetchRef ?? fetch
+		const createMedia = await tryCatchAsync(() =>
+			apiClient.UploadMedia({
+				filename: data.file.name,
+				name: data.name,
+				alt: data.alt,
+				contentType: data.file.type
+			})
 		);
 
-		if (response.err !== null) {
-			return {
-				ok: null,
-				err: {
-					...response.err,
-					message: 'Failed to upload - ' + response.err.message
-				} as FetchErr
-			};
+		if (createMedia.err !== null) {
+			console.error(createMedia.err);
+			this.#error = 'Could not create the media, please try again';
+			return;
 		}
 
-		return { ok: response.ok, err: null };
+		this.#step = 'uploading';
+
+		const uploadMedia = await this.#uploadFile(createMedia.ok.presignedUploadUrl, data.file);
+		if (uploadMedia.err !== null) {
+			this.#error = `Could not upload media: ${uploadMedia.err}`;
+			return;
+		}
+
+		this.#step = 'completed';
+	}
+
+	get percentage() {
+		return ((this.#currentBytes * 100) / this.#totalBytes).toFixed(1);
+	}
+
+	get step() {
+		return this.#step;
+	}
+
+	get error() {
+		return this.#error;
+	}
+
+	reset() {
+		this.#step = 'idle';
+		this.#error = undefined;
+		this.#currentBytes = 0;
+		this.#totalBytes = 0;
 	}
 }
 
@@ -172,6 +216,7 @@ function contentTypeToAcceptedExtension(contentType: MediaContentType) {
 export type AcceptedExtensions = ReturnType<typeof contentTypeToAcceptedExtension>;
 
 export default {
+	uploader: Uploader,
 	normalise,
 	getExtension,
 	getFilename,
