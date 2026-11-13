@@ -35,6 +35,8 @@ export const load: PageLoad = async ({ parent, params, url }) => {
 			const firstStep = workflowSteps.find((s) => s.stepOrder === 1);
 			redirect_url = workflow_step_url(conversation.id, workflow_id, firstStep.id, preview);
 		}
-	} catch (e) {}
+	} catch {
+		// Fall through to the default redirect.
+	}
 	return redirect(302, redirect_url + queryString);
 };

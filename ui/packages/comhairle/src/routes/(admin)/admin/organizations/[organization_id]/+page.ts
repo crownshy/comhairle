@@ -40,7 +40,7 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 			canDelete: access?.canDelete ?? false,
 			canManageTeam
 		};
-	} catch (error) {
+	} catch {
 		return {
 			organization: null,
 			regions: [],

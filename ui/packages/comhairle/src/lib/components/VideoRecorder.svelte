@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
@@ -8,7 +7,7 @@
 		onDone: () => void;
 	};
 
-	let { onDone } = $props();
+	let { onDone }: Props = $props();
 
 	let stream: MediaStream | null = null;
 	let mediaRecorder: MediaRecorder | null = null;

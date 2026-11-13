@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { scaleBand } from 'd3-scale';
 	import { BarChart, type ChartContextValue } from 'layerchart';
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';

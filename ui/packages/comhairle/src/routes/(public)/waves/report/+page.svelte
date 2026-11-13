@@ -5,12 +5,9 @@
 	import StatementCard from '$lib/components/report/StatementCard.svelte';
 	import BeeswarmChart from '$lib/components/report/BeeswarmChart.svelte';
 	import ReportSection from '$lib/components/report/ReportSection.svelte';
-	import AiCallout from '$lib/components/report/AiCallout.svelte';
 	import ReportNav from '$lib/components/report/ReportNav.svelte';
 	import {
 		getEngagementStats,
-		getConsensusStatements,
-		getDivisiveStatements,
 		getSignificantComments,
 		getAgreementStatements
 	} from '$lib/utils/report';
@@ -18,9 +15,7 @@
 	let { data }: PageProps = $props();
 
 	const stats = $derived(getEngagementStats(data.reportData));
-	const consensusStatements = $derived(getConsensusStatements(data.reportData, 5));
 	const agreementStatements = $derived(getAgreementStatements(data.reportData, 5));
-	const divisiveStatements = $derived(getDivisiveStatements(data.reportData, 5));
 	const significantComments = $derived(getSignificantComments(data.reportData));
 	const totalParticipants = $derived(stats.totalParticipants);
 
@@ -41,7 +36,6 @@
 	}
 
 	let engagementOpen = $state(true);
-	let whoParticipatingOpen = $state(true);
 	let agreementOpen = $state(true);
 	let differencesOpen = $state(true);
 	let groupsOpen = $state(true);
