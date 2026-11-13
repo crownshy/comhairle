@@ -63,6 +63,7 @@
             watchexec
             atac
             jq
+            yq
             git
 
             # ---- Frontend ----
