@@ -151,7 +151,16 @@ export function validateTheme(theme: Partial<ThemeVariables>): theme is ThemeVar
 
 	const requiredFonts: FontVariable[] = ['sans', 'serif', 'mono'];
 
-	const requiredShadows: ShadowVariable[] = ['2xs', 'xs', 'sm', 'default', 'md', 'lg', 'xl', '2xl'];
+	const requiredShadows: ShadowVariable[] = [
+		'2xs',
+		'xs',
+		'sm',
+		'default',
+		'md',
+		'lg',
+		'xl',
+		'2xl'
+	];
 
 	if (!theme.colors || !theme.fonts || !theme.shadows || !theme.radius) {
 		return false;

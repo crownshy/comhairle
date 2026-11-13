@@ -60,7 +60,9 @@
 	</Card.Content>
 	<Card.Footer class="flex-col gap-2 text-sm">
 		<div class="flex items-center gap-2 leading-none font-medium">
-			{((currentValue * 100) / total).toLocaleString(undefined, { minimumFractionDigits: 0 })}% of {entityType}
+			{((currentValue * 100) / total).toLocaleString(undefined, {
+				minimumFractionDigits: 0
+			})}% of {entityType}
 			({currentValue} out of {total}) have {message}
 		</div>
 	</Card.Footer>
