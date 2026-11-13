@@ -484,25 +484,6 @@ export const TextFormat = z.union([
   z.literal("rich"),
 ]);
 export type TextFormat = z.infer<typeof TextFormat>;
-export const TranslationScope = z.union([
-  z.object({ type: z.literal("system") }).passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("conversation") })
-    .passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("organization") })
-    .passthrough(),
-]);
-export type TranslationScope = z.infer<typeof TranslationScope>;
-export const CreateTextContentRequest = z
-  .object({
-    content: z.string(),
-    format: TextFormat,
-    primary_locale: z.string(),
-    scope: TranslationScope,
-  })
-  .passthrough();
-export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentDto = z
   .object({
     format: TextFormat,
@@ -522,6 +503,32 @@ export const TextTranslationDto = z
   })
   .passthrough();
 export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
+export const TranslationScope = z.union([
+  z.object({ type: z.literal("system") }).passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("conversation") })
+    .passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("organization") })
+    .passthrough(),
+]);
+export type TranslationScope = z.infer<typeof TranslationScope>;
+export const CreateTextContentRequest = z
+  .object({
+    content: z.string(),
+    format: TextFormat,
+    primary_locale: z.string(),
+    scope: TranslationScope,
+  })
+  .passthrough();
+export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentWithTranslations = z
   .object({
     format: TextFormat,
@@ -2403,13 +2410,6 @@ export const UserParticipationDto = z
   })
   .passthrough();
 export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
-export const TranslationDto = z
-  .object({
-    textContent: TextContentDto,
-    textTranslations: z.array(TextTranslationDto),
-  })
-  .passthrough();
-export type TranslationDto = z.infer<typeof TranslationDto>;
 export const JsonFieldWithTranslations = z
   .object({ localized: z.string(), translations: TranslationDto })
   .passthrough();
@@ -4053,6 +4053,19 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const UploadMediaDto = z
+  .object({
+    alt: z.string(),
+    contentType: z.string(),
+    filename: z.string(),
+    name: z.string(),
+  })
+  .passthrough();
+export type UploadMediaDto = z.infer<typeof UploadMediaDto>;
+export const UploadMediaResponseDto = z
+  .object({ presignedUploadUrl: z.string() })
+  .passthrough();
+export type UploadMediaResponseDto = z.infer<typeof UploadMediaResponseDto>;
 export const MediaEditableFields = z
   .object({
     alt: z.union([z.string(), z.null()]),
@@ -4362,10 +4375,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UnreadCount,
   NotificationDelivery,
   TextFormat,
-  TranslationScope,
-  CreateTextContentRequest,
   TextContentDto,
   TextTranslationDto,
+  TranslationDto,
+  TranslationScope,
+  CreateTextContentRequest,
   TextContentWithTranslations,
   UpdateTextContent,
   UpdateTextTranslation,
@@ -4567,7 +4581,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowDemographics,
   UserParticipation,
   UserParticipationDto,
-  TranslationDto,
   JsonFieldWithTranslations,
   CategoryWithTranslations,
   QuestionTypeWithTranslations,
@@ -4734,6 +4747,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  UploadMediaDto,
+  UploadMediaResponseDto,
   MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
@@ -6835,36 +6850,18 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   {
     method: "post",
     path: "/media",
-    alias: "postMedia",
-    description: `
-Upload a media resource to the bulk_storage_service 
-and create a new record in the database.
-
-
-This endpoint requires multipart/form-data.
-
-Generated API clients may not support file uploads.
-
-Use FormData and a raw HTTP request.
-
-**Example (curl):**
-&#x60;&#x60;&#x60;bash
-curl -X POST \
--H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
-&#x27;localhost:3000/media&#x27; \
---form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
-&#x60;&#x60;&#x60;
-                            `,
-    requestFormat: "form-data",
+    alias: "UploadMedia",
+    description: `Return a presigned url to upload the media to the bulk storage service`,
+    requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `multipart form data`,
+        description: `Incoming form type from the upload request`,
         type: "Body",
-        schema: z.array(z.any()),
+        schema: UploadMediaDto,
       },
     ],
-    response: z.array(MediaDto),
+    response: z.object({ presignedUploadUrl: z.string() }).passthrough(),
   },
   {
     method: "get",
@@ -9163,11 +9160,6 @@ Create a response for prioritization tool proposal
         schema: status,
       },
       {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
@@ -9219,11 +9211,6 @@ Create a response for prioritization tool proposal
       },
       {
         name: "root_question_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "user_id",
         type: "Query",
         schema: created_after,
       },
@@ -9562,6 +9549,14 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/translations/orphaned",
+    alias: "ListOrphanedTextContent",
+    description: `Super Administrators only. Returns content marked for manual review because its resource scope could not be verified.`,
+    requestFormat: "json",
+    response: z.array(TranslationDto),
   },
   {
     method: "post",
