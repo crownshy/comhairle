@@ -1,8 +1,7 @@
 <script lang="ts">
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { scaleUtc } from 'd3-scale';
-	import { BarChart, type ChartContextValue, Highlight } from 'layerchart';
+	import { BarChart, type ChartState, Highlight } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
 	import { parseISO, subDays } from 'date-fns';
 	import type { DailySignupStats } from '@crownshy/api-client/api';
@@ -23,7 +22,12 @@
 			let start = mapped[0].day;
 			let buffer_before = [];
 			for (let i = 0; i < 30; i++) {
-				buffer_before.push({ day: subDays(start, 30 - i), signups: 0, active: 0 });
+				buffer_before.push({
+					day: subDays(start, 30 - i),
+					users: 0,
+					signups: 0,
+					active: 0
+				});
 			}
 			mapped = [...buffer_before, ...mapped];
 		}
@@ -36,7 +40,23 @@
 		active: { label: 'Active', color: 'var(--secondary)' }
 	} satisfies Chart.ChartConfig;
 
-	let context = $state<ChartContextValue>();
+	let context = $state<ChartState<(typeof localStats)[number]>>();
+
+	const X_AXIS_TICK_COUNT = 6;
+
+	// The bar chart's x scale is a band scale, so ticks must be days that exist in the data.
+	function everyNthDay(days: Date[], tickCount: number) {
+		const step = Math.max(1, Math.ceil(days.length / tickCount));
+		return days.filter((_, index) => index % step === 0);
+	}
+
+	// The tooltip passes the series name to labelFormatter, so read the hovered day from the chart.
+	function formatHoveredDay(day: Date | undefined) {
+		return (
+			day?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) ??
+			''
+		);
+	}
 
 	let activeChart = $state<keyof typeof chartConfig>('signups');
 
@@ -106,7 +126,7 @@
 								day: '2-digit'
 							});
 						},
-						ticks: (scale) => scaleUtc(scale.domain(), scale.range()).ticks()
+						ticks: (scale) => everyNthDay(scale.domain(), X_AXIS_TICK_COUNT)
 					}
 				}}
 			>
@@ -115,14 +135,7 @@
 				{/snippet}
 				{#snippet tooltip()}
 					<Chart.Tooltip
-						nameKey="views"
-						labelFormatter={(v: Date) => {
-							return v.toLocaleDateString('en-US', {
-								month: 'short',
-								day: 'numeric',
-								year: 'numeric'
-							});
-						}}
+						labelFormatter={() => formatHoveredDay(context?.tooltip.data?.day)}
 					/>
 				{/snippet}
 			</BarChart>
