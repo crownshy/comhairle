@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { scaleBand, scaleUtc } from 'd3-scale';
 	import { BarChart, type ChartContextValue } from 'layerchart';
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';
@@ -18,7 +17,7 @@
 		conversation_id: string;
 	};
 
-	let { invite_id, conversation_id } = $props();
+	let { invite_id, conversation_id }: Props = $props();
 
 	$effect(() => {
 		loading = true;

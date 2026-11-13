@@ -156,38 +156,3 @@ function isCalendarDate(year: number, month: number, day: number): boolean {
 	const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 	return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1];
 }
-
-function latLongValue(latitude: string, longitude: string) {
-	if (latitude.trim() === '' || longitude.trim() === '') return undefined;
-	const lat = Number(latitude);
-	const long = Number(longitude);
-	const valid =
-		Number.isFinite(lat) &&
-		Number.isFinite(long) &&
-		lat >= -90 &&
-		lat <= 90 &&
-		long >= -180 &&
-		long <= 180;
-	return valid ? { latitude: lat, longitude: long } : undefined;
-}
-
-function selectionValue(rules: ChoiceRules, draft: Draft) {
-	if (draft.preferNotToSay) return { option_ids: [], prefer_not_to_say: true };
-	if (rules.maxSelections !== null && draft.optionIds.length > rules.maxSelections) {
-		return undefined;
-	}
-	const otherText = draft.otherSelected ? draft.otherText.trim() : '';
-	if (draft.otherSelected && otherText === '') return undefined;
-	if (draft.optionIds.length === 0 && !draft.otherSelected) return undefined;
-	return draft.otherSelected
-		? { option_ids: draft.optionIds, other_text: otherText }
-		: { option_ids: draft.optionIds };
-}
-
-function customValue(text: string): unknown {
-	try {
-		return JSON.parse(text);
-	} catch {
-		return undefined;
-	}
-}

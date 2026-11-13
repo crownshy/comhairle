@@ -22,22 +22,6 @@
 	);
 	const allRows = $derived([overall, ...groupPercents]);
 
-	const bridgingLabel = $derived.by(() => {
-		const c = comment.group_informed_consensus;
-		if (c >= 0.75) return 'High';
-		if (c >= 0.5) return 'Medium';
-		if (c >= 0.25) return 'Low';
-		return 'Very low';
-	});
-
-	const bridgingColor = $derived(
-		bridgingLabel === 'High'
-			? 'text-teal-600'
-			: bridgingLabel === 'Medium'
-				? 'text-amber-500'
-				: 'text-gray-500'
-	);
-
 	let showSeedTooltip = $state(false);
 </script>
 

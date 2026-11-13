@@ -55,7 +55,7 @@ class NotificationsManager {
 				flash = [opts];
 			}
 			sessionStorage.setItem('comhairle_flash_notfifications', JSON.stringify(flash));
-		} catch (e) {
+		} catch {
 			console.warn('Failed to set session storage, probably on server');
 		}
 	}

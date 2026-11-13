@@ -1,6 +1,4 @@
-const TARGET_DOMAIN = 'https://cdn.example.com';
-
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
 	// Activate immediately
 	self.skipWaiting();
 });

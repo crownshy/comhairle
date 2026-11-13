@@ -158,7 +158,7 @@ export const Iframe = Node.create<IframeOptions>({
 		return {
 			setIframe:
 				(options: { src: string }) =>
-				({ tr, dispatch, state }) => {
+				({ tr, dispatch }) => {
 					const validSrc = validateIframeUrl(
 						options.src,
 						this.options.allowedDomains || DEFAULT_ALLOWED_DOMAINS
