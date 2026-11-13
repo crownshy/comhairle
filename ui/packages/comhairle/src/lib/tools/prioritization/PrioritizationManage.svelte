@@ -636,6 +636,7 @@
 		open={questionEditorOpen}
 		question={selectedQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="proposal"
 		onOpenChange={(o) => {
@@ -650,6 +651,7 @@
 		open={sectionQuestionEditorOpen}
 		question={selectedSectionQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="section"
 		onOpenChange={(o) => {

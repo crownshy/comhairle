@@ -274,6 +274,8 @@ impl ToolImpl for HeyFormTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _db: &mut sqlx::PgConnection,
+        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function

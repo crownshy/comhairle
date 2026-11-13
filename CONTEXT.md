@@ -179,14 +179,26 @@ _Avoid_: Organization Administrator, Super Administrator (those have different s
 A User with read-only access to a Conversation. Observer access does not confer editing, moderation, translation, export, launch, or deletion authority.
 
 **Conversation Content Editor**:
-A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
+A User who can edit a Conversation's content in every locale, its tool configuration, and Workflow design, but cannot launch or delete it. Content editing includes translation; moderation and data export are separate capabilities.
 
 **Conversation Moderator**:
 A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
 
-**System Translator**:
-A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.
-_Avoid_: Conversation Translator (that role has a narrower scope), System Administrator.
+**Text content**:
+A piece of translatable text with a primary locale and a shared identity across all its locale versions.
+
+**Translation scope**:
+The single Conversation, Organization, or explicit System scope that governs access to a piece of Text content in every locale. Text belonging to a Step is scoped to its Conversation.
+
+**Conversation Translator**:
+A User who may edit, generate, approve, and delete non-primary locale versions of Text content in one Conversation, including its Steps. Editing primary-locale text or its configuration requires Conversation content-editing authority.
+_Avoid_: System Translator (the former platform-wide role).
+
+**Organization Translator**:
+A User who may edit, generate, approve, and delete non-primary locale versions of an Organization's own Text content. Editing primary-locale text or its configuration requires Organization update authority; this role does not confer translation authority on hosted Conversations.
+
+**System-scoped text content**:
+Text content explicitly belonging to the platform rather than a Conversation or Organization. System Administrators may translate this content, but need resource-specific authority to translate Conversation or Organization content; Super Administrators retain global authority.
 
 **Conversation Data Access**:
 Authority to export data belonging to a Conversation, without conferring content-editing, moderation, translation, launch, or deletion authority.

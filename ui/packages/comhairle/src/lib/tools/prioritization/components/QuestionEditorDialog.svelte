@@ -31,6 +31,7 @@
 		open: boolean;
 		question?: DraftQuestion | null;
 		store: PrioritizationStore;
+		conversationId: string;
 		toolConfig: ToolConfig<DraftTranslatableJsonField>;
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
@@ -43,6 +44,7 @@
 		open,
 		question = null,
 		store,
+		conversationId,
 		toolConfig,
 		target = 'proposal',
 		onOpenChange,
@@ -253,7 +255,10 @@
 		try {
 			// Create translations for any new translatable fields in draft
 			const questionWithNewlyCreatedTranslations =
-				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale);
+				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale, {
+					type: 'conversation',
+					id: conversationId
+				});
 
 			const existing =
 				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];

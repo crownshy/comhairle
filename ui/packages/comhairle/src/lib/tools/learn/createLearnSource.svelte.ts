@@ -5,9 +5,11 @@ import {
 	type TranslationStatus
 } from '$lib/components/Translation/translationUtils';
 import type { Locale } from '$lib/paraglide/runtime';
+import type { TextContentScope } from '$lib/components/Translation/translationUtils';
 
 type LearnSourceOptions = {
 	pages: Pages;
+	getScope: () => TextContentScope;
 	getPrimaryLocale: () => Locale;
 	getSupportedLanguages: () => Locale[];
 };
@@ -22,7 +24,7 @@ type LearnSourceOptions = {
  * Construct it during `LearnManage` init and pass the result to `TranslatableField source={...}`.
  */
 export function createLearnSource(options: LearnSourceOptions): TranslationSource {
-	const { pages, getPrimaryLocale, getSupportedLanguages } = options;
+	const { pages, getScope, getPrimaryLocale, getSupportedLanguages } = options;
 
 	const otherLanguages = () => getSupportedLanguages().filter((l) => l !== getPrimaryLocale());
 
@@ -70,7 +72,12 @@ export function createLearnSource(options: LearnSourceOptions): TranslationSourc
 		},
 
 		async aiTranslate(locale: string, sourceContent: string) {
-			const translated = await aiTranslateContent(sourceContent, locale, getPrimaryLocale());
+			const translated = await aiTranslateContent(
+				sourceContent,
+				locale,
+				getScope(),
+				getPrimaryLocale()
+			);
 			await pages.current.upsertContent('target', locale, translated);
 			return { content: translated, requiresValidation: true };
 		},
