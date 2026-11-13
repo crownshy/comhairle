@@ -10,7 +10,7 @@
 	import { TriangleAlert, RefreshCw } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
 	import { MB } from '$lib/utils/units';
 	import { LEARN_CONTENT_DOCUMENT_NAME } from '$lib/utils/constants';
 	import {
@@ -152,10 +152,9 @@
 
 			const blob = await generateLearnPdf(sections);
 
-			const media = new Media();
 			const formData = new FormData();
 			formData.append('file', blob, LEARN_CONTENT_DOCUMENT_NAME);
-			const uploadRes = await media.upload(
+			const uploadRes = await Media.uploadAsForm(
 				`/api/conversation/${conversation.id}/documents/sync_learning_content`,
 				formData,
 				{ maxSize: MAX_SIZE }
@@ -181,12 +180,11 @@
 
 	async function uploadFile(file: File) {
 		if (!canEdit) return;
-		const media = new Media();
 		const formData = new FormData();
 		formData.append('file', file);
 
 		const response = await tryCatchAsync(() =>
-			media.upload(`/api/conversation/${conversation.id}/documents`, formData, {
+			Media.uploadAsForm(`/api/conversation/${conversation.id}/documents`, formData, {
 				maxSize: MAX_SIZE
 			})
 		);

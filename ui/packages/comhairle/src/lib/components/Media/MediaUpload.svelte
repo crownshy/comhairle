@@ -9,7 +9,7 @@
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { notifications } from '$lib/notifications.svelte';

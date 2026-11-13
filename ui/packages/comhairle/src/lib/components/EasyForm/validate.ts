@@ -1,4 +1,4 @@
-import Media from '$lib/interfaces/Media';
+import Media from '$lib/interfaces/Media.svelte';
 import type { Result } from '$lib/utils/errorHandling';
 import type { Schema } from '.';
 import type { FileAttr, InputAttr } from './types';

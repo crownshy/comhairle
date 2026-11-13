@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import Media from './Media';
+import Media from './Media.svelte';
 
 describe('Media interface', () => {
 	it('Should get the extension', () => {

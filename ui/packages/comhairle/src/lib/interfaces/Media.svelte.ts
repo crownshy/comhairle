@@ -1,11 +1,12 @@
-import { tryCatchAsync, type Result } from '$lib/utils/errorHandling';
-import { MediaContentType } from '@crownshy/api-client/api';
+import type { ValidationErr } from '$lib/components/EasyForm';
+import { tryCatchAsync, tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
+import { MediaContentType, MediaDto } from '@crownshy/api-client/api';
 import { apiClient } from '@crownshy/api-client/client';
 
 type Step = 'idle' | 'creating' | 'uploading' | 'completed';
 
 type UploaderData = {
-	file: File;
+	media: File;
 	// User defined name of the file
 	name: string;
 	// Alt text for the media
@@ -45,42 +46,44 @@ class Uploader {
 		});
 	}
 
-	async upload(data: UploaderData, opts?: Opts) {
+	async upload(data: UploaderData, opts?: Opts): Promise<Result<MediaDto, string>> {
+		// Errors are handled via the #error state, so we don't need to return them here
 		this.reset();
 
 		this.#step = 'creating';
 
-		if (opts?.maxSize && data.file.size) {
+		if (opts?.maxSize && data.media.size) {
 			this.#error = `Max file size (${formatBytes(opts.maxSize)}) exceeded`;
-			return;
+			return { ok: null, err: ' ' };
 		}
 
-		this.#totalBytes = data.file.size;
+		this.#totalBytes = data.media.size;
 
 		const createMedia = await tryCatchAsync(() =>
 			apiClient.UploadMedia({
-				filename: data.file.name,
+				filename: data.media.name,
 				name: data.name,
 				alt: data.alt,
-				contentType: data.file.type
+				contentType: data.media.type
 			})
 		);
 
 		if (createMedia.err !== null) {
 			console.error(createMedia.err);
 			this.#error = 'Could not create the media, please try again';
-			return;
+			return { ok: null, err: ' ' };
 		}
 
 		this.#step = 'uploading';
 
-		const uploadMedia = await this.#uploadFile(createMedia.ok.presignedUploadUrl, data.file);
+		const uploadMedia = await this.#uploadFile(createMedia.ok.presignedUploadUrl, data.media);
 		if (uploadMedia.err !== null) {
 			this.#error = `Could not upload media: ${uploadMedia.err}`;
-			return;
+			return { ok: null, err: ' ' };
 		}
 
 		this.#step = 'completed';
+		return { ok: createMedia.ok.media, err: null };
 	}
 
 	get percentage() {
@@ -103,6 +106,46 @@ class Uploader {
 	}
 }
 
+async function uploadAsForm(
+	to: string,
+	formData: FormData,
+	opts?: Opts
+): Promise<Result<Response, ValidationErr | FetchErr>> {
+	if (opts?.maxSize) {
+		for (const key of formData.keys()) {
+			const field = formData.get(key);
+			if (field instanceof File && field.size > opts.maxSize) {
+				return { ok: null, err: 'MAX_SIZE_EXCEEDED' };
+			}
+		}
+	}
+
+	const response = await tryFetch(
+		to,
+		{
+			method: 'POST',
+			credentials: 'include',
+			body: formData,
+			headers: {
+				enctype: 'multipart/form-data'
+			}
+		},
+		fetch
+	);
+
+	if (response.err !== null) {
+		return {
+			ok: null,
+			err: {
+				...response.err,
+				message: 'Failed to upload - ' + response.err.message
+			} as FetchErr
+		};
+	}
+
+	return { ok: response.ok, err: null };
+}
+
 function isFileList(files: File | FileList): files is FileList {
 	//@ts-expect-error exists on FileList but not File, this is expected to differentiate between them
 	return !!files.item;
@@ -113,7 +156,10 @@ function isFileList(files: File | FileList): files is FileList {
  * They're very different types that are difficult to handle and FileList has limited TS support.
  * This function is to sanitise these outputs so that it will return a File[] which is predictable and works well with TS
  */
-function normalise(files: File | FileList): File[] {
+function normalise(files: File | FileList | null): File[] {
+	if (!files) {
+		return [];
+	}
 	const filesArray: File[] = [];
 	if (isFileList(files)) {
 		for (const f of files) {
@@ -217,6 +263,7 @@ export type AcceptedExtensions = ReturnType<typeof contentTypeToAcceptedExtensio
 
 export default {
 	uploader: Uploader,
+	uploadAsForm,
 	normalise,
 	getExtension,
 	getFilename,

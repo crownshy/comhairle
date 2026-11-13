@@ -13,7 +13,7 @@
 	import { Form, Submit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
 
 	interface Props extends MediaDto {
 		type: HTMLMediaElement | undefined;
