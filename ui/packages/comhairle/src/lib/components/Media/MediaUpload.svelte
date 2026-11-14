@@ -176,6 +176,15 @@
 				<div class="flex flex-col gap-y-2 self-start">
 					{@render Step('Creating')}
 					{@render Step('Uploading')}
+					<div class="text-muted-foreground flex items-center font-mono font-semibold">
+						<progress
+							aria-label="Media upload progress"
+							max="100"
+							value="70"
+							class="border-border bg-muted accent-primary h-3 rounded-full border"
+						></progress>
+						<span class="pl-5">0%</span>
+					</div>
 					{#if mediaUploader.step === UploaderProgress.Uploading}
 						<span class="text-muted-foreground font-mono font-semibold">
 							{mediaUploader.percentage}%
@@ -186,3 +195,34 @@
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
+
+<style>
+	@property --shift {
+		syntax: '<length>';
+		initial-value: 0px;
+		inherits: false;
+	}
+
+	progress::-webkit-progress-value,
+	progress::-moz-progress-bar {
+		--color-1: var(--color-primary);
+		--color-2: oklch(from var(--color-1) l c h / 0.8);
+		background-image: repeating-linear-gradient(
+			135deg,
+			var(--color-1) calc(var(--shift) + 0px),
+			var(--color-1) calc(var(--shift) + 8px),
+			var(--color-2) calc(var(--shift) + 8px),
+			var(--color-2) calc(var(--shift) + 16px)
+		);
+		animation: --progress-animation 1.5s linear infinite;
+	}
+
+	@keyframes --progress-animation {
+		from {
+			--shift: 0px;
+		}
+		to {
+			--shift: 16px;
+		}
+	}
+</style>
