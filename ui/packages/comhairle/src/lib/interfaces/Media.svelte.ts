@@ -3,7 +3,14 @@ import { tryCatchAsync, tryFetch, type FetchErr, type Result } from '$lib/utils/
 import { MediaContentType, MediaDto } from '@crownshy/api-client/api';
 import { apiClient } from '@crownshy/api-client/client';
 
-type Step = 'idle' | 'creating' | 'uploading' | 'completed';
+export const UploaderProgress = {
+	Idle: 1,
+	Creating: 2,
+	Uploading: 3,
+	Completed: 4
+} as const;
+
+type UploaderProgressValues = (typeof UploaderProgress)[keyof typeof UploaderProgress];
 
 type UploaderData = {
 	media: File;
@@ -18,7 +25,7 @@ type Opts = {
 };
 
 class Uploader {
-	#step = $state<Step>('idle');
+	#stepProgress = $state<UploaderProgressValues>(UploaderProgress.Idle);
 	#error = $state<string>();
 	#currentBytes = $state<number>(0);
 	#totalBytes = $state<number>(0);
@@ -50,7 +57,7 @@ class Uploader {
 		// Errors are handled via the #error state, so we don't need to return them here
 		this.reset();
 
-		this.#step = 'creating';
+		this.#stepProgress = UploaderProgress.Creating;
 
 		if (opts?.maxSize && data.media.size) {
 			this.#error = `Max file size (${formatBytes(opts.maxSize)}) exceeded`;
@@ -61,7 +68,7 @@ class Uploader {
 
 		const createMedia = await tryCatchAsync(() =>
 			apiClient.UploadMedia({
-				filename: data.media.name,
+				filename: data.media.name.replaceAll(' ', '_'),
 				name: data.name,
 				alt: data.alt,
 				contentType: data.media.type
@@ -74,7 +81,7 @@ class Uploader {
 			return { ok: null, err: ' ' };
 		}
 
-		this.#step = 'uploading';
+		this.#stepProgress = UploaderProgress.Uploading;
 
 		const uploadMedia = await this.#uploadFile(createMedia.ok.presignedUploadUrl, data.media);
 		if (uploadMedia.err !== null) {
@@ -82,7 +89,7 @@ class Uploader {
 			return { ok: null, err: ' ' };
 		}
 
-		this.#step = 'completed';
+		this.#stepProgress = UploaderProgress.Completed;
 		return { ok: createMedia.ok.media, err: null };
 	}
 
@@ -91,7 +98,7 @@ class Uploader {
 	}
 
 	get step() {
-		return this.#step;
+		return this.#stepProgress;
 	}
 
 	get error() {
@@ -99,7 +106,7 @@ class Uploader {
 	}
 
 	reset() {
-		this.#step = 'idle';
+		this.#stepProgress = UploaderProgress.Idle;
 		this.#error = undefined;
 		this.#currentBytes = 0;
 		this.#totalBytes = 0;

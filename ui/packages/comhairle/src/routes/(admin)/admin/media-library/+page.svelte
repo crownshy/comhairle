@@ -59,9 +59,9 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
 <SectionHeader
