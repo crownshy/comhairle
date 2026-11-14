@@ -95,6 +95,18 @@
 			interactOutsideBehavior={page === 2 ? 'ignore' : 'close'}
 			showCloseButton={page !== 2}
 		>
+			<section class="flex flex-row justify-center gap-x-3">
+				{#each { length: 2 }, index}
+					<div
+						data-slot="page {index + 1}"
+						aria-hidden="true"
+						class="size-2 rounded-full bg-slate-500/70 transition-colors duration-300"
+						class:bg-primary!={index + 1 === page}
+					></div>
+				{/each}
+				<Button onclick={() => void (page = 1)}>&lt;</Button>
+				<Button onclick={() => void (page = 2)}>&gt;</Button>
+			</section>
 			{#if page === 1}
 				<div class="flex flex-col items-center gap-y-2">
 					<Form
@@ -171,18 +183,6 @@
 					{/if}
 				</div>
 			{/if}
-			<section class="flex flex-row justify-center gap-x-3">
-				{#each { length: 2 }, index}
-					<div
-						data-slot="page {index + 1}"
-						aria-hidden="true"
-						class="size-2 rounded-full bg-slate-500/70 transition-colors duration-300"
-						class:bg-primary!={index + 1 === page}
-					></div>
-				{/each}
-				<Button onclick={() => void (page = 1)}>&lt;</Button>
-				<Button onclick={() => void (page = 2)}>&gt;</Button>
-			</section>
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
