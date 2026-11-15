@@ -30,7 +30,7 @@ class Uploader {
 	#currentBytes = $state<number>(0);
 	#totalBytes = $state<number>(0);
 
-	#uploadFile(url: string, file: File): Promise<Result<true, string>> {
+	#uploadFile(url: string, file: File) {
 		return new Promise((resolve, reject) => {
 			const xhr = new XMLHttpRequest();
 			xhr.open('PUT', url, true);
@@ -43,12 +43,12 @@ class Uploader {
 			xhr.onloadend = () => {
 				if (xhr.status >= 200 && xhr.status < 300) {
 					this.#currentBytes = this.#totalBytes;
-					resolve({ ok: true, err: null });
+					resolve(true);
 				} else {
-					reject({ ok: null, err: `bad HTTP status ${xhr.status}` });
+					reject(`bad HTTP status ${xhr.status}`);
 				}
 			};
-			xhr.onerror = () => reject({ ok: null, err: 'network error' });
+			xhr.onerror = () => reject('network error');
 			xhr.send(file);
 		});
 	}
@@ -83,7 +83,9 @@ class Uploader {
 
 		this.#stepProgress = UploaderProgress.Uploading;
 
-		const uploadMedia = await this.#uploadFile(createMedia.ok.presignedUploadUrl, data.media);
+		const uploadMedia = await tryCatchAsync(() =>
+			this.#uploadFile(createMedia.ok.presignedUploadUrl, data.media)
+		);
 		if (uploadMedia.err !== null) {
 			this.#error = `Could not upload media: ${uploadMedia.err}`;
 			return { ok: null, err: ' ' };
@@ -94,7 +96,7 @@ class Uploader {
 	}
 
 	get percentage() {
-		return ((this.#currentBytes * 100) / this.#totalBytes).toFixed(1);
+		return Math.trunc((this.#currentBytes * 100) / this.#totalBytes).toString();
 	}
 
 	get step() {
