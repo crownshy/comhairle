@@ -253,11 +253,7 @@ mod tests {
         };
 
         let (_, value, _) = session
-            .post(
-                &app,
-                "/media/upload",
-                Body::from(serde_json::to_string(&body)?),
-            )
+            .post(&app, "/media", Body::from(serde_json::to_string(&body)?))
             .await?;
         let upload_response: UploadMediaResponseDto = serde_json::from_value(value)?;
 
