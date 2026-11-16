@@ -7,12 +7,13 @@
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crownshy/api-client/client';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { useDebounce } from 'runed';
 	import type { InstancedToolConfig } from '$lib/tools/types';
 	import { permissions } from '$lib/permissions.svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import SeedStatements from './SeedStatements.svelte';
+	import { savePolisSetting } from './savePolisSetting';
 
 	type Props = {
 		toolConfig: InstancedToolConfig<'polis'>;
@@ -47,52 +48,16 @@
 	let topicInput = $derived(topic);
 	let descriptionInput = $derived(description);
 
-	// Config keys that must be proxied to Polis (the rest are comhairle-only
-	// display flags that live in tool_config).
-	const POLIS_KEYS = new Set([
-		'topic',
-		'description',
-		'is_active',
-		'strict_moderation',
-		'notify_moderators'
-	]);
-
-	/**
-	 * Persist a single Setup field. Polis-owned fields (see POLIS_KEYS) are
-	 * written to the Polis conversation first (enforcement) and then mirrored
-	 * into tool_config so the form can pre-fill next time; display-only flags
-	 * skip Polis. Order is Polis-then-mirror so a Polis failure doesn't leave a
-	 * tool_config value Polis never accepted.
-	 */
 	async function saveField(field: string, value: unknown) {
 		if (!canEdit) return;
-		try {
-			if (POLIS_KEYS.has(field)) {
-				await apiClient.PolisUpdateConfig({
-					workflow_step_id: workflowStepId,
-					[field]: value
-				});
-			}
-			await apiClient.UpdateConversationWorkflowStep(
-				{
-					[isLive ? 'tool_config' : 'preview_tool_config']: {
-						...toolConfig,
-						[field]: value
-					}
-				},
-				{
-					params: {
-						conversation_id: conversationId,
-						workflow_id: workflowId,
-						workflow_step_id: workflowStepId
-					}
-				}
-			);
-			await invalidate(key('admin/conversation/workflow'));
-		} catch (e) {
-			console.error(e);
+		const target = { conversationId, workflowId, workflowStepId, isLive, toolConfig };
+		const res = await tryCatchAsync(() => savePolisSetting(target, field, value));
+		if (res.err !== null) {
+			console.error(res.err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to update setup' });
+			return;
 		}
+		await invalidate(key('admin/conversation/workflow'));
 	}
 
 	const saveTopic = useDebounce((v: string) => saveField('topic', v), 500);
@@ -236,7 +201,7 @@
 					Send notification email to moderators
 				</Label>
 				<span class="text-muted-foreground text-xs">
-					When on, a daily notication email will be sent to moderators of this
+					When on, a daily notification email will be sent to moderators of this
 					conversation if there are pending comments awaiting approval or rejection at
 					<a
 						href={resolve(

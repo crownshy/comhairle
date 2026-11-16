@@ -13,6 +13,8 @@
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
+	import NotifyModeratorsSwitch from './polis-moderation/NotifyModeratorsSwitch.svelte';
+	import type { PolisStepTarget } from './savePolisSetting';
 	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {
@@ -23,6 +25,8 @@
 		rejectReasons: RejectReason[];
 		/** The API's default reasons. Export always matches them, see `reasonLabels`. */
 		defaultRejectReasons: RejectReason[];
+		/** The step's config, for the moderator email switch. */
+		step: PolisStepTarget;
 	};
 
 	let {
@@ -30,7 +34,8 @@
 		workflowStepId,
 		statements: initialStatements,
 		rejectReasons,
-		defaultRejectReasons
+		defaultRejectReasons,
+		step
 	}: Props = $props();
 	const canModerate = $derived(
 		permissions.can('conversation', 'conversation_moderate', conversationId)
@@ -318,6 +323,9 @@
 		<div class="flex max-w-3xl flex-col gap-1">
 			<h2 class="text-2xl font-bold">Statements moderation</h2>
 			<p class="text-muted-foreground text-sm">Moderate and view all statements.</p>
+			<div class="mt-3">
+				<NotifyModeratorsSwitch target={step} />
+			</div>
 		</div>
 		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
 		<div
