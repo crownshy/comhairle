@@ -1,5 +1,4 @@
 <script lang="ts">
-	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { FillLayer, GeoJSON, LineLayer, MapLibre } from 'svelte-maplibre';
 	import type GeoJson from 'svelte-maplibre/GeoJSON.svelte.svelte';

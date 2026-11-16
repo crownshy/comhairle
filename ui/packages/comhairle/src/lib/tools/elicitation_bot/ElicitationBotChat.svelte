@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { SendHorizontal, Mic, Sparkles, MessageCircle } from 'lucide-svelte';
+	import { SendHorizontal, Sparkles, MessageCircle } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import ExtractedClaims from './ExtractedClaims.svelte';
@@ -57,7 +57,7 @@
 	let currentTime = $state(formatTime(new Date()));
 
 	$effect(() => {
-		chatMessages;
+		void chatMessages;
 		tick().then(() => scrollToBottom());
 	});
 
@@ -105,7 +105,7 @@
 	}
 
 	$effect(() => {
-		inputValue;
+		void inputValue;
 		resizeTextarea();
 	});
 
@@ -114,17 +114,6 @@
 		// Delegate to external handler - parent manages message state
 		onSendMessage(question.text);
 		scrollToBottom();
-	}
-
-	function getResponseForQuestion(question: string): string {
-		if (question.includes('curious')) {
-			return 'Great! What part of this topic are you most curious to understand right now?';
-		} else if (question.includes('unclear')) {
-			return 'Great! What feels unclear or puzzling to you about this topic at the moment?';
-		} else if (question.includes('learned')) {
-			return 'Great! What do you already know or think about this topic so far?';
-		}
-		return "Great! Tell me more about what you'd like to explore.";
 	}
 
 	async function sendMessage() {

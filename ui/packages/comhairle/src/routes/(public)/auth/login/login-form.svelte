@@ -9,7 +9,7 @@
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';

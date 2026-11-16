@@ -1,7 +1,6 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { X } from 'lucide-svelte';
 
 	interface Props {
 		open: boolean;

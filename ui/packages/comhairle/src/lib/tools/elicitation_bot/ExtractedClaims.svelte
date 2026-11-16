@@ -7,7 +7,6 @@
 	interface Props {
 		claims?: ExtractedClaim[];
 		onApprove?: (claimId: string) => void;
-		onEdit?: (claimId: string, newContent: string) => void;
 		onRemove?: (claimId: string) => void;
 		onSave?: (claimId: string, content: string) => void;
 		onAdd?: () => void;
@@ -16,7 +15,6 @@
 	let {
 		claims = [],
 		onApprove = () => {},
-		onEdit = () => {},
 		onRemove = () => {},
 		onSave = () => {},
 		onAdd = () => {}
