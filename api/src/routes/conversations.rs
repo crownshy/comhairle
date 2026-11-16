@@ -1252,8 +1252,10 @@ mod tests {
     use uuid::Uuid;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::bulk_storage_service::MockBulkStorageService;
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
+    use crate::models::media::{UploadMediaDto, UploadMediaResponseDto};
     use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
         ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
@@ -2221,6 +2223,84 @@ mod tests {
             }
             _ => panic!("Expected ConversationResponse::WithTranslations"),
         }
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_be_able_to_get_conversation_with_media(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let filename = "test-filename.jpg";
+
+        let mut bulk_storage_service = MockBulkStorageService::new();
+        bulk_storage_service
+            .expect_get_write_file_url()
+            .once()
+            .returning(move |_| {
+                Box::pin(async move { Ok(format!("https://storage.com/{}", &filename)) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bulk_storage_service(Arc::new(bulk_storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+        let (_, value, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live" : false,
+                    "is_invite_only" : false,
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        let body = UploadMediaDto {
+            filename: filename.to_string(),
+            content_type: String::from("image/jpeg"),
+            name: String::from("test-name"),
+            alt: String::from("test-alt"),
+        };
+
+        let (_, value, _) = session
+            .post(&app, "/media", Body::from(serde_json::to_string(&body)?))
+            .await?;
+        let upload_media: UploadMediaResponseDto = serde_json::from_value(value)?;
+
+        session
+            .update_conversation(
+                &app,
+                &conversation.id.to_string(),
+                json!({ "image": upload_media.media.id }),
+            )
+            .await?;
+
+        let (_, value, _) = session
+            .get(&app, &format!("/conversation/{}", conversation.id))
+            .await?;
+        let conversation: LocalizedConversationDto = serde_json::from_value(value)?;
+
+        assert!(
+            conversation
+                .image_url
+                .contains(format!("/images/{}", filename).as_str()),
+            "incorrect image_url"
+        );
 
         Ok(())
     }
