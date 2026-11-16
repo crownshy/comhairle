@@ -43,7 +43,10 @@
 	);
 
 	if (!data.user) {
-		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
+		loginRedirectServer(
+			page.url.pathname + page.url.search,
+			'You need to be logged in to access this'
+		);
 	}
 
 	// Writable derived seeded from the server-read cookie: SSR and the live value are one
