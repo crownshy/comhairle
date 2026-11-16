@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { backToFromUrl, safeBackTo } from './backTo';
+import { describe, expect, it, vi } from 'vitest';
+import { backToFromUrl, pathWithQuery, safeBackTo } from './backTo';
 
 const ORIGIN = 'https://comhairle.scot';
 
@@ -41,6 +41,42 @@ describe('safeBackTo', () => {
 	it('goes home for a same-origin path that would read as another host', () => {
 		expect(safeBackTo('https://comhairle.scot//evil.example/admin', ORIGIN)).toBe('/');
 	});
+
+	it('goes home for input that is not a URL at all', () => {
+		expect(safeBackTo('http://', ORIGIN)).toBe('/');
+		expect(safeBackTo('https://[bad', ORIGIN)).toBe('/');
+	});
+
+	it('reads a path without a leading slash as a path on our site', () => {
+		expect(safeBackTo('conversations/abc', ORIGIN)).toBe('/conversations/abc');
+	});
+
+	it('ignores whitespace around the value', () => {
+		expect(safeBackTo('  /conversations/abc ', ORIGIN)).toBe('/conversations/abc');
+		expect(safeBackTo('\t//evil.example/admin', ORIGIN)).toBe('/');
+	});
+
+	it('keeps an encoded double slash as a harmless single segment', () => {
+		expect(safeBackTo('/%2F%2Fevil.example', ORIGIN)).toBe('/%2F%2Fevil.example');
+	});
+
+	it('uses the given fallback instead of home', () => {
+		const fallback = '/conversations/abc/preview';
+		expect(safeBackTo(null, ORIGIN, fallback)).toBe(fallback);
+		expect(safeBackTo('https://evil.example/x', ORIGIN, fallback)).toBe(fallback);
+		expect(safeBackTo('/\\evil.example', ORIGIN, fallback)).toBe(fallback);
+		expect(safeBackTo('/conversations/abc/step/1', ORIGIN, fallback)).toBe(
+			'/conversations/abc/step/1'
+		);
+	});
+
+	it('works in browsers without URL.parse', () => {
+		const parse = vi.spyOn(URL, 'parse').mockImplementation(() => {
+			throw new Error('URL.parse is not available');
+		});
+		expect(safeBackTo(`${ORIGIN}/admin/x`, ORIGIN)).toBe('/admin/x');
+		parse.mockRestore();
+	});
 });
 
 describe('backToFromUrl', () => {
@@ -53,5 +89,26 @@ describe('backToFromUrl', () => {
 
 	it('goes home when the param is missing', () => {
 		expect(backToFromUrl(new URL(`${ORIGIN}/auth/login`))).toBe('/');
+	});
+
+	it('uses the given fallback when the param is missing or unsafe', () => {
+		const fallback = '/conversations/abc/preview';
+		expect(backToFromUrl(new URL(`${ORIGIN}/x/preview-unlock`), fallback)).toBe(fallback);
+		expect(
+			backToFromUrl(new URL(`${ORIGIN}/x/preview-unlock?backTo=//evil.example`), fallback)
+		).toBe(fallback);
+	});
+});
+
+describe('pathWithQuery', () => {
+	it('keeps the path and query and drops the origin and hash', () => {
+		expect(pathWithQuery(new URL(`${ORIGIN}/admin/conversations?q=x#top`))).toBe(
+			'/admin/conversations?q=x'
+		);
+	});
+
+	it('round-trips through safeBackTo unchanged', () => {
+		const path = pathWithQuery(new URL(`${ORIGIN}/conversations/abc/step/2?lang=gd`));
+		expect(safeBackTo(path, ORIGIN)).toBe(path);
 	});
 });
