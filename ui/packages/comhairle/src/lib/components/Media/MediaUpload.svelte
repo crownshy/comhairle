@@ -178,6 +178,7 @@
 					{#if mediaUploader.error}
 						<ErrorMessage size="sm">{mediaUploader.error}</ErrorMessage>
 					{/if}
+					<Button type="button" class="mt-3 self-end" onclick={() => void (open = false)}>Finish</Button>
 				</div>
 			{/if}
 		</Dialog.Content>

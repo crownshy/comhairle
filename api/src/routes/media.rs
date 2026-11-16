@@ -94,7 +94,7 @@ async fn upload(
         media: new_media.into(),
     };
 
-    Ok((StatusCode::CREATED, Json(response.into())))
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -191,15 +191,16 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
 mod tests {
     use std::error::Error;
 
+    use axum::body::Body;
     use sqlx::PgPool;
 
     use super::*;
-    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
+    use crate::bulk_storage_service::MockBulkStorageService;
     use crate::models::media::Media;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::pagination::PaginatedResults;
     use crate::setup_server;
-    use crate::test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state};
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
     use crate::tools::id::gen_id;
 
     async fn create_random_image_record(
@@ -223,7 +224,6 @@ mod tests {
     async fn should_upload_media_to_bulk_storage_and_create_record(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
         let name = "test-name";
@@ -231,15 +231,12 @@ mod tests {
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
-            .expect_upload_file()
+            .expect_get_write_file_url()
             .once()
-            .returning(move |_, _, _| {
-                Box::pin(async move {
-                    Ok(UploadResult {
-                        url: format!("https://storage.com/{}", filename),
-                    })
-                })
+            .returning(move |_| {
+                Box::pin(async move { Ok("https://s3.example.com/presigned-url".to_string()) })
             });
+
         let state = test_state()
             .db(pool)
             .bulk_storage_service(Arc::new(bulk_storage_service))
@@ -248,22 +245,39 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let body = MultipartBodyBuilder::new(boundary.to_string())
-            .add_field("name", name)
-            .add_field("alt", alt)
-            .add_file(filename, Some(content_type), "test-content")
-            .build();
+        let body = UploadMediaDto {
+            filename: filename.to_string(),
+            content_type: content_type.to_string(),
+            name: name.to_string(),
+            alt: alt.to_string(),
+        };
 
         let (_, value, _) = session
-            .post_multipart(&app, "/media", boundary, body.into())
+            .post(
+                &app,
+                "/media/upload",
+                Body::from(serde_json::to_string(&body)?),
+            )
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let upload_response: UploadMediaResponseDto = serde_json::from_value(value)?;
 
-        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
-        assert_eq!(media.name, name.to_string(), "incorrect name");
-        assert_eq!(media.alt, alt.to_string(), "incorrect alt text");
         assert_eq!(
-            media.content_type,
+            upload_response.media.filename,
+            filename.to_string(),
+            "incorrect filename"
+        );
+        assert_eq!(
+            upload_response.media.name,
+            name.to_string(),
+            "incorrect name"
+        );
+        assert_eq!(
+            upload_response.media.alt,
+            alt.to_string(),
+            "incorrect alt text"
+        );
+        assert_eq!(
+            upload_response.media.content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );

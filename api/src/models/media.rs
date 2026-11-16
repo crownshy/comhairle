@@ -19,7 +19,7 @@ use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::routes::media::dto::MediaDto;
 
 /// Incoming form type from the upload request
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMediaDto {
     pub filename: String,
@@ -28,7 +28,7 @@ pub struct UploadMediaDto {
     pub content_type: String,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMediaResponseDto {
     pub presigned_upload_url: String,
@@ -168,7 +168,7 @@ impl MediaContentType {
         }
     }
     pub fn get_type(content_type: &str, filename: &str) -> Result<Self, ComhairleError> {
-        let mime = MediaContentType::try_from_mime(&content_type);
+        let mime = MediaContentType::try_from_mime(content_type);
         if mime.is_ok() {
             return mime;
         }

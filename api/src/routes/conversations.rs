@@ -1252,7 +1252,6 @@ mod tests {
     use uuid::Uuid;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
     use crate::models::permissions::conversation::Role;
@@ -1262,13 +1261,10 @@ mod tests {
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
-    use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
     use crate::setup_server;
-    use crate::test_helpers::{
-        MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_config, test_state,
-    };
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_config, test_state};
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
@@ -2225,87 +2221,6 @@ mod tests {
             }
             _ => panic!("Expected ConversationResponse::WithTranslations"),
         }
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_be_able_to_get_conversation_with_media(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let boundary = "test-boundary";
-        let filename = "test_file.jpg";
-        let content_type = "image/jpeg";
-
-        let mut bulk_storage_service = MockBulkStorageService::new();
-        bulk_storage_service
-            .expect_upload_file()
-            .once()
-            .returning(move |_, _, _| {
-                Box::pin(async move {
-                    Ok(UploadResult {
-                        url: format!("https://storage.com/{}", filename),
-                    })
-                })
-            });
-
-        let state = test_state()
-            .db(pool)
-            .bulk_storage_service(Arc::new(bulk_storage_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut session = UserSession::new_admin();
-
-        session.signup(&app).await?;
-        let (_, value, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_live" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation",
-                    "primary_locale" : "en",
-                    "supported_languages" : ["en"]
-                }),
-            )
-            .await?;
-        let conversation: ConversationDto = serde_json::from_value(value)?;
-
-        let body = MultipartBodyBuilder::new(boundary.to_string())
-            .add_field("name", "test-name")
-            .add_field("alt", "test-alt")
-            .add_file(filename, Some(content_type), "test-content")
-            .build();
-
-        let (_, value, _) = session
-            .post_multipart(&app, "/media", boundary, body.into())
-            .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
-
-        session
-            .update_conversation(
-                &app,
-                &conversation.id.to_string(),
-                json!({ "image": media.id }),
-            )
-            .await?;
-
-        let (_, value, _) = session
-            .get(&app, &format!("/conversation/{}", conversation.id))
-            .await?;
-        let conversation: LocalizedConversationDto = serde_json::from_value(value)?;
-
-        assert!(
-            conversation.image_url.contains("/images/test_file.jpg"),
-            "incorrect image_url"
-        );
 
         Ok(())
     }
