@@ -25,7 +25,7 @@
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
 	let open = $state<boolean>(false);
-	let page = $state<number>(1);
+	let page = $state<number>(2);
 
 	const mediaUploader = new Media.uploader();
 
@@ -55,11 +55,9 @@
 </script>
 
 {#snippet Step(step: keyof typeof UploaderProgress)}
+	{@const diff = mediaUploader.step - UploaderProgress[step]}
 	<div class="flex items-center gap-x-2">
-		<StepIcon
-			state={mediaUploader.step - UploaderProgress[step]}
-			error={mediaUploader.step === UploaderProgress[step] && !!mediaUploader.error}
-		/>
+		<StepIcon state={diff} error={diff === 0 && !!mediaUploader.error} />
 		<span class="text-lg font-semibold">{step}</span>
 	</div>
 {/snippet}
