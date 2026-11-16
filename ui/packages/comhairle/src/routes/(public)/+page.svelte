@@ -5,7 +5,6 @@
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
 	import { PAGE_SIZE } from './conversations/utils';
-	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Info from '@lucide/svelte/icons/info';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -20,55 +19,51 @@
 
 <!-- No minimum height: the conversation list follows straight after the welcome text,
 	so it shows in the first screen. -->
-<div class="mx-auto flex w-full max-w-[1280px] flex-col px-6">
-	<div class="flex flex-col gap-y-10 pt-16">
-		<h1 class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
+<div class="flex flex-col">
+	<section class="bg-primary text-primary-foreground rounded-b-4xl md:rounded-b-[3rem]">
+		<div class="mx-auto flex w-full max-w-7xl flex-col gap-y-10 px-6 pt-16 pb-20 md:pb-28">
+			<h1 class="scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
+				{#if data.isCommunity}
+					{m.welcome_to_the()}
+				{:else}
+					{m.welcome_to()}
+				{/if}
+
+				<Tooltip.Provider delayDuration={0}>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							class="inline-flex cursor-default items-baseline gap-2"
+							onclick={(e) => e.preventDefault()}
+						>
+							Comhairle<Info
+								class="text-primary-foreground inline size-5 self-center"
+							/>
+						</Tooltip.Trigger>
+						<Tooltip.Content side="top" class="text-base">
+							{m.comhairle_meaning()}
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+
+				{#if data.isCommunity}
+					{m.community_server()}
+				{/if}
+			</h1>
+
 			{#if data.isCommunity}
-				{m.welcome_to_the()}
+				{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
+					<p class="w-full text-xl sm:text-2xl">
+						{description}
+					</p>
+				{/each}
 			{:else}
-				{m.welcome_to()}
-			{/if}
-
-			<Tooltip.Provider delayDuration={0}>
-				<Tooltip.Root>
-					<Tooltip.Trigger
-						class="inline-flex cursor-default items-baseline gap-2"
-						onclick={(e) => e.preventDefault()}
-					>
-						Comhairle<Info class="text-primary inline size-5 self-center" />
-					</Tooltip.Trigger>
-					<Tooltip.Content side="top" class="text-base">
-						{m.comhairle_meaning()}
-					</Tooltip.Content>
-				</Tooltip.Root>
-			</Tooltip.Provider>
-
-			{#if data.isCommunity}
-				{m.community_server()}
-			{/if}
-		</h1>
-
-		{#if data.isCommunity}
-			{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-				<p class="text-foreground w-full text-xl sm:text-2xl">
-					{description}
+				<p class="max-w-xl text-xl sm:text-2xl">
+					{m.landing_page_subtitle()}
 				</p>
-			{/each}
-		{:else}
-			<p class="text-foreground max-w-xl text-xl sm:text-2xl">
-				{m.landing_page_subtitle()}
-			</p>
-		{/if}
-
-		<Button
-			size="lg"
-			class="bg-sidebar text-sidebar-foreground px-8 py-6 text-lg"
-			href="/conversations"
-		>
-			{m.explore_conversations()}
-		</Button>
-	</div>
-	<div class="flex h-full flex-col pt-10 md:pt-20">
+			{/if}
+		</div>
+	</section>
+	<div class="mx-auto flex h-full w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header class="pb-5 md:pb-20">
 			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
 			<p class="mb-4">
