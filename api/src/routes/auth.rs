@@ -440,6 +440,7 @@ async fn login(
     let password = user
         .password
         .as_ref()
+        .map(|p| p.expose())
         .ok_or_else(|| ComhairleError::WrongUserType)?;
 
     let hash = PasswordHash::new(password).map_err(|_| ComhairleError::PasswordHash)?;
@@ -1334,6 +1335,7 @@ mod tests {
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::otp;
     use crate::models::users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email};
+    use crate::pii::Pii;
     use crate::routes::auth::{EmailLinkClaims, SessionClaims, generate_jwt};
     use crate::routes::user::dto::UserDto;
     use crate::setup_server;
@@ -1558,7 +1560,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             guest_code: None,
             auth_type: UserAuthType::EmailPassword,
@@ -1611,7 +1613,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             guest_code: None,
             auth_type: UserAuthType::Guest,
@@ -1668,7 +1670,7 @@ mod tests {
         let user = User {
             id: user.id,
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
@@ -1988,7 +1990,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
@@ -2016,7 +2018,8 @@ mod tests {
         let (login_status, _, _) = session.login(&app, email, updated_password).await?;
 
         let user = get_user_by_email(email, db).await?;
-        let hashed_user_password = PasswordHash::new(user.password.as_ref().unwrap()).unwrap();
+        let hashed_user_password =
+            PasswordHash::new(user.password.as_ref().unwrap().expose()).unwrap();
 
         assert_eq!(
             reset_status,
@@ -2056,7 +2059,7 @@ mod tests {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
             username: Some(username.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
