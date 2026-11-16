@@ -3,9 +3,10 @@ import { fail, type LoadEvent } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
 import type { MediaDto } from '@crownshy/api-client/api';
 import { HttpStatus } from '$lib/utils/constants';
+import { key } from '$lib/utils/invalidationKey';
 
 export async function load({ fetch, depends }: LoadEvent) {
-	depends('media-library:media');
+	depends(key('admin/media-library/media'));
 
 	const response = await tryFetch('/api/media', undefined, fetch);
 	if (response.err !== null) {
