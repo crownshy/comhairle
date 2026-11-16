@@ -5,12 +5,18 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
+use futures_util::stream::BoxStream;
 use redis::aio::ConnectionManager;
 use redis::{AsyncCommands, RedisError};
 #[cfg(test)]
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 
-/// Abstracts over a Redis connection.
+/// A subscription that owns its connection and yields raw message payloads.
+/// Dropping the stream disconnects the subscriber.
+pub type RedisSubscription = BoxStream<'static, Vec<u8>>;
+
+/// Abstracts over Redis caching and channel-based Pub/Sub.
 ///
 /// Both the production [`RedisImpl`] (backed by a real `ConnectionManager`)
 /// and the test-only [`MockRedis`] (backed by an in-memory `HashMap`)
@@ -29,15 +35,28 @@ pub trait RedisConnection: Send + Sync {
 
     /// Delete the entry at `key`.
     async fn del(&self, key: &str) -> Result<(), RedisError>;
+
+    /// Publish a payload, returning the number of subscribers it was sent to.
+    /// Messages are not retained for future subscribers.
+    async fn publish(&self, channel: &str, payload: &[u8]) -> Result<usize, RedisError>;
+
+    /// Subscribe to a channel. The subscription is ready when this returns.
+    /// Every active subscriber receives its own copy, including the publisher.
+    /// The stream ends if the subscription connection closes.
+    async fn subscribe(&self, channel: &str) -> Result<RedisSubscription, RedisError>;
 }
 
 /// Production Redis connection backed by a [`redis::aio::ConnectionManager`].
 #[derive(Debug)]
-pub struct RedisImpl(ConnectionManager);
+pub struct RedisImpl {
+    connection: ConnectionManager,
+    client: redis::Client,
+}
 
 impl RedisImpl {
-    pub fn new(conn: ConnectionManager) -> Self {
-        Self(conn)
+    /// The client must point to the same Redis server as the connection manager.
+    pub fn new(connection: ConnectionManager, client: redis::Client) -> Self {
+        Self { connection, client }
     }
 }
 
@@ -45,7 +64,7 @@ impl Deref for RedisImpl {
     type Target = ConnectionManager;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.connection
     }
 }
 
@@ -93,17 +112,44 @@ impl RedisConnection for RedisImpl {
             e
         })
     }
+
+    async fn publish(&self, channel: &str, payload: &[u8]) -> Result<usize, RedisError> {
+        let mut connection = self.connection.clone();
+        connection.publish(channel, payload).await.map_err(|error| {
+            tracing::error!("Redis publish error for channel {channel}: {error}");
+            error
+        })
+    }
+
+    async fn subscribe(&self, channel: &str) -> Result<RedisSubscription, RedisError> {
+        let mut pubsub = self.client.get_async_pubsub().await.map_err(|error| {
+            tracing::error!("Redis subscription connection error: {error}");
+            error
+        })?;
+        pubsub.subscribe(channel).await.map_err(|error| {
+            tracing::error!("Redis subscribe error for channel {channel}: {error}");
+            error
+        })?;
+        Ok(pubsub
+            .into_on_message()
+            .map(|message| message.get_payload_bytes().to_vec())
+            .boxed())
+    }
 }
 
-/// In-memory Redis mock backed by a `HashMap<String, String>`.
+/// In-memory Redis mock with an isolated cache and per-channel subscribers.
+/// Share one instance between services to test fan-out without a Redis server.
 #[cfg(test)]
 #[derive(Default)]
-pub struct MockRedis(Arc<Mutex<HashMap<String, String>>>);
+pub struct MockRedis {
+    values: Arc<Mutex<HashMap<String, String>>>,
+    subscribers: Mutex<HashMap<String, Vec<mpsc::UnboundedSender<Vec<u8>>>>>,
+}
 
 #[cfg(test)]
 impl MockRedis {
     pub fn new() -> Self {
-        Self(Arc::new(Mutex::new(HashMap::new())))
+        Self::default()
     }
 
     /// Directly read a value from the in-memory store.
@@ -120,7 +166,7 @@ impl Deref for MockRedis {
     type Target = Arc<Mutex<HashMap<String, String>>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.values
     }
 }
 
@@ -143,6 +189,102 @@ impl RedisConnection for MockRedis {
 
     async fn del(&self, key: &str) -> Result<(), RedisError> {
         self.lock().await.remove(key);
+        Ok(())
+    }
+
+    async fn publish(&self, channel: &str, payload: &[u8]) -> Result<usize, RedisError> {
+        let mut channels = self.subscribers.lock().await;
+        let Some(subscribers) = channels.get_mut(channel) else {
+            return Ok(0);
+        };
+        subscribers.retain(|subscriber| subscriber.send(payload.to_vec()).is_ok());
+        Ok(subscribers.len())
+    }
+
+    async fn subscribe(&self, channel: &str) -> Result<RedisSubscription, RedisError> {
+        let (sender, receiver) = mpsc::unbounded_channel();
+        self.subscribers
+            .lock()
+            .await
+            .entry(channel.to_owned())
+            .or_default()
+            .push(sender);
+        Ok(
+            futures_util::stream::unfold(receiver, |mut receiver| async {
+                receiver.recv().await.map(|payload| (payload, receiver))
+            })
+            .boxed(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use futures_util::FutureExt;
+    use tokio::time::timeout;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn pubsub_fans_out_to_every_subscriber_in_order() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let redis = MockRedis::new();
+        let mut first = redis.subscribe("updates").await?;
+        let mut second = redis.subscribe("updates").await?;
+        let payloads: [&[u8]; 2] = [b"first", &[0, 255, 1]];
+
+        for payload in payloads {
+            assert_eq!(redis.publish("updates", payload).await?, 2);
+        }
+        for subscriber in [&mut first, &mut second] {
+            for payload in payloads {
+                assert_eq!(
+                    timeout(Duration::from_secs(1), subscriber.next()).await?,
+                    Some(payload.to_vec())
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn pubsub_isolates_channels_and_mock_instances() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let redis = MockRedis::new();
+        let other_redis = MockRedis::new();
+        let mut updates = redis.subscribe("updates").await?;
+        let mut other_channel = redis.subscribe("other").await?;
+        let mut other_instance = other_redis.subscribe("updates").await?;
+
+        assert_eq!(redis.publish("updates", b"update").await?, 1);
+        assert_eq!(
+            timeout(Duration::from_secs(1), updates.next()).await?,
+            Some(b"update".to_vec())
+        );
+        assert!(other_channel.next().now_or_never().is_none());
+        assert!(other_instance.next().now_or_never().is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn pubsub_does_not_replay_or_count_dropped_subscribers()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let redis = MockRedis::new();
+        assert_eq!(redis.publish("updates", b"before subscribing").await?, 0);
+
+        let mut dropped = redis.subscribe("updates").await?;
+        assert!(dropped.next().now_or_never().is_none());
+        let mut active = redis.subscribe("updates").await?;
+        drop(dropped);
+
+        assert_eq!(redis.publish("updates", b"after subscribing").await?, 1);
+        assert_eq!(
+            timeout(Duration::from_secs(1), active.next()).await?,
+            Some(b"after subscribing".to_vec())
+        );
+        assert!(active.next().now_or_never().is_none());
         Ok(())
     }
 }

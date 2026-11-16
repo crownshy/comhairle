@@ -81,8 +81,15 @@ async fn run() -> Result<(), Box<dyn Error>> {
     ));
 
     // Setup Websocket service
-    let websockets =
-        Arc::new(ComhairleWebSocketService::new(config.websocket_service.as_ref()).await?);
+    let websocket_redis = if let Some(config) = &config.websocket_service {
+        let client = redis::Client::open(config.redis_pubsub_url.as_str())?;
+        let connection = client.get_connection_manager().await?;
+        Some(Arc::new(RedisImpl::new(connection, client))
+            as Arc<dyn comhairle::redis_connection::RedisConnection>)
+    } else {
+        None
+    };
+    let websockets = Arc::new(ComhairleWebSocketService::new(websocket_redis));
 
     // Setup Translation Service
     let translation_service =
@@ -147,7 +154,7 @@ async fn run() -> Result<(), Box<dyn Error>> {
                 match client.get_connection_manager_lazy(config) {
                     Ok(manager) => {
                         tracing::info!("Redis permissions cache connected");
-                        Some(Arc::new(RedisImpl::new(manager))
+                        Some(Arc::new(RedisImpl::new(manager, client))
                             as Arc<dyn comhairle::redis_connection::RedisConnection>)
                     }
                     Err(e) => {
