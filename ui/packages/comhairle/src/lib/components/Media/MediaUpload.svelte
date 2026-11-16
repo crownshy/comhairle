@@ -11,8 +11,7 @@
 	import { Form, Input, Submit } from '$lib/components/EasyForm';
 	import Media, { UploaderProgress } from '$lib/interfaces/Media.svelte';
 	import FileIcon from '$lib/components/FileIcon.svelte';
-	import StepIcon, { StepProgress } from './StepIcon.svelte';
-	import type { Values } from '$lib/types';
+	import StepIcon from './StepIcon.svelte';
 	import ProgressBar from '../ProgressBar.svelte';
 	import ErrorMessage from '../ErrorMessage.svelte';
 
@@ -53,20 +52,14 @@
 
 		oncomplete?.(upload.ok);
 	}
-
-	function calculateState(step: Values<typeof UploaderProgress>): number {
-		if (mediaUploader.error && mediaUploader.step === step) {
-			return StepProgress.Error;
-		}
-
-		// Return the current step state, but don't let it go to error, return a minimum of waiting
-		return Math.max(mediaUploader.step - step, StepProgress.Waiting);
-	}
 </script>
 
 {#snippet Step(step: keyof typeof UploaderProgress)}
 	<div class="flex items-center gap-x-2">
-		<StepIcon state={calculateState(UploaderProgress[step])} />
+		<StepIcon
+			state={mediaUploader.step - UploaderProgress[step]}
+			error={mediaUploader.step === UploaderProgress[step] && !!mediaUploader.error}
+		/>
 		<span class="text-lg font-semibold">{step}</span>
 	</div>
 {/snippet}

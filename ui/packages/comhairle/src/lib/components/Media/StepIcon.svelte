@@ -1,6 +1,5 @@
 <script lang="ts" module>
 	export const StepProgress = {
-		Error: -2,
 		Waiting: -1,
 		Loading: 0,
 		Complete: 1
@@ -14,9 +13,10 @@
 
 	type Props = {
 		state: number;
+		error?: boolean;
 	};
 
-	let { state = StepProgress.Waiting }: Props = $props();
+	let { state = StepProgress.Waiting, error }: Props = $props();
 </script>
 
 {#snippet StateIcon(I: ComponentType<Icon>, classes: string)}
@@ -25,12 +25,12 @@
 	</div>
 {/snippet}
 
-{#if state >= StepProgress.Complete}
+{#if error}
+	{@render StateIcon(X, 'bg-red-500/80 text-white')}
+{:else if state >= StepProgress.Complete}
 	{@render StateIcon(Check, 'bg-green-500/80 text-white')}
 {:else if state === StepProgress.Loading}
 	<Spinner class="text-primary size-5" strokeWidth={4} />
-{:else if state === StepProgress.Waiting}
+{:else if state <= StepProgress.Waiting}
 	{@render StateIcon(Minus, 'bg-slate-500/80 text-white')}
-{:else if state <= StepProgress.Error}
-	{@render StateIcon(X, 'bg-red-500/80 text-white')}
 {/if}
