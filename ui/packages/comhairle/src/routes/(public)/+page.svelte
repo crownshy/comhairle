@@ -41,7 +41,7 @@
 
 <!-- No minimum height: the conversation list follows straight after the welcome text,
 	so it shows in the first screen. -->
-<div class="flex flex-col">
+<div class="mx-auto flex w-full max-w-[1280px] flex-col px-6">
 	<div class="flex flex-col gap-y-10 pt-16">
 		<h1 class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
 			{#if isCommunity}
