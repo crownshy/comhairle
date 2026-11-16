@@ -602,6 +602,8 @@
 		showOpinionView('thanks');
 	}
 
+	const opinionTopic = $derived(topic?.trim());
+
 	function openAddOpinion() {
 		visibleStatementWhenOpened = shownStatement;
 		opinionView = 'form';
@@ -730,6 +732,15 @@
 	{/if}
 
 	<div class="w-full">
+		<!-- The topic frames the box as an answer to the question, not a reply to the last statement. -->
+		{#if opinionTopic}
+			<p
+				id="polis-opinion-topic"
+				class="text-card-foreground mb-3 text-lg leading-snug font-semibold break-words"
+			>
+				{opinionTopic}
+			</p>
+		{/if}
 		<textarea
 			bind:this={opinionBox}
 			bind:value={opinionText}
@@ -737,7 +748,9 @@
 			placeholder={m.polis_opinion_placeholder()}
 			aria-label={m.polis_add_your_own_opinion()}
 			maxlength={MAX_STATEMENT_LENGTH}
-			aria-describedby="polis-opinion-characters-left"
+			aria-describedby={opinionTopic
+				? 'polis-opinion-topic polis-opinion-characters-left'
+				: 'polis-opinion-characters-left'}
 			class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
 		></textarea>
 		<p
