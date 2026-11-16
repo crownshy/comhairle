@@ -55,9 +55,7 @@
 	}
 
 	function calculateState(step: Values<typeof UploaderProgress>): number {
-		// If we have an error
 		if (mediaUploader.error && mediaUploader.step === step) {
-			// If it's the current step set it to error
 			return StepProgress.Error;
 		}
 
