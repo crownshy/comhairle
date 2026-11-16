@@ -61,18 +61,16 @@ who turn on "reduce motion".
 
 ## Featured slide contrast
 
-The slide text sits on frosted glass: the photo blurred under the theme colour darkened by
-30% at 80% strength, fading into the sharp photo only past the text. Blur alone doesn't
-protect contrast, because big bright areas (sky, white walls) stay bright when blurred; the
-darkening does. Even over pure white it stays above 4.5 for all three themes, and on the
-real photos, measured at several points of the slow zoom, the lowest was 6.8 Comhairle,
-6.0 Scottish Government and 5.2 Waves. Browsers without blur support still get the
-darkened colour, so they pass too.
+The featured card puts its text on a white panel under the photo, so contrast never
+depends on the photo, GIF or video: dark text on white, and the organiser and button in
+the theme colour (Comhairle 7.8, Scottish Government 5.8, Waves 4.9, all WCAG AA). The
+panel has a notch at its top-left where the Featured badge sits on the photo. A soft band
+of theme colour along the bottom of the photo is decoration only, with no text on it.
 
-Also tried and set aside: solid theme colour behind the text (7.8 / 5.8 / 4.9, most on
-brand) and a gradual blur from a reference card (7.1 / 6.8 / 6.2, but the theme barely
-shows and it's heavier for older phones). The earlier see-through overlay failed on bright
-photos.
+Also tried and set aside, all with text over the photo: a see-through colour overlay
+(failed on bright photos), solid theme colour behind the text, frosted glass (blurred
+photo under darkened theme colour) and a gradual blur from a reference card. The last
+three passed, but only because of how much they darkened or covered the photo.
 
 ## Organiser on cards
 

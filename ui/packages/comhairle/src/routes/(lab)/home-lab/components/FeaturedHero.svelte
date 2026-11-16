@@ -42,71 +42,91 @@
 					aria-roledescription="slide"
 					aria-label="{i + 1} of {conversations.length}"
 				>
+					<!-- Text on a white panel under the photo, so contrast never depends on the photo, GIF
+						or video (dark text on white, organiser in theme colour: 4.9 or more in every theme).
+						The panel has a notch at its top-left where the Featured badge sits on the photo.
+						Participants and closing date are left off to keep the slide light; the
+						conversation page has them. -->
 					<article
-						class="bg-primary relative isolate flex h-[34rem] flex-col justify-end overflow-hidden rounded-3xl sm:h-[32rem] lg:h-[36rem]"
+						class="bg-card ring-border/60 flex h-full flex-col rounded-3xl p-2 shadow-md ring-1"
 					>
-						<!-- A badge in the same spot on every slide, so people can tell at a glance these
-							are featured. Theme text on white: 9:1 or more in every theme. -->
-						<span
-							class="text-foreground absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold shadow-md lg:top-6 lg:left-6"
-						>
-							<Star class="size-4 fill-amber-400 text-amber-500" aria-hidden="true" />
-							Featured
-						</span>
-						{#if conversation.featuredMedia?.kind === 'video'}
-							<video
-								src={conversation.featuredMedia.src}
-								poster={conversation.imageUrl as string}
-								autoplay
-								muted
-								loop
-								playsinline
-								aria-hidden="true"
-								class="absolute inset-0 -z-20 size-full object-cover"
-							></video>
-						{:else if conversation.featuredMedia?.kind === 'gif'}
-							<img
-								src={conversation.featuredMedia.src}
-								alt=""
-								class="absolute inset-0 -z-20 size-full object-cover"
-							/>
-						{:else if conversation.imageUrl}
-							<!-- No moving media yet: a slow pan and zoom keeps the photo alive. -->
-							<img
-								src={conversation.imageUrl as string}
-								alt=""
-								class="ken-burns absolute inset-0 -z-20 size-full object-cover"
-							/>
-						{:else}
-							<MessageSquareText
-								class="text-primary-foreground/20 absolute top-16 right-8 -z-20 size-40"
-							/>
-						{/if}
-						<!-- Frosted glass behind the text: the photo blurred under a darkened, see-through theme
-							colour (style block below), so white text stays at WCAG AA whatever the photo or GIF
-							shows. It fades into the photo only past the text: above it on phones, to its right on
-							large screens. Participants and closing date are left off to keep the slide light;
-							the conversation page has them. -->
 						<div
-							class="text-primary-foreground relative flex flex-col gap-3 p-5 pt-8 sm:p-8 sm:pt-10 lg:h-full lg:w-[52%] lg:justify-end lg:p-12"
+							class="bg-primary/10 relative isolate h-56 overflow-hidden rounded-2xl sm:h-72 lg:h-[22rem]"
 						>
-							<div aria-hidden="true" class="frosted-glass"></div>
-							<p class="text-base font-semibold">{conversation.organiser}</p>
-							<h2
-								class="text-2xl leading-tight font-bold tracking-tight sm:text-3xl lg:text-4xl"
+							{#if conversation.featuredMedia?.kind === 'video'}
+								<video
+									src={conversation.featuredMedia.src}
+									poster={conversation.imageUrl as string}
+									autoplay
+									muted
+									loop
+									playsinline
+									aria-hidden="true"
+									class="absolute inset-0 -z-10 size-full object-cover"
+								></video>
+							{:else if conversation.featuredMedia?.kind === 'gif'}
+								<img
+									src={conversation.featuredMedia.src}
+									alt=""
+									class="absolute inset-0 -z-10 size-full object-cover"
+								/>
+							{:else if conversation.imageUrl}
+								<!-- No moving media yet: a slow pan and zoom keeps the photo alive. -->
+								<img
+									src={conversation.imageUrl as string}
+									alt=""
+									class="ken-burns absolute inset-0 -z-10 size-full object-cover"
+								/>
+							{:else}
+								<MessageSquareText
+									class="text-primary/30 absolute inset-0 m-auto size-24"
+								/>
+							{/if}
+							<!-- A soft band of theme colour along the bottom: brand only, no text on it. -->
+							<div
+								aria-hidden="true"
+								class="from-primary/45 absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t to-transparent"
+							></div>
+						</div>
+
+						<div class="featured-panel relative -mt-6 rounded-b-2xl">
+							<!-- The raised part of the panel, right of the notch. -->
+							<div aria-hidden="true" class="featured-tab"></div>
+							<!-- Same spot on every slide, so people can tell at a glance these are featured.
+								Theme text on white: 9:1 or more in every theme. -->
+							<span
+								class="text-foreground absolute bottom-full left-2 mb-2 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold shadow-md"
 							>
-								{conversation.title}
-							</h2>
-							<p class="line-clamp-2 text-lg">
-								{conversation.shortDescription}
-							</p>
-							<a
-								href={hrefFor(conversation.id)}
-								class="bg-primary-foreground text-primary mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-full text-lg font-bold transition hover:opacity-90 sm:w-auto sm:self-start sm:px-10"
+								<Star
+									class="size-4 fill-amber-400 text-amber-500"
+									aria-hidden="true"
+								/>
+								Featured
+							</span>
+							<div
+								class="flex flex-col gap-4 px-3 pt-3 pb-3 sm:px-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10 lg:px-6 lg:pb-5"
 							>
-								{actionFor(conversation)}
-								<ArrowRight class="size-5" />
-							</a>
+								<div class="flex min-w-0 flex-col gap-2">
+									<p class="text-primary text-base font-semibold">
+										{conversation.organiser}
+									</p>
+									<h2
+										class="text-foreground text-2xl leading-tight font-bold tracking-tight sm:text-3xl"
+									>
+										{conversation.title}
+									</h2>
+									<p class="text-foreground line-clamp-2 text-lg">
+										{conversation.shortDescription}
+									</p>
+								</div>
+								<a
+									href={hrefFor(conversation.id)}
+									class="bg-primary text-primary-foreground flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-full text-lg font-bold transition hover:opacity-90 sm:w-auto sm:self-start sm:px-10 lg:self-end"
+								>
+									{actionFor(conversation)}
+									<ArrowRight class="size-5" />
+								</a>
+							</div>
 						</div>
 					</article>
 				</Carousel.Item>
@@ -169,29 +189,37 @@
 		}
 	}
 
-	/* Frosted glass behind the slide text: the photo blurred, under the theme colour darkened
-		by 30% at 80% strength. Darkening is what keeps white text at WCAG AA even if the blurred
-		photo behind is white: about 6.3 Comhairle, 5.6 Scottish Government, 4.8 Waves. The glass
-		reaches past the text and a mask fades it out there: upwards on phones, rightwards on
-		large screens. */
-	.frosted-glass {
-		position: absolute;
-		z-index: -1;
-		inset: -5rem 0 0 0;
-		background: color-mix(
-			in srgb,
-			color-mix(in srgb, var(--primary) 70%, black) 80%,
-			transparent
-		);
-		backdrop-filter: blur(24px) saturate(1.2);
-		-webkit-backdrop-filter: blur(24px) saturate(1.2);
-		mask-image: linear-gradient(to top, black calc(100% - 5rem), transparent);
-		pointer-events: none;
+	/* The notch: the panel's top edge sits 1.5rem into the photo, and a raised tab covers the
+		photo from the end of the notch to the right edge, 2.5rem higher. Where the tab meets the
+		lower edge, a small inverted corner makes the curve. --notch is the notch width, sized to
+		hold the Featured badge. */
+	.featured-panel {
+		--notch: 8.5rem;
+		--tab: 2.5rem;
+		--curve: 1.25rem;
+		background: var(--card);
 	}
-	@media (min-width: 64rem) {
-		.frosted-glass {
-			inset: 0 -10rem 0 0;
-			mask-image: linear-gradient(to right, black calc(100% - 10rem), transparent);
-		}
+	.featured-tab {
+		position: absolute;
+		bottom: 100%;
+		left: var(--notch);
+		right: 0;
+		height: var(--tab);
+		background: var(--card);
+		border-top-left-radius: var(--curve);
+		border-top-right-radius: 1rem;
+	}
+	.featured-tab::before {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: calc(var(--curve) * -1);
+		width: var(--curve);
+		height: var(--curve);
+		background: radial-gradient(
+			circle at 0 0,
+			transparent calc(var(--curve) - 0.5px),
+			var(--card) var(--curve)
+		);
 	}
 </style>
