@@ -1,0 +1,25 @@
+[package]
+name = "sensemakar_evals"
+version = "0.1.0"
+edition = "2024"
+rust-version.workspace = true
+
+[[bin]]
+name = "sensemakar_evals"
+path = "src/bin/sensemakar_evals.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+askama = "0.16.1"
+clap = { version = "4.6.7", features = ["derive"] }
+rig-agent = "0.44.0"
+rig-bedrock = "0.44.0"
+rig-core = { version = "0.44.0", features = ["reqwest"] }
+schemars = "1.2.2"
+serde = { version = "1.0.229", features = ["serde_derive"] }
+serde_json = "1.0.151"
+serde_norway = "0.9"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["full"] }
+sensemakar = { path = "../sensemakar_core" }
+sensemakar_types = { path = "../sensemakar_types" }

@@ -1,0 +1,17 @@
+task: wikipoll_describer
+description: >
+  Describes the opinion groups in a Polis/WikiPoll-style voted statement set,
+  plus the overall consensus and disagreement
+  (sensemakar::wikipoll_describer::WikiPollGroupDescriber).
+cases:
+  - id: south-staffordshire-development
+    fixture: ../fixtures/wikipoll_describer/poll.json
+    should:
+      - "Produces exactly one group description for group A and one for group B, with group_id matching the input"
+      - "Group A's description reflects its strong support for housing and transport investment and its comfort with brownfield/green-belt development"
+      - "Group B's description reflects its strong support for green belt protection over new housing"
+      - "The consensus description reflects the statement both groups agree on (investing in public transport before approving new housing)"
+    should_not:
+      - "Swaps the two groups' positions (describes A's views as B's or vice versa)"
+      - "Claims consensus on a statement the groups actually disagree on"
+    weight: 1.0

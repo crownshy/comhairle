@@ -1,0 +1,10 @@
+[
+  {"id": "1", "speaker_id": null, "statement_type": null, "text": "The bus never turns up on time and I end up late for work.", "lang": "en"},
+  {"id": "2", "speaker_id": null, "statement_type": null, "text": "There is nowhere safe to lock up my bike near the station.", "lang": "en"},
+  {"id": "3", "speaker_id": null, "statement_type": null, "text": "Trams are packed solid every morning during rush hour.", "lang": "en"},
+  {"id": "4", "speaker_id": null, "statement_type": null, "text": "The playground on the estate has been broken for two years.", "lang": "en"},
+  {"id": "5", "speaker_id": null, "statement_type": null, "text": "We need more trees along the main road, it is bleak.", "lang": "en"},
+  {"id": "6", "speaker_id": null, "statement_type": null, "text": "Rubbish collection has been missed three weeks running.", "lang": "en"},
+  {"id": "7", "speaker_id": null, "statement_type": null, "text": "I do not feel safe walking home at night, the street lights are out.", "lang": "en"},
+  {"id": "8", "speaker_id": null, "statement_type": null, "text": "Rent has gone up so much that my friends have all moved away.", "lang": "en"}
+]

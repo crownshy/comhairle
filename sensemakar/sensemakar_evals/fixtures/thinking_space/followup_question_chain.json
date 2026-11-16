@@ -1,0 +1,13 @@
+{
+  "base_interaction": {
+    "question": {
+      "text": "How might social prescribing affect your community?",
+      "asking_reasion": "We want to understand the lived experience of people and how this policy might improve their own lives and that of their communities",
+      "ai_generated": false
+    },
+    "answer": {
+      "text": "I think it would be a great benefit for the community. There are many resources in the areas surrounding this neighborhood but none are financially accessible to people who live here. This would give them access"
+    }
+  },
+  "follow_ups": []
+}
