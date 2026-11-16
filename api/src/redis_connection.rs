@@ -2,7 +2,11 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 #[cfg(test)]
-use std::sync::Arc;
+use std::pin::Pin;
+#[cfg(test)]
+use std::sync::{Arc, Mutex as StdMutex, PoisonError};
+#[cfg(test)]
+use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -143,7 +147,43 @@ impl RedisConnection for RedisImpl {
 #[derive(Default)]
 pub struct MockRedis {
     values: Arc<Mutex<HashMap<String, String>>>,
-    subscribers: Mutex<HashMap<String, Vec<mpsc::UnboundedSender<Vec<u8>>>>>,
+    subscribers: Arc<StdMutex<MockSubscribers>>,
+}
+
+#[cfg(test)]
+type MockSubscribers = HashMap<String, Vec<mpsc::UnboundedSender<Vec<u8>>>>;
+
+#[cfg(test)]
+struct MockRedisSubscription {
+    receiver: mpsc::UnboundedReceiver<Vec<u8>>,
+    sender: mpsc::UnboundedSender<Vec<u8>>,
+    channel: String,
+    subscribers: Arc<StdMutex<MockSubscribers>>,
+}
+
+#[cfg(test)]
+impl futures_util::Stream for MockRedisSubscription {
+    type Item = Vec<u8>;
+
+    fn poll_next(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.receiver.poll_recv(context)
+    }
+}
+
+#[cfg(test)]
+impl Drop for MockRedisSubscription {
+    fn drop(&mut self) {
+        let mut channels = self
+            .subscribers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if let Some(subscribers) = channels.get_mut(&self.channel) {
+            subscribers.retain(|subscriber| !subscriber.same_channel(&self.sender));
+            if subscribers.is_empty() {
+                channels.remove(&self.channel);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -193,7 +233,10 @@ impl RedisConnection for MockRedis {
     }
 
     async fn publish(&self, channel: &str, payload: &[u8]) -> Result<usize, RedisError> {
-        let mut channels = self.subscribers.lock().await;
+        let mut channels = self
+            .subscribers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         let Some(subscribers) = channels.get_mut(channel) else {
             return Ok(0);
         };
@@ -205,16 +248,17 @@ impl RedisConnection for MockRedis {
         let (sender, receiver) = mpsc::unbounded_channel();
         self.subscribers
             .lock()
-            .await
+            .unwrap_or_else(PoisonError::into_inner)
             .entry(channel.to_owned())
             .or_default()
-            .push(sender);
-        Ok(
-            futures_util::stream::unfold(receiver, |mut receiver| async {
-                receiver.recv().await.map(|payload| (payload, receiver))
-            })
-            .boxed(),
-        )
+            .push(sender.clone());
+        Ok(MockRedisSubscription {
+            receiver,
+            sender,
+            channel: channel.to_owned(),
+            subscribers: self.subscribers.clone(),
+        }
+        .boxed())
     }
 }
 
@@ -285,6 +329,42 @@ mod tests {
             Some(b"after subscribing".to_vec())
         );
         assert!(active.next().now_or_never().is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn dropping_subscriptions_removes_senders_and_empty_channels()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let redis = MockRedis::new();
+        let first = redis.subscribe("updates").await?;
+        let second = redis.subscribe("updates").await?;
+        let other = redis.subscribe("other").await?;
+
+        drop(first);
+        {
+            let channels = redis
+                .subscribers
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
+            assert_eq!(channels.get("updates").map(Vec::len), Some(1));
+            assert_eq!(channels.get("other").map(Vec::len), Some(1));
+        }
+        drop(second);
+        assert!(
+            !redis
+                .subscribers
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .contains_key("updates")
+        );
+        drop(other);
+        assert!(
+            redis
+                .subscribers
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_empty()
+        );
         Ok(())
     }
 }
