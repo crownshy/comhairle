@@ -157,7 +157,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .tag("Media")
                     .summary("Upload media resource")
                     .description(
-                        "Return a presigned url to upload the media to the bulk storage service",
+                        "Upload media - creates the media in the backend then returns a presigned url to upload the media to a bulk storage service",
                     )
                     .security_requirement("JWT")
                     .response::<201, Json<UploadMediaResponseDto>>()

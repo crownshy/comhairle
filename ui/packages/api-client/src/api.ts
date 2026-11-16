@@ -6851,12 +6851,12 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     method: "post",
     path: "/media",
     alias: "UploadMedia",
-    description: `Return a presigned url to upload the media to the bulk storage service`,
+    description: `Upload media - creates the media in the backend then returns a presigned url to upload the media to a bulk storage service`,
     requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `Incoming form type from the upload request`,
+        description: `Upload media request body type.`,
         type: "Body",
         schema: UploadMediaDto,
       },

@@ -18,7 +18,7 @@ use crate::models::SqlxResultExt;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::routes::media::dto::MediaDto;
 
-/// Incoming form type from the upload request
+/// Upload media request body type.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMediaDto {
@@ -28,6 +28,7 @@ pub struct UploadMediaDto {
     pub content_type: String,
 }
 
+/// Upload media response body type.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UploadMediaResponseDto {
