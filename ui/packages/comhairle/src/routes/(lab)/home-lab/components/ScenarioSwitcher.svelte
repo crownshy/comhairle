@@ -51,7 +51,7 @@
 			<div class="flex flex-wrap gap-2">
 				{#each ORGANISATIONS as org (org.id)}
 					<a href={hrefWith({ orgId: org.id })} class={chip(scenario.org.id === org.id)}
-						>{org.name}</a
+						>{org.label}</a
 					>
 				{/each}
 			</div>

@@ -41,6 +41,8 @@ type ExperimentFields = {
 	state: LabState;
 	isFeatured: boolean;
 	topic: string;
+	/** Who runs the conversation, shown on every card. Made-up teams, not real bodies. */
+	organiser: string;
 	estimatedMinutes: number;
 	/** Days until it closes. For upcoming: days until it opens. For results: days since it closed. */
 	days: number;
@@ -86,6 +88,7 @@ const SEEDS: Seed[] = [
 		state: 'live',
 		isFeatured: true,
 		topic: 'Transport',
+		organiser: 'Active Travel Team',
 		estimatedMinutes: 10,
 		days: 19,
 		openedDaysAgo: 12,
@@ -110,6 +113,7 @@ const SEEDS: Seed[] = [
 		state: 'live',
 		isFeatured: true,
 		topic: 'Environment',
+		organiser: 'Parks and Green Spaces',
 		estimatedMinutes: 12,
 		days: 27,
 		openedDaysAgo: 5,
@@ -130,6 +134,7 @@ const SEEDS: Seed[] = [
 		state: 'closing',
 		isFeatured: true,
 		topic: 'Transport',
+		organiser: 'Transport Partnership',
 		estimatedMinutes: 8,
 		days: 2,
 		openedDaysAgo: 26,
@@ -147,6 +152,7 @@ const SEEDS: Seed[] = [
 		state: 'live',
 		isFeatured: false,
 		topic: 'Community',
+		organiser: 'Library Services',
 		estimatedMinutes: 12,
 		days: 33,
 		openedDaysAgo: 2,
@@ -166,6 +172,7 @@ const SEEDS: Seed[] = [
 		state: 'live',
 		isFeatured: false,
 		topic: 'Transport',
+		organiser: 'Active Travel Team',
 		estimatedMinutes: 6,
 		days: 39,
 		openedDaysAgo: 8,
@@ -180,6 +187,7 @@ const SEEDS: Seed[] = [
 		state: 'upcoming',
 		isFeatured: false,
 		topic: 'Environment',
+		organiser: 'Waterways Volunteers',
 		estimatedMinutes: 10,
 		days: 20,
 		openedDaysAgo: -20,
@@ -194,6 +202,7 @@ const SEEDS: Seed[] = [
 		state: 'results',
 		isFeatured: false,
 		topic: 'Housing',
+		organiser: 'Housing Services',
 		estimatedMinutes: 10,
 		days: 40,
 		openedDaysAgo: 70,
@@ -207,9 +216,18 @@ const SEEDS: Seed[] = [
 const BASE = SEEDS.map(toConversation);
 
 const MANY_TOPICS = ['Transport', 'Housing', 'Environment', 'Community', 'Health', 'Budget'];
+const ORGANISER_FOR_TOPIC: Record<string, string> = {
+	Transport: 'Transport Partnership',
+	Housing: 'Housing Services',
+	Environment: 'Parks and Green Spaces',
+	Community: 'Community Development',
+	Health: 'Public Health Team',
+	Budget: 'Finance Team'
+};
 const MANY_STATES: LabState[] = ['live', 'live', 'closing', 'upcoming', 'results'];
 
-const GENERATED = Array.from({ length: 150 }, (_, i) => {
+// Enough extra to make 15 in all with the 7 above.
+const GENERATED = Array.from({ length: 15 - SEEDS.length }, (_, i) => {
 	const topic = MANY_TOPICS[i % MANY_TOPICS.length];
 	return toConversation({
 		id: `generated-${i + 1}`,
@@ -219,6 +237,7 @@ const GENERATED = Array.from({ length: 150 }, (_, i) => {
 		state: MANY_STATES[i % MANY_STATES.length],
 		isFeatured: false,
 		topic,
+		organiser: ORGANISER_FOR_TOPIC[topic],
 		estimatedMinutes: 5 + (i % 4) * 3,
 		days: (i % 28) + 1,
 		openedDaysAgo:
@@ -248,8 +267,7 @@ export const SAMPLE_USER = {
 	initials: 'AM',
 	joinedCount: 3,
 	inProgress: { conversationId: 'cycling-budget', stepIndex: 1, stepCount: 3 },
-	reportReady: { conversationId: 'tram-housing', yourView: 'You agreed with 72% of people' },
-	interests: ['Transport', 'Housing']
+	reportReady: { conversationId: 'tram-housing' }
 };
 
 export const STEPS = [

@@ -1,30 +1,38 @@
-// The test scenario lives in the URL (?user=1&data=empty&org=riverside), so any
+// The test scenario lives in the URL (?user=1&data=empty&org=waves), so any
 // scenario can be shared as a link and survives a reload.
 import type { Dataset } from './mockData';
 import type { ThemeName } from '$lib/types/theme';
 
 export type Organisation = {
 	id: string;
+	/** Shown on the page, e.g. above the pitch. */
 	name: string;
-	initials: string;
-	/** Brand colour that replaces the theme primary. null keeps the running theme's own. */
-	brand: string | null;
+	/** Chip label in the scenario panel. */
+	label: string;
+	/** The real theme from the codebase: its colours (comhairle-themes.css) and its logo. */
+	theme: ThemeName;
 };
 
-/** The organisation of the running theme: its real logo and colours, nothing overridden. */
-export const THEME_ORG_ID = 'theme';
-
 export const ORGANISATIONS: Organisation[] = [
-	{ id: THEME_ORG_ID, name: 'Current theme', initials: '', brand: null },
-	{ id: 'riverside', name: 'Riverside Council', initials: 'RC', brand: '#2b62ba' },
-	{ id: 'health', name: 'Northfield Health Board', initials: 'NH', brand: '#0f6e5c' },
-	{ id: 'youth', name: 'Youth Assembly', initials: 'YA', brand: '#7a2e8e' }
+	{ id: 'comhairle', name: 'Comhairle', label: 'Comhairle', theme: 'comhairle' },
+	{
+		id: 'scot-gov',
+		name: 'Scottish Government',
+		label: 'Scottish Government',
+		theme: 'scot-gov'
+	},
+	{
+		id: 'waves',
+		name: 'South Staffordshire Council',
+		label: 'Waves',
+		theme: 'waves'
+	}
 ];
 
 export const DATASETS: { value: Dataset; label: string }[] = [
-	{ value: 'normal', label: 'A few' },
 	{ value: 'empty', label: 'None' },
-	{ value: 'many', label: '150+' }
+	{ value: 'normal', label: 'A few' },
+	{ value: 'many', label: '15' }
 ];
 
 export type Scenario = { loggedIn: boolean; dataset: Dataset; org: Organisation };
@@ -68,20 +76,4 @@ export function withListParams(url: URL, patch: Record<string, string | null>): 
 		else next.searchParams.set(key, value);
 	}
 	return `${next.pathname}${next.search}`;
-}
-
-export function brandStyle(org: Organisation): string {
-	if (!org.brand) return '';
-	return `--primary: ${org.brand}; --color-brand: ${org.brand}; --primary-foreground: #ffffff; --ring: ${org.brand};`;
-}
-
-const THEME_ORG_NAMES: Record<ThemeName, string> = {
-	comhairle: 'Comhairle',
-	'scot-gov': 'Scottish Government',
-	waves: 'Waves'
-};
-
-/** The name to show for an organisation. The theme org takes the running theme's name. */
-export function orgDisplayName(org: Organisation, themeName: ThemeName): string {
-	return org.id === THEME_ORG_ID ? THEME_ORG_NAMES[themeName] : org.name;
 }

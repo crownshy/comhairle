@@ -1,16 +1,9 @@
 <script lang="ts">
-	import {
-		ArrowRight,
-		ChevronLeft,
-		ChevronRight,
-		Clock,
-		MessageSquareText,
-		Users
-	} from 'lucide-svelte';
+	import { ArrowRight, ChevronLeft, ChevronRight, MessageSquareText, Star } from 'lucide-svelte';
 	import * as Carousel from '$lib/components/ui/carousel';
 	import type { CarouselAPI } from '$lib/components/ui/carousel/context';
 	import { cn } from '$lib/utils';
-	import { participantsLabel, timingLabel, type LabConversation } from '../mockData';
+	import type { LabConversation } from '../mockData';
 
 	type Props = {
 		conversations: LabConversation[];
@@ -52,6 +45,14 @@
 					<article
 						class="bg-primary relative isolate flex h-[34rem] flex-col justify-end overflow-hidden rounded-3xl sm:h-[32rem] lg:h-[36rem]"
 					>
+						<!-- A badge in the same spot on every slide, so people can tell at a glance these
+							are featured. Theme text on white: 9:1 or more in every theme. -->
+						<span
+							class="text-foreground absolute top-4 left-4 z-10 flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold shadow-md lg:top-6 lg:left-6"
+						>
+							<Star class="size-4 fill-amber-400 text-amber-500" aria-hidden="true" />
+							Featured
+						</span>
 						{#if conversation.featuredMedia?.kind === 'video'}
 							<video
 								src={conversation.featuredMedia.src}
@@ -81,37 +82,24 @@
 								class="text-primary-foreground/20 absolute top-16 right-8 -z-20 size-40"
 							/>
 						{/if}
-						<!-- Overlay in the organisation's colour: solid behind the text, clear at the top. -->
+						<!-- Frosted glass behind the text: the photo blurred under a darkened, see-through theme
+							colour (style block below), so white text stays at WCAG AA whatever the photo or GIF
+							shows. It fades into the photo only past the text: above it on phones, to its right on
+							large screens. Participants and closing date are left off to keep the slide light;
+							the conversation page has them. -->
 						<div
-							class="from-primary via-primary/85 lg:via-primary/70 absolute inset-0 -z-10 bg-gradient-to-t to-transparent to-75% lg:bg-gradient-to-r lg:to-70%"
-						></div>
-
-						<div
-							class="text-primary-foreground flex flex-col gap-3 p-5 sm:p-8 lg:max-w-2xl lg:p-12"
+							class="text-primary-foreground relative flex flex-col gap-3 p-5 pt-8 sm:p-8 sm:pt-10 lg:h-full lg:w-[52%] lg:justify-end lg:p-12"
 						>
-							<span class="text-base font-semibold tracking-wide uppercase opacity-90"
-								>Featured</span
-							>
+							<div aria-hidden="true" class="frosted-glass"></div>
+							<p class="text-base font-semibold">{conversation.organiser}</p>
 							<h2
-								class="text-3xl leading-tight font-bold tracking-tight sm:text-4xl lg:text-5xl"
+								class="text-2xl leading-tight font-bold tracking-tight sm:text-3xl lg:text-4xl"
 							>
 								{conversation.title}
 							</h2>
-							<p class="line-clamp-2 text-lg opacity-95">
+							<p class="line-clamp-2 text-lg">
 								{conversation.shortDescription}
 							</p>
-							<span class="flex flex-wrap gap-x-5 gap-y-1 text-base opacity-90">
-								{#if conversation.participantCount > 0}
-									<span class="flex items-center gap-1.5"
-										><Users class="size-5" />
-										{participantsLabel(conversation)}</span
-									>
-								{/if}
-								<span class="flex items-center gap-1.5"
-									><Clock class="size-5" />
-									{timingLabel(conversation)}</span
-								>
-							</span>
 							<a
 								href={hrefFor(conversation.id)}
 								class="bg-primary-foreground text-primary mt-2 flex h-14 w-full items-center justify-center gap-2 rounded-full text-lg font-bold transition hover:opacity-90 sm:w-auto sm:self-start sm:px-10"
@@ -178,6 +166,32 @@
 		}
 		to {
 			transform: scale(1.18) translate(-3%, -2%);
+		}
+	}
+
+	/* Frosted glass behind the slide text: the photo blurred, under the theme colour darkened
+		by 30% at 80% strength. Darkening is what keeps white text at WCAG AA even if the blurred
+		photo behind is white: about 6.3 Comhairle, 5.6 Scottish Government, 4.8 Waves. The glass
+		reaches past the text and a mask fades it out there: upwards on phones, rightwards on
+		large screens. */
+	.frosted-glass {
+		position: absolute;
+		z-index: -1;
+		inset: -5rem 0 0 0;
+		background: color-mix(
+			in srgb,
+			color-mix(in srgb, var(--primary) 70%, black) 80%,
+			transparent
+		);
+		backdrop-filter: blur(24px) saturate(1.2);
+		-webkit-backdrop-filter: blur(24px) saturate(1.2);
+		mask-image: linear-gradient(to top, black calc(100% - 5rem), transparent);
+		pointer-events: none;
+	}
+	@media (min-width: 64rem) {
+		.frosted-glass {
+			inset: 0 -10rem 0 0;
+			mask-image: linear-gradient(to right, black calc(100% - 10rem), transparent);
 		}
 	}
 </style>

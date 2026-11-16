@@ -1,14 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import {
-		ArrowRight,
-		ChevronLeft,
-		Clock,
-		CalendarDays,
-		MessageSquareText,
-		Users
-	} from 'lucide-svelte';
+	import { ArrowRight, ChevronLeft, MessageSquareText } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Accordion from '$lib/components/ui/accordion';
 	import {
@@ -16,8 +9,7 @@
 		STEPS,
 		SAMPLE_USER,
 		findConversation,
-		participantsLabel,
-		timingLabel
+		type LabConversation
 	} from '../../mockData';
 	import { readScenario, scenarioQuery } from '../../scenario';
 	import StateBadge from '../../components/StateBadge.svelte';
@@ -35,6 +27,26 @@
 		if (conversation?.state === 'upcoming') return 'Remind me when it opens';
 		return isContinuing ? 'Continue where you left off' : 'Take part';
 	});
+
+	type Fact = { label: string; value: string };
+
+	// The third fact in the info bar: when it closes, or opens, or closed.
+	function timing(c: LabConversation): Fact {
+		const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+		if (c.state === 'upcoming') return { label: 'Opens', value: `In ${days(c.days)}` };
+		if (c.state === 'results') return { label: 'Closed', value: `${days(c.days)} ago` };
+		return { label: 'Closes', value: c.days === 0 ? 'Today' : `In ${days(c.days)}` };
+	}
+
+	const facts = $derived<Fact[]>(
+		conversation
+			? [
+					{ label: 'Run by', value: conversation.organiser },
+					{ label: 'Time needed', value: `About ${conversation.estimatedMinutes} min` },
+					timing(conversation)
+				]
+			: []
+	);
 
 	let started = $state(false);
 	let mainButton = $state<HTMLElement>();
@@ -62,7 +74,7 @@
 	<Button
 		onclick={() => (started = true)}
 		class={size === 'big'
-			? 'h-16 w-full rounded-full text-xl font-bold sm:w-auto sm:px-12'
+			? 'h-16 w-full rounded-full px-10 text-xl font-bold'
 			: 'h-12 grow rounded-full text-lg font-bold'}
 	>
 		{actionLabel}
@@ -77,9 +89,51 @@
 		>
 	</div>
 {:else}
-	<!-- Full screen width: breaks out of the page column. Dark edges pull the eye to the middle. -->
+	<!-- Top band on white, full screen width: status, title, a short description, then the
+		info bar, which sits across the join with the image below. -->
+	<div class="bg-background ml-[calc(50%-50vw)] w-screen">
+		<div class="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-6 md:px-8 md:pt-10">
+			<a
+				href={homeHref}
+				class="text-muted-foreground hover:text-foreground -ml-1 flex w-fit items-center gap-1 text-base font-medium"
+			>
+				<ChevronLeft class="size-5" /> All conversations
+			</a>
+			<div class="flex flex-col items-start gap-4 md:px-6">
+				<StateBadge state={conversation.state} />
+				<h1
+					class="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl"
+				>
+					{conversation.title}
+				</h1>
+				<p class="line-clamp-3 max-w-3xl text-lg">{conversation.description}</p>
+			</div>
+
+			<!-- Pulled down over the image. Phones stack the facts; wider screens put them in a row
+				with the button at the end. -->
+			<div
+				class="bg-card ring-border/60 relative z-10 -mb-24 grid gap-4 rounded-3xl p-5 shadow-lg ring-1 sm:-mb-20 md:grid-cols-[1fr_1fr_1fr_auto] md:items-center md:gap-0 md:p-6"
+			>
+				{#each facts as fact, i (fact.label)}
+					<div
+						class={i === 0
+							? 'flex items-baseline justify-between gap-4 md:flex-col md:justify-start md:gap-1 md:pr-6 md:pl-2'
+							: 'border-border flex items-baseline justify-between gap-4 border-t pt-4 md:flex-col md:justify-start md:gap-1 md:border-t-0 md:border-l md:px-6 md:pt-0'}
+					>
+						<span class="text-muted-foreground text-base">{fact.label}</span>
+						<span class="text-lg font-semibold">{fact.value}</span>
+					</div>
+				{/each}
+				<div bind:this={mainButton} class="pt-2 md:pt-0 md:pl-4">
+					{@render takePart('big')}
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Full screen width image under the band. -->
 	<div
-		class="bg-primary/10 relative ml-[calc(50%-50vw)] h-56 w-screen overflow-hidden sm:h-80 lg:h-[28rem]"
+		class="bg-primary/10 relative ml-[calc(50%-50vw)] h-72 w-screen overflow-hidden sm:h-96 lg:h-[32rem]"
 	>
 		{#if conversation.imageUrl}
 			<img
@@ -90,50 +144,14 @@
 		{:else}
 			<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-20" />
 		{/if}
-		<div
-			class="absolute inset-0 bg-gradient-to-r from-black/75 via-black/0 via-50% to-black/75"
-			aria-hidden="true"
-		></div>
-		<div class="relative mx-auto h-full w-full max-w-[1300px] px-4 pt-4 md:px-8 md:pt-6">
-			<a
-				href={homeHref}
-				class="bg-background/90 text-foreground flex h-11 w-fit items-center gap-1 rounded-full pr-4 pl-3 text-base font-semibold shadow-md backdrop-blur"
-			>
-				<ChevronLeft class="size-5" /> All conversations
-			</a>
-		</div>
 	</div>
 
-	<div class="mx-auto flex w-full max-w-3xl flex-col gap-8 pt-6 md:pt-8">
-		<!-- First screen: just enough to decide, then the action. -->
-		<section class="flex flex-col gap-4">
-			<div class="flex gap-2"><StateBadge state={conversation.state} /></div>
-			<h1 class="text-3xl leading-tight font-extrabold tracking-tight sm:text-4xl">
-				{conversation.title}
-			</h1>
-			<p class="text-lg">{conversation.shortDescription}</p>
-			<div class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base">
-				<span class="flex items-center gap-1.5">
-					<Clock class="size-5" /> About {conversation.estimatedMinutes} min
-				</span>
-				<span class="flex items-center gap-1.5">
-					<CalendarDays class="size-5" />
-					{timingLabel(conversation)}
-				</span>
-				{#if conversation.participantCount > 0}
-					<span class="flex items-center gap-1.5">
-						<Users class="size-5" />
-						{participantsLabel(conversation)}
-					</span>
-				{/if}
-			</div>
-			<div bind:this={mainButton} class="pt-2">{@render takePart('big')}</div>
-			{#if started}
-				<p class="bg-accent text-accent-foreground rounded-2xl p-4 text-base" role="status">
-					In the real product this opens step 1 straight away, with no extra screens.
-				</p>
-			{/if}
-		</section>
+	<div class="mx-auto flex w-full max-w-3xl flex-col gap-8 pt-10 md:pt-14">
+		{#if started}
+			<p class="bg-accent text-accent-foreground rounded-2xl p-4 text-base" role="status">
+				In the real product this opens step 1 straight away, with no extra screens.
+			</p>
+		{/if}
 
 		{#if conversation.quotes.length > 0}
 			<section class="flex flex-col gap-4">

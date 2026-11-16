@@ -38,6 +38,10 @@
 	</div>
 
 	<div class="flex w-full flex-1 flex-col items-start gap-4 lg:gap-3 lg:px-2 lg:pb-2">
+		<!-- Organiser above the title, styled like staging ConversationCard's organizationName. -->
+		<p class="text-primary -mb-2 text-sm leading-5 font-medium lg:-mb-1">
+			{conversation.organiser}
+		</p>
 		<h2
 			class="text-foreground group-hover:text-primary text-2xl leading-8 font-semibold transition-colors duration-300 md:text-3xl md:leading-9 lg:text-xl lg:leading-7"
 		>
