@@ -84,8 +84,22 @@
 			{/if}
 		</div>
 	</section>
+	<div class="relative mx-auto -mt-8 w-full max-w-[1280px] px-6">
+		<div class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-lg">
+			<Search />
+		</div>
+	</div>
 	<div class="mx-auto flex h-full w-full max-w-[1280px] flex-col px-6 pt-10 md:pt-20">
 		<header class="pb-5 md:pb-20">
+			<p class="sr-only" aria-live="polite">
+				{#if data.total === 0}
+					{m.conversations_no_conversations_found()}
+				{:else if data.total === 1}
+					{m.conversations_found_one()}
+				{:else}
+					{m.conversations_found_count({ count: data.total })}
+				{/if}
+			</p>
 			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
@@ -106,7 +120,6 @@
 						</DropdownMenu.Group>
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
-				<Search />
 			</div>
 			{#if data.records.length === 0}
 				<p class="text-muted-foreground pt-10">
