@@ -13,6 +13,7 @@
 	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
+	import ModerationGuidance from './polis-moderation/ModerationGuidance.svelte';
 	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
 	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
@@ -92,6 +93,28 @@
 	const statementSync = new StatementSync(() => workflowStepId);
 
 	onMount(() => (canSync ? statementSync.start() : undefined));
+
+	// The guidance banner is a first-visit tip. Once hidden, the rules stay one click away
+	// as a link beside the tabs. Remembered per browser; private windows just show it again.
+	const GUIDANCE_DISMISSED_KEY = 'comhairle:moderation-guidance-dismissed';
+	let guidanceDismissed = $state(false);
+
+	onMount(() => {
+		try {
+			guidanceDismissed = localStorage.getItem(GUIDANCE_DISMISSED_KEY) === 'true';
+		} catch {
+			guidanceDismissed = false;
+		}
+	});
+
+	function dismissGuidance() {
+		guidanceDismissed = true;
+		try {
+			localStorage.setItem(GUIDANCE_DISMISSED_KEY, 'true');
+		} catch {
+			// Storage blocked: it stays hidden for this visit only.
+		}
+	}
 
 	// --- Status views + search ---
 	// Opens on the waiting queue, since clearing it is why moderators come here.
@@ -437,6 +460,15 @@
 		</Button>
 	</div>
 
+	{#if canModerate && !guidanceDismissed}
+		<ModerationGuidance
+			{rejectReasons}
+			{conversationId}
+			canEditPolicy={canEdit}
+			onDismiss={dismissGuidance}
+		/>
+	{/if}
+
 	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 		<Tabs.Root
 			value={filter}
@@ -456,6 +488,9 @@
 				</Tabs.List>
 			</div>
 		</Tabs.Root>
+		{#if canModerate && guidanceDismissed}
+			<ModerationGuidance compact {rejectReasons} {conversationId} canEditPolicy={canEdit} />
+		{/if}
 		<div class="relative w-full md:ml-auto md:w-72">
 			<Search
 				class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
