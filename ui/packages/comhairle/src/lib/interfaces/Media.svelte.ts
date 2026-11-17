@@ -61,7 +61,7 @@ class Uploader {
 
 		this.#stepProgress = UploaderProgress.Creating;
 
-		if (opts?.maxSize && data.media.size) {
+		if (opts?.maxSize && opts.maxSize > data.media.size) {
 			this.#error = `Max file size (${formatBytes(opts.maxSize)}) exceeded`;
 			return { ok: null, err: ' ' };
 		}
