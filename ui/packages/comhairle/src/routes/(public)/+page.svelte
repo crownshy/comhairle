@@ -3,6 +3,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
+	import { listViewFromUrl } from '$lib/utils/listView';
 	import Check from 'svelte-radix/Check.svelte';
 	import ChevronDown from 'svelte-radix/ChevronDown.svelte';
 
@@ -17,6 +19,7 @@
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);
 	const pageUrl = $derived(page.url);
+	const view = $derived(listViewFromUrl(page.url));
 </script>
 
 <svelte:head>
@@ -107,7 +110,7 @@
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
 			</p>
-			<div class="flex justify-between">
+			<div class="flex items-center justify-between">
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
 						class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
@@ -122,7 +125,12 @@
 							{@render sortOption(pageUrl, 'created_at+asc')}
 						</DropdownMenu.Group>
 					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+				</DropdownMenu.Root><LayoutToggle
+					value={view}
+					groupLabel={m.conversations_layout()}
+					cardLabel={m.conversations_card_view()}
+					listLabel={m.conversations_list_view()}
+				/>
 			</div>
 			{#if data.records.length === 0}
 				<p class="text-muted-foreground pt-10">
@@ -132,9 +140,14 @@
 		</header>
 
 		{#if data.records.length > 0}
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			<div
+				class={view === 'card'
+					? 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
+					: 'flex flex-col gap-3'}
+			>
 				{#each data.records as conversation (conversation.id)}
 					<ConversationCard
+						layout={view}
 						{conversation}
 						href={resolve('/(public)/conversations/[conversation_id]', {
 							conversation_id: conversation.slug || conversation.id
