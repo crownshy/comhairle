@@ -202,7 +202,10 @@
 						{m.question()}
 						{flow.currentQuestionIndex + 1}
 					</p>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						id="thinking-space-root-question"
+						class="text-foreground text-2xl leading-snug font-semibold"
+					>
 						{flow.currentQuestion.text || '(unnamed question)'}
 					</h2>
 				</section>
@@ -211,6 +214,7 @@
 					<section class="space-y-3">
 						<Textarea
 							bind:ref={rootTextareaEl}
+							aria-labelledby="thinking-space-root-question"
 							value={flow.currentState.rootAnswer}
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
 							onkeydown={handleRootKeydown}
@@ -474,11 +478,15 @@
 								{m.thinking_space_pick_different()}
 							</Button>
 						</div>
-						<p class="text-foreground text-lg leading-snug italic">
+						<p
+							id="thinking-space-follow-up-pick"
+							class="text-foreground text-lg leading-snug italic"
+						>
 							{flow.currentState.currentPick}
 						</p>
 						<Textarea
 							bind:ref={followUpTextareaEl}
+							aria-labelledby="thinking-space-follow-up-pick"
 							value={flow.currentState.currentPickAnswer}
 							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
 							onkeydown={handleFollowUpKeydown}

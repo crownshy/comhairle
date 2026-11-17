@@ -427,6 +427,7 @@
 	<!-- Summary stack: one editable textarea per round. -->
 	<section class="mt-12 space-y-8">
 		{#snippet summaryEditor(
+			labelId: string,
 			label: string,
 			description: string | undefined,
 			value: string,
@@ -439,7 +440,10 @@
 			<div class="bg-primary/10 space-y-3 rounded-lg p-4">
 				<div class="flex items-center gap-2">
 					<Sparkles class="text-primary size-4 shrink-0" />
-					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+					<p
+						id={labelId}
+						class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+					>
 						{label}
 					</p>
 					{@render status?.()}
@@ -453,6 +457,7 @@
 					{onblur}
 					{readonly}
 					rows={10}
+					aria-labelledby={labelId}
 					class="bg-background text-base leading-relaxed {readonly
 						? 'cursor-not-allowed opacity-70'
 						: ''}"
@@ -463,6 +468,7 @@
 
 		{#snippet manualSummaryEditor()}
 			{@render summaryEditor(
+				'thinking-space-manual-summary-label',
 				m.thinking_space_summary_manual_label(),
 				undefined,
 				manualDraft,
@@ -503,6 +509,7 @@
 				generation starts this round is about to freeze, so editing it
 				would be lost. -->
 				{@render summaryEditor(
+					'thinking-space-latest-summary-label',
 					latestLabel(rounds.length),
 					m.thinking_space_summary_edit_desc(),
 					valueFor(round),
