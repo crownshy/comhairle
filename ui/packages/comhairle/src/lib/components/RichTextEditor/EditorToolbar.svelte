@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import type { ActiveStates } from './types';
+	import type { ActiveStates, Toolset } from './types';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
 	import TableControlsPopover from './TableControlsPopover.svelte';
@@ -38,9 +38,20 @@
 		disabled?: boolean;
 		/** Extra controls pinned to the right end of the toolbar, such as the translate button. They stay usable when the toolbar is disabled. */
 		actions?: Snippet;
+		/** `text` keeps text formatting, lists and links, and drops alignment, media and tables. */
+		toolset?: Toolset;
 	};
 
-	let { editor, activeStates, documents, disabled = false, actions }: Props = $props();
+	let {
+		editor,
+		activeStates,
+		documents,
+		disabled = false,
+		actions,
+		toolset = 'full'
+	}: Props = $props();
+
+	let isFullToolset = $derived(toolset === 'full');
 
 	const overflowId = $props.id();
 	let overflowOpen = $state(false);
@@ -292,20 +303,27 @@
 				{@render divider()}
 				<div class={GROUP_CLASS}>{@render quoteAndLink()}</div>
 			</div>
-			<div class="hidden items-center @2xl:flex">
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render alignment()}</div>
-			</div>
-			<div class="hidden items-center @3xl:flex">
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render media()}</div>
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render table()}</div>
-			</div>
+			{#if isFullToolset}
+				<div class="hidden items-center @2xl:flex">
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render alignment()}</div>
+				</div>
+				<div class="hidden items-center @3xl:flex">
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render media()}</div>
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render table()}</div>
+				</div>
+			{/if}
 
 			<button
 				type="button"
-				class={cn(TOOLBAR_BUTTON_CLASS, 'ml-1 @3xl:hidden', overflowOpen && 'bg-accent')}
+				class={cn(
+					TOOLBAR_BUTTON_CLASS,
+					'ml-1',
+					isFullToolset ? '@3xl:hidden' : '@lg:hidden',
+					overflowOpen && 'bg-accent'
+				)}
 				title="More formatting"
 				aria-label="More formatting"
 				aria-expanded={overflowOpen}
@@ -325,13 +343,18 @@
 		<fieldset
 			{disabled}
 			id={overflowId}
-			class="border-border flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5 @3xl:hidden"
+			class={cn(
+				'border-border flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5',
+				isFullToolset ? '@3xl:hidden' : '@lg:hidden'
+			)}
 		>
 			<div class={cn(GROUP_CLASS, '@md:hidden')}>{@render lists()}</div>
 			<div class={cn(GROUP_CLASS, '@lg:hidden')}>{@render quoteAndLink()}</div>
-			<div class={cn(GROUP_CLASS, '@2xl:hidden')}>{@render alignment()}</div>
-			<div class={GROUP_CLASS}>{@render media()}</div>
-			<div class={GROUP_CLASS}>{@render table()}</div>
+			{#if isFullToolset}
+				<div class={cn(GROUP_CLASS, '@2xl:hidden')}>{@render alignment()}</div>
+				<div class={GROUP_CLASS}>{@render media()}</div>
+				<div class={GROUP_CLASS}>{@render table()}</div>
+			{/if}
 		</fieldset>
 	{/if}
 </div>

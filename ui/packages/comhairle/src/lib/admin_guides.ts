@@ -528,7 +528,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Enter a **Title**, **Description** and **Capacity**, choose a **Default time zone**, **Event date** and **Time**, and choose a **Signup mode**: **Invite** or **Open**. Click **Save changes**.',
 					'To change an event later, click **Edit event** on its card.',
 					'On the **Details** tab, choose a **Format**: **Online** or **In-person**. Online events use a Jitsi meeting link unless you enter a **Custom event link**.',
-					'On the **Event Structure** tab, click **+ Add agenda item** or **+ Add breakout session** to plan how the meeting will run, then click **Save Agenda**.',
+					'On the **Event Structure** tab, click **Agenda item** or **Breakout session** to plan how the meeting will run. Click a row to edit it. Changes save as you type.',
 					'Use the **Facilitators**, **Location**, **Invites**, **Breakout Rooms** and **Recordings** tabs to set up the rest of the event.'
 				],
 				tips: [

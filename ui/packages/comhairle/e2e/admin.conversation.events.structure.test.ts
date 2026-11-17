@@ -4,7 +4,8 @@ import Conversation from './utils/navigation/Conversation';
 import Events from './utils/navigation/Events';
 import { Button, NumericTextbox, Textbox, Tiptap } from './utils/components';
 import { expect } from '@playwright/test';
-import { testWithRefresh } from './utils';
+import { find, testWithRefresh } from './utils';
+import type { Page } from './utils/types';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -14,90 +15,76 @@ test.beforeEach(async ({ page }) => {
 	await Events.subtab(page, 'Event Structure');
 });
 
-test('Events/Structure page', async ({ page }) => {
-	// Add agenda item
-	const AddAgendaItem = await Button('+ Add agenda item', page);
-	await AddAgendaItem.click();
+/** A breakout's room settings are collapsed after a reload. */
+async function openRoomSettings(page: Page, position: number) {
+	const toggle = await Button(`Room settings for item ${position}`, page);
+	if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+}
 
-	const AgendaName = await Textbox('Enter agenda item here', { page });
-	await AgendaName.write();
+async function waitForSave(page: Page) {
+	await eventually(async () =>
+		expect(page.getByRole('main').getByText('Saved', { exact: true })).toBeVisible()
+	);
+}
 
-	// Add breakout session
-	const AddBreakoutSession = await Button('+ Add breakout session', page);
-	await AddBreakoutSession.click();
+async function deleteRow(page: Page, title: string) {
+	await (await Button(`Options for ${title}`, page)).click();
+	await (await find(page.getByRole('menuitem', { name: 'Delete' }))).click();
+}
 
-	const PromptTitle = await Textbox('Enter prompt title here', { page });
-	await PromptTitle.write();
+/** Removes the test's rows if a failed run left them behind. */
+async function deleteRowIfPresent(page: Page, title: string) {
+	const options = page.getByRole('main').getByRole('button', { name: `Options for ${title}` });
+	if ((await options.count()) === 0) return;
+	await deleteRow(page, title);
+	await waitForSave(page);
+}
 
-	const Time = await NumericTextbox('Time', { page });
-	await Time.write(12);
+test('Events/Structure page', async ({ page, cleanup }) => {
+	await (await Button('Agenda item', page)).click();
+	const AgendaTitle = await Textbox('Title of item 1', { page });
+	await AgendaTitle.write();
+	const AgendaMinutes = await NumericTextbox('Minutes for item 1', { page });
+	await AgendaMinutes.write(5);
 
-	const GroupSize = await NumericTextbox('Group size', { page });
+	await (await Button('Breakout session', page)).click();
+	const Question = await Textbox('Question for item 2', { page });
+	await Question.write();
+	const BreakoutMinutes = await NumericTextbox('Minutes for item 2', { page });
+	await BreakoutMinutes.write(12);
+	await openRoomSettings(page, 2);
+	const GroupSize = await NumericTextbox('People per room', { page });
 	await GroupSize.write(8);
-
 	const Instructions = Tiptap(0, { page });
 	await Instructions.write();
 
-	const AddBreakoutPrompt = await Button('+ Add breakout prompt', page, { index: 0 });
-	await AddBreakoutPrompt.click();
+	cleanup(async () => {
+		await deleteRowIfPresent(page, Question.value());
+		await deleteRowIfPresent(page, AgendaTitle.value());
+	});
 
-	const Instructions2 = Tiptap(1, { page });
-	await Instructions2.write();
-
-	// Group assignment
-	// FIX: Currently broken on staging so will come back to it later
-	// await page.getByRole('combobox').nth(3).selectOption('diversify');
-	// await page.getByRole('checkbox', { name: 'Age' }).check();
-	// await page.getByRole('checkbox', { name: 'Gender' }).check();
-	// await page.getByRole('checkbox', { name: 'Understanding of AI' }).check();
-	// await page.getByRole('checkbox', { name: 'Education' }).check();
-	// await page.getByRole('checkbox', { name: 'Postcode' }).check();
-	// await page.getByRole('checkbox', { name: 'In-call activities' }).check();
-
-	const RemovePrompt = await Button('Remove prompt', page, { index: 1 });
-	await eventually(async () => expect(await RemovePrompt.isVisible()).toBe(true));
-
+	await waitForSave(page);
 	await eventually(async () =>
-		expect(await page.getByText('Breakout session').count()).toEqual(2)
+		expect(page.getByRole('main').getByText('17 min · ends')).toBeVisible()
 	);
 
-	// Remove breakout session
-	await RemovePrompt.click();
-
-	const SaveAgenda = await Button('Save Agenda', page);
-	await SaveAgenda.click();
-
 	await testWithRefresh(page, async () => {
-		await AgendaName.expect();
-		await PromptTitle.expect();
-		await Time.expect();
+		await AgendaTitle.expect();
+		await AgendaMinutes.expect();
+		await Question.expect();
+		await BreakoutMinutes.expect();
+
+		await openRoomSettings(page, 2);
 		await GroupSize.expect();
 		await Instructions.expect();
 	});
 
-	// FIX: Need to fix the dragging here
-	// await page.pause();
-	// const ReorderItem = await Button('Reorder item', page, { index: 1 });
-	// await ReorderItem.hover();
-	// await page.mouse.down();
-	// await (await find(page.getByText('Optimise topics and activities'))).hover();
-	// await page.mouse.up();
+	await deleteRow(page, AgendaTitle.value());
+	await deleteRow(page, Question.value());
+	await waitForSave(page);
 
-	// const FirstItem = await find(page.getByRole('group').first());
-	// await eventually(() =>
-	// 	expect(FirstItem.getByText('Breakout session', { exact: true })).toBeVisible()
-	// );
-
-	// const Cards = await find(page.getByRole('group'));
-	// await eventually(async () => expect(Cards.count()).toEqual(2));
-
-	const DeleteItem = await Button('Delete item', page);
-	await DeleteItem.click();
-	await DeleteItem.click();
-	await SaveAgenda.click();
-
-	await eventually(async () => {
-		expect(await page.getByText('Standard item').count()).toEqual(0);
-		expect(await page.getByText('Breakout session Time Session').count()).toEqual(0);
-	});
+	await page.reload();
+	await eventually(async () =>
+		expect(page.getByRole('main').getByText('No agenda yet')).toBeVisible()
+	);
 });

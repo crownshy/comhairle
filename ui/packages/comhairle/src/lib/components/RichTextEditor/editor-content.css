@@ -7,6 +7,18 @@
 	color: var(--color-foreground);
 }
 
+/* An empty editor is one line tall, so the global focus ring in app.css would box that single
+   line. Ring the editor's whole frame instead, with the same two bands. */
+.tiptap:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
+.rich-text-frame:has(.tiptap:focus-visible) {
+	outline: 2px solid var(--focus-ring-inner);
+	box-shadow: 0 0 0 4px var(--focus-ring-outer);
+}
+
 /* Override any inline `color: ...` from pasted content so text remains
    readable in both light and dark mode. Links untouched here keep their
    own color via the class applied by the Link extension. */
