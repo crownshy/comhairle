@@ -13,12 +13,12 @@
 	useTour(() => monitorTour);
 
 	let { data }: PageProps = $props();
-	let { workflowSteps, workflowStats } = data;
+	let { workflowSteps, workflowStats } = $derived(data);
 	const canExport = $derived(
 		permissions.can('conversation', 'conversation_export', data.conversation.id)
 	);
 
-	let stats = [
+	let stats = $derived([
 		{
 			name: 'Total Users',
 			amount: workflowStats.totalUsers,
@@ -27,21 +27,30 @@
 
 		{
 			name: 'Active Now',
-			amount: 1,
+			amount: workflowStats.activeUsers,
 			unit: null
 		},
 
 		{
 			name: 'Time Spent',
-			amount: 1,
-			unit: 'minute'
+			amount: workflowStats.totalActiveSeconds,
+			unit: ' seconds'
 		},
 		{
 			name: 'Completed',
-			amount: 1,
+			amount: workflowStats.finishedUsers,
 			unit: null
 		}
-	];
+	]);
+
+	let formatElapsedTime = (seconds: number) => {
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		if (mins > 0) {
+			return `${mins}m ${secs}s`;
+		}
+		return `${secs}s`;
+	};
 </script>
 
 <svelte:head>
@@ -60,11 +69,12 @@
 </p>
 
 {#each workflowSteps as step (step.id)}
+	{@const stepStats = workflowStats.stepStats.find((stats) => stats.id === step.id)}
 	<h3 class="my-5 text-xl font-bold">{step.name}</h3>
 	<div class="grid grid-cols-3 gap-10 overflow-x-auto">
 		<StatProgressIndicator
 			title="Started"
-			currentValue={workflowStats.stepStats.find((s) => s.id == step.id)?.started ?? 0}
+			currentValue={stepStats?.started ?? 0}
 			description="participants who have started but not completed this step"
 			total={workflowStats.totalUsers}
 			varName="started"
@@ -73,7 +83,7 @@
 		/>
 		<StatProgressIndicator
 			title="Completed"
-			currentValue={workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0}
+			currentValue={stepStats?.completed ?? 0}
 			description="participants who have completed this step"
 			total={workflowStats.totalUsers}
 			varName="completed"
@@ -88,20 +98,27 @@
 			</Card.Header>
 			<Card.Content class="h-full">
 				<div class="flex flex-col items-center justify-center">
-					{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
-						<p class="pt-[70px] text-3xl">1 Minute</p>
+					{#if stepStats?.medianActiveSeconds != null}
+						<p class="pt-[70px] text-3xl">
+							{formatElapsedTime(stepStats.medianActiveSeconds)}
+						</p>
 						<p>median</p>
 					{:else}
 						<p class="pt-[70px] text-center text-2xl">
-							No users have completed this step yet
+							{(stepStats?.completed ?? 0) > 0
+								? 'No timing data available for completed participants'
+								: 'No users have completed this step yet'}
 						</p>
 					{/if}
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex-col gap-2 text-sm">
 				{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
-					Most users completed this step in 1 minute. The longest it took someone was 3
-					minutes.
+					Most users completed this step in {formatElapsedTime(
+						stepStats?.medianActiveSeconds ?? 0
+					)}. The longest it took someone was {formatElapsedTime(
+						stepStats?.maxActiveSeconds ?? 0
+					)}.
 				{/if}
 			</Card.Footer>
 		</Card.Root>

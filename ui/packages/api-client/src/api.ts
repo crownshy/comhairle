@@ -484,25 +484,6 @@ export const TextFormat = z.union([
   z.literal("rich"),
 ]);
 export type TextFormat = z.infer<typeof TextFormat>;
-export const TranslationScope = z.union([
-  z.object({ type: z.literal("system") }).passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("conversation") })
-    .passthrough(),
-  z
-    .object({ id: z.string().uuid(), type: z.literal("organization") })
-    .passthrough(),
-]);
-export type TranslationScope = z.infer<typeof TranslationScope>;
-export const CreateTextContentRequest = z
-  .object({
-    content: z.string(),
-    format: TextFormat,
-    primary_locale: z.string(),
-    scope: TranslationScope,
-  })
-  .passthrough();
-export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentDto = z
   .object({
     format: TextFormat,
@@ -522,6 +503,32 @@ export const TextTranslationDto = z
   })
   .passthrough();
 export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
+export const TranslationScope = z.union([
+  z.object({ type: z.literal("system") }).passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("conversation") })
+    .passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("organization") })
+    .passthrough(),
+]);
+export type TranslationScope = z.infer<typeof TranslationScope>;
+export const CreateTextContentRequest = z
+  .object({
+    content: z.string(),
+    format: TextFormat,
+    primary_locale: z.string(),
+    scope: TranslationScope,
+  })
+  .passthrough();
+export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentWithTranslations = z
   .object({
     format: TextFormat,
@@ -2351,14 +2358,19 @@ export const WorkflowStepStats = z
   .object({
     completed: z.number().int(),
     id: z.string().uuid(),
+    maxActiveSeconds: z.union([z.number(), z.null()]).optional(),
+    medianActiveSeconds: z.union([z.number(), z.null()]).optional(),
     started: z.number().int(),
   })
   .passthrough();
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
 export const WorkflowStats = z
   .object({
+    activeUsers: z.number().int(),
+    finishedUsers: z.number().int(),
     signupStats: z.array(DailySignupStats),
     stepStats: z.array(WorkflowStepStats),
+    totalActiveSeconds: z.number().int(),
     totalUsers: z.number().int(),
   })
   .passthrough();
@@ -2403,13 +2415,6 @@ export const UserParticipationDto = z
   })
   .passthrough();
 export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
-export const TranslationDto = z
-  .object({
-    textContent: TextContentDto,
-    textTranslations: z.array(TextTranslationDto),
-  })
-  .passthrough();
-export type TranslationDto = z.infer<typeof TranslationDto>;
 export const JsonFieldWithTranslations = z
   .object({ localized: z.string(), translations: TranslationDto })
   .passthrough();
@@ -4362,10 +4367,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UnreadCount,
   NotificationDelivery,
   TextFormat,
-  TranslationScope,
-  CreateTextContentRequest,
   TextContentDto,
   TextTranslationDto,
+  TranslationDto,
+  TranslationScope,
+  CreateTextContentRequest,
   TextContentWithTranslations,
   UpdateTextContent,
   UpdateTextTranslation,
@@ -4567,7 +4573,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowDemographics,
   UserParticipation,
   UserParticipationDto,
-  TranslationDto,
   JsonFieldWithTranslations,
   CategoryWithTranslations,
   QuestionTypeWithTranslations,
@@ -9163,11 +9168,6 @@ Create a response for prioritization tool proposal
         schema: status,
       },
       {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
@@ -9219,11 +9219,6 @@ Create a response for prioritization tool proposal
       },
       {
         name: "root_question_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "user_id",
         type: "Query",
         schema: created_after,
       },
@@ -9562,6 +9557,14 @@ This struct contains optional fields that can be updated on a TextTranslation re
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/translations/orphaned",
+    alias: "ListOrphanedTextContent",
+    description: `Super Administrators only. Returns content marked for manual review because its resource scope could not be verified.`,
+    requestFormat: "json",
+    response: z.array(TranslationDto),
   },
   {
     method: "post",
