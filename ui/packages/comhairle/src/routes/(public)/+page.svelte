@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
@@ -133,12 +134,13 @@
 		{#if data.records.length > 0}
 			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
 				{#each data.records as conversation (conversation.id)}
-					<a
-						class="block w-full"
-						href={`/conversations/${conversation.slug || conversation.id}`}
-					>
-						<ConversationCard {conversation} variant="public" />
-					</a>
+					<ConversationCard
+						{conversation}
+						href={resolve('/(public)/conversations/[conversation_id]', {
+							conversation_id: conversation.slug || conversation.id
+						})}
+						headingLevel={3}
+					/>
 				{/each}
 			</div>
 
