@@ -10,11 +10,18 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import X from '@lucide/svelte/icons/x';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import RejectDialog from './RejectDialog.svelte';
 	import TranslationsPanel from './TranslationsPanel.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
+	import {
+		isForeign,
+		languageName,
+		needsReview,
+		translationForReader
+	} from './statementTranslations';
 
 	type ModerationStatus = PolisStatementAux['moderation_status'];
 
@@ -37,6 +44,8 @@
 		editedFrom?: string;
 		/** Texts of the derived statements that replaced this row (if it was split). */
 		replacedBy?: string[];
+		translations: PolisStatementTranslation[];
+		onTranslationChange: (translation: PolisStatementTranslation) => void;
 		/** `range` is true when shift was held, requesting a range select. */
 		onToggle: (checked: boolean, range: boolean) => void;
 		onModerate: (status: ModerationStatus, reason?: string) => void;
@@ -55,6 +64,8 @@
 		bulkWorking,
 		editedFrom,
 		replacedBy,
+		translations,
+		onTranslationChange,
 		onToggle,
 		onModerate,
 		onSplit
@@ -92,6 +103,12 @@
 		actsOnSelection ? `Reject ${selectionCount} statements` : 'Reject statement'
 	);
 
+	const readerLocale = getLocale();
+	const writtenElsewhere = $derived(isForeign(row.source_locale, readerLocale));
+	const readerTranslation = $derived(
+		translationForReader(row.source_locale, translations, readerLocale)
+	);
+	const reviewCount = $derived(translations.filter(needsReview).length);
 	const hasMoreActions = $derived(editable && (quiet || actsOnSelection));
 
 	// Left accent bar colour keyed on status, so a seed statement shows its status too.
@@ -165,6 +182,18 @@
 	<!-- Statement text, then its meta line and lineage -->
 	<div class="flex min-w-0 flex-col gap-1">
 		<p class="min-w-0 text-base leading-7 font-medium">{row.statement_text}</p>
+		{#if readerTranslation}
+			<p class="min-w-0 text-base leading-7">
+				“{readerTranslation.content}”
+				<span class="text-muted-foreground">
+					· translated from {languageName(row.source_locale ?? '')}
+				</span>
+			</p>
+		{:else if writtenElsewhere}
+			<p class="text-muted-foreground text-base">
+				Written in {languageName(row.source_locale ?? '')}, no translation yet
+			</p>
+		{/if}
 		<div class="text-muted-foreground flex flex-wrap items-center gap-2 text-base">
 			<span class="tabular-nums">#{row.polis_statement_id}</span>
 			{#if editable && showStatus}
@@ -178,18 +207,26 @@
 			{:else if row.original_statement_id}
 				<Badge variant="secondary">Edited</Badge>
 			{/if}
-			<button
-				type="button"
-				data-skip-row-toggle
-				aria-expanded={translationsOpen}
-				onclick={() => (translationsOpen = !translationsOpen)}
-				class="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-6 items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
-			>
-				Translations
-				<ChevronDown
-					class={cn('size-4 transition-transform', translationsOpen && 'rotate-180')}
-				/>
-			</button>
+			{#if translations.length > 0}
+				<button
+					type="button"
+					data-skip-row-toggle
+					aria-expanded={translationsOpen}
+					onclick={() => (translationsOpen = !translationsOpen)}
+					class="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-6 items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
+				>
+					Translations
+					<ChevronDown
+						class={cn('size-4 transition-transform', translationsOpen && 'rotate-180')}
+					/>
+				</button>
+				{#if reviewCount > 0}
+					<Badge variant="secondary">
+						{reviewCount}
+						{pluralise(reviewCount, 'translation')} to review
+					</Badge>
+				{/if}
+			{/if}
 		</div>
 		{#if replacedBy && replacedBy.length}
 			<p class="text-muted-foreground text-base">
@@ -307,7 +344,7 @@
 
 	{#if translationsOpen}
 		<div class="col-span-full pr-2 pl-[3.5rem]" data-skip-row-toggle>
-			<TranslationsPanel polisStatementAuxId={row.id} />
+			<TranslationsPanel {translations} onChange={onTranslationChange} />
 		</div>
 	{/if}
 </div>
