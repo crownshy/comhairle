@@ -66,7 +66,7 @@ async fn create_recording(
     .await?;
 
     let upload_url = bulk_storage_service
-        .get_write_file_url(&format!("{s3_key_prefix}/recording.{extension}"))
+        .get_write_file_url(&format!("{s3_key_prefix}/recording.{extension}"), None)
         .await?;
 
     Ok((
@@ -602,7 +602,7 @@ mod tests {
         storage_service
             .expect_get_write_file_url()
             .times(1)
-            .returning(|_| {
+            .returning(|_, _| {
                 Box::pin(async move { Ok("https://s3.example.com/signed-upload-url".to_string()) })
             });
 
@@ -659,7 +659,9 @@ mod tests {
         let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
         storage_service
             .expect_get_write_file_url()
-            .returning(|_| Box::pin(async move { Ok("https://s3.example.com/url".to_string()) }));
+            .returning(|_, _| {
+                Box::pin(async move { Ok("https://s3.example.com/url".to_string()) })
+            });
 
         let mut config = test_config()?;
         config.bot_service = None;

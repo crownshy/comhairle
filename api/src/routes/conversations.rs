@@ -2237,7 +2237,7 @@ mod tests {
         bulk_storage_service
             .expect_get_write_file_url()
             .once()
-            .returning(move |_| {
+            .returning(move |_, _| {
                 Box::pin(async move { Ok(format!("https://storage.com/{}", &filename)) })
             });
 

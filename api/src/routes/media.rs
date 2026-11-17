@@ -10,6 +10,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
 use crate::models::media::{
     self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
@@ -61,6 +62,11 @@ async fn upload(
     // Unsupported content will error out here
     let content_type = MediaContentType::get_type(&upload_media.content_type, &filename)?;
 
+    let file_metadata = FileMetadata {
+        content_type: upload_media.content_type.to_owned(),
+        is_public: true,
+    };
+
     let prefix = match content_type {
         MediaContentType::Jpeg
         | MediaContentType::Png
@@ -76,7 +82,7 @@ async fn upload(
 
     let storage_key = format!("{}/{}", prefix, &filename);
     let presigned_url = bulk_storage_service
-        .get_write_file_url(&storage_key)
+        .get_write_file_url(&storage_key, Some(file_metadata))
         .await?;
 
     let create_media = CreateMedia {
@@ -234,7 +240,7 @@ mod tests {
         bulk_storage_service
             .expect_get_write_file_url()
             .once()
-            .returning(move |_| {
+            .returning(move |_, _| {
                 Box::pin(async move { Ok("https://s3.example.com/presigned-url".to_string()) })
             });
 

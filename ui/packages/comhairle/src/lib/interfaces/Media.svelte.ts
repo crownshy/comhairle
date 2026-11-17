@@ -34,6 +34,8 @@ class Uploader {
 		return new Promise((resolve, reject) => {
 			const xhr = new XMLHttpRequest();
 			xhr.open('PUT', url, true);
+			xhr.setRequestHeader('Content-Type', file.type);
+			xhr.setRequestHeader('x-amz-acl', 'public-read');
 			xhr.upload.onprogress = (e) => {
 				if (e.lengthComputable) {
 					this.#currentBytes = e.loaded;
