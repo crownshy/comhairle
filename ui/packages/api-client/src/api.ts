@@ -8666,6 +8666,21 @@ Use a raw HTTP request and process the response body incrementally.
     response: z.array(ThemeStatistic),
   },
   {
+    method: "get",
+    path: "/tools/polis/statement_translation",
+    alias: "PolisListStepStatementTranslations",
+    description: `Returns the stored translations of all statements in a workflow step, so the moderation queue can show them in one request. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PolisStatementTranslation),
+  },
+  {
     method: "put",
     path: "/tools/polis/statement_translation/:id",
     alias: "PolisUpdateStatementTranslation",
