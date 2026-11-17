@@ -12,13 +12,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import {
-		conversationCountLabel,
-		conversationNoun,
-		isPageTurn,
-		listViewFromUrl,
-		listViewHref
-	} from './conversationFilters';
+	import { listViewFromUrl, listViewHref } from '$lib/utils/listView';
+	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
