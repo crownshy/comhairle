@@ -12,14 +12,31 @@
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button';
-	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './conversations/utils';
+	import {
+		getSort,
+		setSort,
+		PAGE_SIZE,
+		parseSort,
+		type SortBy,
+		statusFilterHref
+	} from './conversations/utils';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { ArrowRight, Info } from 'lucide-svelte';
+	import FilterChips from '$lib/components/FilterChips.svelte';
 
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);
 	const pageUrl = $derived(page.url);
 	const view = $derived(listViewFromUrl(page.url));
+
+	function cardHref(conversation: (typeof data.records)[number]) {
+		const conversation_id = conversation.slug || conversation.id;
+		return conversation.isComplete
+			? resolve('/(public)/conversations/[conversation_id]/[[preview]]/report', {
+					conversation_id
+				})
+			: resolve('/(public)/conversations/[conversation_id]', { conversation_id });
+	}
 </script>
 
 <svelte:head>
@@ -110,6 +127,18 @@
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
 			</p>
+			<div class="@container mb-4">
+				<FilterChips
+					options={[
+						{ value: 'open', label: m.conversations_filter_open() },
+						{ value: 'ended', label: m.conversations_filter_ended() },
+						{ value: 'all', label: m.conversations_filter_all() }
+					]}
+					active={data.status}
+					hrefFor={(value) => statusFilterHref(page.url, value)}
+					label={m.conversations_filter_label()}
+				/>
+			</div>
 			<div class="flex items-center justify-between">
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
@@ -125,7 +154,8 @@
 							{@render sortOption(pageUrl, 'created_at+asc')}
 						</DropdownMenu.Group>
 					</DropdownMenu.Content>
-				</DropdownMenu.Root><LayoutToggle
+				</DropdownMenu.Root>
+				<LayoutToggle
 					value={view}
 					groupLabel={m.conversations_layout()}
 					cardLabel={m.conversations_card_view()}
@@ -147,19 +177,24 @@
 			>
 				{#each data.records as conversation (conversation.id)}
 					<ConversationCard
+						statusLabel={conversation.isComplete
+							? m.conversation_status_ended()
+							: m.conversation_status_open()}
 						layout={view}
 						{conversation}
-						href={resolve('/(public)/conversations/[conversation_id]', {
-							conversation_id: conversation.slug || conversation.id
-						})}
+						href={cardHref(conversation)}
 						headingLevel={3}
 					>
 						{#snippet actions()}
 							<span
-								class={buttonVariants({ variant: 'primaryDark' })}
+								class={buttonVariants({
+									variant: conversation.isComplete ? 'outline' : 'primaryDark'
+								})}
 								aria-hidden="true"
 							>
-								{m.take_part()}
+								{conversation.isComplete
+									? m.conversations_see_results()
+									: m.take_part()}
 								<ArrowRight class="size-4" />
 							</span>
 						{/snippet}</ConversationCard
