@@ -1585,6 +1585,8 @@ pub async fn sync_statement_aux_inner(
 pub enum ModerationDecisionRequest {
     Accept,
     Reject,
+    /// Back to waiting, to undo an accept or reject made by mistake.
+    Pending,
 }
 
 impl From<ModerationDecisionRequest> for ModerationStatus {
@@ -1592,6 +1594,7 @@ impl From<ModerationDecisionRequest> for ModerationStatus {
         match value {
             ModerationDecisionRequest::Accept => ModerationStatus::Accepted,
             ModerationDecisionRequest::Reject => ModerationStatus::Rejected,
+            ModerationDecisionRequest::Pending => ModerationStatus::Pending,
         }
     }
 }
@@ -1603,16 +1606,16 @@ pub struct ModerateStatementAuxRequest {
 }
 
 /// The reason to persist for a moderation decision. Reject keeps the supplied
-/// reason; accept clears it (returns `None`) so a stored reason never describes
-/// a statement that is no longer rejected (ADR-0015). Shared by the single and
+/// reason; accept and pending clear it (return `None`) so a stored reason never
+/// describes a statement that is no longer rejected (ADR-0015). Shared by the single and
 /// batch handlers so the invariant lives in one place.
 fn reason_for_decision<'a>(
     status: &ModerationStatus,
     reason: &'a Option<String>,
 ) -> Option<&'a str> {
     match status {
-        ModerationStatus::Accepted => None,
-        _ => reason.as_deref(),
+        ModerationStatus::Rejected => reason.as_deref(),
+        _ => None,
     }
 }
 
@@ -2590,6 +2593,27 @@ mod tests {
             ModerationStatus::Accepted
         );
         Ok(())
+    }
+
+    #[test]
+    fn only_a_reject_keeps_its_reason() {
+        let reason = Some("Duplicate".to_string());
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Rejected, &reason),
+            Some("Duplicate")
+        );
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Accepted, &reason),
+            None
+        );
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Pending, &reason),
+            None
+        );
+        assert_eq!(
+            ModerationStatus::from(ModerationDecisionRequest::Pending),
+            ModerationStatus::Pending
+        );
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
