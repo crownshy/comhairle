@@ -23,7 +23,7 @@ export type BreakoutDraft = {
 	maxPerRoom: number;
 };
 
-/** An agenda item as the admin event page's editor holds it. */
+/** An agenda item as an editor holds it, on the admin event page or in the call sidebar. */
 export type AgendaDraftItem = PlenaryDraft | BreakoutDraft;
 
 export function toAgendaDraft(item: EventAgendaItem): AgendaDraftItem {
@@ -87,6 +87,37 @@ export function newBreakoutDraft(): BreakoutDraft {
 /** What a list row shows as the item's name. A breakout is named by its question. */
 export function agendaDraftTitle(draft: AgendaDraftItem): string {
 	return (draft.type === 'plenary' ? draft.title : draft.prompt).trim();
+}
+
+export type AgendaDraftProblem = {
+	field: 'title' | 'minutes' | 'people';
+	/** Says what to do, ready to show under the field. */
+	message: string;
+};
+
+/**
+ * What stops an item saving from the call sidebar, or null. A plenary item needs a title;
+ * a breakout needs at least a minute and two people per room.
+ */
+export function agendaDraftProblem(draft: AgendaDraftItem): AgendaDraftProblem | null {
+	if (draft.type === 'plenary') {
+		return draft.title.trim() === '' ? { field: 'title', message: 'Add a title' } : null;
+	}
+	if (!(draft.durationMinutes >= 1)) {
+		return { field: 'minutes', message: 'Give it at least 1 minute' };
+	}
+	if (!(draft.maxPerRoom >= 2)) {
+		return { field: 'people', message: 'Rooms need at least 2 people' };
+	}
+	return null;
+}
+
+/** The items after the current step: the only ones a host can change during a call. */
+export function upcomingAgendaItems(
+	items: EventAgendaItem[],
+	currentStep: number
+): EventAgendaItem[] {
+	return items.slice(currentStep + 1);
 }
 
 /** Returns a copy of `items` with the item at `from` moved to `to`. */

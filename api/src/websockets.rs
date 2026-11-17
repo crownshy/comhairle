@@ -1117,7 +1117,7 @@ mod tests {
         }
     }
 
-    fn test_user(id: Uuid) -> crate::models::users::User {
+    pub(super) fn test_user(id: Uuid) -> crate::models::users::User {
         crate::models::users::User {
             id,
             email: Some("test@example.com".to_string()),

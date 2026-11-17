@@ -42,11 +42,25 @@ export interface BroadcastMessage {
 	message: string;
 }
 
+/** How a host's live agenda edit ended. `step_moved` means the call moved on while they edited. */
+export type AgendaEditOutcome = 'saved' | 'step_moved' | 'save_failed' | 'not_host';
+
+type AgendaUpdateResult = {
+	edit_id: string;
+	outcome: AgendaEditOutcome;
+	agenda: EventAgendaItem[] | null;
+};
+
+type PendingAgendaEdit = { editId: string; settle: (outcome: AgendaEditOutcome) => void };
+
+const AGENDA_EDIT_TIMEOUT_MS = 10_000;
+
 export class VideoCallService {
 	private _currentCallState = $state<VideoCallState | null>(null);
 	private _lastBroadcastMessage = $state<string | null>(null);
 	/** Latest agenda pushed over WS (overrides the SSR-loaded agenda when set). */
 	private _agenda = $state<EventAgendaItem[] | null>(null);
+	private pendingAgendaEdit: PendingAgendaEdit | null = null;
 	private isListening = false;
 	private joinedEventId: string | null = null;
 	private videoPresence: { displayName: string | null } | null = null;
@@ -79,6 +93,7 @@ export class VideoCallService {
 
 	/** User IDs that have actually joined the Jitsi video (excludes lobby-only users). */
 	get inVideoParticipantIds(): Set<string> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a fresh copy per read, never mutated
 		return new Set(this._currentCallState?.in_video_participants ?? []);
 	}
 
@@ -118,6 +133,8 @@ export class VideoCallService {
 				this.handleBroadcastMessage(payload.data as BroadcastMessage);
 			} else if (payload.event === 'video_call:agenda_updated') {
 				this.handleAgendaUpdate(payload.data as EventAgendaItem[]);
+			} else if (payload.event === 'video_call:agenda_update_result') {
+				this.handleAgendaUpdateResult(payload.data as AgendaUpdateResult);
 			}
 		});
 
@@ -155,6 +172,20 @@ export class VideoCallService {
 		this._agenda = agenda;
 	}
 
+	// Another host's save also broadcasts the agenda, so only this reply, matched by edit id,
+	// says how this host's own edit ended.
+	private handleAgendaUpdateResult(result: AgendaUpdateResult) {
+		if (result.edit_id !== this.pendingAgendaEdit?.editId) return;
+		if (result.agenda) this._agenda = result.agenda;
+		this.settleAgendaEdit(result.outcome);
+	}
+
+	private settleAgendaEdit(outcome: AgendaEditOutcome) {
+		const pending = this.pendingAgendaEdit;
+		this.pendingAgendaEdit = null;
+		pending?.settle(outcome);
+	}
+
 	joinCall(eventId: string) {
 		this.joinedEventId = eventId;
 		if (ws.isOpen) this.sendUserJoined(eventId);
@@ -168,6 +199,7 @@ export class VideoCallService {
 		this.videoPresence = null;
 		this._currentCallState = null;
 		this._agenda = null;
+		this.settleAgendaEdit('save_failed');
 	}
 
 	/** Report that this client has actually joined the Jitsi video (rename-proof presence),
@@ -208,6 +240,44 @@ export class VideoCallService {
 		ws.sendCustom('video_call:set_agenda_item', {
 			event_id: eventId,
 			agenda_item: agendaItem
+		});
+	}
+
+	/**
+	 * Replace the agenda items after `currentStep`. Moderator/facilitator only. The server
+	 * refuses the edit if the call has moved past `currentStep`, so a host can't rewrite an
+	 * item that has already started.
+	 *
+	 * Resolves when the server answers this edit, or with `save_failed` if nothing arrives
+	 * in time.
+	 */
+	updateUpcomingAgenda(
+		eventId: string,
+		currentStep: number,
+		upcoming: EventAgendaItem[]
+	): Promise<AgendaEditOutcome> {
+		if (!ws.isOpen) return Promise.resolve('save_failed');
+		this.settleAgendaEdit('save_failed');
+
+		return new Promise((resolve) => {
+			const editId = crypto.randomUUID();
+			const timeout = setTimeout(
+				() => this.settleAgendaEdit('save_failed'),
+				AGENDA_EDIT_TIMEOUT_MS
+			);
+			this.pendingAgendaEdit = {
+				editId,
+				settle: (outcome) => {
+					clearTimeout(timeout);
+					resolve(outcome);
+				}
+			};
+			ws.sendCustom('video_call:update_upcoming_agenda', {
+				event_id: eventId,
+				edit_id: editId,
+				current_step: currentStep,
+				upcoming
+			});
 		});
 	}
 
@@ -332,6 +402,7 @@ export class VideoCallService {
 
 	getBreakoutSessionEndTime(): Date | null {
 		if (!this._currentCallState?.breakout_session) return null;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a fresh copy per read, never mutated
 		return new Date(this._currentCallState.breakout_session.ends);
 	}
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { EventAgendaItem } from '@crownshy/api-client/api';
 import {
+	agendaDraftProblem,
 	agendaDraftTitle,
 	agendaSchedule,
 	formatAgendaMinutes,
@@ -8,7 +9,8 @@ import {
 	moveAgendaDraft,
 	newBreakoutDraft,
 	newPlenaryDraft,
-	toAgendaDraft
+	toAgendaDraft,
+	upcomingAgendaItems
 } from './eventAgenda';
 
 const welcome: EventAgendaItem = {
@@ -23,6 +25,16 @@ const breakout: EventAgendaItem = {
 		max_per_room: 5
 	}
 };
+
+describe('upcomingAgendaItems', () => {
+	it('leaves out the current item and everything before it', () => {
+		expect(upcomingAgendaItems([welcome, breakout, welcome], 1)).toEqual([welcome]);
+	});
+
+	it('is empty on the last item', () => {
+		expect(upcomingAgendaItems([welcome, breakout], 1)).toEqual([]);
+	});
+});
 
 describe('agenda drafts', () => {
 	it('round-trips saved items, keeping the description nobody edits', () => {
@@ -73,6 +85,27 @@ describe('agenda drafts', () => {
 	it('names a breakout by its question', () => {
 		expect(agendaDraftTitle({ ...newBreakoutDraft(), prompt: ' Why? ' })).toBe('Why?');
 		expect(agendaDraftTitle({ ...newPlenaryDraft(), title: 'Welcome' })).toBe('Welcome');
+	});
+
+	it('needs a title on plenary items but not a question on breakouts', () => {
+		expect(agendaDraftProblem(newBreakoutDraft())).toBeNull();
+		expect(agendaDraftProblem(newPlenaryDraft())).toEqual({
+			field: 'title',
+			message: 'Add a title'
+		});
+		expect(agendaDraftProblem({ ...newPlenaryDraft(), title: '  ' })?.field).toBe('title');
+		expect(agendaDraftProblem({ ...newPlenaryDraft(), title: 'Break' })).toBeNull();
+	});
+
+	it('flags a breakout with no time, a cleared time, or rooms of one', () => {
+		const cleared = null as unknown as number;
+		expect(agendaDraftProblem({ ...newBreakoutDraft(), durationMinutes: 0 })?.field).toBe(
+			'minutes'
+		);
+		expect(agendaDraftProblem({ ...newBreakoutDraft(), durationMinutes: cleared })?.field).toBe(
+			'minutes'
+		);
+		expect(agendaDraftProblem({ ...newBreakoutDraft(), maxPerRoom: 1 })?.field).toBe('people');
 	});
 });
 
