@@ -8554,6 +8554,14 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "post",
+    path: "/tools/polis/statement_aux/:id/undo_split",
+    alias: "PolisUndoSplitStatement",
+    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
+    requestFormat: "json",
+    response: SplitStatementResponse,
+  },
+  {
+    method: "post",
     path: "/tools/polis/statement_aux/:id/themes",
     alias: "PolisAddStatementAuxTheme",
     description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,

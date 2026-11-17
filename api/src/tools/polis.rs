@@ -669,6 +669,25 @@ impl ToolImpl for PolisTool {
                     authorize_polis_statement,
                 )),
             )
+            .api_route(
+                "/polis/statement_aux/{id}/undo_split",
+                post_with(undo_split_statement, |op| {
+                    op.id("PolisUndoSplitStatement")
+                        .tag("Tools")
+                        .summary("Undo a split or reword")
+                        .description(
+                            "Rejects every replacement a split posted for this statement and \
+                             moves the original back to waiting. Polis can't delete a \
+                             statement, so replacements are rejected with the reason \
+                             \"Split undone\". Fails if a replacement has itself been split.",
+                        )
+                        .response::<200, Json<SplitStatementResponse>>()
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
+            )
     }
 }
 
@@ -1809,6 +1828,91 @@ async fn split_statement(
     ))
 }
 
+/// The reason stored on a replacement when its split is undone.
+const SPLIT_UNDONE_REASON: &str = "Split undone";
+
+/// Undo a split or reword: reject its replacements, then move the original back to
+/// waiting. Replacements go first so the poll never shows the original and its
+/// replacements at once. Replacements already rejected are skipped, so a retry after a
+/// partial failure finishes the job.
+#[instrument(err(Debug), skip(state))]
+async fn undo_split_statement(
+    State(state): State<Arc<ComhairleState>>,
+    Extension(original): Extension<PolisStatementAux>,
+) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
+    let replacements =
+        models::polis_statement_aux::list_replacements(&state.db, original.id).await?;
+    if replacements.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "this statement was not split or reworded".into(),
+        ));
+    }
+    for replacement in &replacements {
+        let nested =
+            models::polis_statement_aux::list_replacements(&state.db, replacement.id).await?;
+        if !nested.is_empty() {
+            return Err(ComhairleError::BadRequest(
+                "a replacement was split again; undo that split first".into(),
+            ));
+        }
+    }
+
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &original.workflow_step_id).await?;
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    for replacement in replacements
+        .iter()
+        .filter(|r| r.moderation_status != ModerationStatus::Rejected)
+    {
+        client
+            .moderate_comment(
+                &config.poll_id,
+                replacement.polis_statement_id,
+                ModerationStatus::Rejected,
+                &auth_cookies,
+            )
+            .await?;
+    }
+    client
+        .moderate_comment(
+            &config.poll_id,
+            original.polis_statement_id,
+            ModerationStatus::Pending,
+            &auth_cookies,
+        )
+        .await?;
+
+    let replacement_ids: Vec<Uuid> = replacements.iter().map(|r| r.id).collect();
+    let (original, replacements) = models::polis_statement_aux::record_undo_split(
+        &state.db,
+        original.id,
+        &replacement_ids,
+        SPLIT_UNDONE_REASON,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(SplitStatementResponse {
+            original,
+            replacements,
+        }),
+    ))
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct ModerateStatementAuxBatchRequest {
     /// polis_statement_aux ids to moderate. All must belong to the same workflow step.
@@ -2526,6 +2630,91 @@ mod tests {
                 })
             });
         Arc::new(service)
+    }
+
+    async fn split_into(
+        pool: &PgPool,
+        original: &PolisStatementAux,
+        tids: &[i32],
+    ) -> Result<Vec<PolisStatementAux>, Box<dyn Error>> {
+        let derived: Vec<polis_statement_aux::CreateDerivedStatement> = tids
+            .iter()
+            .map(|tid| polis_statement_aux::CreateDerivedStatement {
+                workflow_step_id: original.workflow_step_id,
+                zid: *tid,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: *tid,
+                statement_text: format!("replacement {tid}"),
+                original_statement_id: original.id,
+            })
+            .collect();
+        let (_, replacements) =
+            polis_statement_aux::record_split(pool, original.id, &derived, "split").await?;
+        Ok(replacements)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn undo_split_rejects_replacements_and_reopens_the_original(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+        let original = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let replacements = split_into(&pool, &original, &[10, 11]).await?;
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", original.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let reopened = polis_statement_aux::get_by_id(&pool, &original.id).await?;
+        assert_eq!(reopened.moderation_status, ModerationStatus::Pending);
+        assert_eq!(reopened.moderation_reason, None);
+        for replacement in replacements {
+            let reloaded = polis_statement_aux::get_by_id(&pool, &replacement.id).await?;
+            assert_eq!(reloaded.moderation_status, ModerationStatus::Rejected);
+            assert_eq!(reloaded.moderation_reason.as_deref(), Some("Split undone"));
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn undo_split_refuses_a_statement_that_was_never_split_or_split_again(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+
+        let never_split = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", never_split.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let original = insert_pending_aux(&pool, owner_id, workflow_step_id, 2).await?;
+        let replacements = split_into(&pool, &original, &[20, 21]).await?;
+        split_into(&pool, &replacements[0], &[30]).await?;
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", original.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let unchanged = polis_statement_aux::get_by_id(&pool, &original.id).await?;
+        assert_eq!(unchanged.moderation_status, ModerationStatus::Rejected);
+        Ok(())
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
