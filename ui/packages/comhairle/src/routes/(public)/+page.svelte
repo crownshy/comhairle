@@ -100,7 +100,11 @@
 		</header>
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
-			<div class="flex flex-col gap-20 md:gap-10 md:px-2">
+			<div
+				class={QueryParams.get<'view'>('view') === 'card'
+					? 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
+					: 'flex flex-col gap-3'}
+			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="public">
 						{#snippet Actions()}
