@@ -169,7 +169,14 @@
 					{#if mediaUploader.error}
 						<ErrorMessage size="sm">{mediaUploader.error}</ErrorMessage>
 					{/if}
-					<Button type="button" class="mt-3 self-end" onclick={() => void (open = false)}>
+					<Button
+						type="button"
+						class="mt-3 self-end"
+						onclick={() => {
+							open = false;
+							page = 1;
+						}}
+					>
 						{mediaUploader.error || mediaUploader.step === UploaderProgress.Completed
 							? 'Finish'
 							: 'Close'}
