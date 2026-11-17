@@ -11,6 +11,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Download, RefreshCw, Search } from '@lucide/svelte';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
+	import { participantOriginal } from './polis-moderation/participantOriginal';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
 	import { permissions } from '$lib/permissions.svelte';
@@ -296,10 +297,16 @@
 	let splitTarget = $state<PolisStatementAux | null>(null);
 	let splitOpen = $state(false);
 
-	// The statement the participant was viewing when they submitted the target, if we
-	// can resolve it. `visible_statement_when_submitted` stores the Polis tid.
+	// What the participant first wrote, when the target is already a moderator's edit.
+	const splitParticipantStatement = $derived(
+		splitTarget ? participantOriginal(splitTarget, statements) : null
+	);
+
+	// The statement the participant was viewing when they wrote it, if we can resolve it.
+	// `visible_statement_when_submitted` stores the Polis tid, and only the participant's
+	// own statement carries it.
 	const splitContext = $derived.by(() => {
-		const tid = splitTarget?.visible_statement_when_submitted;
+		const tid = splitParticipantStatement?.visible_statement_when_submitted;
 		if (!tid) return undefined;
 		const n = Number(tid);
 		return statements.find((s) => s.polis_statement_id === n)?.statement_text;
@@ -396,6 +403,9 @@
 		{conversationId}
 		bind:open={splitOpen}
 		original={splitTarget}
+		participantText={splitParticipantStatement?.id !== splitTarget?.id
+			? splitParticipantStatement?.statement_text
+			: undefined}
 		viewedContext={splitContext}
 		onDone={() => invalidate(key('admin/polis/statements'))}
 	/>
