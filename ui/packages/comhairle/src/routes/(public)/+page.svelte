@@ -4,12 +4,13 @@
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import Info from '@lucide/svelte/icons/info';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { resolve } from '$app/paths';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import QueryParams from '$lib/interfaces/QueryParams.svelte';
 	import { useDebounce } from 'runed';
+	import { ArrowRight, Info } from '@lucide/svelte';
+	import { buttonVariants } from '$lib/components/ui/button';
 
 	let { data } = $props();
 </script>
@@ -102,14 +103,23 @@
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div class="flex flex-col gap-20 md:gap-10 md:px-2">
 				{#each data.conversations.ok.records as conversation (conversation.id)}
-					<a
-						class="block w-full"
-						href={resolve(`/(public)/conversations/[conversation_id]`, {
+					<ConversationCard
+						{conversation}
+						href={resolve('/(public)/conversations/[conversation_id]', {
 							conversation_id: conversation.slug || conversation.id
 						})}
+						headingLevel={3}
 					>
-						<ConversationCard {conversation} variant="public" />
-					</a>
+						{#snippet actions()}
+							<span
+								class={buttonVariants({ variant: 'primaryDark' })}
+								aria-hidden="true"
+							>
+								{m.take_part()}
+								<ArrowRight class="size-4" />
+							</span>
+						{/snippet}
+					</ConversationCard>
 				{/each}
 			</div>
 
