@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { key } from '$lib/utils/invalidationKey';
 import { loadPolisStatements } from '$lib/tools/polis/loadStatements';
+import { isModeratableStep } from '../../moderatableSteps';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ params, parent, depends }) => {
@@ -20,5 +21,9 @@ export const load: PageLoad = async ({ params, parent, depends }) => {
 		);
 	}
 
-	return { step, toolConfig, ...(await loadPolisStatements(api, step.id)) };
+	// With one step the list page redirects here, so a link back to it would loop.
+	const hasOtherSteps =
+		workflowSteps.filter((s) => isModeratableStep(conversation.isLive, s)).length > 1;
+
+	return { step, toolConfig, hasOtherSteps, ...(await loadPolisStatements(api, step.id)) };
 };

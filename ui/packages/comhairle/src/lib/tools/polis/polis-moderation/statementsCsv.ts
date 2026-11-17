@@ -60,3 +60,30 @@ export function buildStatementsCsv(
 		...rows
 	]);
 }
+
+const FILENAME_PART_MAX_LENGTH = 40;
+
+function filenamePart(text: string): string {
+	return text
+		.normalize('NFKD')
+		.replace(/\p{M}/gu, '')
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.slice(0, FILENAME_PART_MAX_LENGTH)
+		.replace(/^-+|-+$/g, '');
+}
+
+/** A download name that says which conversation and step the report is from, and when. */
+export function moderationReportFilename(options: {
+	conversationTitle: string;
+	stepName: string;
+	date: Date;
+}): string {
+	const parts = [
+		'moderation-report',
+		filenamePart(options.conversationTitle),
+		filenamePart(options.stepName),
+		options.date.toISOString().slice(0, 10)
+	].filter(Boolean);
+	return `${parts.join('-')}.csv`;
+}
