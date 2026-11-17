@@ -10,6 +10,8 @@
 	import { useDebounce } from 'runed';
 	import { ArrowRight, Info } from '@lucide/svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
+	import FilterChips from '$lib/components/FilterChips.svelte';
+	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 
 	let { data } = $props();
 </script>
@@ -96,6 +98,22 @@
 						{m.conversations_found_count({ count: data.conversations.ok.total })}
 					{/if}
 				</p>
+				<FilterChips
+					options={[
+						{ value: 'open', label: m.conversations_filter_open() },
+						{ value: 'ended', label: m.conversations_filter_ended() },
+						{ value: 'all', label: m.conversations_filter_all() }
+					]}
+					active={data.status}
+					hrefFor={(value) => statusFilterHref(page.url, value)}
+					label={m.conversations_filter_label()}
+				/>
+				<LayoutToggle
+					value={view}
+					groupLabel={m.conversations_layout()}
+					cardLabel={m.conversations_card_view()}
+					listLabel={m.conversations_list_view()}
+				/>
 			{/if}
 		</header>
 
@@ -109,10 +127,14 @@
 					<ConversationCard {conversation} for="public">
 						{#snippet Actions()}
 							<span
-								class={buttonVariants({ variant: 'primaryDark' })}
+								class={buttonVariants({
+									variant: conversation.isComplete ? 'outline' : 'primaryDark'
+								})}
 								aria-hidden="true"
 							>
-								{m.take_part()}
+								{conversation.isComplete
+									? m.conversations_see_results()
+									: m.take_part()}
 								<ArrowRight class="size-4" />
 							</span>
 						{/snippet}
