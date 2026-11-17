@@ -41,7 +41,7 @@
 	<form role="search" class="flex w-full items-center gap-2" onsubmit={onSubmit}>
 		<div class="relative grow">
 			<Search
-				class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+				class="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2"
 			/>
 			<label for="conversations-search" class="sr-only">Search conversations</label>
 			<Input
@@ -51,9 +51,13 @@
 				aria-label="Search conversations"
 				{value}
 				oninput={onInput}
-				class="rounded-full pl-9"
+				class="bg-muted h-12 rounded-full border-0 pl-11 text-lg shadow-none md:text-lg"
 			/>
 		</div>
-		<Button type="submit" class="rounded-full">{m.conversations_search()}</Button>
+		<Button
+			type="submit"
+			class="bg-sidebar-active-bg text-sidebar-foreground hover:bg-sidebar-active-bg/90 h-12 rounded-full px-8 text-lg"
+			>{m.conversations_search()}</Button
+		>
 	</form>
 </div>

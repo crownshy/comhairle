@@ -84,8 +84,10 @@
 			{/if}
 		</div>
 	</section>
-	<div class="relative mx-auto -mt-8 w-full max-w-[1280px] px-6">
-		<div class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-lg">
+	<div class="relative mx-auto -mt-10 w-full max-w-[1280px] px-6">
+		<div
+			class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] md:p-4"
+		>
 			<Search />
 		</div>
 	</div>
