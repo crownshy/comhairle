@@ -4,6 +4,8 @@ import { backToFromUrl } from '$lib/utils/backTo';
 export const load: PageServerLoad = async ({ url }) => {
 	const backTo = backToFromUrl(url);
 	return {
-		backTo
+		backTo,
+		inviteToken: url.searchParams.get('invite'),
+		inviteEmail: url.searchParams.get('email')
 	};
 };

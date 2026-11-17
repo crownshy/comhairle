@@ -12,11 +12,13 @@
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 
-	let { backTo } = $props();
+	let { backTo, inviteToken = null, inviteEmail = null } = $props();
 	let responseMessage = $state(null);
 	const loader = useLoading();
 
-	const form = superForm(defaults(zod(signupFormSchema)), {
+	// The prefilled address is only an initial value
+	// svelte-ignore state_referenced_locally
+	const form = superForm(defaults({ email: inviteEmail ?? '' }, zod(signupFormSchema)), {
 		validators: zodClient(signupFormSchema),
 		taintedMessage: false,
 		onSubmit: async ({ cancel }) => {
@@ -36,7 +38,8 @@
 					const user = await apiClient.SignUp({
 						username,
 						password,
-						email
+						email,
+						invite_token: inviteToken
 					});
 					if (user.auth_type === 'guest') {
 						await goto(backTo ?? '/', { invalidate: [key('user')] });

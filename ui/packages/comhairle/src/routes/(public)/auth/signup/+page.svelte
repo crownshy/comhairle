@@ -12,5 +12,5 @@
 </svelte:head>
 
 <AuthLayout>
-	<SignupForm {backTo} />
+	<SignupForm {backTo} inviteToken={data.inviteToken} inviteEmail={data.inviteEmail} />
 </AuthLayout>

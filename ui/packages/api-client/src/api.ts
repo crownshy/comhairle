@@ -39,15 +39,16 @@ export const OtpLoginRequest = z
   .object({ code: z.string(), email: z.string() })
   .passthrough();
 export type OtpLoginRequest = z.infer<typeof OtpLoginRequest>;
-export const SignupRequest = z
+export const InvitedSignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
     email: z.string(),
+    invite_token: z.union([z.string(), z.null()]).optional().default(null),
     password: z.string(),
     username: z.string(),
   })
   .passthrough();
-export type SignupRequest = z.infer<typeof SignupRequest>;
+export type InvitedSignupRequest = z.infer<typeof InvitedSignupRequest>;
 export const OtpSignupRequest = z
   .object({
     email: z.string(),
@@ -3911,6 +3912,19 @@ export const UpsertOrganizationUserResponseDto = z
 export type UpsertOrganizationUserResponseDto = z.infer<
   typeof UpsertOrganizationUserResponseDto
 >;
+export const InvitationDetails = z
+  .object({
+    can_accept: z.boolean(),
+    conversation_id: z.string().uuid(),
+    conversation_title: z.string(),
+    expires_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    organization_id: z.string().uuid(),
+    organization_name: z.string(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type InvitationDetails = z.infer<typeof InvitationDetails>;
 export const RegionType = z.enum(["custom", "official"]);
 export type RegionType = z.infer<typeof RegionType>;
 export const LocalizedRegionDto = z
@@ -4242,6 +4256,33 @@ export const PreviewEmailTemplateConfigResponse = z
 export type PreviewEmailTemplateConfigResponse = z.infer<
   typeof PreviewEmailTemplateConfigResponse
 >;
+export const EmailLookupRequest = z
+  .object({ emails: z.array(z.string()) })
+  .passthrough();
+export type EmailLookupRequest = z.infer<typeof EmailLookupRequest>;
+export const RegisteredEmail = z
+  .object({ email: z.string(), user_id: z.string().uuid() })
+  .passthrough();
+export type RegisteredEmail = z.infer<typeof RegisteredEmail>;
+export const EmailLookup = z
+  .object({
+    registered: z.array(RegisteredEmail),
+    unregistered: z.array(z.string()),
+  })
+  .passthrough();
+export type EmailLookup = z.infer<typeof EmailLookup>;
+export const InviteRequest = z
+  .object({
+    emails: z.array(z.string()),
+    grant_reason: z.string(),
+    roles: z.array(z.string()),
+  })
+  .passthrough();
+export type InviteRequest = z.infer<typeof InviteRequest>;
+export const InvitedEmails = z
+  .object({ emails: z.array(z.string()) })
+  .passthrough();
+export type InvitedEmails = z.infer<typeof InvitedEmails>;
 export const InheritedRoles = z
   .object({
     group_id: z.string().uuid(),
@@ -4254,6 +4295,10 @@ export type InheritedRoles = z.infer<typeof InheritedRoles>;
 export const Snapshot = z
   .object({
     inherited: z.array(InheritedRoles),
+    invitation_sent_to: z
+      .union([z.string(), z.null()])
+      .optional()
+      .default(null),
     roles: z.array(z.string()),
     version: z.number().int(),
   })
@@ -4313,7 +4358,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserDto,
   LoginRequest,
   OtpLoginRequest,
-  SignupRequest,
+  InvitedSignupRequest,
   OtpSignupRequest,
   CreateOtpRequest,
   VerifyOtpTokenRequest,
@@ -4722,6 +4767,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   OrganizationTeamResponseDto,
   UpsertOrganizationUserBody,
   UpsertOrganizationUserResponseDto,
+  InvitationDetails,
   RegionType,
   LocalizedRegionDto,
   PaginatedResults_for_LocalizedRegionDto,
@@ -4759,6 +4805,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
   PreviewEmailTemplateConfigResponse,
+  EmailLookupRequest,
+  RegisteredEmail,
+  EmailLookup,
+  InviteRequest,
+  InvitedEmails,
   InheritedRoles,
   Snapshot,
   SaveAssignments,
@@ -4930,7 +4981,7 @@ const endpoints = makeApi([
         name: "body",
         description: `Expected payload for a signin request`,
         type: "Body",
-        schema: SignupRequest,
+        schema: InvitedSignupRequest,
       },
     ],
     response: UserDto,
@@ -6968,6 +7019,20 @@ curl -X POST \
   },
   {
     method: "get",
+    path: "/organization_invitations/:invitation_id",
+    alias: "GetOrganizationConversationInvitation",
+    requestFormat: "json",
+    response: InvitationDetails,
+  },
+  {
+    method: "post",
+    path: "/organization_invitations/:invitation_id/accept",
+    alias: "AcceptOrganizationConversationInvitation",
+    requestFormat: "json",
+    response: InvitationDetails,
+  },
+  {
+    method: "get",
     path: "/organizations",
     alias: "ListOrganizations",
     description: `Paginated list of organizations with optional ordering`,
@@ -7366,6 +7431,54 @@ curl -X POST \
       },
     ],
     response: Snapshot,
+  },
+  {
+    method: "post",
+    path: "/permissions/:resource_type/:resource_id/email-lookup",
+    alias: "LookupAssignmentEmails",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: EmailLookupRequest,
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: EmailLookup,
+  },
+  {
+    method: "post",
+    path: "/permissions/:resource_type/:resource_id/invitations",
+    alias: "InviteToAssignRoles",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: InviteRequest,
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.enum(["system", "conversation", "organization"]),
+      },
+    ],
+    response: InvitedEmails,
   },
   {
     method: "get",
