@@ -56,9 +56,10 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
+    let filename = upload_media.filename.replace(" ", "_");
+
     // Unsupported content will error out here
-    let content_type =
-        MediaContentType::get_type(&upload_media.content_type, &upload_media.filename)?;
+    let content_type = MediaContentType::get_type(&upload_media.content_type, &filename)?;
 
     let prefix = match content_type {
         MediaContentType::Jpeg
@@ -73,7 +74,7 @@ async fn upload(
         | MediaContentType::Wav => "audio",
     };
 
-    let storage_key = format!("{}/{}", prefix, &upload_media.filename);
+    let storage_key = format!("{}/{}", prefix, &filename);
     let presigned_url = bulk_storage_service
         .get_write_file_url(&storage_key)
         .await?;
@@ -81,7 +82,7 @@ async fn upload(
     let create_media = CreateMedia {
         store_name: bulk_storage_config.store_name.to_string(),
         storage_key,
-        filename: upload_media.filename.to_string(),
+        filename: filename.clone(),
         name: upload_media.name,
         alt: upload_media.alt,
         content_type,

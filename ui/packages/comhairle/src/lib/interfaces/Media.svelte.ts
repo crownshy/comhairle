@@ -68,7 +68,7 @@ class Uploader {
 
 		const createMedia = await tryCatchAsync(() =>
 			apiClient.UploadMedia({
-				filename: data.media.name.replaceAll(' ', '_'),
+				filename: data.media.name,
 				name: data.name,
 				alt: data.alt,
 				contentType: data.media.type

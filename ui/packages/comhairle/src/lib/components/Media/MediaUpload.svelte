@@ -25,7 +25,7 @@
 	let fileInput = $state<FileInput | null>(null);
 	let nameInput = $state<Input | null>(null);
 	let open = $state<boolean>(false);
-	let page = $state<number>(2);
+	let page = $state<number>(1);
 
 	const mediaUploader = new Media.uploader();
 
