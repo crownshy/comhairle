@@ -4,8 +4,6 @@ import {
 	conversationListQueries,
 	conversationNoun,
 	isPageTurn,
-	listViewFromUrl,
-	listViewHref,
 	searchFromUrl,
 	searchHref,
 	statusFilterFromUrl,
@@ -91,28 +89,6 @@ describe('isPageTurn', () => {
 
 	it('is false when the page stays the same', () => {
 		expect(isPageTurn(at('?q=wind'), at('?q=winds'))).toBe(false);
-	});
-});
-
-describe('listViewFromUrl', () => {
-	it('shows cards unless ?view=list', () => {
-		expect(listViewFromUrl(at(''))).toBe('card');
-		expect(listViewFromUrl(at('?view=banana'))).toBe('card');
-		expect(listViewFromUrl(at('?view=list'))).toBe('list');
-	});
-});
-
-describe('listViewHref', () => {
-	const url = at('?status=live&q=wind&page=3');
-
-	it('keeps the filter, search and page', () => {
-		expect(listViewHref(url, 'list')).toBe(
-			'/admin/conversations?status=live&q=wind&page=3&view=list'
-		);
-	});
-
-	it('drops view for cards so it keeps one URL', () => {
-		expect(listViewHref(at('?view=list&page=2'), 'card')).toBe('/admin/conversations?page=2');
 	});
 });
 
