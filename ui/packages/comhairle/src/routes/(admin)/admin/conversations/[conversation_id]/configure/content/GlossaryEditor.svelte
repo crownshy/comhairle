@@ -21,8 +21,8 @@
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Autosave } from '../autosave.svelte';
-	import SaveStatusPill from '../SaveStatusPill.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
+	import SaveStatusPill from '$lib/components/SaveStatusPill.svelte';
 
 	type Props = {
 		conversation: ConversationWithTranslations;

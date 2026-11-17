@@ -1,3 +1,4 @@
+import { notifications } from '$lib/notifications.svelte';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -8,7 +9,7 @@ const DEBOUNCE_MS = 700;
 const MINIMUM_SAVING_MS = 500;
 
 /**
- * Debounced autosave for a Configure editor that writes its whole state in one request
+ * Debounced autosave for an admin editor that writes its whole state in one request
  * (ADR-0006). Saves run one after another: each request replaces the stored value, so two in
  * flight could land out of order and the older value would win.
  *
@@ -47,6 +48,12 @@ export class Autosave {
 		this.#enqueue();
 	}
 
+	/** Saves the latest state again after a failed save. */
+	retry() {
+		clearTimeout(this.#timer);
+		this.#enqueue();
+	}
+
 	/** Resolves once every save started so far has finished. */
 	settled(): Promise<void> {
 		return this.#queue;
@@ -64,7 +71,14 @@ export class Autosave {
 		const result = await tryCatchAsync(this.#save);
 		if (result.err !== null) {
 			this.status = 'error';
-			return; // stay dirty so the leave-page guard still warns
+			// A failed save must be loud (STYLE_GUIDE Autosave). Stay dirty so the leave-page
+			// guard still warns.
+			notifications.send({
+				message: "Your changes didn't save.",
+				priority: 'ERROR',
+				action: { label: 'Retry', onClick: () => this.retry() }
+			});
+			return;
 		}
 		this.hasSaved = true;
 		const elapsed = performance.now() - startedAt;

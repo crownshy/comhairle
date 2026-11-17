@@ -2,7 +2,7 @@
 	import { Check, TriangleAlert } from 'lucide-svelte';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { cn } from '$lib/utils';
-	import type { SaveStatus } from './autosave.svelte';
+	import type { SaveStatus } from '$lib/utils/autosave.svelte';
 
 	type Props = {
 		status: SaveStatus;

@@ -13,8 +13,8 @@
 		rejectReasonsFromPolicy,
 		withSavedReasonIds
 	} from '$lib/moderation/moderationPolicy';
-	import { Autosave } from '../autosave.svelte';
-	import SaveStatusPill from '../SaveStatusPill.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
+	import SaveStatusPill from '$lib/components/SaveStatusPill.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
 	import { permissions } from '$lib/permissions.svelte';
