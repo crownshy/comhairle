@@ -259,18 +259,6 @@ impl MultipartBodyBuilder {
         }
     }
 
-    pub fn add_field(mut self, field_name: &str, content: &str) -> Self {
-        self.body.push_str(&format!(
-            "--{}\r\n\
-		Content-Disposition: form-data; name=\"{}\"\r\n\
-		\r\n\
-		{}\r\n",
-            self.boundary, field_name, content
-        ));
-
-        self
-    }
-
     pub fn add_file(mut self, filename: &str, content_type: Option<&str>, content: &str) -> Self {
         self.body.push_str(&format!(
             "--{}\r\n\

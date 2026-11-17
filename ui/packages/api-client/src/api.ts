@@ -4058,6 +4058,19 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const UploadMediaDto = z
+  .object({
+    alt: z.string(),
+    contentType: z.string(),
+    filename: z.string(),
+    name: z.string(),
+  })
+  .passthrough();
+export type UploadMediaDto = z.infer<typeof UploadMediaDto>;
+export const UploadMediaResponseDto = z
+  .object({ media: MediaDto, presignedUploadUrl: z.string() })
+  .passthrough();
+export type UploadMediaResponseDto = z.infer<typeof UploadMediaResponseDto>;
 export const MediaEditableFields = z
   .object({
     alt: z.union([z.string(), z.null()]),
@@ -4739,6 +4752,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  UploadMediaDto,
+  UploadMediaResponseDto,
   MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
@@ -6840,36 +6855,18 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   {
     method: "post",
     path: "/media",
-    alias: "postMedia",
-    description: `
-Upload a media resource to the bulk_storage_service 
-and create a new record in the database.
-
-
-This endpoint requires multipart/form-data.
-
-Generated API clients may not support file uploads.
-
-Use FormData and a raw HTTP request.
-
-**Example (curl):**
-&#x60;&#x60;&#x60;bash
-curl -X POST \
--H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
-&#x27;localhost:3000/media&#x27; \
---form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
-&#x60;&#x60;&#x60;
-                            `,
-    requestFormat: "form-data",
+    alias: "UploadMedia",
+    description: `Upload media - creates the media in the backend then returns a presigned url to upload the media to a bulk storage service`,
+    requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `multipart form data`,
+        description: `Upload media request body type.`,
         type: "Body",
-        schema: z.array(z.any()),
+        schema: UploadMediaDto,
       },
     ],
-    response: z.array(MediaDto),
+    response: UploadMediaResponseDto,
   },
   {
     method: "get",

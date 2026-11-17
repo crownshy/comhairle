@@ -17,6 +17,8 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { mediaLibraryTour } from './tour';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	useTour(() => mediaLibraryTour);
 
@@ -59,9 +61,9 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
 <SectionHeader
@@ -74,7 +76,7 @@
 	{#snippet actions()}
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
-				<MediaUpload />
+				<MediaUpload oncomplete={() => void invalidate(key('admin/media-library/media'))} />
 				<Button variant="outline" onclick={() => (bulkEdit = true)}>
 					<SquarePen class="h-4 w-4" />{m.edit()}
 				</Button>

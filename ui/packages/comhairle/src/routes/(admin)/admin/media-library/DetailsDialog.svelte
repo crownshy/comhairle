@@ -13,7 +13,8 @@
 	import { Form, Submit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props extends MediaDto {
 		type: HTMLMediaElement | undefined;
@@ -53,7 +54,7 @@
 
 		deleteDialogOpen = false;
 		close();
-		await invalidate('media-library:media');
+		await invalidate(key('admin/media-library/media'));
 	}
 
 	async function updateMedia(formData: FormData) {
@@ -95,7 +96,7 @@
 		editable = false;
 		initialName = newName;
 		initialAlt = newAlt;
-		await invalidate('media-library:media');
+		await invalidate(key('admin/media-library/media'));
 	}
 </script>
 

@@ -91,7 +91,7 @@ type CreateWorkflowStepParameters = {
  */
 export const createWorkflowStep = async (
 	params: CreateWorkflowStepParameters
-): Promise<Result<'ok', WorkflowStepDto, ErrorType>> =>
+): Promise<Result<WorkflowStepDto, ErrorType>> =>
 	tryCatchAsync<WorkflowStepDto, ErrorType>(async (ok, err) => {
 		const tool_setup = toolSetupForCreationKey(
 			params.creationKey,

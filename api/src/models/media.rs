@@ -16,35 +16,24 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
+use crate::routes::media::dto::MediaDto;
 
-/// File type to handle the incoming File from the HTTP Request
-#[derive(Debug, Default)]
-pub struct File {
+/// Upload media request body type.
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadMediaDto {
     pub filename: String,
-    pub bytes: Vec<u8>,
+    pub name: String,
+    pub alt: String,
     pub content_type: String,
 }
 
-/// Incoming form type from the upload request
-#[derive(Debug, Default)]
-pub struct UploadMediaForm {
-    pub file: File,
-    pub name: String,
-    pub alt: String,
-}
-
-impl UploadMediaForm {
-    pub fn new() -> Self {
-        Self {
-            file: File {
-                filename: "".to_string(),
-                bytes: Vec::new(),
-                content_type: "".to_string(),
-            },
-            name: "".to_string(),
-            alt: "".to_string(),
-        }
-    }
+/// Upload media response body type.
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadMediaResponseDto {
+    pub presigned_upload_url: String,
+    pub media: MediaDto,
 }
 
 /// A media record, which references an upload in the bulk_storage_service.
@@ -179,22 +168,22 @@ impl MediaContentType {
             ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
-    pub fn get_type(file: &File) -> Result<Self, ComhairleError> {
-        let mime = MediaContentType::try_from_mime(&file.content_type);
+    pub fn get_type(content_type: &str, filename: &str) -> Result<Self, ComhairleError> {
+        let mime = MediaContentType::try_from_mime(content_type);
         if mime.is_ok() {
             return mime;
         }
 
-        let extension = Path::new(&file.filename).extension();
+        let extension = Path::new(&filename).extension();
         let Some(extension) = extension else {
-            return Err(ComhairleError::UnsupportedContentType(
-                file.filename.clone(),
-            ));
+            return Err(ComhairleError::UnsupportedContentType(String::from(
+                content_type,
+            )));
         };
         let Some(extension) = extension.to_str() else {
-            return Err(ComhairleError::UnsupportedContentType(
-                file.filename.clone(),
-            ));
+            return Err(ComhairleError::UnsupportedContentType(String::from(
+                content_type,
+            )));
         };
 
         MediaContentType::try_from_extension(extension)
