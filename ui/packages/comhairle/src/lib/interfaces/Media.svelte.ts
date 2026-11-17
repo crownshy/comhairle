@@ -55,7 +55,7 @@ class Uploader {
 		});
 	}
 
-	async upload(data: UploaderData, opts?: Opts): Promise<Result<MediaDto, string>> {
+	async upload(data: UploaderData, opts?: Opts): Promise<Result<MediaDto, 'FAILED'>> {
 		// Errors are handled via the #error state, so we don't need to return them here
 		this.reset();
 
@@ -63,7 +63,7 @@ class Uploader {
 
 		if (opts?.maxSize && opts.maxSize > data.media.size) {
 			this.#error = `Max file size (${formatBytes(opts.maxSize)}) exceeded`;
-			return { ok: null, err: ' ' };
+			return { ok: null, err: 'FAILED' };
 		}
 
 		this.#totalBytes = data.media.size;
@@ -80,7 +80,7 @@ class Uploader {
 		if (createMedia.err !== null) {
 			console.error(createMedia.err);
 			this.#error = 'Could not create the media, please try again';
-			return { ok: null, err: ' ' };
+			return { ok: null, err: 'FAILED' };
 		}
 
 		this.#stepProgress = UploaderProgress.Uploading;
@@ -90,7 +90,7 @@ class Uploader {
 		);
 		if (uploadMedia.err !== null) {
 			this.#error = `Could not upload media: ${uploadMedia.err}`;
-			return { ok: null, err: ' ' };
+			return { ok: null, err: 'FAILED' };
 		}
 
 		this.#stepProgress = UploaderProgress.Completed;
