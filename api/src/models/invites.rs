@@ -422,7 +422,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             username: Some("Name".into()),
-            password: Some("some password".into()),
+            password: Some("some password".to_string().into()),
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),

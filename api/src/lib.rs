@@ -9,6 +9,7 @@ pub mod jitsi_recorder;
 pub mod mailer;
 mod middleware;
 pub mod models;
+pub mod pii;
 pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;

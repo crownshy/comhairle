@@ -19,6 +19,7 @@ use crate::models::permissions::system::Role as SystemRole;
 use crate::models::permissions::{
     self, GrantRoleRequest, PermissionRole, ResourcePermissionIden, grant_role,
 };
+use crate::pii::Pii;
 use crate::routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength};
 use crate::tools::id::gen_id;
 
@@ -138,7 +139,8 @@ pub struct User {
     pub id: Uuid,
     pub username: Option<String>,
     #[serde(skip_serializing)]
-    pub password: Option<String>,
+    #[schemars(skip)]
+    pub password: Option<Pii<String>>,
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
