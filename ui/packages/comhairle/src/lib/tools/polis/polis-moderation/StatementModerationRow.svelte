@@ -51,6 +51,8 @@
 		onModerate: (status: ModerationStatus, reason?: string) => void;
 		/** Open the split/reword dialog for this row. */
 		onSplit: () => void;
+		/** Ask to undo the split that replaced this row. */
+		onUndoSplit: () => void;
 	};
 
 	let {
@@ -68,7 +70,8 @@
 		onTranslationChange,
 		onToggle,
 		onModerate,
-		onSplit
+		onSplit,
+		onUndoSplit
 	}: Props = $props();
 
 	// When this row is part of a multi-selection, its accept/reject applies to the
@@ -317,7 +320,17 @@
 					<Ellipsis class="size-5" />
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="min-w-56">
-					{#if quiet}
+					{#if quiet && replacedBy?.length}
+						<!-- Moving a split original back on its own would put it in the poll next to its replacements. -->
+						<DropdownMenu.Item
+							disabled={controlsDisabled}
+							onSelect={onUndoSplit}
+							class="text-base"
+						>
+							<Undo2 class="size-4" />
+							Undo split
+						</DropdownMenu.Item>
+					{:else if quiet}
 						<DropdownMenu.Item
 							disabled={controlsDisabled}
 							onSelect={() => onModerate('pending')}

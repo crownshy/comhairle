@@ -31,6 +31,8 @@
 		viewedContext?: string;
 		/** Called after a successful split so the parent can refresh. */
 		onDone: () => void | Promise<void>;
+		/** Undo the split just made, offered on the confirmation toast. */
+		onUndo: (original: PolisStatementAux) => void;
 	};
 
 	let {
@@ -39,7 +41,8 @@
 		original,
 		participantText,
 		viewedContext,
-		onDone
+		onDone,
+		onUndo
 	}: Props = $props();
 	const canModerate = $derived(
 		permissions.can('conversation', 'conversation_moderate', conversationId)
@@ -144,7 +147,9 @@
 		open = false;
 		notifications.send({
 			priority: 'INFO',
-			message: `Replaced with ${submitted.length} ${pluralise(submitted.length, 'statement')}`
+			message: `Replaced with ${submitted.length} ${pluralise(submitted.length, 'statement')}`,
+			duration: 6000,
+			action: { label: 'Undo', onClick: () => onUndo(target) }
 		});
 		await onDone();
 	}
