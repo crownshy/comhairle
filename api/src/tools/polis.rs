@@ -477,6 +477,20 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
+                "/polis/statement_translation",
+                get_with(list_step_statement_translations, |op| {
+                    op.id("PolisListStepStatementTranslations")
+                        .tag("Tools")
+                        .summary("List machine translations for every statement in a step")
+                        .description(
+                            "Returns the stored translations of all statements in a \
+                             workflow step, so the moderation queue can show them in one \
+                             request. Each carries ai_generated and requires_validation flags.",
+                        )
+                        .response::<200, Json<Vec<PolisStatementTranslation>>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_translation/{id}",
                 put_with(update_statement_translation, |op| {
                     op.id("PolisUpdateStatementTranslation")
@@ -1351,6 +1365,33 @@ async fn list_statement_translations(
 ) -> Result<(StatusCode, Json<Vec<PolisStatementTranslation>>), ComhairleError> {
     let translations =
         models::polis_statement_translation::list_by_statement_aux_id(&state.db, &id).await?;
+    Ok((StatusCode::OK, Json(translations)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct StepTranslationsQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_step_statement_translations(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(query): Query<StepTranslationsQuery>,
+) -> Result<(StatusCode, Json<Vec<PolisStatementTranslation>>), ComhairleError> {
+    // Includes translations of waiting and rejected statements, so only the moderation team.
+    polis_statement_aux::check_can_perform_any(
+        &state,
+        &user,
+        &query.workflow_step_id,
+        &[Action::Update, Action::Moderate],
+    )
+    .await?;
+    let translations = models::polis_statement_translation::list_by_workflow_step_id(
+        &state.db,
+        &query.workflow_step_id,
+    )
+    .await?;
     Ok((StatusCode::OK, Json(translations)))
 }
 
@@ -2978,6 +3019,28 @@ mod tests {
             *posted.lock().unwrap(),
             vec!["Accepted seed".to_string(), "Pending seed".to_string()]
         );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn only_the_moderation_team_can_list_step_translations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let url = format!("/tools/polis/statement_translation?workflow_step_id={workflow_step_id}");
+
+        let (status, _, _) = owner.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
+        intruder.signup(&app).await?;
+        let (status, _, _) = intruder.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
         Ok(())
     }
 }
