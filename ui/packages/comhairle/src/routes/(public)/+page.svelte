@@ -1,26 +1,15 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import { listViewFromUrl } from '$lib/utils/listView';
-	import Check from 'svelte-radix/Check.svelte';
-	import ChevronDown from 'svelte-radix/ChevronDown.svelte';
 
 	import Search from './conversations/Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import {
-		getSort,
-		setSort,
-		PAGE_SIZE,
-		getSearch,
-		parseSort,
-		type SortBy,
-		statusFilterHref
-	} from './conversations/utils';
+	import { PAGE_SIZE, getSearch, statusFilterHref } from './conversations/utils';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { ArrowDown, ArrowRight, Info } from 'lucide-svelte';
 	import FilterChips from '$lib/components/FilterChips.svelte';
@@ -66,73 +55,63 @@
 	<title>Comhairle</title>
 </svelte:head>
 
-{#snippet sortOption(url: URL, sort: SortBy)}
-	<a
-		href={setSort(url, sort).toString()}
-		aria-current={getSort(url) === sort ? 'page' : undefined}
-	>
-		<DropdownMenu.Item>
-			<span class="w-6">
-				{#if getSort(url) === sort}
-					<Check class="h-4 w-4" />
-				{/if}
-			</span>
-			{parseSort(sort)}
-		</DropdownMenu.Item>
-	</a>
-{/snippet}
-
 <!-- No minimum height: the conversation list follows straight after the welcome text,
 	so it shows in the first screen. -->
 <div class="flex flex-col">
 	<section class="bg-primary text-primary-foreground rounded-b-4xl md:rounded-b-[3rem]">
-		<div class="mx-auto flex w-full max-w-[1280px] flex-col gap-y-10 px-6 pt-16 pb-20 md:pb-28">
-			<h1 class="scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
+		<div
+			class="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-6 px-6 pt-16 pb-20 md:pb-28"
+		>
+			<div class="flex max-w-3xl flex-col gap-3">
+				<h1
+					class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
+				>
+					{#if isCommunity}
+						{m.welcome_to_the()}
+					{:else}
+						{m.welcome_to()}
+					{/if}
+
+					<Tooltip.Provider delayDuration={0}>
+						<Tooltip.Root>
+							<Tooltip.Trigger
+								class="inline-flex cursor-default items-baseline gap-2"
+								onclick={(e) => e.preventDefault()}
+							>
+								Comhairle<Info
+									class="text-primary-foreground inline size-5 self-center"
+								/>
+							</Tooltip.Trigger>
+							<Tooltip.Content side="top" class="text-base">
+								{m.comhairle_meaning()}
+							</Tooltip.Content>
+						</Tooltip.Root>
+					</Tooltip.Provider>
+
+					{#if isCommunity}
+						{m.community_server()}
+					{/if}
+				</h1>
+
 				{#if isCommunity}
-					{m.welcome_to_the()}
+					{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
+						<p class="text-lg text-pretty opacity-90 sm:text-xl">
+							{description}
+						</p>
+					{/each}
 				{:else}
-					{m.welcome_to()}
-				{/if}
-
-				<Tooltip.Provider delayDuration={0}>
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							class="inline-flex cursor-default items-baseline gap-2"
-							onclick={(e) => e.preventDefault()}
-						>
-							Comhairle<Info
-								class="text-primary-foreground inline size-5 self-center"
-							/>
-						</Tooltip.Trigger>
-						<Tooltip.Content side="top" class="text-base">
-							{m.comhairle_meaning()}
-						</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
-
-				{#if isCommunity}
-					{m.community_server()}
-				{/if}
-			</h1>
-
-			{#if isCommunity}
-				{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-					<p class="w-full text-xl sm:text-2xl">
-						{description}
+					<p class="text-lg text-pretty opacity-90 sm:text-xl">
+						{m.landing_page_subtitle()}
 					</p>
-				{/each}
-			{:else}
-				<p class="max-w-xl text-xl sm:text-2xl">
-					{m.landing_page_subtitle()}
-				</p>
-			{/if}
+				{/if}
+			</div>
 
 			{#if data.records.length > 0}
 				<Button
 					href="#conversations"
 					onclick={scrollToList}
 					variant="outline"
-					class="text-primary h-12 w-full gap-2 self-start rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
+					class="text-primary h-12 w-full gap-2 rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
 				>
 					{m.explore_conversations()}
 					<ArrowDown class="size-5" />
@@ -170,41 +149,27 @@
 			<h2
 				id="conversations-heading"
 				tabindex="-1"
-				class="mb-4 text-4xl font-bold focus:outline-none"
+				class="mb-2 text-2xl font-bold focus:outline-none sm:text-3xl"
 			>
-				{m.conversations()}
+				{m.conversations_all_heading()}
 			</h2>
-			<p class="mb-4">
+			<p class="mb-6">
 				{m.conversations_find_open_conversations()}
 			</p>
-			<div class="@container mb-4">
-				<FilterChips
-					options={[
-						{ value: 'open', label: m.conversations_filter_open() },
-						{ value: 'ended', label: m.conversations_filter_ended() },
-						{ value: 'all', label: m.conversations_filter_all() }
-					]}
-					active={data.status}
-					hrefFor={(value) => statusFilterHref(page.url, value)}
-					label={m.conversations_filter_label()}
-				/>
-			</div>
-			<div class="flex items-center justify-between">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
-					>
-						<ChevronDown class="h-4 w-4" />{m.sort()}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content>
-						<DropdownMenu.Group>
-							{@render sortOption(pageUrl, 'title+asc')}
-							{@render sortOption(pageUrl, 'title+desc')}
-							{@render sortOption(pageUrl, 'created_at+desc')}
-							{@render sortOption(pageUrl, 'created_at+asc')}
-						</DropdownMenu.Group>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
+			<!-- Filters on the left, the grid/list toggle on the right; they wrap on narrow screens. -->
+			<div class="flex flex-wrap items-center justify-between gap-4">
+				<div class="@container min-w-0 flex-1">
+					<FilterChips
+						options={[
+							{ value: 'open', label: m.conversations_filter_open() },
+							{ value: 'ended', label: m.conversations_filter_ended() },
+							{ value: 'all', label: m.conversations_filter_all() }
+						]}
+						active={data.status}
+						hrefFor={(value) => statusFilterHref(page.url, value)}
+						label={m.conversations_filter_label()}
+					/>
+				</div>
 				<LayoutToggle
 					value={view}
 					groupLabel={m.conversations_layout()}
