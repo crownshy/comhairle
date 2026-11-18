@@ -16,6 +16,7 @@
 		getSort,
 		setSort,
 		PAGE_SIZE,
+		getSearch,
 		parseSort,
 		type SortBy,
 		statusFilterHref
@@ -23,11 +24,22 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { ArrowDown, ArrowRight, Info } from 'lucide-svelte';
 	import FilterChips from '$lib/components/FilterChips.svelte';
+	import FeaturedConversations from '$lib/components/FeaturedConversations.svelte';
+	import { getPage } from '$lib/pagination';
 
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);
 	const pageUrl = $derived(page.url);
 	const view = $derived(listViewFromUrl(page.url));
+
+	// TODO: the API has no "featured" flag yet, so for now the first three open conversations
+	// stand in. Swap this for the real featured list once the backend supports it.
+	// Only on the first page and when not searching, so it doesn't sit above search results.
+	const featured = $derived(
+		getPage(page.url) === 1 && !getSearch(page.url)
+			? data.records.filter((c) => !c.isComplete).slice(0, 3)
+			: []
+	);
 
 	function cardHref(conversation: (typeof data.records)[number]) {
 		const conversation_id = conversation.slug || conversation.id;
@@ -135,6 +147,15 @@
 			<Search />
 		</div>
 	</div>
+	{#if featured.length > 0}
+		<div class="mx-auto w-full max-w-[1280px] px-6 pt-10 md:pt-20">
+			<FeaturedConversations
+				conversations={featured}
+				hrefFor={cardHref}
+				actionFor={(c) => (c.isComplete ? m.conversations_see_results() : m.take_part())}
+			/>
+		</div>
+	{/if}
 	<div class="mx-auto flex h-full w-full max-w-[1280px] flex-col px-6 pt-10 md:pt-20">
 		<header id="conversations" class="scroll-mt-6 pb-5 md:pb-20">
 			<p class="sr-only" aria-live="polite">
