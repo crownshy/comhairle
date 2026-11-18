@@ -77,17 +77,17 @@
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
 				<MediaUpload oncomplete={() => void invalidate(key('admin/media-library/media'))} />
-				<Button variant="outline" onclick={() => (bulkEdit = true)}>
-					<SquarePen class="h-4 w-4" />{m.edit()}
+				<Button variant="outline" onclick={() => (bulkEdit = true)} icon={SquarePen}>
+					{m.edit()}
 				</Button>
 			{:else}
 				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
-					<Button variant="destructive" disabled={selected.length === 0}>
-						<Trash2 class="h-4 w-4" />{m.delete()}
+					<Button variant="destructive" disabled={selected.length === 0} icon={Trash2}>
+						{m.delete()}
 					</Button>
 				</DeleteDialog>
-				<Button variant="outline" onclick={() => (bulkEdit = false)}>
-					<X class="h-4 w-4" />{m.cancel()}
+				<Button variant="outline" onclick={() => (bulkEdit = false)} icon={X}>
+					{m.cancel()}
 				</Button>
 			{/if}
 		</div>

@@ -109,9 +109,8 @@
 				class="text-destructive/90 hover:text-destructive"
 				aria-label="Delete"
 				title="Delete"
-			>
-				<Trash2 />
-			</Button>
+				icon={Trash2}
+			/>
 		</AlertDialog.Trigger>
 		<AlertDialog.Portal>
 			<AlertDialog.Content>
@@ -141,8 +140,9 @@
 						size="sm"
 						onclick={() => (editable = true)}
 						aria-label="Edit"
-						title="Edit"><Edit /></Button
-					>
+						title="Edit"
+						icon={Edit}
+					/>
 					{@render deleteMediaDialog()}
 				{/if}
 			</Dialog.Header>

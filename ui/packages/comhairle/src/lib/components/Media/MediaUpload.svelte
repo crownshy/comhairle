@@ -62,8 +62,7 @@
 	</div>
 {/snippet}
 
-<Button {...props} type="button" onclick={() => (open = true)}>
-	<Upload class="h-4 w-4" />
+<Button {...props} type="button" onclick={() => (open = true)} icon={Upload}>
 	{m.upload()}
 </Button>
 
@@ -129,15 +128,14 @@
 										variant="ghost"
 										size="sm"
 										class="text-destructive hover:text-destructive/80 rounded-sm"
+										icon={Trash2}
 										onclick={() => {
 											file = null;
 											nameInput?.setValue('');
 											nameInput?.setError('');
 											fileInput?.clear();
 										}}
-									>
-										<Trash2 />
-									</Button>
+									/>
 								</div>
 							</div>
 						{/if}
