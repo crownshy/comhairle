@@ -8,12 +8,23 @@
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
 	import { useDebounce } from 'runed';
-	import { ArrowRight, Info } from '@lucide/svelte';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { ArrowDown, ArrowRight, Info } from '@lucide/svelte';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import FilterBadges from '$lib/components/FilterBadges.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 
 	let { data } = $props();
+
+	// Glide down to the list rather than jump; people who ask for reduced motion jump straight
+	// there. Focus moves to the list heading so keyboard and screen reader users land there too.
+	function scrollToList(event: MouseEvent) {
+		const list = document.getElementById('conversations');
+		if (!list) return;
+		event.preventDefault();
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		list.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+		document.getElementById('conversations-heading')?.focus({ preventScroll: true });
+	}
 </script>
 
 <svelte:head>
@@ -63,6 +74,18 @@
 					{m.landing_page_subtitle()}
 				</p>
 			{/if}
+
+			{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
+				<Button
+					href="#conversations"
+					onclick={scrollToList}
+					variant="outline"
+					class="text-primary h-12 w-full gap-2 self-start rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
+				>
+					{m.explore_conversations()}
+					<ArrowDown class="size-5" />
+				</Button>
+			{/if}
 		</div>
 	</section>
 	<div class="mx-auto w-full max-w-7xl -translate-y-1/2 px-6">
@@ -85,7 +108,13 @@
 	</div>
 	<div class="mx-auto flex w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header>
-			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
+			<h2
+				id="conversations-heading"
+				tabindex="-1"
+				class="mb-4 text-4xl font-bold focus:outline-none"
+			>
+				{m.conversations()}
+			</h2>
 			<p>
 				{m.conversations_find_open_conversations()}
 			</p>
