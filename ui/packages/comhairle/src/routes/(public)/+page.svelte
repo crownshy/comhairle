@@ -141,7 +141,7 @@
 			<h2
 				id="conversations-heading"
 				tabindex="-1"
-				class="mb-2 text-2xl font-bold focus:outline-none sm:text-3xl"
+				class="mb-6 text-2xl font-bold focus:outline-none sm:text-3xl"
 			>
 				{m.conversations_all_heading()}
 			</h2>
