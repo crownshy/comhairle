@@ -19,6 +19,10 @@
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 	const isHomePage = $derived(page.route.id === '/(public)');
+	// The conversation's own page runs edge to edge, like home, with the image across the screen.
+	const isConversationPage = $derived(
+		page.route.id === '/(public)/conversations/[conversation_id]/[[preview]]'
+	);
 
 	// A Room display is projected in a room, so it renders no site chrome at all and
 	// fills the viewport: a NavBar and Footer would both steal space from an eight-metre
@@ -46,12 +50,13 @@
 
 <!-- The live call fills h-dvh. On mobile 100vh is taller than that while the browser
 	toolbar shows, so min-h-screen would leave a strip of blank page to scroll into. -->
-<!-- The home page sits on a light tint of the theme colour, so the white cards stand out.
+<!-- Home and conversation pages sit on a light tint of the theme colour, so white panels stand out.
 	It's set here, not on the page, so the gap above the footer is tinted too. -->
 <div
 	class={cn(
 		'bg-background flex w-full flex-col',
-		isHomePage && 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))]',
+		(isHomePage || isConversationPage) &&
+			'bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))]',
 		viewportHeightClass
 	)}
 >
@@ -60,7 +65,7 @@
 	{/if}
 	{#if isRoomDisplay}
 		{@render children()}
-	{:else if isAuthPage || isReportPage || isHomePage}
+	{:else if isAuthPage || isReportPage || isHomePage || isConversationPage}
 		<div class="grow">
 			{@render children()}
 		</div>
