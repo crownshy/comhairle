@@ -179,6 +179,7 @@
 	"conversations_match_all": "{count} conversations match “{search}”",
 	"home_hero_title": "Join a conversation and help shape better decisions",
 	"home_hero_subtitle": "Learn about a topic, share your views and hear what others think.",
+	"conversation_status_heading": "Status",
 	"featured_badge": "Featured",
 	"featured_conversations": "Featured conversations",
 	"featured_slide_label": "{index} of {count}",
