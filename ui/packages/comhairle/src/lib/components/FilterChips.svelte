@@ -40,7 +40,10 @@
 					aria-current={isActive ? 'page' : undefined}
 					variant={isActive ? 'default' : 'ghost'}
 					size="lg"
-					class={cn('px-4 text-base', !isActive && 'bg-card text-foreground')}
+					class={cn(
+						'border px-4 text-base',
+						isActive ? 'border-primary' : 'bg-card text-foreground border-border'
+					)}
 				>
 					{option.label}
 				</Button>
