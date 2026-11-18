@@ -112,8 +112,9 @@
 			{/if}
 		</section>
 	{:else}
-		<!-- Pulled up against the top bar so the two read as one coloured block. -->
-		<div class="-mt-6 md:-mt-10">
+		<!-- Pulled up under the top bar (its height plus this column's top padding), so the
+			gradient runs behind the see-through bar. -->
+		<div class="-mt-[5.5rem] md:-mt-[7.5rem]">
 			<Pitch showAction={all.length > 0} />
 		</div>
 	{/if}

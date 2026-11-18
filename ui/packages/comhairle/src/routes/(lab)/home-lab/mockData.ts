@@ -82,8 +82,9 @@ function toConversation(seed: Seed): LabConversation {
 const SEEDS: Seed[] = [
 	{
 		id: 'cycling-budget',
-		title: 'How should the city spend its cycling budget?',
-		shortDescription: 'Help decide where next year’s new cycle lanes go.',
+		title: 'Active Travel Investment Plan 2027–2032 – Prioritising Safe, Connected Cycling and Walking Routes Across the City',
+		shortDescription:
+			'Tell us where you think new cycle lanes, crossings and walking routes are needed most. Your views will help decide how the city spends its active travel budget over the next five years.',
 		imageUrl: seattle,
 		state: 'live',
 		isFeatured: true,
@@ -107,8 +108,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'greener-centre',
-		title: 'A greener, quieter city centre',
-		shortDescription: 'Trees, seating and fewer cars: what would make the centre better?',
+		title: 'City Centre Transformation – Creating a Greener, Quieter and More Accessible Place to Live, Work and Visit',
+		shortDescription:
+			'Share your views on proposals for more trees, seating and space for people in the city centre. Your feedback will shape the final design before building work begins.',
 		imageUrl: climate,
 		state: 'live',
 		isFeatured: true,
@@ -128,8 +130,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'late-night-transport',
-		title: 'Late-night transport after 11pm',
-		shortDescription: 'Tell us how you get home late and what would help.',
+		title: 'Night-Time Economy and Late-Night Public Transport – Improving Safe and Affordable Journeys Home After 11pm',
+		shortDescription:
+			'Tell us how you travel home late at night and what would make it safer, easier or cheaper. Your answers will inform the next regional bus and rail contracts.',
 		imageUrl: taiwan,
 		state: 'closing',
 		isFeatured: true,
@@ -146,8 +149,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'libraries-teens',
-		title: 'Making libraries work for teenagers',
-		shortDescription: 'What would get you into your local library?',
+		title: 'Libraries for Young People – Reimagining Local Library Spaces, Opening Hours and Services for 12 to 18 Year Olds',
+		shortDescription:
+			'We want to hear from young people and their families about what would make local libraries more welcoming. Your ideas will help shape new spaces and services from next year.',
 		imageUrl: libraries,
 		state: 'live',
 		isFeatured: false,
@@ -166,8 +170,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'school-streets',
-		title: 'School streets pilot: what next?',
-		shortDescription: 'The pilot closed roads outside four schools. Should it continue?',
+		title: 'School Streets Pilot Review – Deciding the Future of Timed Road Closures Outside Primary Schools',
+		shortDescription:
+			'The pilot closed roads to traffic at drop-off and pick-up times outside four primary schools. Tell us how it affected you, and whether it should continue or expand.',
 		imageUrl: schoolStreets,
 		state: 'live',
 		isFeatured: false,
@@ -181,8 +186,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'canal-rewilding',
-		title: 'Rewilding the canal banks',
-		shortDescription: 'Plans to let parts of the canal banks grow wild.',
+		title: 'Canal Corridor Biodiversity Plan – Restoring Natural Habitats Along the Canal Banks While Protecting Access to the Towpath',
+		shortDescription:
+			'Find out about plans to let parts of the canal banks grow wild to support wildlife. Tell us how you use the towpath so that access for walkers and cyclists can be protected.',
 		imageUrl: canal,
 		state: 'upcoming',
 		isFeatured: false,
@@ -196,8 +202,9 @@ const SEEDS: Seed[] = [
 	},
 	{
 		id: 'tram-housing',
-		title: 'Housing near the new tram line',
-		shortDescription: 'Where should new homes go along the route?',
+		title: 'Tram Line Extension Development Framework – Planning New Homes, Local Services and Green Space Along the Route',
+		shortDescription:
+			'Tell us where new homes should go along the extended tram route, and which services, such as GP surgeries, schools and parks, are needed to support them.',
 		imageUrl: tramHousing,
 		state: 'results',
 		isFeatured: false,
@@ -226,13 +233,56 @@ const ORGANISER_FOR_TOPIC: Record<string, string> = {
 };
 const MANY_STATES: LabState[] = ['live', 'live', 'closing', 'upcoming', 'results'];
 
+// Realistic lengths for titles and descriptions, in the same topic order as MANY_TOPICS.
+const GENERATED_COPY: { title: string; shortDescription: string }[] = [
+	{
+		title: 'Regional Bus Network Review – Redesigning Routes, Timetables and Fares to Better Connect Towns and Rural Communities',
+		shortDescription:
+			'Tell us which journeys matter most to you and where the current bus network lets you down. Your views will help shape a new network due to start in 2028.'
+	},
+	{
+		title: 'Local Housing Strategy 2027–2032 – Increasing the Supply of Affordable, Energy-Efficient Homes for Every Stage of Life',
+		shortDescription:
+			'Share your experience of finding and keeping a home in the area. Your views will inform the council’s priorities for new homes, repairs and support over the next five years.'
+	},
+	{
+		title: 'Climate Change Adaptation Plan – Preparing Our Communities, Homes and Infrastructure for Flooding, Heatwaves and Storms',
+		shortDescription:
+			'Tell us how extreme weather has affected you and what support would help most. Your answers will shape how the council prepares for a changing climate.'
+	},
+	{
+		title: 'Better Joined Up Services – Experiencing Easier Access to Available Financial Support and Services Through Information Sharing',
+		shortDescription:
+			'Tell us what you think about public services sharing information to help families get the support they need. Your views will inform how Scotland develops its approach to data sharing.'
+	},
+	{
+		title: 'Community Mental Health and Wellbeing Services – Shaping Early Support That Is Easier to Find, Reach and Use',
+		shortDescription:
+			'We want to understand what helps people look after their mental health and where they go for support. Your views will help design services closer to home.'
+	},
+	{
+		title: 'Setting the Council Budget for 2027/28 – Balancing Rising Costs With the Local Services That Matter Most to You',
+		shortDescription:
+			'The council must make difficult choices about spending next year. Tell us which services you value most and where you think savings could be made.'
+	},
+	{
+		title: '20mph Speed Limits on Residential Streets – Making Neighbourhoods Safer and More Pleasant for Walking, Cycling and Play',
+		shortDescription:
+			'Find out about proposals to lower speed limits on residential streets and tell us how they might affect your journeys, your street and your community.'
+	},
+	{
+		title: 'Empty Homes Action Plan – Bringing Long-Term Empty Properties Back Into Use as Homes for Local People',
+		shortDescription:
+			'Tell us about empty homes in your area and what you think the council should do about them. Your views will help decide the support and powers we use.'
+	}
+];
+
 // Enough extra to make 15 in all with the 7 above.
 const GENERATED = Array.from({ length: 15 - SEEDS.length }, (_, i) => {
 	const topic = MANY_TOPICS[i % MANY_TOPICS.length];
 	return toConversation({
 		id: `generated-${i + 1}`,
-		title: `${topic} conversation ${i + 1}`,
-		shortDescription: 'A generated conversation for testing long lists.',
+		...GENERATED_COPY[i % GENERATED_COPY.length],
 		imageUrl: PHOTO_POOL[i % PHOTO_POOL.length],
 		state: MANY_STATES[i % MANY_STATES.length],
 		isFeatured: false,

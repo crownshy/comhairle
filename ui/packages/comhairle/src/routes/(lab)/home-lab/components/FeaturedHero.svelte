@@ -13,6 +13,10 @@
 	};
 	let { conversations, hrefFor, actionFor }: Props = $props();
 
+	// Large screens show two cards side by side when there's more than one, so the section
+	// stays compact while each photo keeps its 16:9 shape.
+	const twoUp = $derived(conversations.length > 1);
+
 	let api = $state<CarouselAPI>();
 	let selected = $state(0);
 
@@ -38,7 +42,7 @@
 		<Carousel.Content class="-ml-3">
 			{#each conversations as conversation, i (conversation.id)}
 				<Carousel.Item
-					class="pl-3"
+					class={cn('pl-3', twoUp && 'lg:basis-1/2')}
 					aria-roledescription="slide"
 					aria-label="{i + 1} of {conversations.length}"
 				>
@@ -47,11 +51,13 @@
 						The panel has a notch at its top-left where the Featured badge sits on the photo.
 						Participants and closing date are left off to keep the slide light; the
 						conversation page has them. -->
+					<!-- Same outline as the list cards. A border rather than a ring, because the carousel
+						clips anything drawn outside the card. -->
 					<article
-						class="bg-card ring-border/60 flex h-full flex-col rounded-3xl p-2 shadow-md ring-1"
+						class="bg-card border-border/60 flex h-full flex-col rounded-3xl border p-2 shadow-sm"
 					>
 						<div
-							class="bg-primary/10 relative isolate h-56 overflow-hidden rounded-2xl sm:h-72 lg:h-[22rem]"
+							class="bg-primary/10 relative isolate aspect-video overflow-hidden rounded-2xl"
 						>
 							{#if conversation.featuredMedia?.kind === 'video'}
 								<video
@@ -71,11 +77,10 @@
 									class="absolute inset-0 -z-10 size-full object-cover"
 								/>
 							{:else if conversation.imageUrl}
-								<!-- No moving media yet: a slow pan and zoom keeps the photo alive. -->
 								<img
 									src={conversation.imageUrl as string}
 									alt=""
-									class="ken-burns absolute inset-0 -z-10 size-full object-cover"
+									class="absolute inset-0 -z-10 size-full object-cover"
 								/>
 							{:else}
 								<MessageSquareText
@@ -89,7 +94,7 @@
 							></div>
 						</div>
 
-						<div class="featured-panel relative -mt-6 rounded-b-2xl">
+						<div class="featured-panel relative -mt-6 flex grow flex-col rounded-b-2xl">
 							<!-- The raised part of the panel, right of the notch. -->
 							<div aria-hidden="true" class="featured-tab"></div>
 							<!-- Same spot on every slide, so people can tell at a glance these are featured.
@@ -104,14 +109,21 @@
 								Featured
 							</span>
 							<div
-								class="flex flex-col gap-4 px-3 pt-3 pb-3 sm:px-4 lg:flex-row lg:items-end lg:justify-between lg:gap-10 lg:px-6 lg:pb-5"
+								class={cn(
+									'flex grow flex-col gap-4 px-3 pt-3 pb-3 sm:px-4 lg:px-5 lg:pb-4',
+									!twoUp &&
+										'lg:flex-row lg:items-end lg:justify-between lg:gap-10'
+								)}
 							>
 								<div class="flex min-w-0 flex-col gap-2">
 									<p class="text-primary text-base font-semibold">
 										{conversation.organiser}
 									</p>
 									<h2
-										class="text-foreground text-2xl leading-tight font-bold tracking-tight sm:text-3xl"
+										class={cn(
+											'text-foreground text-2xl leading-tight font-bold tracking-tight sm:text-3xl',
+											twoUp && 'lg:text-2xl'
+										)}
 									>
 										{conversation.title}
 									</h2>
@@ -121,7 +133,7 @@
 								</div>
 								<a
 									href={hrefFor(conversation.id)}
-									class="bg-primary text-primary-foreground flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-full text-lg font-bold transition hover:opacity-90 sm:w-auto sm:self-start sm:px-10 lg:self-end"
+									class="bg-primary text-primary-foreground flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-full text-lg font-bold transition hover:opacity-90 sm:mt-auto sm:w-auto sm:self-start sm:px-10"
 								>
 									{actionFor(conversation)}
 									<ArrowRight class="size-5" />
@@ -174,21 +186,6 @@
 </section>
 
 <style>
-	@media (prefers-reduced-motion: no-preference) {
-		.ken-burns {
-			animation: ken-burns 18s ease-in-out infinite alternate;
-		}
-	}
-
-	@keyframes ken-burns {
-		from {
-			transform: scale(1.05) translate(0, 0);
-		}
-		to {
-			transform: scale(1.18) translate(-3%, -2%);
-		}
-	}
-
 	/* The notch: the panel's top edge sits 1.5rem into the photo, and a raised tab covers the
 		photo from the end of the notch to the right edge, 2.5rem higher. Where the tab meets the
 		lower edge, a small inverted corner makes the curve. --notch is the notch width, sized to

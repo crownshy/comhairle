@@ -58,6 +58,7 @@
 		org={scenario.org}
 		loggedIn={scenario.loggedIn}
 		userInitials={SAMPLE_USER.initials}
+		overHero={!scenario.loggedIn && page.route.id === '/(lab)/home-lab'}
 	/>
 	<main class="mx-auto w-full max-w-[1300px] grow px-4 pb-24 md:px-8">
 		{@render children()}

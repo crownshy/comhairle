@@ -106,7 +106,7 @@
 				>
 					{conversation.title}
 				</h1>
-				<p class="line-clamp-3 max-w-3xl text-lg">{conversation.description}</p>
+				<p class="max-w-3xl text-lg text-pretty">{conversation.description}</p>
 			</div>
 
 			<!-- Pulled down over the image. Phones stack the facts; wider screens put them in a row

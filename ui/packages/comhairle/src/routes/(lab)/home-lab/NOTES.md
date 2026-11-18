@@ -45,8 +45,7 @@ you leave the prototype.
 
 ## Open questions
 
-- The top bar and the visitor pitch share the theme colour so they read as one block. The
-  Waves logo is white lettering, so it only works on a coloured bar like this one.
+- The top bar and the visitor pitch share the theme colour so they read as one block.
 - Should the featured carousel auto-advance? It doesn't now, for accessibility.
 - "Featured", topics, minutes, closing dates, participant counts and quotes aren't in
   `ConversationDto` yet. They'd need API work.
@@ -56,8 +55,7 @@ you leave the prototype.
 A featured conversation can set `featuredMedia` in `mockData.ts` to a GIF or a muted
 looping video (`{ kind: 'video', src }`). Put the file in a `media/` folder here and import
 it like the photos at the top of `mockData.ts`. Video (MP4/WebM) is far lighter than GIF
-for the same clip. Without media, the photo slowly pans and zooms, which stops for people
-who turn on "reduce motion".
+for the same clip.
 
 ## Featured slide contrast
 
@@ -78,3 +76,12 @@ Every card shows who runs the conversation: above the title on list cards (as st
 `ConversationCard`'s `organizationName`), and next to "Featured" on slides. The names in
 `mockData.ts` are made-up teams. The API would need an organiser field per conversation.
 Featured slides leave out participants and closing date to keep them light.
+
+## Visitor hero
+
+The logged-out hero is a light gradient made from each theme's accent colour
+(`--sidebar-primary`: lime for Comhairle, blue for Scottish Government, lilac for Waves),
+with two see-through white shapes for texture. It runs up behind the top bar, which stays
+see-through with dark text and logo until the page scrolls, then turns to the theme
+colour. Text on the hero is dark: at the darkest point of the gradient it's about 10.8
+Comhairle, 7.6 Scottish Government and 5.6 Waves. The Waves logo file is white lettering only, so the light bar uses a prototype-only dark copy (`media/waves-logo-dark.png`, white parts turned #444749); an official dark version should replace it.
