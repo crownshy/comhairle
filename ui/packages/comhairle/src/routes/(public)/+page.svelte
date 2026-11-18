@@ -14,21 +14,45 @@
 	import { ArrowDown, ArrowRight, Info } from 'lucide-svelte';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 	import FeaturedConversations from '$lib/components/FeaturedConversations.svelte';
-	import { getPage } from '$lib/pagination';
 
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);
 	const pageUrl = $derived(page.url);
 	const view = $derived(listViewFromUrl(page.url));
 
-	// TODO: the API has no "featured" flag yet, so for now the first three open conversations
-	// stand in. Swap this for the real featured list once the backend supports it.
-	// Only on the first page and when not searching, so it doesn't sit above search results.
-	const featured = $derived(
-		getPage(page.url) === 1 && !getSearch(page.url)
-			? data.records.filter((c) => !c.isComplete).slice(0, 3)
-			: []
-	);
+	// The line under the filters: how many conversations the chosen filter (and any search) found.
+	const countLabel = $derived.by(() => {
+		const count = data.total;
+		const search = getSearch(page.url).trim();
+		if (search) {
+			if (data.status === 'open') {
+				if (count === 0) return m.conversations_match_open_none({ search });
+				if (count === 1) return m.conversations_match_open_one({ search });
+				return m.conversations_match_open({ count, search });
+			}
+			if (data.status === 'ended') {
+				if (count === 0) return m.conversations_match_ended_none({ search });
+				if (count === 1) return m.conversations_match_ended_one({ search });
+				return m.conversations_match_ended({ count, search });
+			}
+			if (count === 0) return m.conversations_match_all_none({ search });
+			if (count === 1) return m.conversations_match_all_one({ search });
+			return m.conversations_match_all({ count, search });
+		}
+		if (data.status === 'open') {
+			if (count === 0) return m.conversations_count_open_none();
+			if (count === 1) return m.conversations_count_open_one();
+			return m.conversations_count_open({ count });
+		}
+		if (data.status === 'ended') {
+			if (count === 0) return m.conversations_count_ended_none();
+			if (count === 1) return m.conversations_count_ended_one();
+			return m.conversations_count_ended({ count });
+		}
+		if (count === 0) return m.conversations_no_conversations_found();
+		if (count === 1) return m.conversations_found_one();
+		return m.conversations_found_count({ count });
+	});
 
 	function cardHref(conversation: (typeof data.records)[number]) {
 		const conversation_id = conversation.slug || conversation.id;
@@ -60,7 +84,7 @@
 <div class="flex flex-col">
 	<section class="bg-primary text-primary-foreground rounded-b-4xl md:rounded-b-[3rem]">
 		<div
-			class="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-6 px-6 pt-16 pb-20 md:pb-28"
+			class="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-6 px-6 pt-16 pb-16 md:pb-28"
 		>
 			<div class="flex max-w-3xl flex-col gap-3">
 				<h1
@@ -119,69 +143,58 @@
 			{/if}
 		</div>
 	</section>
-	<div class="relative mx-auto -mt-10 w-full max-w-[1280px] px-6">
-		<div
-			class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-[0_8px_24px_rgba(0,0,0,0.12)] md:p-4"
-		>
-			<Search />
-		</div>
-	</div>
-	{#if featured.length > 0}
+	{#if data.featured.length > 0}
 		<div class="mx-auto w-full max-w-[1280px] px-6 pt-10 md:pt-20">
 			<FeaturedConversations
-				conversations={featured}
+				conversations={data.featured}
 				hrefFor={cardHref}
 				actionFor={(c) => (c.isComplete ? m.conversations_see_results() : m.take_part())}
 			/>
 		</div>
 	{/if}
 	<div class="mx-auto flex h-full w-full max-w-[1280px] flex-col px-6 pt-10 md:pt-20">
-		<header id="conversations" class="scroll-mt-6 pb-5 md:pb-20">
-			<p class="sr-only" aria-live="polite">
-				{#if data.total === 0}
-					{m.conversations_no_conversations_found()}
-				{:else if data.total === 1}
-					{m.conversations_found_one()}
-				{:else}
-					{m.conversations_found_count({ count: data.total })}
-				{/if}
-			</p>
+		<header id="conversations" class="scroll-mt-6 pb-6 md:pb-8">
 			<h2
 				id="conversations-heading"
 				tabindex="-1"
-				class="mb-2 text-2xl font-bold focus:outline-none sm:text-3xl"
+				class="mb-6 text-2xl font-bold focus:outline-none sm:text-3xl"
 			>
 				{m.conversations_all_heading()}
 			</h2>
-			<p class="mb-6">
-				{m.conversations_find_open_conversations()}
-			</p>
-			<!-- Filters on the left, the grid/list toggle on the right; they wrap on narrow screens. -->
-			<div class="flex flex-wrap items-center justify-between gap-4">
-				<div class="@container min-w-0 flex-1">
-					<FilterChips
-						options={[
-							{ value: 'open', label: m.conversations_filter_open() },
-							{ value: 'ended', label: m.conversations_filter_ended() },
-							{ value: 'all', label: m.conversations_filter_all() }
-						]}
-						active={data.status}
-						hrefFor={(value) => statusFilterHref(page.url, value)}
-						label={m.conversations_filter_label()}
-					/>
+			<!-- Filters, then search, with the grid/list toggle on the right; they wrap on narrow screens. -->
+			<!-- The whole row is the size container, so the chips know how much room there is
+				(below @lg they collapse into a dropdown) and keep their natural width beside search. -->
+			<div class="@container">
+				<div class="flex flex-wrap items-center gap-4">
+					<div class="w-full shrink-0 @lg:w-auto">
+						<FilterChips
+							options={[
+								{ value: 'open', label: m.conversations_filter_open() },
+								{ value: 'ended', label: m.conversations_filter_ended() },
+								{ value: 'all', label: m.conversations_filter_all() }
+							]}
+							active={data.status}
+							hrefFor={(value) => statusFilterHref(page.url, value)}
+							label={m.conversations_filter_label()}
+						/>
+					</div>
+					<div class="w-full sm:w-auto sm:max-w-md sm:min-w-64 sm:flex-1">
+						<Search />
+					</div>
+					<div class="ml-auto">
+						<LayoutToggle
+							value={view}
+							groupLabel={m.conversations_layout()}
+							cardLabel={m.conversations_card_view()}
+							listLabel={m.conversations_list_view()}
+						/>
+					</div>
 				</div>
-				<LayoutToggle
-					value={view}
-					groupLabel={m.conversations_layout()}
-					cardLabel={m.conversations_card_view()}
-					listLabel={m.conversations_list_view()}
-				/>
 			</div>
-			{#if data.records.length === 0}
-				<p class="text-muted-foreground pt-10">
-					{m.conversations_no_conversations_found()}
-				</p>
-			{/if}
+			<!-- Visible, and announced to screen readers whenever a chip or search changes it. -->
+			<p class="text-muted-foreground mt-4 text-base" aria-live="polite">
+				{countLabel}
+			</p>
 		</header>
 
 		{#if data.records.length > 0}
