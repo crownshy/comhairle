@@ -20,7 +20,13 @@
 		slug: null,
 		supportedLanguages: ['en'],
 		tags: [],
-		videoUrl: null
+		videoUrl: null,
+		allowRevisitAfterFinishing: false,
+		enableSignupPrompts: false,
+		metadata: {},
+		showThankYouPageAnnonInstructions: false,
+		showThankYouPageNextSteps: false,
+		showThankyouPageFeedbackButton: false
 	};
 
 	const mockLiveConversation = {
@@ -67,71 +73,55 @@
 </script>
 
 <!-- Admin variant stories -->
-<Story name="Admin / Live">
+<Story name="Admin / Live" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard conversation={mockLiveConversation} />
+		<ConversationCard href="#" conversation={mockLiveConversation} />
 	</div>
 </Story>
 
-<Story name="Admin / Draft">
+<Story name="Admin / Draft" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard conversation={mockDraftConversation} />
+		<ConversationCard href="#" conversation={mockDraftConversation} />
 	</div>
 </Story>
 
-<Story name="Admin / No Image">
+<Story name="Admin / No Image" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard conversation={mockConversationNoImage} />
+		<ConversationCard href="#" conversation={mockConversationNoImage} />
 	</div>
 </Story>
 
-<Story name="Admin / All States">
+<Story name="Admin / All States" asChild>
 	<div class="flex flex-col gap-16 bg-gray-50 p-8">
-		<ConversationCard conversation={mockLiveConversation} />
-		<ConversationCard conversation={mockDraftConversation} />
-		<ConversationCard conversation={mockConversationNoImage} />
+		<ConversationCard href="#" conversation={mockLiveConversation} />
+		<ConversationCard href="#" conversation={mockDraftConversation} />
+		<ConversationCard href="#" conversation={mockConversationNoImage} />
 	</div>
 </Story>
 
 <!-- Public variant stories -->
-<Story name="Public / Live">
+<Story name="Public / Live" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard conversation={mockPublicConversation} variant="public" />
+		<ConversationCard href="#" conversation={mockPublicConversation} />
 	</div>
 </Story>
 
-<Story name="Public / With Organization">
+<Story name="Public / With Organization" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard
-			conversation={mockPublicConversation}
-			variant="public"
-			organizationName="Scottish Government"
-		/>
+		<ConversationCard href="#" conversation={mockPublicConversation} />
 	</div>
 </Story>
 
-<Story name="Public / No Image">
+<Story name="Public / No Image" asChild>
 	<div class="bg-gray-50 p-8">
-		<ConversationCard
-			conversation={mockConversationNoImage}
-			variant="public"
-			organizationName="City Council"
-		/>
+		<ConversationCard href="#" conversation={mockConversationNoImage} />
 	</div>
 </Story>
 
-<Story name="Public / All States">
+<Story name="Public / All States" asChild>
 	<div class="flex flex-col gap-20 bg-gray-50 p-8">
-		<ConversationCard
-			conversation={mockPublicConversation}
-			variant="public"
-			organizationName="Scottish Government"
-		/>
-		<ConversationCard conversation={mockLiveConversation} variant="public" />
-		<ConversationCard
-			conversation={mockConversationNoImage}
-			variant="public"
-			organizationName="City Council"
-		/>
+		<ConversationCard href="#" conversation={mockPublicConversation} />
+		<ConversationCard href="#" conversation={mockLiveConversation} />
+		<ConversationCard href="#" conversation={mockConversationNoImage} />
 	</div>
 </Story>

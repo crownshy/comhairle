@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
@@ -11,7 +12,7 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './conversations/utils';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Info } from 'lucide-svelte';
+	import { ArrowRight, Info } from 'lucide-svelte';
 
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);
@@ -131,14 +132,25 @@
 		</header>
 
 		{#if data.records.length > 0}
-			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 				{#each data.records as conversation (conversation.id)}
-					<a
-						class="block w-full"
-						href={`/conversations/${conversation.slug || conversation.id}`}
+					<ConversationCard
+						{conversation}
+						href={resolve('/(public)/conversations/[conversation_id]', {
+							conversation_id: conversation.slug || conversation.id
+						})}
+						headingLevel={3}
 					>
-						<ConversationCard {conversation} variant="public" />
-					</a>
+						{#snippet actions()}
+							<span
+								class={buttonVariants({ variant: 'primaryDark' })}
+								aria-hidden="true"
+							>
+								{m.take_part()}
+								<ArrowRight class="size-4" />
+							</span>
+						{/snippet}</ConversationCard
+					>
 				{/each}
 			</div>
 
