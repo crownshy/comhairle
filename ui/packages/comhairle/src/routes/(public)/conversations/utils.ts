@@ -49,3 +49,28 @@ export const setSearch = (_url: URL, search: string): URL => {
 	}
 	return url;
 };
+
+export const STATUS_FILTERS = ['open', 'ended', 'all'] as const;
+export type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+/** Open is the default, so a plain "/" shows what it always has. */
+export const getStatusFilter = (url: URL): StatusFilter => {
+	const value = url.searchParams.get('status');
+	return value === 'ended' || value === 'all' ? value : 'open';
+};
+
+/** A new filter changes the results, so it goes back to the first page. */
+export const statusFilterHref = (url: URL, filter: StatusFilter): string => {
+	const target = new URL(url);
+	target.searchParams.delete('page');
+	if (filter === 'open') target.searchParams.delete('status');
+	else target.searchParams.set('status', filter);
+	return `${target.pathname}${target.search}`;
+};
+
+/** The API query for each filter. The API itself only ever returns live conversations. */
+export const STATUS_FILTER_QUERY: Record<StatusFilter, string> = {
+	open: '&is_complete=false',
+	ended: '&is_complete=true',
+	all: ''
+};

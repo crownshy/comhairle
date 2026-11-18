@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { getSort, setSort, getSearch, setSearch } from './utils';
+import { getSort, setSort, getSearch, setSearch, getStatusFilter, statusFilterHref } from './utils';
 
 describe('conversation utils', () => {
 	it('getSort extracts sort from URL', () => {
@@ -44,5 +44,22 @@ describe('conversation utils', () => {
 		const url = setSearch(oldUrl, '');
 		expect(url.toString()).toEqual('https://example.org/conversations?sort=title%2Bdesc');
 		expect(getSearch(url)).toEqual('');
+	});
+});
+
+describe('status filter', () => {
+	const at = (search: string) => new URL(`https://example.com/${search}`);
+
+	it('defaults to open, including for unknown values', () => {
+		expect(getStatusFilter(at(''))).toBe('open');
+		expect(getStatusFilter(at('?status=banana'))).toBe('open');
+		expect(getStatusFilter(at('?status=ended'))).toBe('ended');
+	});
+
+	it('keeps search and view, drops page, and drops status for open', () => {
+		expect(statusFilterHref(at('?search=bus&view=list&page=2'), 'ended')).toBe(
+			'/?search=bus&view=list&status=ended'
+		);
+		expect(statusFilterHref(at('?status=ended&page=2'), 'open')).toBe('/');
 	});
 });
