@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -7,7 +6,7 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto, invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
-	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
+	import ConversationIntro from '$lib/components/ConversationIntro.svelte';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey.js';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -275,19 +274,16 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="pt-5 pb-10 md:pt-20">
+<div class="pb-10">
 	{#if conversation}
-		<div class="hidden md:block">
-			<Breadcrumbs {conversation} />
-		</div>
 		{#if conversation.isComplete}
-			<div class="flex flex-col gap-4">
+			<div class="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-10 md:pt-20">
 				<h1 class="text-xl font-bold">{m.conversation_closed_title()}</h1>
 				<p>{m.conversation_closed_description()}</p>
 				<Button href="/conversations">{m.conversation_closed_link()}</Button>
 			</div>
 		{:else}
-			<ConversationSummary {conversation}>
+			<ConversationIntro {conversation}>
 				{#if user}
 					{#if participation}
 						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
@@ -448,7 +444,7 @@
 						{m.join_as_guest()}
 					</Button>
 				{/if}
-			</ConversationSummary>
+			</ConversationIntro>
 
 			<PrivacyPolicyDialog
 				{conversation}
@@ -459,6 +455,6 @@
 			/>
 		{/if}
 	{:else}
-		<h1>Conversation not found</h1>
+		<h1 class="mx-auto max-w-3xl px-4 pt-10">Conversation not found</h1>
 	{/if}
 </div>
