@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SquarePen from '@lucide/svelte/icons/square-pen';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -20,6 +19,10 @@
 	import { mediaLibraryTour } from './tour';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
+	import { Form, type OnSubmit } from '$lib/components/EasyForm';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { notifications } from '$lib/notifications.svelte';
 
 	useTour(() => mediaLibraryTour);
 
@@ -31,8 +34,6 @@
 	let filter = $state<HTMLMediaElement | null>(null);
 	let detailsDialogOpen = $state<boolean>(false);
 
-	let DeleteForm = $state<HTMLFormElement>();
-
 	let items = $derived.by(() => {
 		if (!data.media) {
 			return [];
@@ -42,6 +43,27 @@
 		}
 		return data.media.filter((m) => htmlFromMediaType(m.contentType) === filter);
 	});
+
+	const deleteMedia: OnSubmit = async (formData) => {
+		const media = formData.getAll('media') as string[];
+
+		const results = await tryCatchAsync(async () => {
+			for (const id of media) {
+				await apiClient.DeleteMedia(undefined, { params: { media_id: id } });
+			}
+		});
+
+		if (results.err !== null) {
+			notifications.addFlash({
+				message: 'Failed to delete some media, please try again',
+				priority: 'ERROR'
+			});
+		}
+
+		bulkEdit = false;
+		selected = [];
+		await invalidate(key('admin/media-library/media'));
+	};
 </script>
 
 <svelte:head>
@@ -84,12 +106,19 @@
 					{m.edit()}
 				</Button>
 			{:else}
-				<DeleteDialog count={selected.length} onconfirm={() => DeleteForm?.submit()}>
+				<DeleteDialog count={selected.length}>
 					<Button variant="destructive" disabled={selected.length === 0} icon={Trash2}>
 						{m.delete()}
 					</Button>
 				</DeleteDialog>
-				<Button variant="outline" onclick={() => (bulkEdit = false)} icon={X}>
+				<Button
+					variant="outline"
+					onclick={() => {
+						bulkEdit = false;
+						selected = [];
+					}}
+					icon={X}
+				>
 					{m.cancel()}
 				</Button>
 			{/if}
@@ -113,9 +142,9 @@
 			}}
 		>
 			{#if bulkEdit}
-				<form method="POST" bind:this={DeleteForm} action="?/delete" use:enhance>
+				<Form id="bulk-delete-media" onsubmit={deleteMedia}>
 					<MediaLibrary media={items} mode="multi-select" bind:selected />
-				</form>
+				</Form>
 			{:else}
 				<MediaLibrary
 					media={items}
