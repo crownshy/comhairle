@@ -165,9 +165,11 @@
 			>
 				{m.conversations_all_heading()}
 			</h2>
-			<!-- Filters, then search, with the grid/list toggle on the right; they wrap on narrow screens. -->
-			<!-- The whole row is the size container, so the chips know how much room there is
-				(below @lg they collapse into a dropdown) and keep their natural width beside search. -->
+			<div class="mb-4 max-w-2xl">
+				<Search />
+			</div>
+			<!-- Filters on the left, the grid/list toggle on the right. The row is the size
+				container, so the chips know how much room there is (below @lg they become a dropdown). -->
 			<div class="@container">
 				<div class="flex flex-wrap items-center gap-4">
 					<div class="w-full shrink-0 @lg:w-auto">
@@ -181,9 +183,6 @@
 							hrefFor={(value) => statusFilterHref(page.url, value)}
 							label={m.conversations_filter_label()}
 						/>
-					</div>
-					<div class="w-full sm:w-auto sm:max-w-md sm:min-w-64 sm:flex-1">
-						<Search />
 					</div>
 					<div class="ml-auto">
 						<LayoutToggle
