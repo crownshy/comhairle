@@ -82,11 +82,17 @@
 <!-- No minimum height: the conversation list follows straight after the welcome text,
 	so it shows in the first screen. -->
 <div class="flex flex-col">
-	<section class="bg-primary text-primary-foreground rounded-b-4xl md:rounded-b-[3rem]">
+	<!-- A light gradient from each theme's accent colour, with two see-through white shapes for
+		texture. Text is dark, so it reads at WCAG AA on the lightest and darkest parts. -->
+	<section
+		class="home-hero text-foreground relative isolate overflow-hidden rounded-b-4xl md:rounded-b-[3rem]"
+	>
+		<div aria-hidden="true" class="home-hero-shape home-hero-shape-a"></div>
+		<div aria-hidden="true" class="home-hero-shape home-hero-shape-b"></div>
 		<div
-			class="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-6 px-6 pt-16 pb-16 md:pb-28"
+			class="mx-auto flex w-full max-w-[1280px] flex-col items-start gap-8 px-6 pt-16 pb-16 md:pb-28"
 		>
-			<div class="flex max-w-3xl flex-col gap-3">
+			<div class="flex max-w-3xl flex-col gap-4">
 				<h1
 					class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
 				>
@@ -102,9 +108,7 @@
 								class="inline-flex cursor-default items-baseline gap-2"
 								onclick={(e) => e.preventDefault()}
 							>
-								Comhairle<Info
-									class="text-primary-foreground inline size-5 self-center"
-								/>
+								Comhairle<Info class="text-foreground inline size-5 self-center" />
 							</Tooltip.Trigger>
 							<Tooltip.Content side="top" class="text-base">
 								{m.comhairle_meaning()}
@@ -119,12 +123,12 @@
 
 				{#if isCommunity}
 					{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-						<p class="text-lg text-pretty opacity-90 sm:text-xl">
+						<p class="text-lg text-pretty sm:text-xl">
 							{description}
 						</p>
 					{/each}
 				{:else}
-					<p class="text-lg text-pretty opacity-90 sm:text-xl">
+					<p class="text-lg text-pretty sm:text-xl">
 						{m.landing_page_subtitle()}
 					</p>
 				{/if}
@@ -134,8 +138,7 @@
 				<Button
 					href="#conversations"
 					onclick={scrollToList}
-					variant="outline"
-					class="text-primary h-12 w-full gap-2 rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
+					class="h-12 w-full gap-2 rounded-full px-6 text-base font-semibold sm:w-auto"
 				>
 					{m.explore_conversations()}
 					<ArrowDown class="size-5" />
@@ -236,3 +239,28 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	.home-hero {
+		background: linear-gradient(
+			to bottom,
+			color-mix(in oklab, var(--sidebar-primary) 8%, var(--background)),
+			color-mix(in oklab, var(--sidebar-primary) 50%, var(--background))
+		);
+	}
+	/* Two big see-through planes on the right, overlapping like light through a window. */
+	.home-hero-shape {
+		position: absolute;
+		z-index: -1;
+		inset: 0;
+		pointer-events: none;
+	}
+	.home-hero-shape-a {
+		background: rgb(255 255 255 / 0.3);
+		clip-path: polygon(100% 25%, 100% 100%, 30% 100%);
+	}
+	.home-hero-shape-b {
+		background: rgb(255 255 255 / 0.2);
+		clip-path: polygon(72% 0%, 100% 0%, 100% 100%, 60% 100%);
+	}
+</style>
