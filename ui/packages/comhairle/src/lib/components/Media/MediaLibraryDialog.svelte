@@ -94,7 +94,7 @@
 					{#if data.err !== null}
 						<ErrorMessage>{data.err}</ErrorMessage>
 					{:else}
-						<MediaLibrary media={data.ok} mode="single-select" bind:selected />
+						<MediaLibrary media={data} mode="single-select" bind:selected />
 					{/if}
 				{/await}
 			{/if}
