@@ -11,7 +11,7 @@
 	import Search from './conversations/Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import {
 		getSort,
 		setSort,
@@ -21,7 +21,7 @@
 		statusFilterHref
 	} from './conversations/utils';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { ArrowRight, Info } from 'lucide-svelte';
+	import { ArrowDown, ArrowRight, Info } from 'lucide-svelte';
 	import FilterChips from '$lib/components/FilterChips.svelte';
 
 	let { data } = $props();
@@ -36,6 +36,17 @@
 					conversation_id
 				})
 			: resolve('/(public)/conversations/[conversation_id]', { conversation_id });
+	}
+
+	// Glide down to the list rather than jump; people who ask for reduced motion jump straight
+	// there. Focus moves to the list heading so keyboard and screen reader users land there too.
+	function scrollToList(event: MouseEvent) {
+		const list = document.getElementById('conversations');
+		if (!list) return;
+		event.preventDefault();
+		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		list.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+		document.getElementById('conversations-heading')?.focus({ preventScroll: true });
 	}
 </script>
 
@@ -103,6 +114,18 @@
 					{m.landing_page_subtitle()}
 				</p>
 			{/if}
+
+			{#if data.records.length > 0}
+				<Button
+					href="#conversations"
+					onclick={scrollToList}
+					variant="outline"
+					class="text-primary h-12 w-full gap-2 self-start rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
+				>
+					{m.explore_conversations()}
+					<ArrowDown class="size-5" />
+				</Button>
+			{/if}
 		</div>
 	</section>
 	<div class="relative mx-auto -mt-10 w-full max-w-[1280px] px-6">
@@ -113,7 +136,7 @@
 		</div>
 	</div>
 	<div class="mx-auto flex h-full w-full max-w-[1280px] flex-col px-6 pt-10 md:pt-20">
-		<header class="pb-5 md:pb-20">
+		<header id="conversations" class="scroll-mt-6 pb-5 md:pb-20">
 			<p class="sr-only" aria-live="polite">
 				{#if data.total === 0}
 					{m.conversations_no_conversations_found()}
@@ -123,7 +146,13 @@
 					{m.conversations_found_count({ count: data.total })}
 				{/if}
 			</p>
-			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
+			<h2
+				id="conversations-heading"
+				tabindex="-1"
+				class="mb-4 text-4xl font-bold focus:outline-none"
+			>
+				{m.conversations()}
+			</h2>
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
 			</p>
