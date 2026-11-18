@@ -46,7 +46,15 @@
 
 <!-- The live call fills h-dvh. On mobile 100vh is taller than that while the browser
 	toolbar shows, so min-h-screen would leave a strip of blank page to scroll into. -->
-<div class={cn('bg-background flex w-full flex-col', viewportHeightClass)}>
+<!-- The home page sits on a light tint of the theme colour, so the white cards stand out.
+	It's set here, not on the page, so the gap above the footer is tinted too. -->
+<div
+	class={cn(
+		'bg-background flex w-full flex-col',
+		isHomePage && 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))]',
+		viewportHeightClass
+	)}
+>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}

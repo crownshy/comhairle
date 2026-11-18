@@ -12,8 +12,28 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import FilterBadges from '$lib/components/FilterBadges.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
+	import FeaturedConversations from '$lib/components/FeaturedConversations.svelte';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
+
+	// TODO: Fix later
+	const featured = $derived(
+		QueryParams.get<ConversationsParams>('page') === '1' &&
+			!QueryParams.get<ConversationsParams>('search')
+			? data.conversations.ok?.records.filter((c) => !c.isComplete).slice(0, 3)
+			: []
+	);
+
+	function cardHref(conversation: LocalizedConversationDto) {
+		const conversation_id = conversation.slug || conversation.id;
+		return conversation.isComplete
+			? resolve('/(public)/conversations/[conversation_id]/[[preview]]/report', {
+					conversation_id
+				})
+			: resolve('/(public)/conversations/[conversation_id]', { conversation_id });
+	}
 
 	// Glide down to the list rather than jump; people who ask for reduced motion jump straight
 	// there. Focus moves to the list heading so keyboard and screen reader users land there too.
@@ -108,6 +128,16 @@
 	</div>
 	<div class="mx-auto flex w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header>
+			{#if featured.length > 0}
+				<div class="mx-auto w-full max-w-7xl px-6 pt-10 md:pt-20">
+					<FeaturedConversations
+						conversations={featured}
+						hrefFor={cardHref}
+						actionFor={(c) =>
+							c.isComplete ? m.conversations_see_results() : m.take_part()}
+					/>
+				</div>
+			{/if}
 			<h2
 				id="conversations-heading"
 				tabindex="-1"
