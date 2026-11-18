@@ -90,7 +90,7 @@
 					</p>
 				{/each}
 			{:else}
-				<p class="max-w-xl text-xl sm:text-2xl">
+				<p class="text-lg text-pretty opacity-90 sm:text-xl">
 					{m.landing_page_subtitle()}
 				</p>
 			{/if}
@@ -100,7 +100,7 @@
 					href="#conversations"
 					onclick={scrollToList}
 					variant="outline"
-					class="text-primary h-12 w-full gap-2 self-start rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
+					class="text-primary h-12 w-full gap-2 rounded-full border-transparent bg-white px-6 text-base font-semibold hover:bg-white/90 sm:w-auto"
 				>
 					{m.explore_conversations()}
 					<ArrowDown class="size-5" />
@@ -128,7 +128,7 @@
 	</div>
 	<div class="mx-auto flex w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header>
-			{#if featured.length > 0}
+			{#if featured && featured.length > 0}
 				<div class="mx-auto w-full max-w-7xl px-6 pt-10 md:pt-20">
 					<FeaturedConversations
 						conversations={featured}
@@ -141,9 +141,9 @@
 			<h2
 				id="conversations-heading"
 				tabindex="-1"
-				class="mb-4 text-4xl font-bold focus:outline-none"
+				class="mb-2 text-2xl font-bold focus:outline-none sm:text-3xl"
 			>
-				{m.conversations()}
+				{m.conversations_all_heading()}
 			</h2>
 			<p>
 				{m.conversations_find_open_conversations()}
