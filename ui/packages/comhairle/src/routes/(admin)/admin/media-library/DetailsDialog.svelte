@@ -10,7 +10,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import DetailsField from './DetailsField.svelte';
-	import { Form, Submit } from '$lib/components/EasyForm';
+	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import Media from '$lib/interfaces/Media.svelte';
@@ -57,7 +57,7 @@
 		await invalidate(key('admin/media-library/media'));
 	}
 
-	async function updateMedia(formData: FormData) {
+	const updateMedia: OnSubmit = async (formData) => {
 		const newName = (formData.get('name') ?? undefined) as string | undefined;
 		const newAlt = (formData.get('alt') ?? undefined) as string | undefined;
 
@@ -97,7 +97,7 @@
 		initialName = newName;
 		initialAlt = newAlt;
 		await invalidate(key('admin/media-library/media'));
-	}
+	};
 </script>
 
 {#snippet deleteMediaDialog()}
@@ -125,7 +125,7 @@
 	</AlertDialog.Root>
 {/snippet}
 
-{#snippet readOnlyField(label: string, value: string)}
+{#snippet ReadOnlyField(label: string, value: string)}
 	<div class="text-muted-foreground mb-1 text-sm font-semibold">{label}</div>
 	<div class="mb-5">{value}</div>
 {/snippet}
@@ -163,34 +163,34 @@
 					{/if}
 				</div>
 				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
-					<Form class="flex flex-col" handleSubmission={updateMedia}>
-						{#snippet children(isSubmitting)}
+					<Form class="flex flex-col" onsubmit={updateMedia}>
+						{#snippet children({ isSubmitting })}
 							<DetailsField
 								label="Name"
 								initialValue={initialName}
 								{editable}
 								field="name"
-								{readOnlyField}
+								readOnlyField={ReadOnlyField}
 							/>
 							<DetailsField
 								label="Alt"
 								initialValue={initialAlt}
 								{editable}
 								field="alt"
-								{readOnlyField}
+								readOnlyField={ReadOnlyField}
 							/>
 							<section class="grid grid-cols-2">
 								<div>
-									{@render readOnlyField('Type', capitalise(type ?? ''))}
+									{@render ReadOnlyField('Type', capitalise(type ?? ''))}
 								</div>
 								<div>
-									{@render readOnlyField(
+									{@render ReadOnlyField(
 										'Format',
 										Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
 									)}
 								</div>
 								<div>
-									{@render readOnlyField(
+									{@render ReadOnlyField(
 										'Created at',
 										new Date(createdAt).toLocaleString()
 									)}

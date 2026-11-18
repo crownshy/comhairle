@@ -8,7 +8,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
-	import { Form, Input, Submit } from '$lib/components/EasyForm';
+	import { Form, Input, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import Media, { UploaderProgress } from '$lib/interfaces/Media.svelte';
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import StepIcon from './StepIcon.svelte';
@@ -29,7 +29,7 @@
 
 	const mediaUploader = new Media.uploader();
 
-	async function handleSubmission(formData: FormData) {
+	const onsubmit: OnSubmit = async (formData) => {
 		const [media] = Media.normalise(formData.get(MediaSchema.media.name) as File | null);
 		const name = formData.get(MediaSchema.name.name) as string | null;
 		const alt = formData.get(MediaSchema.alt.name) as string | null;
@@ -51,7 +51,7 @@
 		}
 
 		oncomplete?.(upload.ok);
-	}
+	};
 </script>
 
 {#snippet Step(step: keyof typeof UploaderProgress)}
@@ -97,7 +97,7 @@
 						bind:ref={uploadForm}
 						enctype="multipart/form-data"
 						class="flex flex-col"
-						{handleSubmission}
+						{onsubmit}
 					>
 						<FileInput
 							{...MediaSchema.media}
