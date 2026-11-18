@@ -26,7 +26,6 @@
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
-	import { addToCache } from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
@@ -457,12 +456,8 @@
 						}}
 					/>
 					<MediaUpload
-						clientSide
 						size="sm"
-						oncomplete={(media) => {
-							updateConversationMedia(media, 'image');
-							addToCache(media);
-						}}
+						oncomplete={(media) => void updateConversationMedia(media, 'image')}
 					/>
 				</fieldset>
 				{#if streamedMedia === null}
