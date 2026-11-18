@@ -8,7 +8,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import MediaSchema from '$lib/schemas/MediaSchema';
-	import { Form, Input, Submit } from '$lib/components/EasyForm';
+	import { Form, Input, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import Media, { UploaderProgress } from '$lib/interfaces/Media.svelte';
 	import FileIcon from '$lib/components/FileIcon.svelte';
 	import StepIcon from './StepIcon.svelte';
@@ -29,7 +29,7 @@
 
 	const mediaUploader = new Media.uploader();
 
-	async function handleSubmission(formData: FormData) {
+	const onsubmit: OnSubmit = async (formData) => {
 		const [media] = Media.normalise(formData.get(MediaSchema.media.name) as File | null);
 		const name = formData.get(MediaSchema.name.name) as string | null;
 		const alt = formData.get(MediaSchema.alt.name) as string | null;
@@ -51,7 +51,7 @@
 		}
 
 		oncomplete?.(upload.ok);
-	}
+	};
 </script>
 
 {#snippet Step(step: keyof typeof UploaderProgress)}
@@ -62,8 +62,7 @@
 	</div>
 {/snippet}
 
-<Button {...props} type="button" onclick={() => (open = true)}>
-	<Upload class="h-4 w-4" />
+<Button {...props} type="button" onclick={() => (open = true)} icon={Upload}>
 	{m.upload()}
 </Button>
 
@@ -97,7 +96,7 @@
 						bind:ref={uploadForm}
 						enctype="multipart/form-data"
 						class="flex flex-col"
-						{handleSubmission}
+						{onsubmit}
 					>
 						<FileInput
 							{...MediaSchema.media}
@@ -129,15 +128,14 @@
 										variant="ghost"
 										size="sm"
 										class="text-destructive hover:text-destructive/80 rounded-sm"
+										icon={Trash2}
 										onclick={() => {
 											file = null;
 											nameInput?.setValue('');
 											nameInput?.setError('');
 											fileInput?.clear();
 										}}
-									>
-										<Trash2 />
-									</Button>
+									/>
 								</div>
 							</div>
 						{/if}

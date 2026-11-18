@@ -1,24 +1,39 @@
+<script lang="ts" module>
+	export type OnSubmit = (formData: FormData) => Promise<void>;
+</script>
+
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { useDebounce } from 'runed';
+	import { invalidate } from '$app/navigation';
+	import { key, type InputKey } from '$lib/utils/invalidationKey';
 	import type { Snippet } from 'svelte';
 	import type { HTMLFormAttributes } from 'svelte/elements';
 
-	interface Props extends Omit<HTMLFormAttributes, 'children'> {
-		children: Snippet<[isSubmitting: boolean]>;
-		ref?: HTMLFormElement | null;
-		handleSubmission?: (formData: FormData) => Promise<void>;
-	}
+	type SnippetArgs = {
+		isSubmitting: boolean;
+	};
 
-	let { children, ref = $bindable(), handleSubmission, ...props }: Props = $props();
+	type Props = Omit<HTMLFormAttributes, 'children' | 'onsubmit'> & {
+		children: Snippet<[SnippetArgs]>;
+		ref?: HTMLFormElement | null;
+		onsubmit: OnSubmit;
+		noReset?: boolean;
+		// Additional reset function if a form reset doesn't completely reset it
+		additionalReset?: () => void;
+		invalidate?: InputKey;
+	};
+
+	let {
+		children,
+		ref = $bindable(),
+		onsubmit,
+		noReset = false,
+		additionalReset,
+		invalidate: ik,
+		...props
+	}: Props = $props();
 
 	let isSubmitting = $state<boolean>(false);
-
-	// Small debounce so that if it does the update very quickly we don't get a flash of the spinner
-	const setIsSubmitting = useDebounce(
-		(newIsSubmitting: boolean) => void (isSubmitting = newIsSubmitting),
-		100
-	);
 </script>
 
 <form
@@ -26,17 +41,26 @@
 	{...props}
 	bind:this={ref}
 	use:enhance={async ({ cancel, formData }) => {
-		setIsSubmitting(true);
-		if (handleSubmission) {
-			cancel();
-			await handleSubmission(formData);
-			setIsSubmitting(false);
+		isSubmitting = true;
+
+		cancel();
+		await onsubmit(formData);
+
+		if (!noReset) {
+			ref?.reset();
+			additionalReset?.();
 		}
+
+		if (ik) {
+			await invalidate(key(ik));
+		}
+
+		isSubmitting = false;
+
 		return async ({ update }) => {
 			await update();
-			setIsSubmitting(false);
 		};
 	}}
 >
-	{@render children(isSubmitting)}
+	{@render children({ isSubmitting })}
 </form>
