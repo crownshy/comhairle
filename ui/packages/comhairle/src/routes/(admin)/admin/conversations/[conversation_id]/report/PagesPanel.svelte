@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Plus from 'lucide-svelte/icons/plus';
-	import EllipsisVertical from 'lucide-svelte/icons/ellipsis-vertical';
-	import Trash from 'lucide-svelte/icons/trash-2';
+	import Plus from '@lucide/svelte/icons/plus';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import Trash from '@lucide/svelte/icons/trash-2';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { cn } from '$lib/utils';
 	import type { ReportPage } from './reportDocument';

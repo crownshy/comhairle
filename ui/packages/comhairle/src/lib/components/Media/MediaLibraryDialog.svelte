@@ -11,7 +11,9 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Images, SquareArrowOutUpLeft, X } from 'lucide-svelte';
+	import Images from '@lucide/svelte/icons/images';
+	import SquareArrowOutUpLeft from '@lucide/svelte/icons/square-arrow-out-up-left';
+	import X from '@lucide/svelte/icons/x';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';

@@ -9,8 +9,8 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Separator } from '$lib/components/ui/separator';
-	import Edit from 'lucide-svelte/icons/edit';
-	import Delete from 'lucide-svelte/icons/delete';
+	import Edit from '@lucide/svelte/icons/square-pen';
+	import Delete from '@lucide/svelte/icons/delete';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { FullReportDto } from '@crownshy/api-client/api';
 	import { invalidate } from '$app/navigation';

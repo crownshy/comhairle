@@ -174,7 +174,10 @@ Before hand-rolling UI or a helper, **check what already exists**: grep
 - Search inputs with an icon → `$lib/components/SearchBar.svelte`. It uses a native
   search input and the `pile` utility. Pass an accessible name (`aria-label` or
   `aria-labelledby`); keep filtering and debounce logic in the caller.
-- Icons → `lucide-svelte`. Don't inline bespoke SVGs for common glyphs.
+- Icons → `@lucide/svelte`, one import per icon (`import Check from '@lucide/svelte/icons/check'`).
+  Importing from the package root makes the build compile every icon, which pushed the
+  frontend image build past its memory limit. Type an icon prop as `Component<IconProps>`.
+  Don't inline bespoke SVGs for common glyphs.
 - Never hand-roll what a proven library already does: charts → LayerCake / layerchart /
   `@carbon/charts-svelte`; rich text → TipTap / Carta; QR → `svelte-qrcode`;
   drag-and-drop → the existing dnd deps. Add/use a dep before writing bespoke code.

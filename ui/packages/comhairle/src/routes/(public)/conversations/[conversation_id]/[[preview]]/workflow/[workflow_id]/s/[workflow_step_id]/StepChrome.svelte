@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
-	import { CircleHelp } from '@lucide/svelte';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { m } from '$lib/paraglide/messages';
 	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';

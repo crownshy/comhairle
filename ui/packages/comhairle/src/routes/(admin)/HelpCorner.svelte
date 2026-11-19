@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { ArrowUpRight, BookOpen, CircleHelp, Compass, MessageCircle, X } from 'lucide-svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+	import Compass from '@lucide/svelte/icons/compass';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
+	import X from '@lucide/svelte/icons/x';
 	import { Button } from '$lib/components/ui/button';
 	import { helpStore } from '$lib/help/helpStore.svelte';
 	import { tourStore } from '$lib/tours/tourStore.svelte';

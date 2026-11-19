@@ -7,7 +7,8 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { pluralise } from '$lib/utils/pluralise';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { Plus, Upload } from '@lucide/svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Upload from '@lucide/svelte/icons/upload';
 	import SeedStatementsPreview, { type SeedDraft } from './SeedStatementsPreview.svelte';
 	import { isRemovedSeed, parseSeedCsv, type ParsedSeedCsv } from '$lib/utils/seedCsv';
 	import { permissions } from '$lib/permissions.svelte';

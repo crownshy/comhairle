@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Globe from 'lucide-svelte/icons/globe';
-	import Lock from 'lucide-svelte/icons/lock';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Lock from '@lucide/svelte/icons/lock';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import LoadingButton from '$lib/components/ui/button/loading-button.svelte';

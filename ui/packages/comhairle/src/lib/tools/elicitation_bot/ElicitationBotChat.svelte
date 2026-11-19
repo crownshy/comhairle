@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { SendHorizontal, Sparkles, MessageCircle } from 'lucide-svelte';
+	import SendHorizontal from '@lucide/svelte/icons/send-horizontal';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import { Button } from '$lib/components/ui/button';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import ExtractedClaims from './ExtractedClaims.svelte';

@@ -3,7 +3,7 @@
 	import type { GeoJSONSource, Map as MaplibreMap, MapMouseEvent } from 'maplibre-gl';
 	import type { RegionAreaDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { Scan } from 'lucide-svelte';
+	import Scan from '@lucide/svelte/icons/scan';
 	import { useDebounce } from 'runed';
 	import { Button } from '$lib/components/ui/button';
 	import * as Menu from '$lib/components/ui/dropdown-menu';

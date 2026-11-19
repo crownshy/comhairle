@@ -3,14 +3,12 @@
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import {
-		CornerDownRight,
-		Shuffle,
-		Check,
-		RotateCcw,
-		ChevronLeft,
-		ChevronRight
-	} from 'lucide-svelte';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
+	import Check from '@lucide/svelte/icons/check';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';

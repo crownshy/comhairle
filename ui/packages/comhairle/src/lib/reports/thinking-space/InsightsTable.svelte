@@ -3,8 +3,9 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { ThinkingSpaceUserInsights } from '@crownshy/api-client/api';
-	import { CornerDownRight, Sparkles } from '@lucide/svelte';
-	import { ChevronDown } from 'lucide-svelte';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import { cn } from '$lib/utils';
 

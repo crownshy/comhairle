@@ -2,7 +2,8 @@
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { Plus, X } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import X from '@lucide/svelte/icons/x';
 	import { cn } from '$lib/utils.js';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import * as Card from '$lib/components/ui/card';
 	import EmailConfigCard from '$lib/components/EmailConfigCard.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';

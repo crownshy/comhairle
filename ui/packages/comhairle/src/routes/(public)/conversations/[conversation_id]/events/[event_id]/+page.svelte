@@ -9,7 +9,12 @@
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { lobbyHref } from './lobbyHref';
-	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Users from '@lucide/svelte/icons/users';
+	import UserCheck from '@lucide/svelte/icons/user-check';
+	import Info from '@lucide/svelte/icons/info';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { FileText, ChevronDown, AlertTriangle, RefreshCw } from 'lucide-svelte';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';

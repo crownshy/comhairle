@@ -10,7 +10,7 @@
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
-	import { CalendarIcon } from 'lucide-svelte';
+	import CalendarIcon from '@lucide/svelte/icons/calendar';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';

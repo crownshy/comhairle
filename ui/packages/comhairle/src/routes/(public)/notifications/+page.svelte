@@ -14,7 +14,14 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
-	import { Bell, BellRing, Check, CheckCheck, Info, Calendar, Eye, EyeOff } from 'lucide-svelte';
+	import Bell from '@lucide/svelte/icons/bell';
+	import BellRing from '@lucide/svelte/icons/bell-ring';
+	import Check from '@lucide/svelte/icons/check';
+	import CheckCheck from '@lucide/svelte/icons/check-check';
+	import Info from '@lucide/svelte/icons/info';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import Eye from '@lucide/svelte/icons/eye';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
 	import { Second } from '$lib/utils/units';

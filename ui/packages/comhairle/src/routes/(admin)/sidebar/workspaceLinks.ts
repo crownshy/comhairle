@@ -1,20 +1,19 @@
-import type { ComponentType } from 'svelte';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 import { resolve } from '$app/paths';
-import {
-	Building2,
-	ClipboardList,
-	FlaskConical,
-	Images,
-	LayoutGrid,
-	Mail,
-	Map,
-	Shield
-} from 'lucide-svelte';
+import Building2 from '@lucide/svelte/icons/building-2';
+import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+import FlaskConical from '@lucide/svelte/icons/flask-conical';
+import Images from '@lucide/svelte/icons/images';
+import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+import Mail from '@lucide/svelte/icons/mail';
+import Map from '@lucide/svelte/icons/map';
+import Shield from '@lucide/svelte/icons/shield';
 
 export type WorkspaceLink = {
 	label: string;
 	href: string;
-	icon: ComponentType;
+	icon: Component<IconProps>;
 };
 
 export type WorkspaceGroup = {

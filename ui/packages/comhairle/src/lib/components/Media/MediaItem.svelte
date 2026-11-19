@@ -2,9 +2,11 @@
 	import { capitalise } from '$lib/utils/casingUtils';
 	import type { HTMLMediaElement } from '$lib/utils/types';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import { type Icon, Music, Video } from 'lucide-svelte';
+	import Music from '@lucide/svelte/icons/music';
+	import Video from '@lucide/svelte/icons/video';
+	import type { IconProps } from '@lucide/svelte';
 	// FIX: Upgrade lucide icons to remove deprecated types
-	import type { ComponentType } from 'svelte';
+	import type { Component } from 'svelte';
 	import Badge from '$lib/components/ui/badge/badge.svelte';
 	import './MediaBackground.css';
 
@@ -20,7 +22,7 @@
 	class="chequered-background container aspect-video min-h-48 w-full cursor-pointer items-center overflow-hidden rounded-lg"
 >
 	<div class="justify-self-center overflow-hidden select-none">
-		{#snippet placeholder(Icon: ComponentType<Icon>)}
+		{#snippet placeholder(Icon: Component<IconProps>)}
 			<Icon size={80} strokeWidth={1.7} />
 		{/snippet}
 		{#if type === 'audio'}

@@ -13,7 +13,10 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount } from 'svelte';
-	import { GripVertical, Info, Trash2, TriangleAlert } from 'lucide-svelte';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Info from '@lucide/svelte/icons/info';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { dragHandle } from 'svelte-dnd-action';
 	import Pages, { type ExtendedLocalizedPage } from './Pages.svelte';
 	import type {

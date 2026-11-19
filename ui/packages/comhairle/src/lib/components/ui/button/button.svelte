@@ -1,7 +1,7 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
-	import type { Icon as LucideIcon } from 'lucide-svelte';
-	import type { ComponentType } from 'svelte';
+	import type { IconProps } from '@lucide/svelte';
+	import type { Component } from 'svelte';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
@@ -43,7 +43,7 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
-			icon?: ComponentType<LucideIcon>;
+			icon?: Component<IconProps>;
 		};
 </script>
 

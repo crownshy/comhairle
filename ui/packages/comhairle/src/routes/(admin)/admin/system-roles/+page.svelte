@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { Button } from '$lib/components/ui/button';
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 	import { SYSTEM_RESOURCE_ID } from '$lib/utils/permissions';

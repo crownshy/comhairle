@@ -5,17 +5,15 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import {
-		ThumbsUp,
-		ThumbsDown,
-		CheckCircle2,
-		MessageSquare,
-		MessageSquarePlus,
-		AlertTriangle,
-		ShieldCheck,
-		ArrowLeft,
-		Languages
-	} from 'lucide-svelte';
+	import ThumbsUp from '@lucide/svelte/icons/thumbs-up';
+	import ThumbsDown from '@lucide/svelte/icons/thumbs-down';
+	import CheckCircle2 from '@lucide/svelte/icons/circle-check';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import MessageSquarePlus from '@lucide/svelte/icons/message-square-plus';
+	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Languages from '@lucide/svelte/icons/languages';
 	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import {

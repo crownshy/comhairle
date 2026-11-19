@@ -10,7 +10,9 @@
 	} from '$lib/components/Translation/translationUtils';
 	import ProposalSectionField from './ProposalSectionField.svelte';
 	import { isTiptapJson, extractTextFromTiptap } from '$lib/utils/tiptapUtils';
-	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type { Proposal } from '../types';
 	import type { Locale } from '$lib/paraglide/runtime';

@@ -7,7 +7,12 @@
 	import type { MultiPolygon, Polygon } from 'geojson';
 	import type { RegionAreaDto } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { AlertCircle, Check, FileUp, Map as MapIcon, Plus, Save } from 'lucide-svelte';
+	import AlertCircle from '@lucide/svelte/icons/circle-alert';
+	import Check from '@lucide/svelte/icons/check';
+	import FileUp from '@lucide/svelte/icons/file-up';
+	import MapIcon from '@lucide/svelte/icons/map';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Save from '@lucide/svelte/icons/save';
 	import { useDebounce } from 'runed';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { Button } from '$lib/components/ui/button';

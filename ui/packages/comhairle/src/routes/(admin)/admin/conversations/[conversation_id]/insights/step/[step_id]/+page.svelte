@@ -6,7 +6,8 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
-	import { ChevronRight, MonitorPlay } from '@lucide/svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MonitorPlay from '@lucide/svelte/icons/monitor-play';
 
 	let { data } = $props();
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { Hand } from 'lucide-svelte';
+	import Hand from '@lucide/svelte/icons/hand';
 
 	interface Props {
 		roomName: string;

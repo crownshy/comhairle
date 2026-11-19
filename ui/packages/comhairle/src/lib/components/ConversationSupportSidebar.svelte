@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { CircleHelp, LucideChevronRight } from 'lucide-svelte';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+	import LucideChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';

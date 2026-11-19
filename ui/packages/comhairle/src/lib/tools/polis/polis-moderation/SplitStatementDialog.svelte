@@ -10,7 +10,8 @@
 	import { pluralise } from '$lib/utils/pluralise';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { Plus, Trash2 } from '@lucide/svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { permissions } from '$lib/permissions.svelte';
 	import { cn } from '$lib/utils';
 	import { MODERATION_GUIDE_PARAMS } from './moderationGuidance';

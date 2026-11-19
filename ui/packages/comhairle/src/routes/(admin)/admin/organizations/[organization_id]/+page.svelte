@@ -7,7 +7,9 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
-	import { Trash2, SquarePen, Plus } from 'lucide-svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
+	import Plus from '@lucide/svelte/icons/plus';
 	import type { PageData } from './$types';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';

@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { EllipsisVertical, Plus, RotateCcw, Trash2 } from 'lucide-svelte';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import Plus from '@lucide/svelte/icons/plus';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
 	import ConsentCheck from './ConsentCheck.svelte';

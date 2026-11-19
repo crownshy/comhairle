@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronLeft } from 'lucide-svelte';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import PolisModeration from '$lib/tools/polis/PolisModeration.svelte';
 	import { rejectReasonsForStep } from '$lib/moderation/moderationPolicy';
 	import { useTour } from '$lib/tours/useTour.svelte';

@@ -2,9 +2,10 @@
 	import BarChart from '$lib/components/Charts/BarChart.svelte';
 	import Switcher from '$lib/components/Switcher.svelte';
 	import type { HeyFormFieldKind } from '$lib/tools/heyform/utils';
-	import { type Icon } from 'lucide-svelte';
-	import { ArrowDownWideNarrow, ChartNoAxesColumn } from 'lucide-svelte';
-	import { type ComponentProps, type ComponentType } from 'svelte';
+	import type { IconProps } from '@lucide/svelte';
+	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
+	import ChartNoAxesColumn from '@lucide/svelte/icons/chart-no-axes-column';
+	import { type ComponentProps, type Component } from 'svelte';
 
 	type Props = ComponentProps<typeof BarChart> & { kind: HeyFormFieldKind };
 
@@ -25,7 +26,7 @@
 	});
 </script>
 
-{#snippet icon(Icon: ComponentType<Icon>)}
+{#snippet icon(Icon: Component<IconProps>)}
 	<Icon class="size-6" />
 {/snippet}
 

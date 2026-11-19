@@ -1,7 +1,10 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { BreakoutRoomDisplay } from './types';
-	import { MoveUpRight, Megaphone, CircleStop, ArrowLeftRight } from 'lucide-svelte';
+	import MoveUpRight from '@lucide/svelte/icons/move-up-right';
+	import Megaphone from '@lucide/svelte/icons/megaphone';
+	import CircleStop from '@lucide/svelte/icons/circle-stop';
+	import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
 
 	interface Props {
 		rooms: BreakoutRoomDisplay[];

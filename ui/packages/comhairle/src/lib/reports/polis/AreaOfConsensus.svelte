@@ -13,7 +13,8 @@
 	import type { GroupSize, VotedStatement } from '$lib/tools/polis/reportTypes';
 	import { m } from '$lib/paraglide/messages';
 	import * as Card from '$lib/components/ui/card';
-	import { ChevronDown, Sparkles } from '@lucide/svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import StatementVoteBlock from './StatementVoteBlock.svelte';
 
 	type AuthorFilter = 'all' | 'seed' | 'participant';

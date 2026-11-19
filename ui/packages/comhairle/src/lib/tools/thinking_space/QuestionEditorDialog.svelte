@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
-	import { HelpCircle } from 'lucide-svelte';
+	import HelpCircle from '@lucide/svelte/icons/circle-question-mark';
 	import type { QuestionConfig } from './types';
 	import {
 		isDraftTranslatableField,

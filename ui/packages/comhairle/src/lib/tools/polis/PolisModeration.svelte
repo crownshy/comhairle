@@ -11,7 +11,8 @@
 	import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { Download, Search } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import Search from '@lucide/svelte/icons/search';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsPagination from './polis-moderation/StatementsPagination.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';

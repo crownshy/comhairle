@@ -4,7 +4,9 @@
 	photos of the wall; Cmd/Ctrl+K opens the panel.
 -->
 <script lang="ts">
-	import { Settings2, Check, Link } from '@lucide/svelte';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
+	import Check from '@lucide/svelte/icons/check';
+	import Link from '@lucide/svelte/icons/link';
 	import {
 		BLOCK_SIZE_STEP,
 		BOARD_TEMPLATES,

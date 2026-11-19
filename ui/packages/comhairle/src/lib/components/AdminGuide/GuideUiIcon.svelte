@@ -1,14 +1,12 @@
 <script lang="ts">
-	import {
-		ArrowUpRight,
-		Briefcase,
-		Check,
-		EllipsisVertical,
-		PanelLeftClose,
-		PanelLeftOpen,
-		Pencil,
-		X
-	} from '@lucide/svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Briefcase from '@lucide/svelte/icons/briefcase';
+	import Check from '@lucide/svelte/icons/check';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import X from '@lucide/svelte/icons/x';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as m from '$lib/paraglide/messages';

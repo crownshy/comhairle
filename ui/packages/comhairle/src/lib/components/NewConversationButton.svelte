@@ -2,7 +2,7 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { notifications } from '$lib/notifications.svelte';

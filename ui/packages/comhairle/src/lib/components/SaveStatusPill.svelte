@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Check, TriangleAlert } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { cn } from '$lib/utils';
 	import type { SaveStatus } from '$lib/utils/autosave.svelte';

@@ -11,25 +11,23 @@
 	import { cn } from '$lib/utils';
 	import { isVideoFileUrl } from '$lib/utils/videoUrl';
 
-	import {
-		List,
-		ListOrdered,
-		Link as LinkIcon,
-		Quote,
-		AlignLeft,
-		AlignCenter,
-		AlignRight,
-		AlignJustify,
-		Image as ImageIcon,
-		Video,
-		FileText,
-		Table as TableIcon,
-		ChevronDown,
-		MoreHorizontal,
-		Music,
-		type Icon
-	} from 'lucide-svelte';
-	import type { ComponentType, Snippet } from 'svelte';
+	import List from '@lucide/svelte/icons/list';
+	import ListOrdered from '@lucide/svelte/icons/list-ordered';
+	import LinkIcon from '@lucide/svelte/icons/link';
+	import Quote from '@lucide/svelte/icons/quote';
+	import AlignLeft from '@lucide/svelte/icons/text-align-start';
+	import AlignCenter from '@lucide/svelte/icons/text-align-center';
+	import AlignRight from '@lucide/svelte/icons/text-align-end';
+	import AlignJustify from '@lucide/svelte/icons/text-align-justify';
+	import ImageIcon from '@lucide/svelte/icons/image';
+	import Video from '@lucide/svelte/icons/video';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import TableIcon from '@lucide/svelte/icons/table';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import MoreHorizontal from '@lucide/svelte/icons/ellipsis';
+	import Music from '@lucide/svelte/icons/music';
+	import type { IconProps } from '@lucide/svelte';
+	import type { Component, Snippet } from 'svelte';
 
 	type Props = {
 		editor: Editor | undefined;
@@ -56,13 +54,12 @@
 	const overflowId = $props.id();
 	let overflowOpen = $state(false);
 
-	// TODO: Upgrade lucide icons library to be able to use svelte 5 syntax as ComponentType is deprecated
 	type ButtonProps = {
 		title: string;
 		active: boolean;
 		onclick?: (event: MouseEvent) => void;
 		classes?: string;
-	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
+	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: Component<IconProps> });
 
 	const GROUP_CLASS = 'flex items-center gap-0.5';
 

@@ -3,7 +3,9 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Card from '$lib/components/ui/card';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Check, Undo2, X } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import X from '@lucide/svelte/icons/x';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import StatementModerationRow from './StatementModerationRow.svelte';

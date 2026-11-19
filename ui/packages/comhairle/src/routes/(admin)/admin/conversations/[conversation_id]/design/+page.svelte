@@ -15,19 +15,17 @@
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
 	import { cn } from '$lib/utils';
-	import {
-		Pencil,
-		Trash2,
-		ChevronDown,
-		ArrowUp,
-		ArrowDown,
-		MoreVertical,
-		Plus,
-		Import,
-		LoaderCircle,
-		GripVertical,
-		Info
-	} from 'lucide-svelte';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import MoreVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Import from '@lucide/svelte/icons/import';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Info from '@lucide/svelte/icons/info';
 	import { resolve } from '$app/paths';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { getAddStepDialogContext } from './context';
