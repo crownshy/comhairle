@@ -19,7 +19,7 @@ export const stepConfigureTour: Tour = {
 			element: '[data-tour="step-data-protocol-field"]',
 			title: 'Data protocol',
 			description:
-				"Explains to participants how their answers in this step are used. Leave blank to use the tool's default wording.",
+				"Explains to participants how their answers in this step are used. Until you write your own, they see the tool's default, shown in grey in the box.",
 			side: 'top'
 		},
 		{

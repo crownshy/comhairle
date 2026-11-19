@@ -263,8 +263,8 @@
 		<div class="flex flex-col gap-1">
 			<span class="text-lg font-semibold">Data protocol</span>
 			<p class="text-muted-foreground text-sm">
-				Tells participants how their answers in this step are used. Leave blank to use the
-				default for this tool.
+				Tells participants how their answers in this step are used. Until you write your
+				own, they see this tool's default, shown in grey in the box.
 			</p>
 		</div>
 		<div class="flex flex-col items-start gap-2 pt-4">
@@ -278,8 +278,8 @@
 					editorType="rich"
 					placeholder={defaultDataProtocol(toolType)}
 					disabled={!canEdit}
-					minHeight="100px"
-					maxHeight="150px"
+					minHeight="160px"
+					maxHeight="240px"
 				/>
 			</div>
 			{#if canEdit && dataProtocolIsBlank}
