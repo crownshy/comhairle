@@ -439,7 +439,7 @@ async fn start_gst_meet_process(
     // clear for speech and ~20-40x smaller than the raw PCM wavenc produced -
     // what was filling the pod's ephemeral-storage limit and bloating S3.
     let recv_pipeline = format!(
-        "audiomixer name=audio ! audioconvert ! audioresample ! opusenc bitrate=32000 audio-type=voip ! oggmux ! filesink location={}",
+        "audiomixer name=audio ! audioconvert ! audioresample ! opusenc bitrate=32000 audio-type=voice ! oggmux ! filesink location={}",
         output_file
     );
 
