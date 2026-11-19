@@ -19,3 +19,6 @@ export type ActiveStates = {
 	heading: 'p' | '1' | '2' | '3';
 	textAlign: 'left' | 'center' | 'right' | 'justify';
 };
+
+/** Which toolbar controls an editor offers. See `EditorToolbar`'s `toolset` prop. */
+export type Toolset = 'full' | 'text';
