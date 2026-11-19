@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import * as Popover from '$lib/components/ui/popover';
 	import PagerButton from '$lib/components/pager/PagerButton.svelte';
@@ -19,6 +20,8 @@
 		blockedReason?: string;
 		onBack: () => void;
 		onForward: () => void;
+		/** A quiet link centred between the corners, never a move (ADR-0048 amendment). */
+		aside?: Snippet;
 	};
 
 	let {
@@ -29,16 +32,22 @@
 		loading = false,
 		blockedReason,
 		onBack,
-		onForward
+		onForward,
+		aside
 	}: Props = $props();
 
 	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : (nextLabel ?? m.next()));
 	let explainBlocked = $derived(!canGoForward && !loading && blockedReason !== undefined);
 </script>
 
-<!-- Back and forward only (ADR-0048). The forward button is labelled so it reads as the way
-	out of the step, not the tool's own Next. -->
-<div class={cn(STEP_COLUMN_CLASS, PAGER_ROW_CLASS)}>
+<!-- Back and forward are the only moves (ADR-0048). The forward button is labelled so it reads
+	as the way out of the step, not the tool's own Next. -->
+<div class={cn(STEP_COLUMN_CLASS, PAGER_ROW_CLASS, 'relative')}>
+	{#if aside}
+		<div class="absolute left-1/2 -translate-x-1/2">
+			{@render aside()}
+		</div>
+	{/if}
 	<PagerButton
 		direction="back"
 		label={m.pager_back()}

@@ -1,11 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor } from '@tiptap/core';
+	import { Placeholder } from '@tiptap/extensions';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import TableInsertControls from './TableInsertControls.svelte';
 	import ImageControls from './ImageControls.svelte';
 	import ReportEmbedControls, { type EmbeddableStep } from './ReportEmbedControls.svelte';
-	import { type ActiveStates, type Toolset } from '$lib/components/RichTextEditor/types';
+	import {
+		CONTENT_TYPES,
+		type ActiveStates,
+		type Toolset
+	} from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import { SourceDocument } from './extensions/sourceDocument';
@@ -38,6 +43,7 @@
 
 	let {
 		value = $bindable(),
+		placeholder,
 		editable = true,
 		class: className = '',
 		minHeight = '200px',
@@ -82,6 +88,20 @@
 
 	let lastDocMapKey = $state('');
 
+	const EMPTY_DOCUMENT = { type: 'doc', content: [{ type: 'paragraph' }] };
+
+	// Empty markdown loads as a document with no paragraph, which leaves nothing for the
+	// placeholder to sit in.
+	function initialContent() {
+		if (placeholder && !value?.trim()) {
+			return { content: EMPTY_DOCUMENT, type: CONTENT_TYPES.JSON };
+		}
+		return detectContentType(value);
+	}
+
+	const PLACEHOLDER_CLASS =
+		'[&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-start [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:whitespace-pre-line [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]';
+
 	function createEditor() {
 		if (editor) {
 			editor.destroy();
@@ -90,7 +110,7 @@
 		if (!editorElement) return;
 
 		isInitializing = true;
-		const detected = detectContentType(value);
+		const detected = initialContent();
 		const docMap = buildDocMap(availableDocuments);
 		lastDocMapKey = JSON.stringify({ docMap, conversationId });
 
@@ -103,7 +123,8 @@
 				),
 				SourceDocument.configure({ documents: docMap, conversationId, editable: true }),
 				// Editor-only: turns a pasted markdown table into a real table.
-				MarkdownTablePaste
+				MarkdownTablePaste,
+				...(placeholder ? [Placeholder.configure({ placeholder })] : [])
 			],
 			content: detected.content,
 			contentType: detected.type,
@@ -242,10 +263,18 @@
 	>
 		{#if maxHeight}
 			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">
-				<div bind:this={editorElement} class="p-4" style="min-height: {minHeight}"></div>
+				<div
+					bind:this={editorElement}
+					class="p-4 {PLACEHOLDER_CLASS}"
+					style="min-height: {minHeight}"
+				></div>
 			</div>
 		{:else}
-			<div bind:this={editorElement} class="p-4" style="min-height: {minHeight}"></div>
+			<div
+				bind:this={editorElement}
+				class="p-4 {PLACEHOLDER_CLASS}"
+				style="min-height: {minHeight}"
+			></div>
 		{/if}
 	</div>
 </div>

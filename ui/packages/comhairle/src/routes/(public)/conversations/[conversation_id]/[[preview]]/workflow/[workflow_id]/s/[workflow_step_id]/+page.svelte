@@ -15,6 +15,7 @@
 	import StepShell from './StepShell.svelte';
 	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
+	import DataProtocolLink from './DataProtocolLink.svelte';
 	import StepComplete from './StepComplete.svelte';
 	import StepProceedBar from './StepProceedBar.svelte';
 	import StepHeader from './StepHeader.svelte';
@@ -483,7 +484,17 @@
 					blockedReason={currentSequence?.blockedReason}
 					onBack={goBack}
 					onForward={goForward}
-				/>
+				>
+					{#snippet aside()}
+						<DataProtocolLink
+							stepName={workflowStep.name}
+							text={workflowStep.dataProtocol}
+							toolType={toolConfig?.type}
+							{availableDocuments}
+							conversationId={conversation.id}
+						/>
+					{/snippet}
+				</StepPager>
 			{/if}
 		{/snippet}
 	</StepShell>
