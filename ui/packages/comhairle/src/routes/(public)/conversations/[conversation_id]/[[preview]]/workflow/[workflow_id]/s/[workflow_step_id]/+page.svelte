@@ -483,6 +483,8 @@
 					blockedReason={currentSequence?.blockedReason}
 					onBack={goBack}
 					onForward={goForward}
+					dataProtocol={workflowStep.dataProtocol}
+					stepName={workflowStep.name}
 				/>
 			{/if}
 		{/snippet}
