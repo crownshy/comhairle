@@ -33,7 +33,7 @@
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { Autosave } from '../autosave.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
 	import AccessSettings from './AccessSettings.svelte';
