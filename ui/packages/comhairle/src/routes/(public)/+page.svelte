@@ -84,29 +84,23 @@
 			{/if}
 		</header>
 
-		{#if data.conversations.ok !== null}
-			{#if data.conversations.ok.records.length > 0}
-				<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
-					{#each data.conversations.ok.records as conversation (conversation.id)}
-						<a
-							class="block w-full"
-							href={resolve(`/(public)/conversations/[conversation_id]`, {
-								conversation_id: conversation.slug || conversation.id
-							})}
-						>
-							<ConversationCard {conversation} variant="public" />
-						</a>
-					{/each}
-				</div>
+		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
+			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+				{#each data.conversations.ok.records as conversation (conversation.id)}
+					<a
+						class="block w-full"
+						href={resolve(`/(public)/conversations/[conversation_id]`, {
+							conversation_id: conversation.slug || conversation.id
+						})}
+					>
+						<ConversationCard {conversation} variant="public" />
+					</a>
+				{/each}
+			</div>
 
-				<div class="my-10 flex w-full justify-center md:mt-20">
-					<Pager
-						pageSize={PAGE_SIZE}
-						count={data.conversations.ok.total}
-						url={page.url}
-					/>
-				</div>
-			{/if}
+			<div class="my-10 flex w-full justify-center md:mt-20">
+				<Pager pageSize={PAGE_SIZE} count={data.conversations.ok.total} url={page.url} />
+			</div>
 		{/if}
 	</div>
 </div>
