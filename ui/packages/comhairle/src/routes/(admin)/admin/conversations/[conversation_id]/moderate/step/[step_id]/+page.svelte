@@ -43,6 +43,7 @@
 	stepName={data.step.name}
 	workflowStepId={data.step.id}
 	statements={data.statements}
+	translations={data.translations}
 	{rejectReasons}
 	defaultRejectReasons={data.defaultRejectReasons}
 />

@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { key } from '$lib/utils/invalidationKey';
-import { loadPolisStatements } from '$lib/tools/polis/loadStatements';
+import { loadPolisStatements, loadStepTranslations } from '$lib/tools/polis/loadStatements';
 import { isModeratableStep } from '../../moderatableSteps';
 import type { PageLoad } from './$types';
 
@@ -25,5 +25,9 @@ export const load: PageLoad = async ({ params, parent, depends }) => {
 	const hasOtherSteps =
 		workflowSteps.filter((s) => isModeratableStep(conversation.isLive, s)).length > 1;
 
-	return { step, toolConfig, hasOtherSteps, ...(await loadPolisStatements(api, step.id)) };
+	const [statements, translations] = await Promise.all([
+		loadPolisStatements(api, step.id),
+		loadStepTranslations(api, step.id)
+	]);
+	return { step, toolConfig, hasOtherSteps, ...statements, ...translations };
 };

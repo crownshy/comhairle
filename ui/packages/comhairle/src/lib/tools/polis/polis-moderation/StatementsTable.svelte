@@ -6,7 +6,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import Undo2 from '@lucide/svelte/icons/undo-2';
 	import X from '@lucide/svelte/icons/x';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import StatementModerationRow from './StatementModerationRow.svelte';
 	import RejectDialog from './RejectDialog.svelte';
@@ -36,6 +36,9 @@
 		onModerate: (row: PolisStatementAux, status: ModerationStatus, reason?: string) => void;
 		/** Per-row lineage strings for derived statements, keyed by aux row id. */
 		lineage: Record<string, { editedFrom?: string; replacedBy?: string[] }>;
+		/** Stored translations, keyed by aux row id. */
+		translationsByStatement: Record<string, PolisStatementTranslation[]>;
+		onTranslationChange: (translation: PolisStatementTranslation) => void;
 		onSplit: (row: PolisStatementAux) => void;
 		/** Shown in place of the rows when there are none to show. */
 		empty: Snippet;
@@ -56,6 +59,8 @@
 		onBulkModerate,
 		onModerate,
 		lineage,
+		translationsByStatement,
+		onTranslationChange,
 		onSplit,
 		empty
 	}: Props = $props();
@@ -178,6 +183,8 @@
 					{bulkWorking}
 					editedFrom={lineage[row.id]?.editedFrom}
 					replacedBy={lineage[row.id]?.replacedBy}
+					translations={translationsByStatement[row.id] ?? []}
+					{onTranslationChange}
 					onToggle={(checked, range) => onToggleSelect(row.id, checked, range)}
 					onModerate={(status, reason) => onModerate(row, status, reason)}
 					onSplit={() => onSplit(row)}

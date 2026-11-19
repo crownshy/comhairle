@@ -10,7 +10,7 @@
 	import { downloadCsv } from '$lib/utils/csv';
 	import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
@@ -28,6 +28,7 @@
 		stepName: string;
 		workflowStepId: string;
 		statements: PolisStatementAux[];
+		translations: PolisStatementTranslation[];
 		/** The step's moderation policy reasons (ADR-0038), offered on reject. */
 		rejectReasons: RejectReason[];
 		/** The API's default reasons. Export always matches them, see `reasonLabels`. */
@@ -40,6 +41,7 @@
 		stepName,
 		workflowStepId,
 		statements: initialStatements,
+		translations: initialTranslations,
 		rejectReasons,
 		defaultRejectReasons
 	}: Props = $props();
@@ -66,6 +68,19 @@
 	// then resyncs on its own when the load re-runs (sync/seed invalidate
 	// the Polis statements key and a fresh `initialStatements` flows back down).
 	let statements = $derived(initialStatements);
+
+	let translations = $derived(initialTranslations);
+	const translationsByStatement = $derived.by(() => {
+		const grouped: Record<string, PolisStatementTranslation[]> = {};
+		for (const translation of translations) {
+			(grouped[translation.polis_statement_aux_id] ??= []).push(translation);
+		}
+		return grouped;
+	});
+
+	function replaceTranslation(updated: PolisStatementTranslation) {
+		translations = translations.map((t) => (t.id === updated.id ? updated : t));
+	}
 
 	// --- Keeping the list fresh ---
 	const canSync = $derived(canModerate || canEdit);
@@ -460,6 +475,8 @@
 			{pending}
 			{bulkAction}
 			{lineage}
+			{translationsByStatement}
+			onTranslationChange={replaceTranslation}
 			onToggleSelect={toggleSelect}
 			onToggleAll={toggleSelectAll}
 			onClear={clearSelection}
