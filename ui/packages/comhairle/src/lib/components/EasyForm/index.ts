@@ -7,8 +7,8 @@ import { validate, type ValidationErr } from './validate';
 
 export {
 	type OnSubmit,
-	type FileAttr,
 	type InputAttr,
+	type FileAttr,
 	type Option,
 	type Schema,
 	type ValidationErr,

@@ -15,6 +15,7 @@ export type InputKey =
 	| 'admin/documents'
 	| 'admin/email-template-config'
 	| 'admin/event'
+	| 'admin/media'
 	| 'admin/knowledge-base/documents'
 	| 'admin/media-library/media'
 	| 'admin/organization/details'
