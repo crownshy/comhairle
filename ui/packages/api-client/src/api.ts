@@ -1004,6 +1004,26 @@ export const SplitStatementResponse = z
   })
   .passthrough();
 export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
+export const ModerationAction = z.union([
+  z.literal("decision"),
+  z.literal("split"),
+  z.literal("undo_split"),
+]);
+export type ModerationAction = z.infer<typeof ModerationAction>;
+export const PolisModerationEvent = z
+  .object({
+    action: ModerationAction,
+    actor_id: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    from_status: ModerationStatus,
+    id: z.string().uuid(),
+    polis_statement_aux_id: z.string().uuid(),
+    reason: z.union([z.string(), z.null()]).optional(),
+    to_status: ModerationStatus,
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type PolisModerationEvent = z.infer<typeof PolisModerationEvent>;
 export const HeyFormPublicChoice = z
   .object({ count: z.number().int().gte(0), label: z.string() })
   .passthrough();
@@ -1897,6 +1917,19 @@ export const MyDemographicAnswer = z
   })
   .passthrough();
 export type MyDemographicAnswer = z.infer<typeof MyDemographicAnswer>;
+export const ConversationAreaLinksDto = z
+  .object({
+    area_ids: z.array(z.string().uuid()),
+    conversation_id: z.string().uuid(),
+  })
+  .passthrough();
+export type ConversationAreaLinksDto = z.infer<typeof ConversationAreaLinksDto>;
+export const ConversationAreaLinksRequest = z
+  .object({ area_ids: z.array(z.string().uuid()) })
+  .passthrough();
+export type ConversationAreaLinksRequest = z.infer<
+  typeof ConversationAreaLinksRequest
+>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -3977,6 +4010,20 @@ export const RegionAreaLinksRequestDto = z
 export type RegionAreaLinksRequestDto = z.infer<
   typeof RegionAreaLinksRequestDto
 >;
+export const CreateRegionArea = z
+  .object({
+    area_geometry: z.unknown(),
+    name: z.union([z.string(), z.null()]),
+    tags: z.array(z.string()).default([]),
+    zip_prefix: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
+export const ImportRegionAreasRequest = z
+  .object({ areas: z.array(CreateRegionArea) })
+  .passthrough();
+export type ImportRegionAreasRequest = z.infer<typeof ImportRegionAreasRequest>;
 export const RegionAreaDto = z
   .object({
     areaGeometry: z.unknown().optional(),
@@ -3999,20 +4046,6 @@ export const PaginatedResults_for_RegionAreaDto = z
 export type PaginatedResults_for_RegionAreaDto = z.infer<
   typeof PaginatedResults_for_RegionAreaDto
 >;
-export const CreateRegionArea = z
-  .object({
-    area_geometry: z.unknown(),
-    name: z.union([z.string(), z.null()]),
-    tags: z.array(z.string()).default([]),
-    zip_prefix: z.union([z.string(), z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type CreateRegionArea = z.infer<typeof CreateRegionArea>;
-export const ImportRegionAreasRequest = z
-  .object({ areas: z.array(CreateRegionArea) })
-  .passthrough();
-export type ImportRegionAreasRequest = z.infer<typeof ImportRegionAreasRequest>;
 export const PartialRegionArea = z
   .object({
     area_geometry: z.unknown(),
@@ -4446,6 +4479,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
+  ModerationAction,
+  PolisModerationEvent,
   HeyFormPublicChoice,
   HeyFormPublicScalePoint,
   HeyFormPublicScale,
@@ -4549,6 +4584,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicFormLatestDto,
   PendingQuestion,
   MyDemographicAnswer,
+  ConversationAreaLinksDto,
+  ConversationAreaLinksRequest,
   CreateConversation,
   ConversationDto,
   Translation3,
@@ -4746,10 +4783,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialRegion,
   RegionAreaLinksDto,
   RegionAreaLinksRequestDto,
-  RegionAreaDto,
-  PaginatedResults_for_RegionAreaDto,
   CreateRegionArea,
   ImportRegionAreasRequest,
+  RegionAreaDto,
+  PaginatedResults_for_RegionAreaDto,
   PartialRegionArea,
   MediaContentType,
   content_type,
@@ -5046,6 +5083,11 @@ const endpoints = makeApi([
         schema: created_after,
       },
       {
+        name: "region_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "limit",
         type: "Query",
         schema: limit,
@@ -5110,6 +5152,51 @@ const endpoints = makeApi([
     description: `Delete the conversation and all related content`,
     requestFormat: "json",
     response: ConversationDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/areas",
+    alias: "GetConversationAreaLinks",
+    requestFormat: "json",
+    response: ConversationAreaLinksDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/areas",
+    alias: "SetConversationAreaLinks",
+    description: `Requires conversation update permission. Duplicate IDs are ignored. An empty area_ids list clears all coverage.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Replace the coverage set; an empty list removes all coverage.`,
+        type: "Body",
+        schema: ConversationAreaLinksRequest,
+      },
+    ],
+    response: ConversationAreaLinksDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/areas/:area_id",
+    alias: "AddConversationAreaLink",
+    requestFormat: "json",
+    response: ConversationAreaLinksDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/areas/:area_id",
+    alias: "RemoveConversationAreaLink",
+    requestFormat: "json",
+    response: ConversationAreaLinksDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/areas/:area_id/active",
+    alias: "IsConversationActiveInArea",
+    description: `Returns a boolean: true only when the conversation is live, not complete, and at least one attached boundary intersects the supplied area&#x27;s boundary. Shared edges count. No coverage or missing geometry returns false. Missing resources return 404. Draft conversations require team or preview access.`,
+    requestFormat: "json",
+    response: z.boolean(),
   },
   {
     method: "get",
@@ -6634,6 +6721,81 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
+    path: "/conversation/intersecting/:region_id",
+    alias: "ListConversationsIntersectingRegion",
+    description: `Any intersection with any of the region&#x27;s areas counts, including shared boundaries, regardless of live or complete status. Anonymous callers see public live conversations; signed-in users also see drafts and private conversations they can read. Results are localized, paginated, and unique per conversation. Conversations with no coverage and areas without geometry do not match.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_after",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "exclude_owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "is_complete",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_invite_only",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_live",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_public",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "region_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_LocalizedConversationDto,
+  },
+  {
+    method: "get",
     path: "/docs",
     alias: "getDocs",
     description: `This documentation page.`,
@@ -7566,25 +7728,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
-    path: "/region_areas/intersecting",
-    alias: "IntersectingRegionAreas",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "latitude",
-        type: "Query",
-        schema: z.number(),
-      },
-      {
-        name: "longitude",
-        type: "Query",
-        schema: z.number(),
-      },
-    ],
-    response: PaginatedResults_for_RegionAreaDto,
-  },
-  {
-    method: "get",
     path: "/regions",
     alias: "ListRegions",
     description: `Paginated list of regions with optional ordering`,
@@ -8247,6 +8390,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/polis/moderation_events",
+    alias: "PolisListModerationEvents",
+    description: `Every moderation decision on the step&#x27;s statements, newest first: who made it, the status before and after, and the reason. The log is append-only.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PolisModerationEvent),
+  },
+  {
+    method: "get",
     path: "/tools/polis/moderation_policy",
     alias: "PolisGetPublishedModerationPolicy",
     description: `Lists the reject reasons (label and description) the step&#x27;s moderators pick from, so participants can read the rules before they write a statement. Reads the draft config when preview is set or the step isn&#x27;t launched.`,
@@ -8557,14 +8715,6 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "post",
-    path: "/tools/polis/statement_aux/:id/undo_split",
-    alias: "PolisUndoSplitStatement",
-    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
-    requestFormat: "json",
-    response: SplitStatementResponse,
-  },
-  {
-    method: "post",
     path: "/tools/polis/statement_aux/:id/themes",
     alias: "PolisAddStatementAuxTheme",
     description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
@@ -8600,6 +8750,14 @@ Use a raw HTTP request and process the response body incrementally.
     description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
     requestFormat: "json",
     response: z.array(PolisStatementTranslation),
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/undo_split",
+    alias: "PolisUndoSplitStatement",
+    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
+    requestFormat: "json",
+    response: SplitStatementResponse,
   },
   {
     method: "get",
@@ -9712,6 +9870,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: created_after,
       },
       {
+        name: "region_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "limit",
         type: "Query",
         schema: limit,
@@ -9813,6 +9976,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
       {
         name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "region_id",
         type: "Query",
         schema: created_after,
       },
