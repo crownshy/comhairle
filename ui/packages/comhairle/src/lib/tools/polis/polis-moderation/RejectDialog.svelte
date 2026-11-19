@@ -73,7 +73,8 @@
 		if (event.metaKey || event.ctrlKey || event.altKey) return;
 
 		if (event.key === 'Enter') {
-			// Let Enter on Cancel, close or the note link do their own thing.
+			// Radio items are buttons, so Enter on one would only select it, not submit.
+			// Cancel, close and the note link keep their own Enter.
 			const onOtherButton =
 				event.target instanceof HTMLButtonElement &&
 				event.target.getAttribute('role') !== 'radio';
@@ -142,6 +143,9 @@
 								<RadioGroup.Item
 									value={reason.label}
 									id="{instanceId}-reason-{index}"
+									aria-keyshortcuts={index < SHORTCUT_LIMIT
+										? String(index + 1)
+										: undefined}
 									class="border-muted-foreground mt-1"
 								/>
 								<span class="flex min-w-0 flex-1 flex-col gap-0.5">
