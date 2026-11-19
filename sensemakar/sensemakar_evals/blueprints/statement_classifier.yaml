@@ -1,0 +1,16 @@
+task: statement_classifier
+description: >
+  Classifies each statement's broad semantic type - Claim, Fact, Belief,
+  Question, or Refutation (sensemakar::statement_classifier::StatementTypeClassifier).
+cases:
+  - id: mixed-statement-types
+    fixture: ../fixtures/statement_classifier/statements.json
+    should:
+      - "Classifies 'The council should build more affordable housing...' as a Claim"
+      - "Classifies 'The town's population grew by 12%...' as a Fact"
+      - "Classifies 'Why hasn't the new library...opened yet?' as a Question"
+      - "Classifies the 'That's not true - the new bus route...' statement as a Refutation"
+      - "Returns every input statement exactly once, unchanged except for the added classification"
+    should_not:
+      - "Leaves any statement's statement_type unset"
+    weight: 1.0

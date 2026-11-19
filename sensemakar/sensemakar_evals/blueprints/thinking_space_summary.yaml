@@ -1,0 +1,17 @@
+task: thinking_space_summary
+description: >
+  Summarizes a full Thinking Space interview (base question/answer plus
+  follow-ups) in the participant's voice, plus their areas of uncertainty
+  (sensemakar::thinking_space::SummaryGenerator).
+cases:
+  - id: social-prescribing-summary
+    fixture: ../fixtures/thinking_space/summary_question_chain.json
+    should:
+      - "Summary captures that the participant sees social prescribing as beneficial because current resources (e.g. the sports club) are too expensive to access"
+      - "areas_of_uncertainty captures the participant's doubt about whether older people would feel welcome taking up these resources"
+      - "areas_of_uncertainty captures that young people in the participant's circle are against being prescribed a social remedy instead of a medical one"
+      - "Summary is written in first person, in the participant's voice"
+    should_not:
+      - "Fabricates a detail not present in any of the participant's answers"
+      - "Returns a stub value like 'string' or an empty summary"
+    weight: 1.0

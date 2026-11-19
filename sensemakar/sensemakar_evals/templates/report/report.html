@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sensemakar evals report</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --pass: #1a7f37;
+    --fail: #cf222e;
+    --border: #d0d7de;
+    --muted: #6e7781;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    line-height: 1.5;
+  }
+  h1 { margin-bottom: 0.25rem; }
+  .task {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+  }
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .task-header h2 { margin: 0; }
+  .task-summary { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
+  .description { color: var(--muted); margin: 0.25rem 0 1rem; }
+  .case { border-top: 1px solid var(--border); padding: 0.75rem 0; }
+  .case:first-of-type { border-top: none; }
+  .case-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .case-id { font-weight: 600; }
+  .case-meta { color: var(--muted); font-size: 0.85rem; }
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .badge.pass { color: var(--pass); background: color-mix(in srgb, var(--pass) 15%, transparent); }
+  .badge.fail { color: var(--fail); background: color-mix(in srgb, var(--fail) 15%, transparent); }
+  ul.points { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+  ul.points li {
+    padding: 0.35rem 0 0.35rem 1.5rem;
+    position: relative;
+  }
+  ul.points li::before {
+    position: absolute;
+    left: 0;
+    font-weight: 700;
+  }
+  ul.points li.pass::before { content: "✓"; color: var(--pass); }
+  ul.points li.fail::before { content: "✗"; color: var(--fail); }
+  .rationale { color: var(--muted); font-size: 0.9rem; display: block; }
+</style>
+</head>
+<body>
+<h1>sensemakar evals report</h1>
+<p class="description">LLM-as-judge rubric scores across every sensemakar task, generated from recorded eval results (test suite runs and CLI spot-checks).</p>
+
+{% for task_report in tasks %}
+<section class="task">
+  <div class="task-header">
+    <h2>{{task_report.task}}</h2>
+    <span class="task-summary">{{task_report.pass_count}}/{{task_report.case_count}} cases passed &middot; avg {{task_report.average_score_pct}}%</span>
+  </div>
+  <p class="description">{{task_report.description}}</p>
+
+  {% for case in task_report.cases %}
+  <div class="case">
+    <div class="case-header">
+      <span class="case-id">{{case.case_id}}</span>
+      <span class="case-meta">
+        {% if case.passed %}<span class="badge pass">PASS</span>{% else %}<span class="badge fail">FAIL</span>{% endif %}
+        {{case.score_pct}}% &middot; {{case.source}}
+      </span>
+    </div>
+    <ul class="points">
+      {% for point in case.points %}
+      <li class="{%if point.passed%}pass{%else%}fail{%endif%}">
+        {{point.criterion}}
+        <span class="rationale">{{point.rationale}}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+
+</body>
+</html>

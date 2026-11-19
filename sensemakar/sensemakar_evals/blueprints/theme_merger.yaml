@@ -1,0 +1,15 @@
+task: theme_merger
+description: >
+  Collapses a candidate list of near-duplicate themes down to one canonical
+  theme per group (sensemakar::theme_merger::ThemeMerger).
+cases:
+  - id: bus-duplicates
+    fixture: ../fixtures/theme_merger/candidates.json
+    should:
+      - "Merges the two bus-lateness candidates ('Bus reliability' and 'Late buses') into the same group"
+      - "Keeps the bike-storage candidate in its own, separate group"
+      - "Every candidate id from the input appears in exactly one output group"
+    should_not:
+      - "Drops a candidate id - every id given in the input must be accounted for in some group"
+      - "Merges the bike-storage candidate into the bus group"
+    weight: 1.0

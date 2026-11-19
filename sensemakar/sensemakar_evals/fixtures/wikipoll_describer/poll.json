@@ -1,0 +1,37 @@
+{
+  "title": "What should be the future of south staffordshire?",
+  "statements": [
+    {
+      "statement": "We need more affordable housing near the town centre.",
+      "total_votes": {"agree": 42, "disagree": 3, "pass": 2},
+      "group_votes": {
+        "A": {"agree": 30, "disagree": 1, "pass": 1},
+        "B": {"agree": 12, "disagree": 2, "pass": 1}
+      }
+    },
+    {
+      "statement": "New development should only go on brownfield sites, never the green belt.",
+      "total_votes": {"agree": 18, "disagree": 25, "pass": 4},
+      "group_votes": {
+        "A": {"agree": 4, "disagree": 20, "pass": 1},
+        "B": {"agree": 14, "disagree": 5, "pass": 3}
+      }
+    },
+    {
+      "statement": "The council should invest in better public transport before approving any new housing.",
+      "total_votes": {"agree": 40, "disagree": 2, "pass": 5},
+      "group_votes": {
+        "A": {"agree": 25, "disagree": 1, "pass": 2},
+        "B": {"agree": 15, "disagree": 1, "pass": 3}
+      }
+    },
+    {
+      "statement": "Green belt land should be protected even if it means fewer new homes get built.",
+      "total_votes": {"agree": 12, "disagree": 28, "pass": 3},
+      "group_votes": {
+        "A": {"agree": 2, "disagree": 26, "pass": 1},
+        "B": {"agree": 10, "disagree": 2, "pass": 2}
+      }
+    }
+  ]
+}

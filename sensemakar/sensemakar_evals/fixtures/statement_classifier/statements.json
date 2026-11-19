@@ -1,0 +1,7 @@
+[
+  {"id": "1", "speaker_id": null, "statement_type": null, "text": "The council should build more affordable housing near the station.", "lang": "en"},
+  {"id": "2", "speaker_id": null, "statement_type": null, "text": "The town's population grew by 12% over the last five years.", "lang": "en"},
+  {"id": "3", "speaker_id": null, "statement_type": null, "text": "I believe the new bus route will reduce congestion on the high street.", "lang": "en"},
+  {"id": "4", "speaker_id": null, "statement_type": null, "text": "Why hasn't the new library on Mill Road opened yet?", "lang": "en"},
+  {"id": "5", "speaker_id": null, "statement_type": null, "text": "That's not true - the new bus route actually made traffic worse, not better.", "lang": "en"}
+]
