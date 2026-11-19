@@ -34,7 +34,7 @@
 	async function save(translation: PolisStatementTranslation) {
 		const content = textOf(translation);
 		if (content === translation.content || saveStates[translation.id] === 'saving') return;
-		saveStates = { ...saveStates, [translation.id]: 'saving' };
+		saveStates[translation.id] = 'saving';
 
 		const res = await tryCatchAsync(() =>
 			apiClient.PolisUpdateStatementTranslation(
@@ -43,24 +43,24 @@
 			)
 		);
 		if (res.err !== null) {
-			saveStates = { ...saveStates, [translation.id]: 'failed' };
+			saveStates[translation.id] = 'failed';
 			notifications.send({ priority: 'ERROR', message: 'Failed to save translation' });
 			return;
 		}
-		saveStates = { ...saveStates, [translation.id]: 'saved' };
+		saveStates[translation.id] = 'saved';
 		onChange(res.ok);
 	}
 
 	async function verify(translation: PolisStatementTranslation) {
 		if (verifying[translation.id]) return;
-		verifying = { ...verifying, [translation.id]: true };
+		verifying[translation.id] = true;
 
 		const res = await tryCatchAsync(() =>
 			apiClient.PolisVerifyStatementTranslation(undefined, {
 				params: { id: translation.id }
 			})
 		);
-		verifying = { ...verifying, [translation.id]: false };
+		verifying[translation.id] = false;
 
 		if (res.err !== null) {
 			notifications.send({
@@ -101,8 +101,7 @@
 				<Textarea
 					id={fieldId}
 					value={textOf(translation)}
-					oninput={(e) =>
-						(drafts = { ...drafts, [translation.id]: e.currentTarget.value })}
+					oninput={(e) => (drafts[translation.id] = e.currentTarget.value)}
 					onblur={() => save(translation)}
 					class="min-h-11 md:text-base"
 				/>
