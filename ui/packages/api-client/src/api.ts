@@ -919,7 +919,10 @@ export const ThemeStatistic = z
 export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
 export const ThemeRequest = z.object({ theme: z.string() }).passthrough();
 export type ThemeRequest = z.infer<typeof ThemeRequest>;
-export const ModerationDecisionRequest = z.enum(["accept", "reject"]);
+export const ModerationDecisionRequest = z.union([
+  z.enum(["accept", "reject"]),
+  z.literal("pending"),
+]);
 export type ModerationDecisionRequest = z.infer<
   typeof ModerationDecisionRequest
 >;
