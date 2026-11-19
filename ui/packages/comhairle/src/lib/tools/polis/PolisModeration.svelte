@@ -13,6 +13,8 @@
 	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
+	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
+	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
 	import StatementsPagination from './polis-moderation/StatementsPagination.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
@@ -33,6 +35,8 @@
 		rejectReasons: RejectReason[];
 		/** The API's default reasons. Export always matches them, see `reasonLabels`. */
 		defaultRejectReasons: RejectReason[];
+		/** The step's config, for the moderator email switch. */
+		step: PolisStepTarget;
 	};
 
 	let {
@@ -43,7 +47,8 @@
 		statements: initialStatements,
 		translations: initialTranslations,
 		rejectReasons,
-		defaultRejectReasons
+		defaultRejectReasons,
+		step
 	}: Props = $props();
 	type ModerationStatus = PolisStatementAux['moderation_status'];
 	const DECISIONS = { accepted: 'accept', rejected: 'reject', pending: 'pending' } as const;
@@ -418,6 +423,7 @@
 	<div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
 		<div class="flex min-w-0 flex-col gap-1">
 			<h2 class="text-2xl font-bold">{stepName}</h2>
+			<ModeratorEmailStatus {step} {canEdit} />
 		</div>
 		<Button
 			data-tour="moderation-actions"

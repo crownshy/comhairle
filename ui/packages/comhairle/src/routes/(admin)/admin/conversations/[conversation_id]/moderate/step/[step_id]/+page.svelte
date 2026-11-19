@@ -46,4 +46,11 @@
 	translations={data.translations}
 	{rejectReasons}
 	defaultRejectReasons={data.defaultRejectReasons}
+	step={{
+		conversationId: data.conversation.id,
+		workflowId: data.step.workflowId,
+		workflowStepId: data.step.id,
+		isLive: data.conversation.isLive,
+		toolConfig: data.toolConfig
+	}}
 />
