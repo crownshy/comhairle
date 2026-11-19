@@ -80,25 +80,22 @@
 		</div>
 	</div>
 	<div class="mx-auto flex h-full w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
-		<header class="pb-5 md:pb-20">
-			<p class="sr-only" aria-live="polite">
-				{#if data.conversations.ok?.total === 0}
-					{m.conversations_no_conversations_found()}
-				{:else if data.conversations.ok?.total === 1}
-					{m.conversations_found_one()}
-				{:else}
-					{m.conversations_found_count({ count: data.conversations.ok?.total ?? 0 })}
-				{/if}
-			</p>
+		<header>
 			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
 			</p>
 			{#if data.conversations.err !== null}
 				<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
-			{:else if data.conversations.ok.records.length === 0}
-				<p class="text-muted-foreground pt-10">
-					{m.conversations_no_conversations_found()}
+			{:else}
+				<p class="text-muted-foreground mt-10 mb-2 font-semibold" aria-live="polite">
+					{#if data.conversations.ok.total === 0}
+						{m.conversations_no_conversations_found()}
+					{:else if data.conversations.ok.total === 1}
+						{m.conversations_found_one()}
+					{:else}
+						{m.conversations_found_count({ count: data.conversations.ok.total })}
+					{/if}
 				</p>
 			{/if}
 		</header>
