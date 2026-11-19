@@ -101,13 +101,18 @@
 				{#each tabs as tab (tab.value)}
 					<Tabs.Content value={tab.value} class="overflow-y-auto pe-2">
 						{#if tab.value === 'privacyPolicy' && stepDataProtocol}
-							<StepDataProtocol
-								text={stepDataProtocol.text}
-								toolType={stepDataProtocol.toolType}
-								onOpenFaq={() => (activeTab = 'faqs')}
-								{availableDocuments}
-								conversationId={conversation.id}
-							/>
+							<section class="border-border mb-6 flex flex-col gap-3 border-b pb-6">
+								<h2 class="text-primary text-xl font-bold">
+									{m.data_protocol_step_heading()}
+								</h2>
+								<StepDataProtocol
+									text={stepDataProtocol.text}
+									toolType={stepDataProtocol.toolType}
+									onOpenFaq={() => (activeTab = 'faqs')}
+									{availableDocuments}
+									conversationId={conversation.id}
+								/>
+							</section>
 						{/if}
 						{#if tab.content}
 							<ContentRenderer
