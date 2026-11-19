@@ -3,7 +3,6 @@
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
-	import { PAGE_SIZE } from './conversations/utils';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Info from '@lucide/svelte/icons/info';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -72,7 +71,10 @@
 				aria-label={m.conversations_search()}
 				value={QueryParams.get('search') ?? undefined}
 				oninput={useDebounce((event) => {
-					QueryParams.set('search', (event.target as HTMLInputElement).value);
+					QueryParams.setMultiple([
+						['search', (event.target as HTMLInputElement).value],
+						['page', '0']
+					]);
 				}, 300)}
 				class="bg-muted h-12 rounded-full border-0 pl-11 text-lg shadow-none md:text-lg"
 			/>
@@ -117,7 +119,11 @@
 			</div>
 
 			<div class="my-10 flex w-full justify-center md:mt-20">
-				<Pager pageSize={PAGE_SIZE} count={data.conversations.ok.total} url={page.url} />
+				<Pager
+					pageSize={data.CONVERSATION_PAGE_SIZE}
+					count={data.conversations.ok.total}
+					url={page.url}
+				/>
 			</div>
 		{/if}
 	</div>

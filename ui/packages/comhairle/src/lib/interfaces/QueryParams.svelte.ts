@@ -6,30 +6,31 @@ function refresh(href: string = new URL(page.url).href) {
 	goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 }
 
-function get<T extends string>(key: T): string | null {
-	const url = new URL(page.url);
-	return url.searchParams.get(key);
+function get<T extends string>(key: T, url?: URL): string | null {
+	const Url = url ?? new URL(page.url);
+	return Url.searchParams.get(key);
 }
 
-function set<T extends string>(key: T, value: string): void {
-	const url = new URL(page.url);
+function set<T extends string>(key: T, value: string, url?: URL): void {
+	const Url = url ?? new URL(page.url);
 	if (!value) {
-		url.searchParams.delete(key);
+		Url.searchParams.delete(key);
 	} else {
-		url.searchParams.set(key, value);
+		Url.searchParams.set(key, value);
 	}
 	refresh(url.href);
 }
 
-function remove<T extends string>(key: T): void {
-	const url = new URL(page.url);
-	url.searchParams.delete(key);
-	refresh(url.href);
+function remove<T extends string>(key: T, url?: URL): void {
+	const Url = url ?? new URL(page.url);
+	Url.searchParams.delete(key);
+	refresh(Url.href);
 }
 
 const QueryParams = {
 	get,
 	set,
+	setMultiple,
 	remove
 };
 
