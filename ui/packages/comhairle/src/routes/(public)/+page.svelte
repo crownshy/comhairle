@@ -71,10 +71,9 @@
 				aria-label={m.conversations_search()}
 				value={QueryParams.get('search') ?? undefined}
 				oninput={useDebounce((event) => {
-					QueryParams.setMultiple([
-						['search', (event.target as HTMLInputElement).value],
-						['page', '0']
-					]);
+					QueryParams.set('search', (event.target as HTMLInputElement).value)
+						.set('page', '0')
+						.update();
 				}, 300)}
 				class="bg-muted h-12 rounded-full border-0 pl-11 text-lg shadow-none md:text-lg"
 			/>
