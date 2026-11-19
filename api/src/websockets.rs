@@ -1035,10 +1035,9 @@ async fn route_to_handler(
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-
     use super::*;
     use crate::redis_connection::MockRedis;
+    use crate::test_helpers::test_user;
 
     #[tokio::test]
     async fn test_websocket_broadcast_to_all_with_redis_pubsub() {
@@ -1114,24 +1113,6 @@ mod tests {
                 .await
                 .expect_err("subscriber should be cancelled");
             assert!(error.is_cancelled(), "subscriber panicked: {error}");
-        }
-    }
-
-    fn test_user(id: Uuid) -> crate::models::users::User {
-        crate::models::users::User {
-            id,
-            email: Some("test@example.com".to_string()),
-            username: Some("test_user".to_string()),
-            password: None,
-            guest_code: None,
-            avatar_url: None,
-            email_verified: true,
-            auth_type: crate::models::users::UserAuthType::EmailPassword,
-            organization_id: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            signup_ip: None,
-            signup_user_agent: None,
         }
     }
 

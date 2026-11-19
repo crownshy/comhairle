@@ -19,6 +19,7 @@
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
 	import MeetingLobby from '$lib/components/LiveEvent/MeetingLobby.svelte';
 	import AgendaPanel from '$lib/components/LiveEvent/AgendaPanel.svelte';
+	import AgendaEditPanel from '$lib/components/LiveEvent/AgendaEditPanel.svelte';
 	import BreakoutSessionPanel from '$lib/components/LiveEvent/BreakoutSessionPanel.svelte';
 	import BreakoutRoomsPanel from '$lib/components/LiveEvent/BreakoutRoomsPanel.svelte';
 	import BreakoutEndingDialog from '$lib/components/LiveEvent/BreakoutEndingDialog.svelte';
@@ -141,7 +142,9 @@
 	let endingBreakoutSession = $state(false);
 
 	// Prefer the agenda pushed over WS (live edits) over the SSR-loaded one, which can go stale.
-	let agendaItems = $derived(mapApiAgenda(videoCallService.agenda ?? event?.agenda ?? []));
+	let apiAgenda = $derived(videoCallService.agenda ?? event?.agenda ?? []);
+	let agendaItems = $derived(mapApiAgenda(apiAgenda));
+	let editingAgenda = $state(false);
 
 	let meetingPhase = $derived(attendance.phase);
 
@@ -234,6 +237,11 @@
 		}
 		return mockBreakoutRooms;
 	});
+	let editingAgendaInSidebar = $derived(isModerator && editingAgenda);
+	let breakoutPanelShowing = $derived(
+		(isBreakoutActive && inBreakoutRoom) ||
+			(activePanel === 'breakoutRooms' && breakoutRoomDisplays.length > 0)
+	);
 
 	let preassignedBreakoutRooms = $derived(
 		groupParticipantsByRoom(inCallParticipants, videoCallService.breakoutRooms)
@@ -855,6 +863,22 @@
 					showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}
 					onTabChange={(tab) => (activePanel = tab)}
 				>
+					<!-- Kept mounted while a breakout panel covers it, so the host's unsaved edits survive. -->
+					{#if editingAgendaInSidebar}
+						<div class={breakoutPanelShowing ? 'hidden' : 'contents'}>
+							<AgendaEditPanel
+								agenda={apiAgenda}
+								{currentStep}
+								onSave={(editedFromStep, upcoming) =>
+									videoCallService.updateUpcomingAgenda(
+										eventId,
+										editedFromStep,
+										upcoming
+									)}
+								onClose={() => (editingAgenda = false)}
+							/>
+						</div>
+					{/if}
 					{#if isBreakoutActive && inBreakoutRoom}
 						<BreakoutSessionPanel
 							roomName={roomChipText}
@@ -879,7 +903,7 @@
 							onBroadcastMessage={() => (showBroadcast = true)}
 							onEditRooms={() => (showEditBreakout = true)}
 						/>
-					{:else}
+					{:else if !editingAgendaInSidebar}
 						<AgendaPanel
 							items={agendaItems}
 							{currentStep}
@@ -888,6 +912,7 @@
 							onSetCurrent={handleSetAgendaItem}
 							onNext={handleNextAgendaItem}
 							onEndMeeting={() => (showEndMeeting = true)}
+							onEditAgenda={() => (editingAgenda = true)}
 						/>
 					{/if}
 				</SidePanel>

@@ -62,6 +62,16 @@ impl EventAgenda {
             _ => None,
         })
     }
+
+    /// Keeps the items up to and including `current_step` and replaces everything after
+    /// it with `upcoming`. Used for live edits during a call, where items that have
+    /// started or finished can't change.
+    pub fn with_upcoming(&self, current_step: usize, upcoming: Vec<EventAgendaItem>) -> Self {
+        let locked_count = (current_step + 1).min(self.0.len());
+        let mut items = self.0[..locked_count].to_vec();
+        items.extend(upcoming);
+        EventAgenda(items)
+    }
 }
 
 /// A single seat in a pre-assigned breakout room.
@@ -985,6 +995,47 @@ mod tests {
 
         let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
         assert!(validate_custom_event_link(&too_long).is_err());
+    }
+
+    fn basic_item(title: &str) -> EventAgendaItem {
+        EventAgendaItem::Basic(BasicEventAgendaItem {
+            title: title.to_string(),
+            description: String::new(),
+            estimated_time: 0,
+        })
+    }
+
+    fn agenda_of(titles: &[&str]) -> EventAgenda {
+        EventAgenda(titles.iter().map(|title| basic_item(title)).collect())
+    }
+
+    #[test]
+    fn with_upcoming_keeps_the_current_and_earlier_items() {
+        let agenda = agenda_of(&["Welcome", "Intro", "Old next", "Old last"]);
+
+        let edited = agenda.with_upcoming(1, vec![basic_item("New next")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Intro", "New next"]));
+    }
+
+    #[test]
+    fn with_upcoming_can_clear_or_append_after_the_last_item() {
+        let agenda = agenda_of(&["Welcome", "Close"]);
+
+        assert_eq!(agenda.with_upcoming(1, vec![]), agenda);
+        assert_eq!(
+            agenda.with_upcoming(1, vec![basic_item("Extra")]),
+            agenda_of(&["Welcome", "Close", "Extra"])
+        );
+    }
+
+    #[test]
+    fn with_upcoming_handles_a_step_past_the_end_of_the_agenda() {
+        let agenda = agenda_of(&["Welcome"]);
+
+        let edited = agenda.with_upcoming(5, vec![basic_item("Added")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Added"]));
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
