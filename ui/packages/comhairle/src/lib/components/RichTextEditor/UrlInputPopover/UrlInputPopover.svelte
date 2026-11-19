@@ -11,7 +11,7 @@
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import { MediaUpload } from '$lib/components/Media';
-	import MediaLibraryDialog, { addToCache } from '../../Media/MediaLibraryDialog.svelte';
+	import MediaLibraryDialog from '../../Media/MediaLibraryDialog.svelte';
 
 	type OnSubmit = {
 		from: 'library' | 'external-url';
@@ -116,10 +116,8 @@
 						}}
 					/>
 					<MediaUpload
-						clientSide
 						size="sm"
 						oncomplete={(media) => {
-							addToCache(media);
 							onSubmit({ from: 'library', url: media.url });
 							open = false;
 						}}

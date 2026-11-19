@@ -1,13 +1,3 @@
-<script lang="ts" module>
-	let cache: MediaDto[] | null = null;
-
-	export function addToCache(media: MediaDto): void {
-		if (cache !== null) {
-			cache.push(media);
-		}
-	}
-</script>
-
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -16,7 +6,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import { tryCatchAsync, type Result } from '$lib/utils/errorHandling';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import ErrorMessage from '../ErrorMessage.svelte';
@@ -27,35 +17,27 @@
 
 	const { onconfirm }: Props = $props();
 
-	async function getData(): Promise<Result<MediaDto[], string>> {
-		const request = await tryCatchAsync(() => apiClient.ListMedia());
-		if (request.err !== null) {
-			return {
-				ok: null,
-				err: request.err as string
-			};
-		}
-		const media = request.ok.records as MediaDto[];
-		cache = media;
-		return { ok: media, err: null };
-	}
+	const getData = () => tryCatchAsync(() => apiClient.ListMedia().then((res) => res.records));
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
 	let selected = $state<MediaDto['id'] | null>(null);
 	let open = $state(false);
 </script>
 
-<Dialog.Root bind:open>
+<Dialog.Root
+	bind:open
+	onOpenChange={(open) => {
+		if (!open) {
+			selected = null;
+		}
+	}}
+>
 	<Dialog.Trigger class="flex justify-start">
 		<Button
 			size="sm"
 			aria-label="Open media library"
 			icon={Images}
 			onclick={() => {
-				if (cache !== null) {
-					dataRequest = Promise.resolve({ ok: cache, err: null });
-					return;
-				}
 				dataRequest = getData();
 			}}
 		>
