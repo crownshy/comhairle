@@ -7,7 +7,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import StatementModerationRow from './StatementModerationRow.svelte';
-	import RejectReasonPopover from './RejectReasonPopover.svelte';
+	import RejectDialog from './RejectDialog.svelte';
 
 	type Props = {
 		editable?: boolean;
@@ -82,14 +82,15 @@
 						<Check class="size-4" />
 						Approve
 					</LoadingButton>
-					<RejectReasonPopover
+					<RejectDialog
 						reasons={rejectReasons}
 						heading={`Reject ${selectedCount} statement${selectedCount === 1 ? '' : 's'}`}
 						disabled={bulkWorking}
 						onConfirm={(reason) => onBulkModerate('rejected', reason)}
 					>
-						{#snippet trigger()}
+						{#snippet trigger({ props })}
 							<LoadingButton
+								{...props}
 								size="sm"
 								variant="destructive"
 								loading={bulkAction === 'rejected'}
@@ -99,7 +100,7 @@
 								Reject
 							</LoadingButton>
 						{/snippet}
-					</RejectReasonPopover>
+					</RejectDialog>
 					<Button size="sm" variant="ghost" disabled={bulkWorking} onclick={onClear}>
 						Clear
 					</Button>

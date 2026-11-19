@@ -4,7 +4,7 @@
 	import { Check, Languages, Pencil, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
-	import RejectReasonPopover from './RejectReasonPopover.svelte';
+	import RejectDialog from './RejectDialog.svelte';
 	import TranslationsPanel from './TranslationsPanel.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
 
@@ -196,16 +196,18 @@
 			>
 				<Check class="size-6" />
 			</button>
-			<RejectReasonPopover
+			<RejectDialog
 				reasons={rejectReasons}
 				heading={rejectHeading}
+				statementText={actsOnSelection ? undefined : row.statement_text}
 				disabled={pending ||
 					bulkWorking ||
 					(!actsOnSelection && row.moderation_status === 'rejected')}
 				onConfirm={(reason) => onModerate('rejected', reason)}
 			>
-				{#snippet trigger()}
+				{#snippet trigger({ props })}
 					<button
+						{...props}
 						type="button"
 						disabled={pending ||
 							bulkWorking ||
@@ -216,7 +218,7 @@
 						<X class="size-6" />
 					</button>
 				{/snippet}
-			</RejectReasonPopover>
+			</RejectDialog>
 		{:else}
 			<Badge variant="outline" class="text-base capitalize">{row.moderation_status}</Badge>
 		{/if}
