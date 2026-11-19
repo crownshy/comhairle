@@ -15,15 +15,15 @@
 	import SquareArrowOutUpLeft from '@lucide/svelte/icons/square-arrow-out-up-left';
 	import X from '@lucide/svelte/icons/x';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { tryCatchAsync, type Result } from '$lib/utils/errorHandling';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import ErrorMessage from '../ErrorMessage.svelte';
 
-	interface Props {
+	type Props = {
 		onconfirm: (media: MediaDto) => void;
-	}
+	};
 
 	const { onconfirm }: Props = $props();
 
@@ -32,7 +32,7 @@
 		if (request.err !== null) {
 			return {
 				ok: null,
-				err: request.err
+				err: request.err as string
 			};
 		}
 		const media = request.ok.records as MediaDto[];
@@ -41,8 +41,7 @@
 	}
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
-
-	let selectedMedia = $state<MediaDto | null>(null);
+	let selected = $state<MediaDto['id'] | null>(null);
 	let open = $state(false);
 </script>
 
@@ -51,21 +50,24 @@
 		<Button
 			size="sm"
 			aria-label="Open media library"
+			icon={Images}
 			onclick={() => {
 				if (cache !== null) {
 					dataRequest = Promise.resolve({ ok: cache, err: null });
 					return;
 				}
 				dataRequest = getData();
-			}}><Images class="h-4 w-4" />Media library</Button
+			}}
 		>
+			Media library
+		</Button>
 	</Dialog.Trigger>
 	<Dialog.Portal>
 		<Dialog.Content
 			showCloseButton={false}
 			class="max-h-[80vh] overflow-y-auto pt-0 sm:max-w-3xl"
 		>
-			<div class="bg-background sticky top-0 z-10 -mx-6 mb-5 px-6 pt-6 pb-3">
+			<div class="bg-background sticky top-0 z-10 -mx-6 px-6 pt-6 pb-3">
 				<div class=" flex flex-row items-center justify-between">
 					<div class="flex flex-row items-center gap-1">
 						<Dialog.Title>Media library</Dialog.Title>
@@ -75,19 +77,24 @@
 							size="sm"
 							title="Go to media library"
 							aria-label="Go to media library"
-						>
-							<SquareArrowOutUpLeft />
-						</Button>
+							icon={SquareArrowOutUpLeft}
+						/>
 					</div>
 					<div class="flex items-center gap-2">
 						<Button
-							disabled={!selectedMedia}
-							onclick={() => {
-								if (!selectedMedia) return;
-								onconfirm(selectedMedia);
+							disabled={!selected}
+							onclick={async () => {
+								if (!selected || !dataRequest) return;
+								const media = (await dataRequest).ok?.find(
+									(m) => m.id === selected
+								);
+								if (!media) return;
+								onconfirm(media);
 								open = false;
-							}}>Select</Button
+							}}
 						>
+							Select
+						</Button>
 						<Dialog.Close
 							class="focus-visible:outline-ring rounded-sm p-2 opacity-70 hover:opacity-100 focus-visible:outline-2"
 							aria-label="Close media library"
@@ -103,28 +110,9 @@
 					<Spinner />
 				{:then data}
 					{#if data.err !== null}
-						<p>{data.err}</p>
+						<ErrorMessage>{data.err}</ErrorMessage>
 					{:else}
-						<MediaLibrary data={data.ok}>
-							{#snippet media(type, media)}
-								<label>
-									<input
-										type="radio"
-										name="selected"
-										value={media}
-										bind:group={selectedMedia}
-										class="hidden"
-									/>
-									<MediaItem
-										{type}
-										{...media}
-										alt=""
-										--selected={selectedMedia?.url === media.url &&
-											'var(--ring)'}
-									/>
-								</label>
-							{/snippet}
-						</MediaLibrary>
+						<MediaLibrary media={data.ok} mode="single-select" bind:selected />
 					{/if}
 				{/await}
 			{/if}

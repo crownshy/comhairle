@@ -7,7 +7,6 @@
 	import DeleteDialog from './DeleteDialog.svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { MediaDto } from '@crownshy/api-client/api';
@@ -26,11 +25,13 @@
 
 	const { data } = $props();
 
-	let deleteForm: HTMLFormElement | undefined;
 	let bulkEdit = $state<boolean>(false);
-	let selected = $state([]);
-	let details = $state<MediaDto | null>(null);
+	let selected = $state.raw([]);
+	let details = $state.raw<MediaDto | null>(null);
 	let filter = $state<HTMLMediaElement | null>(null);
+	let detailsDialogOpen = $state<boolean>(false);
+
+	let DeleteForm = $state<HTMLFormElement>();
 
 	let items = $derived.by(() => {
 		if (!data.media) {
@@ -83,7 +84,7 @@
 					{m.edit()}
 				</Button>
 			{:else}
-				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
+				<DeleteDialog count={selected.length} onconfirm={() => DeleteForm?.submit()}>
 					<Button variant="destructive" disabled={selected.length === 0} icon={Trash2}>
 						{m.delete()}
 					</Button>
@@ -104,39 +105,27 @@
 	</div>
 	<div class="mt-5">
 		<Dialog.Root
+			bind:open={detailsDialogOpen}
 			onOpenChange={(open) => {
 				if (!open) {
 					details = null;
 				}
 			}}
 		>
-			<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-				<MediaLibrary data={items}>
-					{#snippet media(type, media)}
-						{#if bulkEdit}
-							<label>
-								<input
-									type="checkbox"
-									name="media"
-									value={media.id.toString()}
-									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-									bind:group={selected}
-								/>
-								<span class="block w-full">
-									<MediaItem {type} {...media} />
-								</span>
-							</label>
-						{:else}
-							<Dialog.Trigger
-								class="block aspect-video h-full w-full"
-								onclick={() => (details = media)}
-							>
-								<MediaItem {type} {...media} alt="" />
-							</Dialog.Trigger>
-						{/if}
-					{/snippet}
-				</MediaLibrary>
-			</form>
+			{#if bulkEdit}
+				<form method="POST" bind:this={DeleteForm} action="?/delete" use:enhance>
+					<MediaLibrary media={items} mode="multi-select" bind:selected />
+				</form>
+			{:else}
+				<MediaLibrary
+					media={items}
+					mode="view"
+					onDetailsOpen={(media) => {
+						details = media;
+						detailsDialogOpen = true;
+					}}
+				/>
+			{/if}
 			{#if details !== null}
 				<DetailsDialog
 					{...details}
@@ -147,9 +136,3 @@
 		</Dialog.Root>
 	</div>
 </TabContent>
-
-<style>
-	input:checked + * {
-		filter: opacity(50%);
-	}
-</style>
