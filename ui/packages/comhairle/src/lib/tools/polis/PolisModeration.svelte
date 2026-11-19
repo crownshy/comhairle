@@ -78,11 +78,10 @@
 	let filter = $state<Filter>('pending');
 	let search = $state('');
 
-	const counts = $derived({
-		pending: statements.filter((s) => s.moderation_status === 'pending').length,
-		accepted: statements.filter((s) => s.moderation_status === 'accepted').length,
-		rejected: statements.filter((s) => s.moderation_status === 'rejected').length,
-		all: statements.length
+	const counts = $derived.by(() => {
+		const tally = { pending: 0, accepted: 0, rejected: 0, all: statements.length };
+		for (const statement of statements) tally[statement.moderation_status]++;
+		return tally;
 	});
 
 	const filtered = $derived.by(() => {
@@ -90,7 +89,7 @@
 		if (filter !== 'all') list = list.filter((s) => s.moderation_status === filter);
 		const q = search.trim().toLowerCase();
 		if (q) list = list.filter((s) => s.statement_text.toLowerCase().includes(q));
-		return [...list].sort((a, b) => b.polis_statement_id - a.polis_statement_id);
+		return list.toSorted((a, b) => b.polis_statement_id - a.polis_statement_id);
 	});
 
 	const LIST_STATUS_WORDS: Record<Filter, string> = {

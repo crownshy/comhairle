@@ -64,6 +64,7 @@ export function buildStatementsCsv(
 const FILENAME_PART_MAX_LENGTH = 40;
 
 function filenamePart(text: string): string {
+	// Split accented letters into letter + accent, then drop the accents: "café" becomes "cafe".
 	return text
 		.normalize('NFKD')
 		.replace(/\p{M}/gu, '')

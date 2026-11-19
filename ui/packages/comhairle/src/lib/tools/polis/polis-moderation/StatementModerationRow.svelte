@@ -127,8 +127,8 @@
 	}}
 	onkeydowncapture={snapshotShift}
 	onclick={(e) => {
-		// Ignore clicks that land on the checkbox or the accept/reject controls.
-		if (!editable || bulkWorking || (e.target as HTMLElement).closest('[data-row-control]'))
+		// Clicking the row toggles selection, except on its own controls (checkbox, accept/reject, translations).
+		if (!editable || bulkWorking || (e.target as HTMLElement).closest('[data-skip-row-toggle]'))
 			return;
 		onToggle(!selected, shiftHeld);
 	}}
@@ -145,7 +145,7 @@
 	{/if}
 
 	<!-- Select -->
-	<div class="flex items-center" data-row-control>
+	<div class="flex items-center" data-skip-row-toggle>
 		{#if editable}
 			<Checkbox
 				checked={selected}
@@ -175,7 +175,7 @@
 			{/if}
 			<button
 				type="button"
-				data-row-control
+				data-skip-row-toggle
 				aria-expanded={translationsOpen}
 				onclick={() => (translationsOpen = !translationsOpen)}
 				class="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-6 items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
@@ -201,7 +201,7 @@
 
 	<div
 		class="col-start-2 -ml-3 flex items-center gap-1 self-center pr-2 @2xl:col-start-auto @2xl:ml-0"
-		data-row-control
+		data-skip-row-toggle
 	>
 		{#if editable}
 			{#snippet acceptButton()}
@@ -301,7 +301,7 @@
 	</div>
 
 	{#if translationsOpen}
-		<div class="col-span-full pr-2 pl-[3.5rem]" data-row-control>
+		<div class="col-span-full pr-2 pl-[3.5rem]" data-skip-row-toggle>
 			<TranslationsPanel polisStatementAuxId={row.id} />
 		</div>
 	{/if}
