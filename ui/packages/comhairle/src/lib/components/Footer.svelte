@@ -2,10 +2,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
-
-	let emailValue = $state('');
 
 	// Contact, Support and FAQ routes don't exist yet and 404 (#845). Hidden until they
 	// exist and are wired to real pages. Follow-up: re-add once the routes are built.

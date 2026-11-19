@@ -41,13 +41,13 @@ export default defineConfig(({ mode }) => ({
 					proxy.on('proxyRes', (proxyRes, req, _res) => {
 						console.log('📥 WebSocket response:', proxyRes.statusCode, req.url);
 					});
-					proxy.on('upgrade', (req, socket, head) => {
+					proxy.on('upgrade', (req) => {
 						console.log('⬆️  WebSocket upgrade:', req.url);
 					});
-					proxy.on('open', (proxySocket) => {
+					proxy.on('open', () => {
 						console.log('✅ WebSocket proxy connection opened');
 					});
-					proxy.on('close', (res, socket, head) => {
+					proxy.on('close', () => {
 						console.log('❌ WebSocket proxy connection closed');
 					});
 				}

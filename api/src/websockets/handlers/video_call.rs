@@ -24,12 +24,24 @@ pub struct VideoCallParticipant {
     pub role: String,
 }
 
+impl VideoCallParticipant {
+    /// Whether this person runs the call (moderator or facilitator) rather than taking part in it.
+    pub fn is_host(&self) -> bool {
+        self.role == "moderator" || self.role == "facilitator"
+    }
+}
+
 /// Represents a breakout room assignment with a list of participant UUIDs.
 ///
 /// Used to organize participants into smaller groups during a video call.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BreakoutRoomAssignments {
     pub participants: Vec<Uuid>,
+    /// The real Jitsi JID for this room, once a client has actually seen one
+    /// (breakout rooms aren't created on Jitsi's side until someone joins).
+    /// Reported by the frontend via `video_call:breakout_room_live`; used to
+    /// trigger a jitsi-recorder session for this specific room.
+    pub room_jid: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -71,6 +83,12 @@ pub struct VideoCallState {
     pub current_agenda_step: u32,
     /// Active breakout session with scheduled end time (None when no session is active)
     pub breakout_session: Option<BreakoutSession>,
+    /// Whether a jitsi-recorder session has already been triggered for the
+    /// main room. Set on the first real video join, so a later rejoin by the
+    /// same or another participant doesn't start a second recorder for a
+    /// room that's already being recorded.
+    #[serde(skip)]
+    pub main_room_recording_started: bool,
 }
 
 /// WebSocket message handler for video call events.
@@ -145,7 +163,42 @@ impl VideoCallState {
             current_agenda_step: 0,
             breakout_rooms: vec![],
             breakout_session: None,
+            main_room_recording_started: false,
         }
+    }
+
+    /// Puts a participant who isn't in a room yet into the room with the fewest people.
+    /// Hosts are never placed: they move between rooms themselves, and placing them would
+    /// list them as room members.
+    fn place_in_breakout_room(&mut self, user_id: Uuid) {
+        let is_host = self
+            .participants
+            .get(&user_id)
+            .is_some_and(VideoCallParticipant::is_host);
+        let already_placed = self
+            .breakout_rooms
+            .iter()
+            .any(|room| room.participants.contains(&user_id));
+        if is_host || already_placed {
+            return;
+        }
+
+        if let Some(emptiest_room) = self
+            .breakout_rooms
+            .iter_mut()
+            .min_by_key(|room| room.participants.len())
+        {
+            emptiest_room.participants.push(user_id);
+        }
+    }
+
+    /// Ids of everyone in the call who should be split into breakout rooms, hosts left out.
+    fn breakout_candidates(&self) -> Vec<Uuid> {
+        self.participants
+            .values()
+            .filter(|participant| !participant.is_host())
+            .map(|participant| participant.user_id)
+            .collect()
     }
 }
 
@@ -232,6 +285,16 @@ struct ExtendBreakoutSessionData {
 #[derive(Serialize, Deserialize, Debug)]
 struct EndBreakoutSessionData {
     pub event_id: Uuid,
+}
+
+/// Data structure for a client reporting that a breakout room now has a real
+/// Jitsi JID (i.e. someone has actually joined it, since Jitsi only creates
+/// the underlying MUC room at that point).
+#[derive(Serialize, Deserialize, Debug)]
+struct BreakoutRoomLiveData {
+    pub event_id: Uuid,
+    pub room_index: usize,
+    pub room_jid: String,
 }
 
 impl VideoCallMessageHandler {
@@ -372,7 +435,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state(event_id, |call| {
                 // Check if the sender is authorized to broadcast
                 if let Some(sender) = call.participants.get(&connection.user.id)
-                    && (sender.role == "moderator" || sender.role == "facilitator")
+                    && sender.is_host()
                 {
                     // Return all participant user IDs
                     return Some(call.participants.keys().copied().collect::<Vec<Uuid>>());
@@ -419,7 +482,8 @@ impl VideoCallMessageHandler {
     ///
     /// If breakout rooms have been configured and the user is not already
     /// assigned to a room, they will be automatically assigned to the room
-    /// with the fewest participants.
+    /// with the fewest participants. Moderators and facilitators are never
+    /// auto-assigned.
     ///
     /// # Errors
     ///
@@ -461,6 +525,7 @@ impl VideoCallMessageHandler {
                     .map(|room| BreakoutRoomAssignments {
                         // Only known users can occupy a live room; reserved
                         // invite placeholders are dropped until they join.
+                        room_jid: None,
                         participants: room
                             .seats
                             .into_iter()
@@ -491,7 +556,6 @@ impl VideoCallMessageHandler {
             }
         }
 
-        // Add the participant to the video call and auto-assign to breakout room if needed
         self.with_video_call_state_mut(&join_data.event_id, |call| {
             call.participants.insert(
                 user_id,
@@ -501,28 +565,7 @@ impl VideoCallMessageHandler {
                     role,
                 },
             );
-
-            // If breakout rooms exist, auto-assign the user to a room
-            if !call.breakout_rooms.is_empty() {
-                // Check if user is already in a breakout room
-                let already_assigned = call
-                    .breakout_rooms
-                    .iter()
-                    .any(|room| room.participants.contains(&user_id));
-
-                if !already_assigned {
-                    // Find the room with the fewest participants
-                    if let Some((room_index, _)) = call
-                        .breakout_rooms
-                        .iter()
-                        .enumerate()
-                        .min_by_key(|(_, room)| room.participants.len())
-                    {
-                        // Add user to the room with the fewest participants
-                        call.breakout_rooms[room_index].participants.push(user_id);
-                    }
-                }
-            }
+            call.place_in_breakout_room(user_id);
         })?;
 
         // Send the current state directly to the joining user
@@ -594,6 +637,11 @@ impl VideoCallMessageHandler {
     /// the Jitsi display name they chose, then broadcasts the updated state. Called when a
     /// client's `videoConferenceJoined` fires (and again on rename) — a reliable,
     /// rename-proof signal of real call presence keyed by the authenticated user id.
+    ///
+    /// The first real join after the main room was empty also triggers a
+    /// jitsi-recorder session for the main room (see `jitsi_recorder::trigger_recording`).
+    /// This is comhairle-api's own replacement for the old Prosody
+    /// room-created webhook, which could never address a specific tenant.
     pub async fn handle_video_joined(
         &self,
         event_id: &Uuid,
@@ -604,25 +652,54 @@ impl VideoCallMessageHandler {
         let joined_data: VideoJoinedData = serde_json::from_value(data.clone())?;
         let user_id = connection.user.id;
 
-        self.with_video_call_state_mut(event_id, |call| {
-            call.in_video_participants.insert(user_id);
-            match joined_data.display_name {
-                Some(name) if !name.trim().is_empty() => {
-                    call.jitsi_display_names.insert(user_id, name);
+        let should_trigger_recording = self
+            .with_video_call_state_mut(event_id, |call| {
+                let was_empty = call.in_video_participants.is_empty();
+                call.in_video_participants.insert(user_id);
+                match joined_data.display_name {
+                    Some(name) if !name.trim().is_empty() => {
+                        call.jitsi_display_names.insert(user_id, name);
+                    }
+                    _ => {
+                        call.jitsi_display_names.remove(&user_id);
+                    }
                 }
-                _ => {
-                    call.jitsi_display_names.remove(&user_id);
+
+                let should_trigger = was_empty && !call.main_room_recording_started;
+                if should_trigger {
+                    call.main_room_recording_started = true;
                 }
-            }
-        })?;
+                should_trigger
+            })?
+            .unwrap_or(false);
 
         self.broadcast_state(event_id, state).await?;
+
+        if should_trigger_recording {
+            let event_id = *event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(err) = trigger_main_room_recording(&event_id, &state).await {
+                    tracing::error!(?err, %event_id, "failed to trigger jitsi-recorder for main room");
+                }
+            });
+        }
 
         Ok(())
     }
 
     /// Marks a user as no longer in the Jitsi video (left the call but may still have
     /// the live page open), then broadcasts the updated state.
+    ///
+    /// Jitsi's native breakout rooms move a participant within the same
+    /// underlying conference session, so this only fires on a real hangup
+    /// (closing/leaving the call entirely), never on a room switch - when it
+    /// empties `in_video_participants` out completely, that's a reliable
+    /// "nobody's on this call anymore" signal, symmetric to
+    /// `handle_video_joined`'s `was_empty` trigger. Stops the main room and
+    /// any live breakout recordings and resets the started/room_jid state so
+    /// a later rejoin starts fresh recordings instead of staying permanently
+    /// "already started".
     pub async fn handle_video_left(
         &self,
         event_id: &Uuid,
@@ -631,12 +708,36 @@ impl VideoCallMessageHandler {
     ) -> Result<(), VideoCallWSError> {
         let user_id = connection.user.id;
 
-        self.with_video_call_state_mut(event_id, |call| {
-            call.in_video_participants.remove(&user_id);
-            call.jitsi_display_names.remove(&user_id);
-        })?;
+        let stop_info = self
+            .with_video_call_state_mut(event_id, |call| {
+                call.in_video_participants.remove(&user_id);
+                call.jitsi_display_names.remove(&user_id);
+
+                if !call.in_video_participants.is_empty() {
+                    return None;
+                }
+
+                let was_recording_main = call.main_room_recording_started;
+                call.main_room_recording_started = false;
+                let breakout_room_jids: Vec<String> = call
+                    .breakout_rooms
+                    .iter_mut()
+                    .filter_map(|room| room.room_jid.take())
+                    .collect();
+
+                Some((was_recording_main, breakout_room_jids))
+            })?
+            .flatten();
 
         self.broadcast_state(event_id, state).await?;
+
+        if let Some((stop_main_room, breakout_room_jids)) = stop_info {
+            let event_id = *event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                stop_recordings(&event_id, stop_main_room, breakout_room_jids, &state).await;
+            });
+        }
 
         Ok(())
     }
@@ -675,26 +776,50 @@ impl VideoCallMessageHandler {
 
         let user_id = connection.user.id;
         let new_status = state_data.status;
+        let ending_call = matches!(new_status, VideoCallStatus::Ended);
 
-        // Check authorization and update the call state
-        let authorized = self
+        // Check authorization, update the call state, and - when ending the
+        // call - collect whatever recordings need stopping (main room and/or
+        // any live breakout rooms).
+        let result = self
             .with_video_call_state_mut(&state_data.event_id, |call| {
-                // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
-                {
-                    call.status = new_status;
-                    return true;
-                }
-                false
-            })?
-            .unwrap_or(false);
+                let authorized = call.participants.get(&user_id).is_some_and(|p| p.is_host());
 
-        if !authorized {
+                if !authorized {
+                    return None;
+                }
+
+                call.status = new_status;
+
+                if !ending_call {
+                    return Some((false, Vec::new()));
+                }
+
+                let was_recording_main = call.main_room_recording_started;
+                call.main_room_recording_started = false;
+                let breakout_room_jids: Vec<String> = call
+                    .breakout_rooms
+                    .iter_mut()
+                    .filter_map(|room| room.room_jid.take())
+                    .collect();
+
+                Some((was_recording_main, breakout_room_jids))
+            })?
+            .flatten();
+
+        let Some((stop_main_room, breakout_room_jids)) = result else {
             return Err(VideoCallWSError::UnauthorizedStateChange);
-        }
+        };
 
         self.broadcast_state(&state_data.event_id, state).await?;
+
+        if stop_main_room || !breakout_room_jids.is_empty() {
+            let event_id = state_data.event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                stop_recordings(&event_id, stop_main_room, breakout_room_jids, &state).await;
+            });
+        }
 
         Ok(())
     }
@@ -779,7 +904,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&request.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     // Remove the assistance request for this room
                     call.breakout_room_assistance_requests
@@ -845,16 +970,22 @@ impl VideoCallMessageHandler {
         let user_id = connection.user.id;
         let max_users = assignment_data.max_users_per_room;
 
-        // Check authorization and assign breakout rooms
-        let authorized = self
+        // Check authorization, assign breakout rooms, and collect the JIDs
+        // of whatever breakout rooms this overwrites - a moderator
+        // reassigning without first ending the previous session would
+        // otherwise orphan those recordings (their room_jid, the only
+        // handle to stop them, is gone the moment this replaces the Vec).
+        let stale_room_jids = self
             .with_video_call_state_mut(&assignment_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     let breakout_rooms =
                         if let Some(ref explicit) = assignment_data.room_assignments {
-                            // Use explicit assignments, filtering to known participants
+                            // Empty rooms are kept: room numbers are positions in this list,
+                            // so dropping one would renumber the rooms after it and send
+                            // their participants to the wrong Jitsi room.
                             explicit
                                 .iter()
                                 .map(|room_ids| BreakoutRoomAssignments {
@@ -863,15 +994,11 @@ impl VideoCallMessageHandler {
                                         .filter(|id| call.participants.contains_key(id))
                                         .copied()
                                         .collect(),
+                                    room_jid: None,
                                 })
-                                .filter(|room| !room.participants.is_empty())
                                 .collect()
                         } else {
-                            // Collect all participant IDs
-                            let mut participant_ids: Vec<Uuid> =
-                                call.participants.keys().copied().collect();
-
-                            // Shuffle participants randomly
+                            let mut participant_ids = call.breakout_candidates();
                             let mut rng = rand::thread_rng();
                             participant_ids.shuffle(&mut rng);
 
@@ -880,23 +1007,36 @@ impl VideoCallMessageHandler {
                                 .chunks(max_users)
                                 .map(|chunk| BreakoutRoomAssignments {
                                     participants: chunk.to_vec(),
+                                    room_jid: None,
                                 })
                                 .collect()
                         };
 
-                    call.breakout_rooms = breakout_rooms;
-                    return true;
+                    let stale_jids: Vec<String> =
+                        std::mem::replace(&mut call.breakout_rooms, breakout_rooms)
+                            .into_iter()
+                            .filter_map(|room| room.room_jid)
+                            .collect();
+                    return Some(stale_jids);
                 }
-                false
+                None
             })?
-            .unwrap_or(false);
+            .flatten();
 
-        if !authorized {
+        let Some(stale_room_jids) = stale_room_jids else {
             return Err(VideoCallWSError::UnauthorizedStateChange);
-        }
+        };
 
         self.broadcast_state(&assignment_data.event_id, state)
             .await?;
+
+        if !stale_room_jids.is_empty() {
+            let event_id = assignment_data.event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                stop_recordings(&event_id, false, stale_room_jids, &state).await;
+            });
+        }
 
         Ok(())
     }
@@ -941,7 +1081,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&session_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     call.breakout_session = Some(BreakoutSession { ends });
                     return true;
@@ -1000,7 +1140,7 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&extension_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     // Update the end time if a session is active
                     if let Some(session) = &mut call.breakout_session {
@@ -1056,25 +1196,91 @@ impl VideoCallMessageHandler {
 
         let user_id = connection.user.id;
 
-        // Check authorization and end the breakout session
-        let authorized = self
+        // Check authorization, end the breakout session, and collect any
+        // live breakout rooms' JIDs so the recordings for them can be
+        // stopped (the main room keeps recording - only the call ending or
+        // everyone leaving stops that).
+        let breakout_room_jids = self
             .with_video_call_state_mut(&end_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator")
+                    && participant.is_host()
                 {
                     call.breakout_session = None;
-                    return true;
+                    let jids: Vec<String> = call
+                        .breakout_rooms
+                        .iter_mut()
+                        .filter_map(|room| room.room_jid.take())
+                        .collect();
+                    return Some(jids);
                 }
-                false
+                None
+            })?
+            .flatten();
+
+        let Some(breakout_room_jids) = breakout_room_jids else {
+            return Err(VideoCallWSError::UnauthorizedStateChange);
+        };
+
+        self.broadcast_state(&end_data.event_id, state).await?;
+
+        if !breakout_room_jids.is_empty() {
+            let event_id = end_data.event_id;
+            let state = state.clone();
+            tokio::spawn(async move {
+                stop_recordings(&event_id, false, breakout_room_jids, &state).await;
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Records a breakout room's real Jitsi JID, reported by whichever
+    /// client first observes it, and triggers a jitsi-recorder session for
+    /// that room the first time it's seen. Idempotent: a room's JID is only
+    /// set (and only triggers) once, so duplicate reports from other
+    /// participants' browsers for the same room are harmless no-ops.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - Failed to acquire lock on the call state
+    pub async fn handle_breakout_room_live(
+        &self,
+        event_id: &Uuid,
+        data: &serde_json::Value,
+        _connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let live_data: BreakoutRoomLiveData = serde_json::from_value(data.clone())?;
+
+        let should_trigger = self
+            .with_video_call_state_mut(event_id, |call| {
+                let Some(room) = call.breakout_rooms.get_mut(live_data.room_index) else {
+                    return false;
+                };
+                if room.room_jid.is_some() {
+                    return false;
+                }
+                room.room_jid = Some(live_data.room_jid.clone());
+                true
             })?
             .unwrap_or(false);
 
-        if !authorized {
-            return Err(VideoCallWSError::UnauthorizedStateChange);
+        if should_trigger {
+            let event_id = *event_id;
+            let room_jid = live_data.room_jid;
+            let room_index = live_data.room_index;
+            let state = state.clone();
+            tokio::spawn(async move {
+                if let Err(err) =
+                    trigger_breakout_room_recording(&event_id, &room_jid, room_index, &state).await
+                {
+                    tracing::error!(?err, %event_id, room_jid, "failed to trigger jitsi-recorder for breakout room");
+                }
+            });
         }
-
-        self.broadcast_state(&end_data.event_id, state).await?;
 
         Ok(())
     }
@@ -1158,6 +1364,108 @@ impl VideoCallMessageHandler {
             .await;
 
         Ok(())
+    }
+}
+
+/// Looks up the event and starts a jitsi-recorder session for its main room.
+/// Called once, from a spawned task, the first time a real participant joins
+/// an empty main room (see `VideoCallMessageHandler::handle_video_joined`).
+async fn trigger_main_room_recording(
+    event_id: &Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<(), crate::error::ComhairleError> {
+    let event = crate::models::event::get_by_id(&state.db, event_id).await?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(crate::error::ComhairleError::NoVideoMeetingId)?;
+    let recorder_config = state.required_jitsi_recorder_config()?;
+
+    crate::jitsi_recorder::trigger_recording(
+        state,
+        event.conversation_id,
+        *event_id,
+        &video_meeting_id.to_string(),
+        Some(&recorder_config.main_muc_domain),
+        "Main room",
+    )
+    .await
+}
+
+/// Looks up the event and starts a jitsi-recorder session for one breakout
+/// room, given its real JID (`localpart@muc_domain`). Called once, from a
+/// spawned task, the first time any client reports a given room's JID (see
+/// `VideoCallMessageHandler::handle_breakout_room_live`).
+async fn trigger_breakout_room_recording(
+    event_id: &Uuid,
+    room_jid: &str,
+    room_index: usize,
+    state: &Arc<ComhairleState>,
+) -> Result<(), crate::error::ComhairleError> {
+    let event = crate::models::event::get_by_id(&state.db, event_id).await?;
+    let (room_name, muc_domain) = room_jid.split_once('@').ok_or_else(|| {
+        crate::error::ComhairleError::JitsiRecorderError(format!(
+            "breakout room jid {room_jid} is not a full JID"
+        ))
+    })?;
+
+    crate::jitsi_recorder::trigger_recording(
+        state,
+        event.conversation_id,
+        *event_id,
+        room_name,
+        Some(muc_domain),
+        &format!("Breakout room #{}", room_index + 1),
+    )
+    .await
+}
+
+/// Stops jitsi-recorder sessions for an event's main room and/or specific
+/// breakout rooms, from a spawned task so the caller's websocket handler
+/// isn't blocked on it. There's no Prosody room/destroyed webhook wired up
+/// for the comhairle-triggered path (see `trigger_main_room_recording`'s doc
+/// comment) - this is comhairle-api's hangup detection, called whenever a
+/// room's last participant leaves, a breakout session ends, breakout rooms
+/// get reassigned out from under a still-live session, or the call itself
+/// ends.
+///
+/// `stop_main_room` and each entry of `breakout_room_jids` are independent -
+/// callers only pass what actually needs stopping (e.g. ending a breakout
+/// session passes breakout JIDs but `stop_main_room: false`). Failures are
+/// logged, not propagated: a stop request racing the recording's own
+/// natural completion is expected and jitsi-recorder itself treats "already
+/// stopped" as success, but a transient failure here shouldn't take down
+/// the websocket handler that triggered it.
+async fn stop_recordings(
+    event_id: &Uuid,
+    stop_main_room: bool,
+    breakout_room_jids: Vec<String>,
+    state: &Arc<ComhairleState>,
+) {
+    if stop_main_room {
+        match crate::models::event::get_by_id(&state.db, event_id).await {
+            Ok(event) => {
+                if let Some(video_meeting_id) = event.video_meeting_id
+                    && let Err(err) =
+                        crate::jitsi_recorder::stop_recording(state, &video_meeting_id.to_string())
+                            .await
+                {
+                    tracing::error!(?err, %event_id, "failed to stop jitsi-recorder for main room");
+                }
+            }
+            Err(err) => {
+                tracing::error!(?err, %event_id, "failed to look up event to stop main room recording");
+            }
+        }
+    }
+
+    for room_jid in breakout_room_jids {
+        let Some((room_name, _)) = room_jid.split_once('@') else {
+            tracing::error!(%event_id, room_jid, "breakout room jid is not a full JID, cannot stop recording");
+            continue;
+        };
+        if let Err(err) = crate::jitsi_recorder::stop_recording(state, room_name).await {
+            tracing::error!(?err, %event_id, room_jid, "failed to stop jitsi-recorder for breakout room");
+        }
     }
 }
 
@@ -1246,6 +1554,10 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                         self.end_breakout_session(&event_id, data, connection, state)
                             .await?
                     }
+                    "video_call:breakout_room_live" => {
+                        self.handle_breakout_room_live(&event_id, data, connection, state)
+                            .await?
+                    }
                     _ => {
                         info!("Unhandled video call event: {}", event);
                     }
@@ -1254,5 +1566,101 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
             }
             _ => Ok(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn call_with(participants: &[(Uuid, &str)], rooms: Vec<Vec<Uuid>>) -> VideoCallState {
+        let mut call = VideoCallState::new(Uuid::new_v4());
+        for (user_id, role) in participants {
+            call.participants.insert(
+                *user_id,
+                VideoCallParticipant {
+                    user_id: *user_id,
+                    username: None,
+                    role: role.to_string(),
+                },
+            );
+        }
+        call.breakout_rooms = rooms
+            .into_iter()
+            .map(|participants| BreakoutRoomAssignments {
+                participants,
+                room_jid: None,
+            })
+            .collect();
+        call
+    }
+
+    fn room_of(call: &VideoCallState, user_id: Uuid) -> Option<usize> {
+        call.breakout_rooms
+            .iter()
+            .position(|room| room.participants.contains(&user_id))
+    }
+
+    #[test]
+    fn walk_in_participant_goes_to_the_emptiest_room() {
+        let (seated, walk_in) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(
+            &[(seated, "participant"), (walk_in, "participant")],
+            vec![vec![seated], vec![]],
+        );
+
+        call.place_in_breakout_room(walk_in);
+
+        assert_eq!(room_of(&call, walk_in), Some(1));
+    }
+
+    #[test]
+    fn hosts_are_never_placed_in_a_room() {
+        let (moderator, facilitator) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(
+            &[(moderator, "moderator"), (facilitator, "facilitator")],
+            vec![vec![], vec![]],
+        );
+
+        call.place_in_breakout_room(moderator);
+        call.place_in_breakout_room(facilitator);
+
+        assert_eq!(room_of(&call, moderator), None);
+        assert_eq!(room_of(&call, facilitator), None);
+    }
+
+    #[test]
+    fn rejoining_keeps_a_participant_in_their_room() {
+        let participant = Uuid::new_v4();
+        let mut call = call_with(
+            &[(participant, "participant")],
+            vec![vec![participant], vec![]],
+        );
+
+        call.place_in_breakout_room(participant);
+
+        assert_eq!(room_of(&call, participant), Some(0));
+        assert_eq!(call.breakout_rooms[1].participants.len(), 0);
+    }
+
+    #[test]
+    fn nobody_is_placed_before_rooms_exist() {
+        let participant = Uuid::new_v4();
+        let mut call = call_with(&[(participant, "participant")], vec![]);
+
+        call.place_in_breakout_room(participant);
+
+        assert!(call.breakout_rooms.is_empty());
+    }
+
+    #[test]
+    fn random_split_leaves_hosts_out() {
+        let (facilitator, participant) = (Uuid::new_v4(), Uuid::new_v4());
+        let call = call_with(
+            &[(facilitator, "facilitator"), (participant, "participant")],
+            vec![],
+        );
+
+        assert_eq!(call.breakout_candidates(), vec![participant]);
     }
 }

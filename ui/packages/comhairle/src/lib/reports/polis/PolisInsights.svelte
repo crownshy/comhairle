@@ -19,12 +19,12 @@
 	import PolisSummaryPanel from './PolisSummaryPanel.svelte';
 	import ThemeExplorer from '$lib/components/report/ThemeExplorer.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
+	import { toGroupSummaries } from './groupSummaries';
 
 	let {
 		conversationId,
@@ -102,14 +102,15 @@
 			(summaryResult.group_descriptions?.length ?? 0) !== reportData.groups.length
 	);
 
-	const groupSummaries = $derived.by<Record<number, { name: string; summary: string }>>(() => {
-		const map: Record<number, { name: string; summary: string }> = {};
-		for (const g of summaryResult?.group_descriptions ?? []) {
-			if (!g.name || !g.description) continue;
-			map[Number(g.group_id)] = { name: g.name, summary: g.description };
-		}
-		return map;
-	});
+	const groupSummaries = $derived(
+		toGroupSummaries(
+			(summaryResult?.group_descriptions ?? []).map((group) => ({
+				groupId: group.group_id,
+				name: group.name,
+				description: group.description
+			}))
+		)
+	);
 
 	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
 	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
@@ -261,7 +262,7 @@
 				<TriangleAlert />
 				<Alert.Description>
 					The AI summary was generated with a different number of opinion groups than the
-					current report has. It's probably out of date — regenerate it below for an
+					current report has. It's probably out of date, so regenerate it below for an
 					accurate summary.
 				</Alert.Description>
 			</Alert.Root>

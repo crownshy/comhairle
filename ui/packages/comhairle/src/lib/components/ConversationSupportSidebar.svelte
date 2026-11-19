@@ -43,7 +43,7 @@
 	const TAB_TRIGGER_CLASS =
 		'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-muted-foreground/40 active:bg-muted data-[state=active]:text-foreground data-[state=active]:border-primary dark:data-[state=active]:border-primary data-[state=active]:hover:bg-muted/60 dark:data-[state=active]:hover:bg-muted/60 h-11 flex-none cursor-pointer rounded-none rounded-t-md border-0 border-b-2 border-transparent bg-transparent px-3 text-base shadow-none transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent';
 
-	// Embedded pages have no NavBar to hold the phone trigger, so they keep a floating one.
+	// Embedded pages have no NavBar to hold the trigger, so they keep a floating one.
 	let isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 
 	let tabs = [
@@ -63,18 +63,10 @@
 </script>
 
 <Drawer.Root direction="right" bind:open={supportDrawer.open}>
-	<!-- The sideways tab covers the step header below lg, so smaller screens open the drawer
-	     from a NavBar button instead. -->
-	<!-- Vertical writing mode rather than a rotation, so the tab stays flush with the edge
-	     however long the translated label is. -->
-	<Drawer.Trigger
-		class="bg-primary text-primary-foreground fixed top-1/5 right-0 rotate-180 p-3 font-bold [writing-mode:vertical-rl] max-lg:hidden"
-		>{m.support_find_out_more()}</Drawer.Trigger
-	>
 	{#if isEmbed}
 		<!-- Raised to clear sticky bottom bars like Prioritization's. -->
 		<Drawer.Trigger
-			class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg lg:hidden"
+			class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg"
 			aria-label={m.support_find_out_more()}
 		>
 			<CircleHelp class="size-7" aria-hidden="true" />

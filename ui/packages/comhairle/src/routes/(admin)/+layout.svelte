@@ -15,6 +15,7 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
+	import { pathWithQuery } from '$lib/utils/backTo';
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 	// import HelpChat from './HelpChat.svelte';
 	import HelpCorner from './HelpCorner.svelte';
@@ -43,7 +44,7 @@
 	);
 
 	if (!data.user) {
-		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
+		loginRedirectServer(pathWithQuery(page.url), 'You need to be logged in to access this');
 	}
 
 	// Writable derived seeded from the server-read cookie: SSR and the live value are one

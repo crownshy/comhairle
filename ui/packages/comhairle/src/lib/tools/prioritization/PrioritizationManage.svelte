@@ -257,10 +257,10 @@
 		}
 	}, 500);
 
-	function describeType(type: DraftQuestionType): string {
+	function describeType({ type, required }: DraftQuestion): string {
 		switch (type.kind) {
 			case 'text':
-				return 'Free text';
+				return required ? 'Free text · Required' : 'Free text · Optional';
 			case 'likert':
 				return `Likert · ${type.categories.length} options`;
 			case 'continuous':
@@ -347,7 +347,7 @@
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
 									>
-										<Badge variant="outline">{describeType(q.type)}</Badge>
+										<Badge variant="outline">{describeType(q)}</Badge>
 										{#if summariseScale(q.type)}
 											<span>{summariseScale(q.type)}</span>
 										{/if}
@@ -466,7 +466,7 @@
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
 									>
-										<Badge variant="outline">{describeType(q.type)}</Badge>
+										<Badge variant="outline">{describeType(q)}</Badge>
 										{#if summariseScale(q.type)}
 											<span>{summariseScale(q.type)}</span>
 										{/if}
@@ -636,6 +636,7 @@
 		open={questionEditorOpen}
 		question={selectedQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="proposal"
 		onOpenChange={(o) => {
@@ -650,6 +651,7 @@
 		open={sectionQuestionEditorOpen}
 		question={selectedSectionQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="section"
 		onOpenChange={(o) => {

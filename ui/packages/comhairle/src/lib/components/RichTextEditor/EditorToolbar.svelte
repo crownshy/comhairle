@@ -1,12 +1,15 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import type { ActiveStates } from './types';
+	import type { ActiveStates, Toolset } from './types';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
 	import TableControlsPopover from './TableControlsPopover.svelte';
 	import { insertDefaultTable } from './tableActions';
+	import { TOOLBAR_BUTTON_CLASS, ACTIVE_BUTTON_CLASS } from './styles';
+	import { FORMATTING_TOOLS, type FormattingTool } from './formattingTools';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { cn } from '$lib/utils';
+	import { isVideoFileUrl } from '$lib/utils/videoUrl';
 
 	import {
 		List,
@@ -35,9 +38,20 @@
 		disabled?: boolean;
 		/** Extra controls pinned to the right end of the toolbar, such as the translate button. They stay usable when the toolbar is disabled. */
 		actions?: Snippet;
+		/** `text` keeps text formatting, lists and links, and drops alignment, media and tables. */
+		toolset?: Toolset;
 	};
 
-	let { editor, activeStates, documents, disabled = false, actions }: Props = $props();
+	let {
+		editor,
+		activeStates,
+		documents,
+		disabled = false,
+		actions,
+		toolset = 'full'
+	}: Props = $props();
+
+	let isFullToolset = $derived(toolset === 'full');
 
 	const overflowId = $props.id();
 	let overflowOpen = $state(false);
@@ -50,11 +64,11 @@
 		classes?: string;
 	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
 
-	const TOOLBAR_BUTTON_CLASS =
-		'text-muted-foreground hover:bg-accent hover:text-accent-foreground flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-sm leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40';
-	const ACTIVE_BUTTON_CLASS =
-		'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-semibold';
 	const GROUP_CLASS = 'flex items-center gap-0.5';
+
+	function runTool(tool: FormattingTool) {
+		if (editor) tool.run(editor);
+	}
 </script>
 
 <!--
@@ -89,13 +103,13 @@
 	{@render button({
 		title: 'Bullet List',
 		active: activeStates.bulletList,
-		onclick: () => editor?.chain().focus().toggleBulletList().run(),
+		onclick: () => runTool(FORMATTING_TOOLS.bulletList),
 		Icon: List
 	})}
 	{@render button({
 		title: 'Numbered List',
 		active: activeStates.orderedList,
-		onclick: () => editor?.chain().focus().toggleOrderedList().run(),
+		onclick: () => runTool(FORMATTING_TOOLS.orderedList),
 		Icon: ListOrdered
 	})}
 {/snippet}
@@ -104,12 +118,12 @@
 	{@render button({
 		title: 'Blockquote',
 		active: activeStates.blockquote,
-		onclick: () => editor?.chain().focus().toggleBlockquote().run(),
+		onclick: () => runTool(FORMATTING_TOOLS.blockquote),
 		Icon: Quote
 	})}
 	<UrlInputPopover
 		type="link"
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setLink({ href: url }).run();
 		}}
 	>
@@ -131,25 +145,25 @@
 	{@render button({
 		title: 'Align Left',
 		active: activeStates.textAlign === 'left',
-		onclick: () => editor?.chain().focus().setTextAlign('left').run(),
+		onclick: () => runTool(FORMATTING_TOOLS.alignLeft),
 		Icon: AlignLeft
 	})}
 	{@render button({
 		title: 'Align Center',
 		active: activeStates.textAlign === 'center',
-		onclick: () => editor?.chain().focus().setTextAlign('center').run(),
+		onclick: () => runTool(FORMATTING_TOOLS.alignCenter),
 		Icon: AlignCenter
 	})}
 	{@render button({
 		title: 'Align Right',
 		active: activeStates.textAlign === 'right',
-		onclick: () => editor?.chain().focus().setTextAlign('right').run(),
+		onclick: () => runTool(FORMATTING_TOOLS.alignRight),
 		Icon: AlignRight
 	})}
 	{@render button({
 		title: 'Justify',
 		active: activeStates.textAlign === 'justify',
-		onclick: () => editor?.chain().focus().setTextAlign('justify').run(),
+		onclick: () => runTool(FORMATTING_TOOLS.alignJustify),
 		Icon: AlignJustify
 	})}
 {/snippet}
@@ -158,7 +172,7 @@
 	<UrlInputPopover
 		type="image"
 		allowLocalSelection
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setImage({ src: url }).run();
 		}}
 	>
@@ -167,8 +181,12 @@
 	<UrlInputPopover
 		type="video"
 		allowLocalSelection
-		onSubmit={(url) => {
-			editor?.chain().focus().setIframe({ src: url }).run();
+		onSubmit={({ from, url }) => {
+			if (from === 'library' || isVideoFileUrl(url)) {
+				editor?.chain().focus().setVideo({ src: url }).run();
+			} else {
+				editor?.chain().focus().setIframe({ src: url }).run();
+			}
 		}}
 	>
 		{@render button({ title: 'Add Video', active: false, Icon: Video })}
@@ -176,7 +194,7 @@
 	<UrlInputPopover
 		type="audio"
 		allowLocalSelection
-		onSubmit={(url) => {
+		onSubmit={({ url }) => {
 			editor?.chain().focus().setAudio({ src: url, autoplay: false, controls: true }).run();
 		}}
 	>
@@ -250,28 +268,28 @@
 				{@render button({
 					title: 'Bold',
 					active: activeStates.bold,
-					onclick: () => editor?.chain().focus().toggleBold().run(),
+					onclick: () => runTool(FORMATTING_TOOLS.bold),
 					text: 'B',
 					classes: 'font-bold'
 				})}
 				{@render button({
 					title: 'Italic',
 					active: activeStates.italic,
-					onclick: () => editor?.chain().focus().toggleItalic().run(),
+					onclick: () => runTool(FORMATTING_TOOLS.italic),
 					text: 'I',
 					classes: 'italic'
 				})}
 				{@render button({
 					title: 'Strikethrough',
 					active: activeStates.strike,
-					onclick: () => editor?.chain().focus().toggleStrike().run(),
+					onclick: () => runTool(FORMATTING_TOOLS.strike),
 					text: 'S',
 					classes: 'line-through'
 				})}
 				{@render button({
 					title: 'Underline',
 					active: activeStates.underline,
-					onclick: () => editor?.chain().focus().toggleUnderline().run(),
+					onclick: () => runTool(FORMATTING_TOOLS.underline),
 					text: 'U',
 					classes: 'underline'
 				})}
@@ -285,20 +303,27 @@
 				{@render divider()}
 				<div class={GROUP_CLASS}>{@render quoteAndLink()}</div>
 			</div>
-			<div class="hidden items-center @2xl:flex">
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render alignment()}</div>
-			</div>
-			<div class="hidden items-center @3xl:flex">
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render media()}</div>
-				{@render divider()}
-				<div class={GROUP_CLASS}>{@render table()}</div>
-			</div>
+			{#if isFullToolset}
+				<div class="hidden items-center @2xl:flex">
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render alignment()}</div>
+				</div>
+				<div class="hidden items-center @3xl:flex">
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render media()}</div>
+					{@render divider()}
+					<div class={GROUP_CLASS}>{@render table()}</div>
+				</div>
+			{/if}
 
 			<button
 				type="button"
-				class={cn(TOOLBAR_BUTTON_CLASS, 'ml-1 @3xl:hidden', overflowOpen && 'bg-accent')}
+				class={cn(
+					TOOLBAR_BUTTON_CLASS,
+					'ml-1',
+					isFullToolset ? '@3xl:hidden' : '@lg:hidden',
+					overflowOpen && 'bg-accent'
+				)}
 				title="More formatting"
 				aria-label="More formatting"
 				aria-expanded={overflowOpen}
@@ -318,13 +343,18 @@
 		<fieldset
 			{disabled}
 			id={overflowId}
-			class="border-border flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5 @3xl:hidden"
+			class={cn(
+				'border-border flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-2 py-1.5',
+				isFullToolset ? '@3xl:hidden' : '@lg:hidden'
+			)}
 		>
 			<div class={cn(GROUP_CLASS, '@md:hidden')}>{@render lists()}</div>
 			<div class={cn(GROUP_CLASS, '@lg:hidden')}>{@render quoteAndLink()}</div>
-			<div class={cn(GROUP_CLASS, '@2xl:hidden')}>{@render alignment()}</div>
-			<div class={GROUP_CLASS}>{@render media()}</div>
-			<div class={GROUP_CLASS}>{@render table()}</div>
+			{#if isFullToolset}
+				<div class={cn(GROUP_CLASS, '@2xl:hidden')}>{@render alignment()}</div>
+				<div class={GROUP_CLASS}>{@render media()}</div>
+				<div class={GROUP_CLASS}>{@render table()}</div>
+			{/if}
 		</fieldset>
 	{/if}
 </div>

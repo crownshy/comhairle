@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
+	import { apiErrorStatus, tryCatchAsync } from '$lib/utils/errorHandling';
 	import { key } from '$lib/utils/invalidationKey';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -12,72 +13,73 @@
 	const { user, invite, eventId, conversationId, error: serverError } = data;
 
 	const defaultErrorMessage = 'An error occurred registering you for this event.';
+	const INVITE_EXPIRED = 'Invite expired';
+	const INVITE_ALREADY_ANSWERED =
+		'An invite response has already been created for this invite by this user';
 
 	let error = $state<string | null>(serverError ? serverError : null);
 
 	const redirectUrl = `/conversations/${conversationId}/events/${eventId}`;
 
-	async function acceptInviteAndRegisterForEvent() {
-		try {
-			try {
-				await apiClient.CreateEventAttendance(
-					{ role: 'participant' },
-					{ params: { conversation_id: conversationId, event_id: eventId } }
-				);
-			} catch (e) {
-				// silently ignore conflicts in case user is already registered
-				if (e.response.status !== 409) throw new Error(defaultErrorMessage);
-			}
+	function apiErrorText(failure: unknown) {
+		return (failure as { response?: { data?: { err?: string } } }).response?.data?.err;
+	}
 
-			try {
-				await apiClient.AcceptInvite(undefined, {
-					params: { conversation_id: conversationId, invite_id: invite.id }
-				});
-			} catch (e) {
-				// silently ignore conflicts in case invite already accepted
-				if (e.response.status !== 409) throw new Error(defaultErrorMessage);
-			}
+	function isInviteAlreadyAnswered(failure: unknown) {
+		return apiErrorStatus(failure) === 409 && apiErrorText(failure) === INVITE_ALREADY_ANSWERED;
+	}
 
-			notifications.send({
-				message: 'You have successfully been registered for the event',
-				priority: 'INFO'
-			});
-
-			await goto(resolve(redirectUrl), { invalidate: [key('public/event')] });
-		} catch (e) {
-			console.error(e);
-			error = e.message;
+	function registrationFailureMessage(failure: unknown) {
+		if (apiErrorStatus(failure) === 410 || isInviteAlreadyAnswered(failure)) {
+			return INVITE_EXPIRED;
 		}
+		return apiErrorStatus(failure) === 409
+			? (apiErrorText(failure) ?? defaultErrorMessage)
+			: defaultErrorMessage;
+	}
+
+	async function finishRegistration() {
+		notifications.send({
+			message: 'You have successfully been registered for the event',
+			priority: 'INFO'
+		});
+
+		await goto(resolve(redirectUrl), { invalidate: [key('public/event')] });
+	}
+
+	async function acceptInviteAndRegisterForEvent() {
+		const accepted = await tryCatchAsync(() =>
+			apiClient.AcceptInvite(undefined, {
+				params: { conversation_id: conversationId, invite_id: invite.id }
+			})
+		);
+
+		// Someone reopening an invite they already accepted is registered, so carry on.
+		if (accepted.err !== null && !isInviteAlreadyAnswered(accepted.err)) {
+			error = registrationFailureMessage(accepted.err);
+			return;
+		}
+
+		await finishRegistration();
 	}
 
 	async function autoRegisterAndSignIn() {
-		try {
-			await apiClient.AutoRegisterEventAttendance(undefined, {
+		const registered = await tryCatchAsync(() =>
+			apiClient.AutoRegisterEventAttendance(undefined, {
 				params: { conversation_id: conversationId, invite_id: invite.id }
-			});
+			})
+		);
 
-			notifications.send({
-				message: 'You have successfully been registered for the event',
-				priority: 'INFO'
-			});
-
-			await goto(resolve(redirectUrl), { invalidate: [key('public/event')] });
-		} catch (e) {
-			console.error(e);
-			if (
-				e.response.status === 409 &&
-				e.response?.data?.err ===
-					'An invite response has already been created for this invite by this user'
-			) {
-				error = 'Invite expired';
-			} else {
-				error = defaultErrorMessage;
-			}
+		if (registered.err !== null) {
+			error = registrationFailureMessage(registered.err);
+			return;
 		}
+
+		await invalidate(key('user'));
+		await finishRegistration();
 	}
 
 	onMount(() => {
-		// TODO: after accepting the invite do we send them an email with a link to the email, just redirect or both?
 		if (user) {
 			acceptInviteAndRegisterForEvent();
 		} else {
@@ -97,11 +99,11 @@
 		</div>
 	{:else}
 		<div class="flex flex-col items-center gap-4 whitespace-pre-wrap">
-			{#if error !== 'Invite expired'}
+			{#if error !== INVITE_EXPIRED}
 				<h1 class="text-4xl font-semibold">Something went wrong</h1>
 			{/if}
 			<p class="text-lg">{error}</p>
-			{#if !user && error === 'Invite expired'}
+			{#if !user && error === INVITE_EXPIRED}
 				<Button
 					href={`/auth/login-otp/send?backTo=${encodeURIComponent(`/conversations/${conversationId}/events/${eventId}`)}`}
 					>Send a new link?</Button

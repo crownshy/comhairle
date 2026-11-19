@@ -16,6 +16,11 @@ use crate::models::theme::NewTheme;
 use crate::models::{self};
 use crate::{ComhairleState, sensemakar_service};
 
+/// Statements per model call for theme discovery and assignment. Keeps each
+/// Bedrock call's context small so a slow/oversized response can't stall the
+/// whole job.
+const SENSEMAKER_BATCH_SIZE: usize = 50;
+
 /// Queued after an admin requests theme generation for a workflow step. The
 /// statements have already been harvested from the source tool and persisted;
 /// this job only runs the sensemaker model against them and stores the result.
@@ -124,7 +129,7 @@ pub async fn theme_extraction_handler(
         "Running theme extraction against sensemaker model"
     );
 
-    let extractor = ThemeExtractor::builder()
+    let mut extractor = ThemeExtractor::builder()
         .maybe_context(job.context.clone())
         .maybe_additional_instructions(job.additional_instructions.clone())
         .maybe_existing_themes(
@@ -135,7 +140,11 @@ pub async fn theme_extraction_handler(
         .build();
 
     let extracted_themes: Vec<SensemakarTheme> = extractor
-        .run_with_model(sensemakar_statements.clone(), model.clone())
+        .run_in_batches_with_model(
+            sensemakar_statements.clone(),
+            model.clone(),
+            SENSEMAKER_BATCH_SIZE,
+        )
         .await
         .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
         .ok_or_record_failure(&job.job_id, &state.db)
@@ -172,7 +181,7 @@ pub async fn theme_extraction_handler(
             .build();
 
         let assignments = assigner
-            .run_with_model(sensemakar_statements, model)
+            .run_in_batches_with_model(sensemakar_statements, model, SENSEMAKER_BATCH_SIZE)
             .await
             .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
             .ok_or_record_failure(&job.job_id, &state.db)

@@ -1,0 +1,200 @@
+//! The only types a public report-data response may contain (ADR-0061).
+//!
+//! A response type is declared with [`public_report_data!`], which refuses to compile if any
+//! field isn't [`PublicReportData`]. Ids, pids, emails and any string read from the database or a
+//! request never are, so they can't reach a public endpoint by accident. Fixed text from our own
+//! code goes in a [`Label`]. Adding a new building block here needs a reviewer to agree it can't
+//! identify a person.
+use schemars::JsonSchema;
+use serde::Serialize;
+
+/// Data that is safe to serve to anyone once a section block is public. Implemented by the
+/// building blocks in this module and by structs declared with [`public_report_data!`], never by
+/// hand.
+pub trait PublicReportData: sealed::Sealed + Serialize {}
+
+#[doc(hidden)]
+pub mod sealed {
+    /// Keeps [`super::PublicReportData`] to this module and the macro.
+    pub trait Sealed {}
+}
+
+/// How many of something there are, such as participants, statements or votes.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Count(pub u64);
+
+/// Fixed text written in our code, such as a group's letter. It holds a `&'static str` so it
+/// can't be filled from the database or a request.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct Label(pub &'static str);
+
+/// A proportion between 0 and 1, such as the share of a group that agreed.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq)]
+#[serde(transparent)]
+pub struct Share(pub f64);
+
+/// Participant-written text that moderation has accepted. Free text can carry anything a
+/// participant typed, so this is the one door for it: build it only from accepted content, never
+/// from rejected or pending content.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct ModeratedText(String);
+
+impl ModeratedText {
+    pub fn from_accepted(text: String) -> Self {
+        Self(text)
+    }
+}
+
+/// Polis's number for a statement, used to match a statement to its vote bars and groups. Polis
+/// numbers statements in the order they were written, so it says nothing about who wrote one.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct StatementId(pub u32);
+
+/// Polis's number for an opinion group, counting from 0 within one conversation.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(transparent)]
+pub struct OpinionGroupId(pub u32);
+
+/// Text a facilitator wrote, such as a theme they tagged statements with, a survey question or
+/// one of its choices. Build it only from what facilitators set up, never from anything a
+/// participant typed.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct FacilitatorText(String);
+
+impl FacilitatorText {
+    pub fn from_facilitator(text: String) -> Self {
+        Self(text)
+    }
+}
+
+/// A point on a rating or opinion scale, such as 4 on a 1 to 5 rating.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[serde(transparent)]
+pub struct ScalePoint(pub u32);
+
+/// An aggregate number that isn't a count, such as a summed rating, a mean, or the edge of a
+/// scale bucket. Built from many people's answers together, never from one person's.
+#[derive(Serialize, JsonSchema, Debug, Clone, Copy, PartialEq)]
+#[serde(transparent)]
+pub struct Score(pub f64);
+
+/// The fewest answers a `Score` or breakdown is built from. With fewer, a reader who knows who
+/// answered could work out one person's answers, so the count is shown and the rest withheld.
+pub const MIN_ANSWERS_SHOWN: usize = 3;
+
+/// Text the sensemaker wrote at a facilitator's request from many contributions together, such
+/// as a theme's description or an opinion group's summary, or that a facilitator wrote in its
+/// place. Never one person's words.
+#[derive(Serialize, JsonSchema, Debug, Clone, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct GeneratedText(String);
+
+impl GeneratedText {
+    pub fn from_sensemaking(text: String) -> Self {
+        Self(text)
+    }
+}
+
+macro_rules! building_blocks {
+    ($($building_block:ty),*) => {
+        $(
+            impl sealed::Sealed for $building_block {}
+            impl PublicReportData for $building_block {}
+        )*
+    };
+}
+
+building_blocks!(
+    Count,
+    Label,
+    Share,
+    ModeratedText,
+    StatementId,
+    OpinionGroupId,
+    FacilitatorText,
+    ScalePoint,
+    Score,
+    GeneratedText,
+    bool
+);
+
+impl<T: PublicReportData> sealed::Sealed for Option<T> {}
+impl<T: PublicReportData> PublicReportData for Option<T> {}
+impl<T: PublicReportData> sealed::Sealed for Vec<T> {}
+impl<T: PublicReportData> PublicReportData for Vec<T> {}
+
+/// Declare a public report-data response struct. Every field must itself be
+/// [`PublicReportData`], or the crate doesn't compile:
+///
+/// ```ignore
+/// public_report_data! {
+///     pub struct KeyStats {
+///         pub participants: Count,
+///         pub statements: Count,
+///     }
+/// }
+/// ```
+macro_rules! public_report_data {
+    (
+        $(#[$struct_attribute:meta])*
+        $visibility:vis struct $name:ident {
+            $($(#[$field_attribute:meta])* $field_visibility:vis $field:ident : $field_type:ty),* $(,)?
+        }
+    ) => {
+        $(#[$struct_attribute])*
+        #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+        #[serde(rename_all = "camelCase")]
+        $visibility struct $name {
+            $($(#[$field_attribute])* $field_visibility $field: $field_type),*
+        }
+
+        impl $crate::tools::public_report_data::anonymous::sealed::Sealed for $name {}
+
+        // A field type that isn't public report data fails this bound at compile time.
+        impl $crate::tools::public_report_data::anonymous::PublicReportData for $name
+        where
+            $($field_type: $crate::tools::public_report_data::anonymous::PublicReportData),*
+        {}
+    };
+}
+
+pub(crate) use public_report_data;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    public_report_data! {
+        struct ExampleSectionBlock {
+            participants: Count,
+            agreed: Option<Share>,
+            statements: Vec<ModeratedText>,
+            group: Label,
+        }
+    }
+
+    #[test]
+    fn should_serialize_building_blocks_as_plain_values() {
+        let data = ExampleSectionBlock {
+            participants: Count(12),
+            agreed: Some(Share(0.5)),
+            statements: vec![ModeratedText::from_accepted("More buses".into())],
+            group: Label("A"),
+        };
+
+        assert_eq!(
+            serde_json::to_value(&data).unwrap(),
+            serde_json::json!({
+                "participants": 12,
+                "agreed": 0.5,
+                "statements": ["More buses"],
+                "group": "A"
+            })
+        );
+    }
+}

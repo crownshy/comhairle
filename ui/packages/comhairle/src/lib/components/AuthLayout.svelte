@@ -1,7 +1,6 @@
 <script lang="ts">
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import Footer from '$lib/components/Footer.svelte';
 	import type { Snippet } from 'svelte';
 
 	let { children }: { children: Snippet } = $props();

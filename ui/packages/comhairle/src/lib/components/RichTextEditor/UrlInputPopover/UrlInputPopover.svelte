@@ -13,9 +13,13 @@
 	import { MediaUpload } from '$lib/components/Media';
 	import MediaLibraryDialog, { addToCache } from '../../Media/MediaLibraryDialog.svelte';
 
+	type OnSubmit = {
+		from: 'library' | 'external-url';
+		url: string;
+	};
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
-		onSubmit: (value: string) => void;
+		onSubmit: (value: OnSubmit) => void;
 		children: Snippet;
 		label?: string;
 		placeholder?: string;
@@ -82,7 +86,7 @@
 			return;
 		}
 
-		onSubmit(validURL);
+		onSubmit({ from: 'external-url', url: validURL });
 		open = false;
 	}
 
@@ -91,10 +95,6 @@
 			e.preventDefault();
 			handleSubmit();
 		}
-	}
-
-	function handleCancel() {
-		open = false;
 	}
 </script>
 
@@ -111,7 +111,7 @@
 				<div class="flex flex-row gap-2">
 					<MediaLibraryDialog
 						onconfirm={(media) => {
-							onSubmit(media.url);
+							onSubmit({ from: 'library', url: media.url });
 							open = false;
 						}}
 					/>
@@ -120,7 +120,7 @@
 						size="sm"
 						oncomplete={(media) => {
 							addToCache(media);
-							onSubmit(media.url);
+							onSubmit({ from: 'library', url: media.url });
 							open = false;
 						}}
 					/>
@@ -148,7 +148,9 @@
 				{/if}
 			</div>
 			<div class="flex justify-end gap-2">
-				<Button variant="outline" size="sm" onclick={handleCancel}>Cancel</Button>
+				<Button variant="outline" size="sm" onclick={() => void (open = false)}>
+					Cancel
+				</Button>
 				<Button size="sm" onclick={handleSubmit}>{buttonText}</Button>
 			</div>
 		</div>

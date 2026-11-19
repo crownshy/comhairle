@@ -112,15 +112,6 @@
 
 		$form.regions = [...selectedRegionIds].filter((id) => id !== regionId);
 	}
-
-	function parseEmailList(value: string): string[] | undefined {
-		const emails = value
-			.split(/\n|,/)
-			.map((entry) => entry.trim())
-			.filter(Boolean);
-
-		return emails.length > 0 ? emails : undefined;
-	}
 </script>
 
 <svelte:head>

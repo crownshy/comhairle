@@ -30,7 +30,7 @@
 		},
 		{
 			key: 'passed',
-			label: m.vote_bar_neutral(),
+			label: m.vote_bar_pass_unsure(),
 			pct: passed,
 			color: 'var(--vote-passed)',
 			outline: false
@@ -77,7 +77,7 @@
 	const summary = $derived(
 		m.vote_bar_summary({
 			agreed: Math.round(agreed),
-			neutral: Math.round(passed),
+			passUnsure: Math.round(passed),
 			notVoted: Math.round(notVoted),
 			disagreed: Math.round(disagreed)
 		})
@@ -128,7 +128,7 @@
 			<Tooltip.Trigger
 				aria-label={summary}
 				onpointermove={trackCursor}
-				class="relative block h-2.5 min-w-0 flex-1 cursor-default border-0 bg-transparent p-0"
+				class="relative isolate block h-2.5 min-w-0 flex-1 cursor-default border-0 bg-transparent p-0"
 			>
 				{#each pills as p, i (p.key)}
 					<span

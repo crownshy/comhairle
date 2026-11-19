@@ -3,23 +3,20 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
-	import { REPORT_COLUMN_CLASS } from './styles';
+	import { REPORT_COLUMN_CLASS, REPORT_PILL_CLASS } from '$lib/reports/styles';
 
 	type Props = {
 		title: string;
 		/** Back to the report's first screen. */
 		startHref: string;
-		/** One pill per section. Left out on screens that sit outside the sections. */
-		sections?: { label: string; href: string }[];
-		activeSectionIndex?: number;
+		/** One pill per page. Left out on screens that sit outside the pages. */
+		pages?: { label: string; href: string }[];
+		activePageIndex?: number;
 	};
 
-	let { title, startHref, sections = [], activeSectionIndex }: Props = $props();
+	let { title, startHref, pages = [], activePageIndex }: Props = $props();
 
-	const PILL_CLASS =
-		'shrink-0 rounded-full px-3 py-1.5 text-sm font-medium shadow-xs transition-colors';
-
-	// The pill row scrolls sideways on a phone, so keep the current section's pill in view.
+	// The pill row scrolls sideways on a phone, so keep the current page's pill in view.
 	const revealActivePill: Attachment<HTMLElement> = (pill) => {
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		pill.scrollIntoView({
@@ -45,28 +42,28 @@
 		<span class="text-foreground truncate">{title}</span>
 	</p>
 
-	{#if sections.length > 0}
+	{#if pages.length > 0}
 		<nav
-			aria-label={m.report_sections()}
+			aria-label={m.report_pages()}
 			class="-mx-5 overflow-x-auto px-5 [scrollbar-width:none]"
 		>
 			<ul class="flex w-max gap-2">
-				{#each sections as section, index (index)}
-					{@const active = index === activeSectionIndex}
+				{#each pages as reportPage, index (index)}
+					{@const active = index === activePageIndex}
 					<li>
 						<a
-							href={section.href}
+							href={reportPage.href}
 							aria-current={active ? 'location' : undefined}
 							class={cn(
-								PILL_CLASS,
-								'block',
+								REPORT_PILL_CLASS,
+								'block truncate',
 								active
 									? 'bg-secondary-foreground text-primary-foreground'
 									: 'bg-accent text-accent-foreground'
 							)}
 							{@attach active && revealActivePill}
 						>
-							{section.label}
+							{reportPage.label}
 						</a>
 					</li>
 				{/each}

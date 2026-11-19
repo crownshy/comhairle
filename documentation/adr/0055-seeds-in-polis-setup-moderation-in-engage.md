@@ -16,4 +16,4 @@ Polis has no way to delete a statement. Removing a seed in Setup rejects it with
 
 - Moderate follows the Engage rules in ADR-0052: it shows only when the conversation has a Polis step, and it stays locked until launch.
 - A removed seed is a rejected statement, so it appears in the moderation log like any other rejection.
-- Launch still copies every seed's text into the live poll, including removed ones. #1535 tracks filtering them out.
+- Launch copies seed text into the live poll and leaves removed seeds behind (#796).

@@ -21,8 +21,8 @@
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Autosave } from '../autosave.svelte';
-	import SaveStatusPill from '../SaveStatusPill.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
+	import SaveStatusPill from '$lib/components/SaveStatusPill.svelte';
 
 	type Props = {
 		conversation: ConversationWithTranslations;
@@ -249,14 +249,30 @@
 
 			if (sourceTerms && !termsOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(sourceTerms, activeLocale, primaryLocale)
+					aiTranslateContent(
+						sourceTerms,
+						activeLocale,
+						{
+							type: 'conversation',
+							id: conversation.id
+						},
+						primaryLocale
+					)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.terms[activeLocale] = result.ok;
 			}
 			if (sourceTip && !tipOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(sourceTip, activeLocale, primaryLocale)
+					aiTranslateContent(
+						sourceTip,
+						activeLocale,
+						{
+							type: 'conversation',
+							id: conversation.id
+						},
+						primaryLocale
+					)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.tooltips[activeLocale] = result.ok;

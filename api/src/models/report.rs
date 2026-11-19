@@ -17,10 +17,11 @@ use super::report_impact::{self};
 use super::{workflow, workflow_step};
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
 use crate::routes::feedback::dto::FeedbackDto;
 use crate::routes::report_impacts::dto::ReportImpactDto;
 use crate::routes::reports::ReportView;
+use crate::tools::demographics::DemographicReport;
 use crate::tools::elicitation_bot::ElicitationBotReport;
 use crate::tools::heyform::HeyFormReport;
 use crate::tools::learn::LearnReport;
@@ -224,6 +225,12 @@ pub async fn create_for_conversation(
                     ToolConfig::ThinkingSpace(_) => {
                         ReportConfig::ThinkingSpace(ThinkingSpaceReport)
                     }
+                    ToolConfig::DemographicQuestion(_) => {
+                        ReportConfig::DemographicQuestion(DemographicReport)
+                    }
+                    ToolConfig::DemographicForm(_) => {
+                        ReportConfig::DemographicForm(DemographicReport)
+                    }
                 };
 
                 Ok(ReportSectionConfig {
@@ -252,15 +259,18 @@ pub async fn create_for_conversation(
         ReportIden::SectionConfigs,
     ];
 
+    let mut transaction = db.begin().await?;
     let summary = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         locale,
         "Summary to be filled out by facilitator",
         TextFormat::Rich,
     )
     .await?;
     let body = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         locale,
         "Body to be filled out by facilitator",
         TextFormat::Rich,
@@ -281,13 +291,14 @@ pub async fn create_for_conversation(
         .build_sqlx(PostgresQueryBuilder);
 
     let report = sqlx::query_as_with::<_, Report, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *transaction)
         .await
         .map_err(|e| ComhairleError::FailedToCreateResource {
             resource_type: "Report".into(),
             error: e,
         })?;
 
+    transaction.commit().await?;
     Ok(report)
 }
 

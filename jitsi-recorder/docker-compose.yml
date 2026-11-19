@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: jitsi-recorder-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  recorder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jitsi-recorder
+    ports:
+      - "3000:3000"
+    environment:
+      # Server Configuration
+      PORT: 3000
+      RUST_LOG: info
+
+      # Jitsi Configuration
+      JITSI_WEBSOCKET_URL: wss://jitsi.comhairle.scot/xmpp-websocket
+
+      # AWS S3 Configuration (set these in .env file)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379
+
+      # Recording Configuration
+      GST_MEET_PATH: /usr/local/bin/gst-meet
+      RECORDINGS_DIR: /tmp/jitsi-recordings
+
+      # Auto-trigger via Prosody event_sync webhooks
+      EVENT_SYNC_TOKEN: ${EVENT_SYNC_TOKEN}
+      DEFAULT_S3_BUCKET: ${DEFAULT_S3_BUCKET:-}
+      DEFAULT_WEBHOOK_URL: ${DEFAULT_WEBHOOK_URL:-}
+    volumes:
+      # Mount for temporary recordings (optional - useful for debugging)
+      - recordings:/tmp/jitsi-recordings
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/recordings"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local
+  recordings:
+    driver: local

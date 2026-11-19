@@ -59,6 +59,7 @@
 	// field renders the current page as if it were any other translatable field.
 	const translationSource = createLearnSource({
 		pages,
+		getScope: () => ({ type: 'conversation', id: conversationId }),
 		getPrimaryLocale: () => primaryLocale,
 		getSupportedLanguages: () => supportedLanguages
 	});

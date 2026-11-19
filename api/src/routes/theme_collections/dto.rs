@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::statement::Statement;
-use crate::models::statement_theme::StatementTheme;
+use crate::models::statement_theme::{self, StatementTheme};
 use crate::models::theme::{Theme, ThemeCollection};
 use crate::routes::statements::dto::StatementDto;
 
@@ -81,19 +79,7 @@ impl ThemeCollectionDto {
         statements: Vec<Statement>,
         assignments: Vec<StatementTheme>,
     ) -> Self {
-        let statements_by_id: HashMap<Uuid, Statement> =
-            statements.into_iter().map(|s| (s.id, s)).collect();
-
-        let mut statements_by_theme: HashMap<Uuid, Vec<Statement>> = HashMap::new();
-        for assignment in assignments {
-            if let Some(statement) = statements_by_id.get(&assignment.statement_id) {
-                statements_by_theme
-                    .entry(assignment.theme_id)
-                    .or_default()
-                    .push(statement.clone());
-            }
-        }
-
+        let mut statements_by_theme = statement_theme::statements_by_theme(statements, assignments);
         let themes = themes
             .into_iter()
             .map(|theme| {

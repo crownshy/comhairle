@@ -12,7 +12,15 @@ describe('workspaceGroups', () => {
 		]);
 		expect(labels({ isSiteAdmin: true, isSuperAdmin: true })).toEqual([
 			[undefined, ['Conversations']],
-			['Library', ['Media library', 'Email templates']],
+			[
+				'Library',
+				[
+					'Media library',
+					'Email templates',
+					'Demographic forms',
+					'Hybrid works (prototype)'
+				]
+			],
 			['Administration', ['Organisations', 'Regions', 'System roles']]
 		]);
 	});

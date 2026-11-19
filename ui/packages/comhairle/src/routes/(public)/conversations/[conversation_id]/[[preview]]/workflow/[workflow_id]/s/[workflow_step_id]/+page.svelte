@@ -6,6 +6,7 @@
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
+	import * as DemographicsForm from '$lib/tools/demographics_form';
 	import type { ComponentProps } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -22,6 +23,7 @@
 	import type { ToolSequence } from '$lib/tools/toolSequence';
 	import { STEP_COLUMN_CLASS } from './styles';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { IsIdle, watch } from 'runed';
 
 	import { afterNavigate, goto } from '$app/navigation';
 	import {
@@ -34,6 +36,9 @@
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
+	import { workflowService } from '$lib/services/workflow.svelte';
+	import { ws } from '$lib/api/websockets.svelte';
+	import { PARTICIPANT_ACTIVITY_EVENT } from '$lib/utils/participantActivity';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -61,6 +66,46 @@
 	// Preview never writes progress, even on a live conversation, so the admin is not
 	// enrolled as a participant by clicking through.
 	let recordsProgress = $derived(conversation.isLive && !isPreview);
+	let tracksActivity = $derived(recordsProgress && ws.connectionStatus === 'connected');
+
+	// --- USER ACTIVITY ---
+	const userIdle = new IsIdle({
+		timeout: 90_000,
+		events: [
+			'mousemove',
+			'mousedown',
+			'resize',
+			'keydown',
+			'touchstart',
+			'wheel',
+			PARTICIPANT_ACTIVITY_EVENT
+		]
+	});
+	watch(
+		() => [workflowStep.id, tracksActivity] as const,
+		([stepId, tracking]) => {
+			if (!tracking) return;
+
+			workflowService.startWorkflowStep(stepId);
+
+			// Covers navigation case only. "finished" case is handled in
+			// api::routes::user_progress when a step is completed
+			return () => workflowService.finishWorkflowStep(stepId, 'navigation');
+		}
+	);
+	watch(
+		() => [userIdle.current, tracksActivity] as const,
+		([isIdle, tracking]) => {
+			if (!tracking) return;
+
+			if (isIdle) {
+				const inactiveSeconds = Math.round((Date.now() - userIdle.lastActive) / 1000);
+				workflowService.markIdle(workflowStep.id, inactiveSeconds);
+			} else {
+				workflowService.startWorkflowStep(workflowStep.id);
+			}
+		}
+	);
 
 	let actualCurrentStep = $derived(
 		recordsProgress
@@ -407,6 +452,13 @@
 							participantId={user.id}
 							onDone={showCompletionScreen}
 							onCanContinueChange={handleCanContinueChange}
+							onSequenceChange={handleSequenceChange}
+						/>
+					{:else if toolConfig?.type === 'demographicform'}
+						<DemographicsForm.UserUI
+							organizationId={conversation.organizationId}
+							formId={toolConfig.form_id}
+							onDone={showCompletionScreen}
 							onSequenceChange={handleSequenceChange}
 						/>
 					{/if}

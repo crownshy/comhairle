@@ -14,6 +14,9 @@ import type {
 	UpdateModerationPolicyReason
 } from '@crownshy/api-client/api';
 
+/** A reason a moderator can pick when rejecting a statement. */
+export type RejectReason = UpdateModerationPolicyReason;
+
 /** Joins a reason's label to the moderator's note in `moderation_reason` (ADR-0015). */
 export const REASON_NOTE_SEPARATOR = ': ';
 

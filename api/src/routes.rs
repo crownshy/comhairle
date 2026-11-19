@@ -5,7 +5,6 @@ pub mod chat_instructions;
 pub mod chat_sessions;
 pub mod chats;
 pub mod conversations;
-pub mod demographics;
 pub mod documents;
 pub mod email_template_configs;
 pub mod event_attendances;

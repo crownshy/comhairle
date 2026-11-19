@@ -17,6 +17,8 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { mediaLibraryTour } from './tour';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
 
 	useTour(() => mediaLibraryTour);
 
@@ -59,9 +61,9 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
 <SectionHeader
@@ -74,18 +76,18 @@
 	{#snippet actions()}
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
-				<MediaUpload />
-				<Button variant="outline" onclick={() => (bulkEdit = true)}>
-					<SquarePen class="h-4 w-4" />{m.edit()}
+				<MediaUpload oncomplete={() => void invalidate(key('admin/media-library/media'))} />
+				<Button variant="outline" onclick={() => (bulkEdit = true)} icon={SquarePen}>
+					{m.edit()}
 				</Button>
 			{:else}
 				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
-					<Button variant="destructive" disabled={selected.length === 0}>
-						<Trash2 class="h-4 w-4" />{m.delete()}
+					<Button variant="destructive" disabled={selected.length === 0} icon={Trash2}>
+						{m.delete()}
 					</Button>
 				</DeleteDialog>
-				<Button variant="outline" onclick={() => (bulkEdit = false)}>
-					<X class="h-4 w-4" />{m.cancel()}
+				<Button variant="outline" onclick={() => (bulkEdit = false)} icon={X}>
+					{m.cancel()}
 				</Button>
 			{/if}
 		</div>

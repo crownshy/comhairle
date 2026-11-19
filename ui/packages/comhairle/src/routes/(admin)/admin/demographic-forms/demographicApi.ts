@@ -1,0 +1,249 @@
+import type {
+	DemographicFormDraftInput,
+	DemographicFormDto,
+	QuestionDraftInput,
+	QuestionDto,
+	QuestionType,
+	QuestionVersionDto,
+	DemographicTag
+} from '@crownshy/api-client/api';
+import type { createApiClient } from '@crownshy/api-client/client';
+import { tryCatchAsync, type ErrorType } from '$lib/utils/errorHandling';
+import {
+	isChoiceKind,
+	type SavedForm,
+	type SavedQuestion,
+	type DemographicForm,
+	type DemographicQuestion,
+	type QuestionKind,
+	type Tag
+} from './demographicModel';
+
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+type ApiShape = { question_type: QuestionType };
+
+const API_SHAPE: Record<QuestionKind, ApiShape> = {
+	single_choice: { question_type: 'single_select' },
+	multiple_choice: { question_type: 'multi_select' },
+	number: { question_type: 'number' },
+	date: { question_type: 'date' },
+	open_text: { question_type: 'text' }
+};
+
+function kindFromVersion(version: QuestionVersionDto): QuestionKind {
+	switch (version.question_type) {
+		case 'single_select':
+			return 'single_choice';
+		case 'multi_select':
+			return 'multiple_choice';
+		case 'number':
+			return 'number';
+		case 'date':
+			return 'date';
+		case 'text':
+			return 'open_text';
+	}
+}
+
+function sortedLabels(options: QuestionVersionDto['options']): string[] {
+	return [...options].sort((a, b) => a.position - b.position).map((option) => option.label);
+}
+
+export function questionFromDto(dto: QuestionDto): SavedQuestion {
+	const content = dto.draft ?? dto.latest_published ?? null;
+	const kind = content ? kindFromVersion(content) : 'single_choice';
+	const choice = isChoiceKind(kind);
+	return {
+		id: dto.id,
+		isDefault: dto.organization_id == null,
+		text: content?.text ?? '',
+		kind,
+		datePrecision: content?.date_precision ?? 'day',
+		tags: dto.tags.map(({ id, name }) => ({ id, name })),
+		options: content && choice ? sortedLabels(content.options) : [],
+		allowOther: choice && (content?.allow_other ?? false),
+		preferNotToSay: choice && (content?.prefer_not_to_say ?? false),
+		maxSelections: content?.max_selections ?? null,
+		specialCategory: content?.special_category ?? false,
+		consentText: content?.consent_text ?? '',
+		archived: Boolean(dto.archived_at),
+		publishedVersion: dto.latest_published?.version_number ?? null,
+		draftVersion: dto.draft?.version_number ?? null
+	};
+}
+
+export function formFromDto(dto: DemographicFormDto): SavedForm {
+	const content = dto.draft ?? dto.latest_published ?? null;
+	const entries = content ? [...content.entries].sort((a, b) => a.position - b.position) : [];
+	return {
+		id: dto.id,
+		name: content?.name ?? '',
+		questions: entries.map((entry) => ({
+			questionId: entry.question_id,
+			required: entry.required,
+			text: entry.question_text
+		})),
+		archived: Boolean(dto.archived_at),
+		publishedVersion: dto.latest_published?.version_number ?? null,
+		draftVersion: dto.draft?.version_number ?? null
+	};
+}
+
+export function questionDraftInput(question: DemographicQuestion): QuestionDraftInput {
+	const shape = API_SHAPE[question.kind];
+	const choice = isChoiceKind(question.kind);
+	return {
+		text: question.text.trim(),
+		question_type: shape.question_type,
+		date_precision: question.kind === 'date' ? question.datePrecision : null,
+		options: choice ? question.options.map((o) => o.trim()).filter((o) => o !== '') : [],
+		allow_other: choice && question.allowOther,
+		prefer_not_to_say: choice && question.preferNotToSay,
+		max_selections: question.kind === 'multiple_choice' ? question.maxSelections : null,
+		special_category: question.specialCategory,
+		consent_text: question.specialCategory ? question.consentText.trim() : null,
+		tag_ids: question.tags.map((tag) => tag.id)
+	};
+}
+
+export function formDraftInput(form: DemographicForm): DemographicFormDraftInput {
+	return {
+		name: form.name.trim(),
+		entries: form.questions.map((entry, position) => ({
+			position,
+			question_id: entry.questionId,
+			required: entry.required
+		}))
+	};
+}
+
+export async function loadDemographics(api: ApiClient, organizationId: string | null) {
+	const queries = { organization_id: organizationId ?? undefined };
+	const [questions, forms, tags] = await Promise.all([
+		organizationId === null
+			? api.ListDemographicDefaults()
+			: api.ListDemographicQuestions({ queries }),
+		organizationId === null ? Promise.resolve([]) : api.ListDemographicForms({ queries }),
+		api.ListDemographicTags({ queries })
+	]);
+	return {
+		questions: questions.map(questionFromDto).filter((q) => !q.archived),
+		forms: forms.map(formFromDto).filter((f) => !f.archived),
+		tags: tags.map((tag): Tag => ({ id: tag.id, name: tag.name }))
+	};
+}
+
+/** Saves the question's draft, starting a new draft from the latest published version when needed. Resolves to the question id. */
+export function persistQuestion(
+	api: ApiClient,
+	organizationId: string | null,
+	question: DemographicQuestion,
+	publish: boolean
+) {
+	return tryCatchAsync<string, ErrorType>(async () => {
+		if (question.isDefault && organizationId !== null) {
+			throw new Error('Duplicate the default question before editing it.');
+		}
+		const body = questionDraftInput(question);
+		const queries = { organization_id: organizationId ?? undefined };
+		let questionId = question.id;
+		if (questionId === null) {
+			questionId = (
+				organizationId === null
+					? await api.CreateDemographicDefault(body)
+					: await api.CreateDemographicQuestion(body, { queries })
+			).id;
+		} else {
+			if (question.draftVersion === null) {
+				await api.StartDemographicQuestionDraft(undefined, {
+					params: { question_id: questionId },
+					queries
+				});
+			}
+			if (organizationId === null) {
+				await api.UpdateDemographicDefaultDraft(body, {
+					params: { question_id: questionId }
+				});
+			} else {
+				await api.UpdateDemographicQuestionDraft(body, {
+					params: { question_id: questionId },
+					queries
+				});
+			}
+		}
+		if (publish) {
+			if (organizationId === null) {
+				await api.PublishDemographicDefault(undefined, {
+					params: { question_id: questionId }
+				});
+			} else {
+				await api.PublishDemographicQuestion(undefined, {
+					params: { question_id: questionId },
+					queries
+				});
+			}
+		}
+		return questionId;
+	});
+}
+
+export function persistForm(
+	api: ApiClient,
+	organizationId: string,
+	form: DemographicForm,
+	publish: boolean
+) {
+	return tryCatchAsync<string, ErrorType>(async () => {
+		const body = formDraftInput(form);
+		const queries = { organization_id: organizationId };
+		let formId = form.id;
+		if (formId === null) {
+			formId = (await api.CreateDemographicForm(body, { queries })).id;
+		} else {
+			if (form.draftVersion === null) {
+				await api.StartDemographicFormDraft(undefined, {
+					params: { form_id: formId },
+					queries
+				});
+			}
+			await api.UpdateDemographicFormDraft(body, { params: { form_id: formId }, queries });
+		}
+		if (publish) {
+			await api.PublishDemographicForm(undefined, { params: { form_id: formId }, queries });
+		}
+		return formId;
+	});
+}
+
+export function archiveForm(api: ApiClient, organizationId: string, formId: string) {
+	return tryCatchAsync<void, ErrorType>(async () => {
+		await api.ArchiveDemographicForm(undefined, {
+			params: { form_id: formId },
+			queries: { organization_id: organizationId }
+		});
+	});
+}
+
+export function archiveQuestion(api: ApiClient, organizationId: string, questionId: string) {
+	return tryCatchAsync<void, ErrorType>(async () => {
+		await api.ArchiveDemographicQuestion(undefined, {
+			params: { question_id: questionId },
+			queries: { organization_id: organizationId }
+		});
+	});
+}
+
+/** Without an organisation the tag is a system category, which only super admins can create. */
+export function createDemographicTag(api: ApiClient, organizationId: string | null, name: string) {
+	return tryCatchAsync<Tag, ErrorType>(async () => {
+		const tag: DemographicTag =
+			organizationId === null
+				? await api.CreateDemographicDefaultTag({ name })
+				: await api.CreateDemographicTag(
+						{ name },
+						{ queries: { organization_id: organizationId } }
+					);
+		return { id: tag.id, name: tag.name };
+	});
+}

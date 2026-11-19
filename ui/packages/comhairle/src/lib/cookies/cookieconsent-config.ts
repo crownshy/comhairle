@@ -1,13 +1,13 @@
 import * as CookieConsent from 'vanilla-cookieconsent';
 
 const config: CookieConsent.CookieConsentConfig = {
-	autoShow:true,
-	disablePageInteraction:true,
+	autoShow: true,
+	disablePageInteraction: true,
 	categories: {
 		necessary: {
 			enabled: true,
 			readOnly: true
-		},
+		}
 		// analytics: {
 		// 	// autoClear: {
 		// 	// 	cookies: [
@@ -146,8 +146,7 @@ const config: CookieConsent.CookieConsentConfig = {
 						// },
 						{
 							title: 'More information',
-							description:
-								`For any queries in relation to my policy on cookies and your choices, please <a href="/rights/cookies">visit here</a>`
+							description: `For any queries in relation to my policy on cookies and your choices, please <a href="/rights/cookies">visit here</a>`
 						}
 					]
 				}
@@ -157,4 +156,3 @@ const config: CookieConsent.CookieConsentConfig = {
 };
 
 export default config;
-

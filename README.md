@@ -17,6 +17,10 @@ Comhairle consists of a number of services that work together to deliver the ful
 
 Interactions with the frontend are handled by typical rest responses (though we may explore using gRPC at some point).
 
+The API exposes Prometheus metrics at `/metrics`. Request duration histograms retain
+the default buckets through 10 seconds and add 15, 20, 30, and 60 second buckets for slow
+requests. Requests longer than 60 seconds remain counted in the `+Inf` bucket.
+
 **The frontend**  is the web based interface where both citizens and policy makers will interact with the platform. is written in SvelteKit and uses Shadnn as a "Component Library" and Tailwind css for styling. Shadcn provides good defaults for accessibility and will allow us to rapidly build while still being able to customize.
 
 In the future we may wrap the frontend using Tauri to provide a mobile app experience for the platform.

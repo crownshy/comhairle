@@ -10,10 +10,11 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidate } from '$app/navigation';
 	import DetailsField from './DetailsField.svelte';
-	import { Form, Submit } from '$lib/components/EasyForm';
+	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
+	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props extends MediaDto {
 		type: HTMLMediaElement | undefined;
@@ -53,10 +54,10 @@
 
 		deleteDialogOpen = false;
 		close();
-		await invalidate('media-library:media');
+		await invalidate(key('admin/media-library/media'));
 	}
 
-	async function updateMedia(formData: FormData) {
+	const updateMedia: OnSubmit = async (formData) => {
 		const newName = (formData.get('name') ?? undefined) as string | undefined;
 		const newAlt = (formData.get('alt') ?? undefined) as string | undefined;
 
@@ -95,8 +96,8 @@
 		editable = false;
 		initialName = newName;
 		initialAlt = newAlt;
-		await invalidate('media-library:media');
-	}
+		await invalidate(key('admin/media-library/media'));
+	};
 </script>
 
 {#snippet deleteMediaDialog()}
@@ -108,9 +109,8 @@
 				class="text-destructive/90 hover:text-destructive"
 				aria-label="Delete"
 				title="Delete"
-			>
-				<Trash2 />
-			</Button>
+				icon={Trash2}
+			/>
 		</AlertDialog.Trigger>
 		<AlertDialog.Portal>
 			<AlertDialog.Content>
@@ -124,7 +124,7 @@
 	</AlertDialog.Root>
 {/snippet}
 
-{#snippet readOnlyField(label: string, value: string)}
+{#snippet ReadOnlyField(label: string, value: string)}
 	<div class="text-muted-foreground mb-1 text-sm font-semibold">{label}</div>
 	<div class="mb-5">{value}</div>
 {/snippet}
@@ -140,8 +140,9 @@
 						size="sm"
 						onclick={() => (editable = true)}
 						aria-label="Edit"
-						title="Edit"><Edit /></Button
-					>
+						title="Edit"
+						icon={Edit}
+					/>
 					{@render deleteMediaDialog()}
 				{/if}
 			</Dialog.Header>
@@ -162,51 +163,53 @@
 					{/if}
 				</div>
 				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
-					<Form class="flex flex-col" handleSubmission={updateMedia}>
-						<DetailsField
-							label="Name"
-							initialValue={initialName}
-							{editable}
-							field="name"
-							{readOnlyField}
-						/>
-						<DetailsField
-							label="Alt"
-							initialValue={initialAlt}
-							{editable}
-							field="alt"
-							{readOnlyField}
-						/>
-						<section class="grid grid-cols-2">
-							<div>
-								{@render readOnlyField('Type', capitalise(type ?? ''))}
-							</div>
-							<div>
-								{@render readOnlyField(
-									'Format',
-									Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
-								)}
-							</div>
-							<div>
-								{@render readOnlyField(
-									'Created at',
-									new Date(createdAt).toLocaleString()
-								)}
-							</div>
-						</section>
+					<Form class="flex flex-col" onsubmit={updateMedia}>
+						{#snippet children({ isSubmitting })}
+							<DetailsField
+								label="Name"
+								initialValue={initialName}
+								{editable}
+								field="name"
+								readOnlyField={ReadOnlyField}
+							/>
+							<DetailsField
+								label="Alt"
+								initialValue={initialAlt}
+								{editable}
+								field="alt"
+								readOnlyField={ReadOnlyField}
+							/>
+							<section class="grid grid-cols-2">
+								<div>
+									{@render ReadOnlyField('Type', capitalise(type ?? ''))}
+								</div>
+								<div>
+									{@render ReadOnlyField(
+										'Format',
+										Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
+									)}
+								</div>
+								<div>
+									{@render ReadOnlyField(
+										'Created at',
+										new Date(createdAt).toLocaleString()
+									)}
+								</div>
+							</section>
 
-						<div class="mt-4 self-end">
-							{#if editable}
-								<Button
-									variant="outline"
-									onclick={() => (editable = false)}
-									type="button"
-								>
-									Cancel
-								</Button>
-								<Submit class="ml-2" text="Update" />
-							{/if}
-						</div>
+							<div class="mt-4 self-end">
+								{#if editable}
+									<Button
+										variant="outline"
+										onclick={() => (editable = false)}
+										type="button"
+									>
+										Cancel
+									</Button>
+									<Submit class="ml-2" text="Update" {isSubmitting} />
+								{/if}
+							</div>
+						{/snippet}
 					</Form>
 				</aside>
 			</div>

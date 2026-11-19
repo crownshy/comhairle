@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types.js';
+import { backToFromUrl } from '$lib/utils/backTo';
 
 export const load: PageServerLoad = ({ url }) => {
-	const backTo = url.searchParams.get('backTo') ?? '/';
+	const backTo = backToFromUrl(url);
 	return { backTo };
 };

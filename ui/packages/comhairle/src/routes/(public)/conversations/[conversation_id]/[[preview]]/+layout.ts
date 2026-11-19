@@ -3,12 +3,14 @@ import type { LayoutLoad } from './$types';
 import type {
 	ComhairleDocument,
 	LocalizedConversationDto,
+	UserDto,
 	UserParticipationDto,
 	WorkflowDto
 } from '@crownshy/api-client/api';
 import type { createApiClient } from '@crownshy/api-client/client';
 import { key } from '$lib/utils/invalidationKey';
 import { isPreviewPasswordRequired, previewUnlockUrl } from '$lib/utils/previewAccess';
+import type { PageMeta } from '$lib/utils/pageMeta';
 
 export const load: LayoutLoad = async ({
 	parent,
@@ -22,8 +24,9 @@ export const load: LayoutLoad = async ({
 	hasKnowledgeBaseDocs: boolean;
 	participation: UserParticipationDto | null;
 	api: ReturnType<typeof createApiClient>;
-	user: any; // TODO:
+	user: UserDto | null;
 	preview: boolean;
+	meta: PageMeta;
 }> => {
 	// The participation row carries the seal, which the write that finishes the flow brings
 	// into existence. Without its own key, invalidating after that write reruns the workflow
@@ -37,7 +40,10 @@ export const load: LayoutLoad = async ({
 	const preview = params.preview === 'preview';
 
 	try {
-		const conversation = await api.GetConversation({ params: { conversation_id } });
+		// Without `withTranslations` the API returns the localized shape, not the admin one.
+		const conversation = (await api.GetConversation({
+			params: { conversation_id }
+		})) as LocalizedConversationDto;
 
 		if (!conversation.isLive && !preview) {
 			return redirect(302, '/');
@@ -84,7 +90,12 @@ export const load: LayoutLoad = async ({
 			participation,
 			api,
 			user,
-			preview
+			preview,
+			meta: {
+				title: conversation.title,
+				description: conversation.shortDescription,
+				image: conversation.imageUrl
+			}
 		};
 	} catch (e) {
 		if (isRedirect(e)) {

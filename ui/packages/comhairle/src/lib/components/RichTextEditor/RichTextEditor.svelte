@@ -3,8 +3,9 @@
 	import { Editor } from '@tiptap/core';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import TableInsertControls from './TableInsertControls.svelte';
+	import ImageControls from './ImageControls.svelte';
 	import ReportEmbedControls, { type EmbeddableStep } from './ReportEmbedControls.svelte';
-	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
+	import { type ActiveStates, type Toolset } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import { SourceDocument } from './extensions/sourceDocument';
@@ -31,6 +32,8 @@
 		reportEmbedSteps?: EmbeddableStep[];
 		/** Extra controls pinned to the right end of the toolbar, such as the translate button. */
 		toolbarActions?: Snippet;
+		/** `text` for short notes: text formatting, lists and links only. */
+		toolset?: Toolset;
 	};
 
 	let {
@@ -44,7 +47,8 @@
 		availableDocuments = [],
 		conversationId,
 		reportEmbedSteps = [],
-		toolbarActions
+		toolbarActions,
+		toolset = 'full'
 	}: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
@@ -222,9 +226,11 @@
 			documents={availableDocuments}
 			disabled={!editable}
 			actions={toolbarActions}
+			{toolset}
 		/>
 		<fieldset disabled={!editable} class="contents">
 			<TableInsertControls {editor} />
+			<ImageControls {editor} />
 			{#if reportEmbedSteps.length > 0}
 				<ReportEmbedControls {editor} steps={reportEmbedSteps} />
 			{/if}
@@ -232,7 +238,7 @@
 	{/if}
 
 	<div
-		class="bg-background border-border rounded-b-xl border md:rounded-b-xl md:border-t {className}"
+		class="rich-text-frame bg-background border-border rounded-b-xl border md:rounded-b-xl md:border-t {className}"
 	>
 		{#if maxHeight}
 			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">

@@ -44,7 +44,7 @@ export async function loadRoleManagement(
 	api: RoleManagementApi,
 	resourceType: RoleResourceType,
 	resourceId: string
-): Promise<Result<'ok', RoleManagementData, RoleManagementLoadError[]>> {
+): Promise<Result<RoleManagementData, RoleManagementLoadError[]>> {
 	const params = { resource_type: resourceType, resource_id: resourceId };
 	const [roles, assignments, users, organizations] = await Promise.all([
 		tryCatchAsync(() => api.GetPermissionRoles({ params: { resource_type: resourceType } })),
@@ -163,15 +163,15 @@ export function roleRecipients(
 const roleDescriptions: Record<RoleResourceType, Record<string, string>> = {
 	system: {
 		super_admin: 'Full control of the entire platform.',
-		admin: 'Create organizations and conversations, and translate content.',
-		translator: 'Translate content across the platform.'
+		admin: 'Create organizations and conversations, and translate system content.'
 	},
 	organization: {
-		organization_admin: 'Manage the organization, its members and their roles.'
+		organization_admin: 'Manage the organization, its members and their roles.',
+		translator: 'Translate the organization content.'
 	},
 	conversation: {
 		admin: 'Full control, including the team, launching and deleting.',
-		content_editor: 'Edit the conversation details and content.',
+		content_editor: 'Edit and translate the conversation details and content.',
 		moderator: 'Review and moderate what participants contribute.',
 		translator: 'Translate the conversation content.',
 		data_access: 'Export conversation data.',

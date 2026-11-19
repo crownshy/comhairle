@@ -1,5 +1,7 @@
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { Icon as LucideIcon } from 'lucide-svelte';
+	import type { ComponentType } from 'svelte';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { type VariantProps, tv } from 'tailwind-variants';
 
@@ -41,6 +43,7 @@
 		WithElementRef<HTMLAnchorAttributes> & {
 			variant?: ButtonVariant;
 			size?: ButtonSize;
+			icon?: ComponentType<LucideIcon>;
 		};
 </script>
 
@@ -49,10 +52,11 @@
 		class: className,
 		variant = 'default',
 		size = 'default',
-		ref = $bindable(null),
+		ref = $bindable(),
 		href = undefined,
 		type = 'button',
 		disabled,
+		icon: Icon,
 		children,
 		...restProps
 	}: ButtonProps = $props();
@@ -69,6 +73,9 @@
 		tabindex={disabled ? -1 : undefined}
 		{...restProps}
 	>
+		{#if Icon}
+			<Icon class="h-4 w-4" />
+		{/if}
 		{@render children?.()}
 	</a>
 {:else}
@@ -80,6 +87,9 @@
 		{disabled}
 		{...restProps}
 	>
+		{#if Icon}
+			<Icon class="h-4 w-4" />
+		{/if}
 		{@render children?.()}
 	</button>
 {/if}

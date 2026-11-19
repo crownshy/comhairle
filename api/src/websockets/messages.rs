@@ -21,10 +21,17 @@ pub enum WebSocketMessage {
     UserStartedWorkflowStep { workflow_step_id: Uuid },
 
     #[serde(rename = "user_finished_workflow_step")]
-    UserFinishedWorkflowStep { workflow_step_id: Uuid },
+    UserFinishedWorkflowStep {
+        workflow_step_id: Uuid,
+        end_reason: String,
+    },
 
     #[serde(rename = "user_idle")]
-    UserIdle { workflow_step_id: Uuid },
+    UserIdle {
+        workflow_step_id: Uuid,
+        #[serde(default)]
+        inactive_seconds: i32,
+    },
 
     #[serde(rename = "user_joined")]
     UserJoined {

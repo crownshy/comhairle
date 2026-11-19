@@ -7,7 +7,8 @@ import {
 	Bell,
 	Binoculars,
 	NotebookText,
-	ShieldCheck
+	ShieldCheck,
+	ChartColumn
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
 
@@ -71,8 +72,7 @@ export const conversationSections: ConversationSection[] = [
 		guide: {
 			section: { guide: 'design-the-engagement-process', topic: 'design-steps' },
 			tabs: {
-				step: { guide: 'design-the-engagement-process', topic: 'configure-a-step' },
-				'step/insights': { guide: 'manage-a-conversation', topic: 'see-insights' }
+				step: { guide: 'design-the-engagement-process', topic: 'configure-a-step' }
 			}
 		}
 	},
@@ -128,6 +128,15 @@ export const conversationSections: ConversationSection[] = [
 		requiresPolis: true,
 		description: 'Review and moderate what participants contribute.',
 		guide: { section: { guide: 'manage-a-conversation', topic: 'moderate' } }
+	},
+	{
+		name: 'Insights',
+		path: 'insights',
+		icon: ChartColumn,
+		stage: 'engage',
+		requiresLive: true,
+		description: 'See the responses and results collected in each step.',
+		guide: { section: { guide: 'manage-a-conversation', topic: 'see-insights' } }
 	},
 	{
 		name: 'Monitor',

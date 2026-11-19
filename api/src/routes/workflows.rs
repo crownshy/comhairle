@@ -17,14 +17,16 @@ use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models::conversation::{self, PartialConversation};
+use crate::models::demographics::types::WorkflowDemographics;
+use crate::models::demographics::{self};
 use crate::models::permissions::ConversationResource;
 use crate::models::permissions::conversation::Action;
 use crate::models::user_participation::{self, UserParticipation};
-use crate::models::user_profile::{self, DemographicReport};
 use crate::models::user_progress;
 use crate::models::workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats};
 use crate::models::workflow_step::{self, WorkflowStep};
 use crate::routes::auth::RequiredUser;
+use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflows::dto::{UserParticipationDto, WorkflowDto};
 
 pub mod dto;
@@ -221,9 +223,10 @@ async fn get_workflow_stats(
 #[instrument(err(Debug), skip(state))]
 async fn get_participation_report(
     State(state): State<Arc<ComhairleState>>,
+    LocaleExtractor(locale): LocaleExtractor,
     WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
-) -> Result<(StatusCode, Json<DemographicReport>), ComhairleError> {
-    let report = user_profile::get_demographic_report(&state.db, &workflow_id).await?;
+) -> Result<(StatusCode, Json<WorkflowDemographics>), ComhairleError> {
+    let report = demographics::report::for_workflow(&state.db, &workflow_id, &locale).await?;
     Ok((StatusCode::OK, Json(report)))
 }
 
@@ -382,7 +385,7 @@ pub fn router(ctx: WorkflowRouterContext) -> ApiRouter<Arc<ComhairleState>> {
                     op.id(&format!("Get{ctx}WorkflowParticipationReport"))
                         .tag("Workflow")
                         .summary("Gets demographic report for workflow participants")
-                        .response::<200, Json<DemographicReport>>()
+                        .response::<200, Json<WorkflowDemographics>>()
                 }),
             )
             .api_route(

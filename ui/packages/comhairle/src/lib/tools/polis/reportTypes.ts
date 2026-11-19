@@ -2,7 +2,7 @@
  * Polis report data shapes.
  *
  * The wire types are the single source of truth in the generated
- * `@crownshy/api-client` (`WikiPollReport` and friends) — this module does NOT
+ * `@crownshy/api-client` (`WikiPollReport` and friends). This module does NOT
  * re-declare them, it only re-exports them under the names this feature uses
  * and adds what the client can't know about:
  *   - `topics`/`subtopics`: a client-side overlay tagged from
@@ -38,6 +38,21 @@ export type ReportComment = CommentReportData & {
 	topics?: string[];
 	subtopics?: string[];
 };
+
+/**
+ * What a statement's vote block draws. The admin report's comments and the public report
+ * data's statements both fit it, so the report components take either.
+ */
+export type VotedStatement = Pick<
+	ReportComment,
+	'tid' | 'text' | 'overall_votes' | 'group_votes' | 'topics'
+>;
+
+/** An opinion group's size, which vote bars are drawn as a share of. */
+export type GroupSize = Pick<ReportGroup, 'group_id' | 'total_members'>;
+
+/** A group with the statements that represent it, by `tid` (Polis's statement id). */
+export type RepresentedGroup = GroupSize & { representative_comments: { tid: number }[] };
 
 /**
  * `WikiPollReport` with the client-side theme overlay applied to its comments.

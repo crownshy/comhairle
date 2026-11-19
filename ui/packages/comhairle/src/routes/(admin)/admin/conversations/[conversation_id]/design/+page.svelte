@@ -9,7 +9,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { toolMeta, toolInfoUrl, type ToolType } from '$lib/tool_meta';
+	import { toolMeta, toolInfoUrl, canRevisitTool, type ToolType } from '$lib/tool_meta';
 	import type { ConversationTemplate } from '$lib/conversation_templates';
 	import TemplatePickerDialog from '$lib/components/TemplatePickerDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
@@ -23,6 +23,7 @@
 		ArrowDown,
 		MoreVertical,
 		Plus,
+		Import,
 		LoaderCircle,
 		GripVertical,
 		Info
@@ -37,6 +38,10 @@
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { processDesignTour } from './tour';
+	import FileInput from '$lib/components/FileInput.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 
 	useTour(() => processDesignTour);
 
@@ -234,6 +239,36 @@
 		handleCommit(next);
 	}
 
+	// --- Required / revisitable ---
+	type StepFlag = 'required' | 'canRevisit';
+	const FLAG_FIELD: Record<StepFlag, string> = {
+		required: 'required',
+		canRevisit: 'can_revisit'
+	};
+
+	async function setStepFlag(
+		step: WorkflowStepWithTranslationsDto,
+		flag: StepFlag,
+		value: boolean
+	) {
+		if (!canUpdate || !reorderedSteps) return;
+		const previous = reorderedSteps;
+		// Show the change straight away, and put it back if the save fails.
+		reorderedSteps = reorderedSteps.map((candidate) =>
+			candidate.id === step.id ? { ...candidate, [flag]: value } : candidate
+		);
+		const result = await tryCatchAsync(() => patchStep(step, { [FLAG_FIELD[flag]]: value }));
+		if (result.err !== null) {
+			reorderedSteps = previous;
+			notifications.send({
+				priority: 'ERROR',
+				message: 'Could not update the step. Please try again.'
+			});
+			return;
+		}
+		await invalidate(key('admin/conversation/design/workflow'));
+	}
+
 	// --- Inline name edit ---
 	function startEdit(step: WorkflowStepWithTranslationsDto) {
 		if (!canTranslate) return;
@@ -264,7 +299,7 @@
 			return;
 		}
 
-		await invalidate(key('admin/conversation/design/workflow'));
+		await invalidate(key('admin/conversation/workflow'));
 	}
 
 	// --- Delete ---
@@ -286,7 +321,7 @@
 			return;
 		}
 
-		await invalidate(key('admin/conversation/design/workflow'));
+		await invalidate(key('admin/conversation/workflow'));
 		notifications.send({ priority: 'INFO', message: 'Step deleted' });
 	}
 
@@ -315,6 +350,43 @@
 			if (highlightedStepId === pending) highlightedStepId = null;
 		}, 2500);
 	});
+
+	let importFile = $state<File | null>(null);
+	let openImportModal = $state(false);
+	let importing = $state(false);
+
+	async function importWorkflowStep(file: File) {
+		importing = true;
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const response = await tryCatchAsync(() =>
+			fetch(
+				`/api/conversation/${conversation.id}/workflow/${workflow.id}/workflow_step/import`,
+				{
+					method: 'POST',
+					credentials: 'include',
+					body: formData,
+					headers: {
+						enctype: 'multipart/form-data'
+					}
+				}
+			)
+		);
+
+		if (response.err !== null) {
+			console.error(response.err);
+			importing = false;
+			return notifications.send({
+				priority: 'ERROR',
+				message: 'Something went wrong importing step from JSON file'
+			});
+		}
+
+		await invalidate(key('admin/conversation/workflow'));
+		importing = false;
+		openImportModal = false;
+	}
 </script>
 
 <svelte:head>
@@ -383,6 +455,12 @@
 						</div>
 					{:else}
 						{#if reorderedSteps !== undefined}
+							<p data-tour="step-flags-key" class="text-muted-foreground text-sm">
+								<span class="text-destructive" aria-hidden="true">*</span> Required:
+								participants can't skip it.
+								<span class="font-medium">Revisitable:</span> participants can go back
+								to it
+							</p>
 							<DraggableList
 								items={reorderedSteps}
 								onReorder={handleReorder}
@@ -395,6 +473,7 @@
 								{#snippet children(step, index)}
 									{@const type = stepType(step)}
 									{@const meta = toolMeta(type)}
+									{@const revisitAllowed = canRevisitTool(type)}
 									<!-- Single-row card. The step name is a stretched link making the whole card navigate to Configure; the actions menu sits above it (z-10) so its clicks win. Pointer cursor + hover lift read as clickable. -->
 									<div
 										data-step-id={step.id}
@@ -430,22 +509,35 @@
 													class="border-input relative z-10 rounded border px-1 text-base outline-none"
 												/>
 											{:else}
-												<a
-													href={resolve(
-														'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
-														{
-															conversation_id: conversation.id,
-															step_id: step.id
-														}
-													)}
-													class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
-												>
-													{step.name}
-												</a>
+												<div class="flex min-w-0 items-baseline gap-1">
+													<a
+														href={resolve(
+															'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]',
+															{
+																conversation_id: conversation.id,
+																step_id: step.id
+															}
+														)}
+														class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
+													>
+														{step.name}
+													</a>{#if step.required}
+														<span
+															class="text-destructive shrink-0 text-lg font-medium"
+															aria-hidden="true">*</span
+														>
+													{/if}
+												</div>
 											{/if}
-											<span class="text-primary text-sm font-medium">
-												{meta?.displayName ?? type}
-											</span>
+											<div class="flex flex-wrap items-center gap-2">
+												<span class="text-primary text-sm font-medium">
+													{meta?.displayName ?? type}
+												</span>{#if step.canRevisit}
+													<Badge variant="secondary" class="text-sm"
+														>Revisitable</Badge
+													>
+												{/if}
+											</div>
 										</div>
 
 										<!-- Inline reorder arrows: a desktop-only quick path that reveals on card hover / keyboard focus. Duplicates the Move up/down menu items (kept for touch and the menu-driven flow). -->
@@ -501,6 +593,37 @@
 													>
 														<Pencil class="size-4" /> Rename
 													</DropdownMenu.Item>
+													{#if type === 'heyform'}
+														<DropdownMenu.Item>
+															<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
+															<a
+																href={`/api/conversation/${conversation.id}/workflow/${workflow.id}/workflow_step/${step.id}/export`}
+																download
+																class="flex w-full items-center gap-2"
+															>
+																<Info class="size-4" /> Export
+															</a>
+															<!-- eslint-enable svelte/no-navigation-without-resolve -->
+														</DropdownMenu.Item>
+													{/if}
+													<DropdownMenu.Separator />
+													<DropdownMenu.CheckboxItem
+														checked={step.required}
+														disabled={!canUpdate}
+														onCheckedChange={(value) =>
+															setStepFlag(step, 'required', value)}
+													>
+														Required
+													</DropdownMenu.CheckboxItem>
+													<DropdownMenu.CheckboxItem
+														checked={revisitAllowed && step.canRevisit}
+														disabled={!canUpdate || !revisitAllowed}
+														onCheckedChange={(value) =>
+															setStepFlag(step, 'canRevisit', value)}
+													>
+														Revisitable
+													</DropdownMenu.CheckboxItem>
+
 													<DropdownMenu.Separator />
 													<DropdownMenu.Item>
 														<!-- eslint-disable svelte/no-navigation-without-resolve -- toolInfoUrl returns a resolved path -->
@@ -533,6 +656,14 @@
 								<Plus class="size-4" />
 								Add step
 							</Button>
+							<Button
+								variant="ghost"
+								onclick={() => (openImportModal = true)}
+								title="Import step from JSON export file"
+							>
+								<Import class="size-4" />
+								Import step
+							</Button>
 						</div>
 					{/if}
 				{/await}
@@ -548,6 +679,22 @@
 	confirmLabel="Apply template"
 	onConfirm={(template) => chooseTemplate({ kind: 'template', template })}
 />
+
+<Dialog.Root open={openImportModal} onOpenChange={() => (openImportModal = !openImportModal)}>
+	<Dialog.Content class="sm:max-w-md">
+		<Dialog.Header>
+			<Dialog.Title>Select a file to import from</Dialog.Title>
+		</Dialog.Header>
+		<FileInput name="import_files" accept=".json" onfile={(file) => (importFile = file)} />
+		<Dialog.Footer class="gap-2 sm:gap-2">
+			<Button
+				disabled={!importFile}
+				onclick={() => importFile && importWorkflowStep(importFile)}
+				>{#if importing}<Spinner />{:else}Import{/if}</Button
+			>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
 
 <AlertDialog.Root bind:open={templateDialogOpen}>
 	<AlertDialog.Content>

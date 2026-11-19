@@ -179,14 +179,26 @@ _Avoid_: Organization Administrator, Super Administrator (those have different s
 A User with read-only access to a Conversation. Observer access does not confer editing, moderation, translation, export, launch, or deletion authority.
 
 **Conversation Content Editor**:
-A User who can edit a Conversation's content, tool configuration, and Workflow design, but cannot launch or delete it. Moderation, translation, and data export are separate capabilities.
+A User who can edit a Conversation's content in every locale, its tool configuration, and Workflow design, but cannot launch or delete it. Content editing includes translation; moderation and data export are separate capabilities.
 
 **Conversation Moderator**:
 A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
 
-**System Translator**:
-A User with authority to create, edit, and delete text content in all formats and locales, including the primary locale, across all Conversations and system content. This authority includes text-content configuration but does not grant permission management or other administrative capabilities.
-_Avoid_: Conversation Translator (that role has a narrower scope), System Administrator.
+**Text content**:
+A piece of translatable text with a primary locale and a shared identity across all its locale versions.
+
+**Translation scope**:
+The single Conversation, Organization, or explicit System scope that governs access to a piece of Text content in every locale. Text belonging to a Step is scoped to its Conversation.
+
+**Conversation Translator**:
+A User who may edit, generate, approve, and delete non-primary locale versions of Text content in one Conversation, including its Steps. Editing primary-locale text or its configuration requires Conversation content-editing authority.
+_Avoid_: System Translator (the former platform-wide role).
+
+**Organization Translator**:
+A User who may edit, generate, approve, and delete non-primary locale versions of an Organization's own Text content. Editing primary-locale text or its configuration requires Organization update authority; this role does not confer translation authority on hosted Conversations.
+
+**System-scoped text content**:
+Text content explicitly belonging to the platform rather than a Conversation or Organization. System Administrators may translate this content, but need resource-specific authority to translate Conversation or Organization content; Super Administrators retain global authority.
 
 **Conversation Data Access**:
 Authority to export data belonging to a Conversation, without conferring content-editing, moderation, translation, launch, or deletion authority.
@@ -207,20 +219,71 @@ _Avoid_: OTP-only bootstrap, manual pre-provisioning.
 The first-access email sent to newly created Organization Administrators at creation time, containing a one-time password reset link with 24-hour validity so they set their own password before first login.
 _Avoid_: Magic-link sign-in email, plaintext password email.
 
+### Demographics
+
+**Demographic question**:
+A UUID-identified question asked of participants, with translatable question text, one or more Question categories, one Question type, and a Question version history. Owned by an Organization, or a system Default demographic question.
+_Avoid_: Demographic (ambiguous), field, attribute, slug.
+
+**Question version**:
+An immutable snapshot of a Demographic question's text, type, options and validation, numbered v1, v2, v3 and so on. Numbers are never reused. Publishing a new version is the only way to change what participants are asked.
+
+**Question draft**:
+The editable, unpublished state of a Demographic question. Publishing a draft creates the next Question version. A Question draft is not visible to participants and does not change any Demographic form that uses the question.
+
+**Question type**:
+The kind of answer a Demographic question takes: Number, Single select, Multiple select, Date or Any string.
+_Avoid_: Response type, kind.
+
+**Date precision**:
+The granularity of a Date question's answer, chosen per question as YYYY/MM/DD, YYYY/MM or YYYY.
+
+**Question category**:
+A label on a Demographic question, drawn from the Organization's tag catalogue. A question may have several.
+_Avoid_: Tag (the catalogue entry is a tag, but the category is the question's link to it).
+
+**Special category question**:
+A Demographic question that collects sensitive data, such as ethnicity, pregnancy status or caring responsibilities. Participants must give Consent before it is asked.
+
+**Consent**:
+A participant's recorded agreement to a Special category question, given to the admin's consent text for one Question version. Declining skips the question even when it is required, and no answer is stored.
+
+**Default demographic question**:
+A Demographic question defined by a Super Administrator for the whole system. Organizations inherit it into their question bank by its shared UUID. In the admin UI, Organizations must explicitly duplicate it before editing. The duplicate is an Organization-owned question with a new UUID and starts at v1 when first published.
+
+**Demographic form**:
+A UUID-identified, named collection of Demographic questions drawn from one Organization's question bank. It starts as a Draft and becomes v1 when first published.
+
+**Form version**:
+An immutable snapshot of a Demographic form, numbered v1, v2 and so on. Each Form version pins the Question versions it contained when published. A later Question draft does not change a Form version that has not been re-published.
+
+**Demographic response**:
+A participant's answer to one Question version. It belongs to the participant and is reused by any Conversation that asks the same Question version, so the question is skipped. It is anonymised when the user is deleted.
+_Avoid_: Answer when referring to the stored record.
+
+**Form step**:
+A Workflow step that asks a whole Demographic form, set to follow the latest Form version until launch or to a specific one. Launching a Conversation fixes every step to the version it was on at that moment. It may turn individual questions off or change their required flag for that Conversation only, without changing the form.
+
+**Question step**:
+A Workflow step that asks one Demographic question from the question bank.
+
+**Archive (demographics)**:
+The retirement of a published Demographic question or form. Archived items are hidden from pickers for new use, but Conversations that already use them keep their pinned versions. Published items are never hard deleted.
+
 ### Polis admin (Discuss step)
 
-The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup · Insights`**. Moderation is its own page under Engage (ADR-0055). civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
+The custom admin UI for a Pol.is Step, replacing the old Setup **iframe**. Its glossary and analytics are **adopted from the civic_os admin** (`bloom/civic_os/packages/admin`), taken as the source of truth because the equivalent surfaces were built out there first. Terms below carry civic_os's meaning unless noted. Canonical Polis-step subtabs: **`Configure · Setup`**. Moderation (ADR-0055) and Insights (ADR-0060) are their own pages under Engage. civic_os's "Participants" tab is dropped; see Insights/Report and the Participants note.
 
 **Moderation**:
 Polis statement review, on the **Moderate** page under Engage (`/admin/conversations/<id>/moderate`, one page per Polis step). Sync statements from Polis, split composite statements, and accept or reject each one with status filter chips (`all · seeded · accepted · pending · rejected`). Backed by the `polis_statement_aux` table. Seeds are written in **Setup**, not here. **Moderate** is the sidebar and page label; **Moderation** is the activity.
 _Avoid_: Statements (design label), Moderation subtab (removed from the step editor, ADR-0055).
 
 **Insights**:
-A **per-Step report** — the read-only analytics surface for a single Step, shown as a subtab in that Step's editor. For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, HeyForm, …; not Learn) gets its own Insights subtab.
-_Avoid_: Report (that's the conversation-level tab — a different, global concept).
+A **per-Step report**: the read-only analytics surface for a single Step, on the **Insights** page under Engage (`/admin/conversations/<id>/insights`, one page per Step that has Insights, ADR-0060). For Polis: Themes, Areas of Consensus, Areas of Difference computed over the Polis `report_data` export (ported from civic_os's `report.ts` pure functions). Insights is a general per-Step-report pattern: each Step type that supports reporting (Polis, Thinking Space, Prioritisation, HeyForm; not Learn) gets its own Insights page.
+_Avoid_: Report (that's the conversation-level tab, a different, global concept), Insights subtab (removed from the step editor, ADR-0060).
 
 **Report**:
-The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** subtab.
+The **conversation-level, global** reporting tab in the top nav (`Configure · Workflow · Knowledge base · Events · Recruit · Monitor · Notify · Report`). Aggregates across the whole Conversation. Distinct from a Step's **Insights** page.
 _Avoid_: Insights (that's per-Step).
 
 **Participants** (Polis admin):
@@ -234,7 +297,7 @@ _Status_: The design's "Participants can see the **visualization**" checkbox is 
 
 **Preview poll / Live poll**:
 A Polis Step is backed by **two** separate Pol.is conversations: a **preview** poll (used while the Conversation is a draft — admin-only, for previewing and staging seeds) and a **live** poll (created at **launch**, where participants actually vote). The step editor targets the right one via `conversation.isLive` (`tool_config` = live, `preview_tool_config` = preview). Real participant voting is **post-launch only**.
-_Status_: `launch` creates a fresh live poll and migrates only seed **text** (`post_seed_comment`) — it does **not** carry over aux metadata (`moderation_status`, `themes`), so pre-launch moderation/theming does not survive launch. It also does not yet filter rejected seeds (`// TODO: filter seed statements`). Both are follow-up backend fixes, not part of the tab UI work.
+_Status_: `launch` creates a fresh live poll and posts the **text** of the preview poll's seeds into it (`post_seed_comment`). Rejected seeds stay behind, and so do non-seed statements written in preview (test submissions and [[#derived-statement]]s). Pending seeds carry over and go live accepted, because Polis approves a seed on post. Launch then deletes the step's preview aux rows before the first live sync, so preview `moderation_status`, `themes`, reject reasons and split lineage do not survive launch (#796).
 
 **Seed statement**:
 A statement authored by the moderator (not a participant) to spark discussion, `is_seed: true`. Posted server-side to the active Polis poll (preview while draft, live after launch) via a new backend seed route wrapping `post_seed_comment`, then surfaced locally after sync. Distinct from `moderation_status` and from a [[#derived-statement]] (which is `is_seed: false`). Polis auto-approves a seed on post (`mod: 1`); a non-seed host post lands `mod: 0` (pending).
@@ -261,8 +324,15 @@ _Avoid_: rejection rules, moderation settings (the Polis `strict_moderation` fla
 One entry in a [[#moderation-policy]]: a short label plus an optional description of what counts under it. When a moderator picks one, the label (and any note) is stored as text in `polis_statement_aux.moderation_reason` as `"Label: note"` (ADR-0015). Participants can read a step's reasons from the statement composer as the published moderation policy (ADR-0059). Editing the policy never rewrites reasons already recorded.
 _Avoid_: rejection code, category letter.
 
+**Theme tag**:
+A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. Shown on a statement as a chip.
+_Avoid_: theme (bare, now means a [[#theme]] in a theme collection).
+
 **Theme**:
-A human-authored topic tag string in `polis_statement_aux.themes: string[]`, added via the admin ThemePicker. Polis has no theme concept; sync never imports one. (Future: T3C may write machine themes into the same store.)
+One entry in a **theme collection**: a title and description the [[#sensemaker]] wrote, with the step's contributions (for Polis, statements) filed under it. A step can have many collections; the report reads the latest one per origin tool. Facilitators can add, edit and pin themes in the Theme Explorer. Different from a [[#theme-tag]], which a facilitator puts on one statement.
+
+**Sensemaker**:
+The LLM service that reads a step's contributions at a facilitator's request and writes theme collections and summaries (for Polis: a consensus summary, a disagreement summary, and a name and summary per opinion group). For Polis it reads every statement, accepted or not, so its text can echo statements moderation rejected. On a published report that text is `GeneratedText` (ADR-0061).
 
 **Opinion group**:
 A cluster of participants who voted similarly, discovered by Polis's math (PCA + k-means), labelled A/B/C… Backed by `GroupReportData` (`group_id`, `members`, `total_members`, `representative_comments`). A single Polis poll yields a **variable** number of opinion groups (typically 1–5, not a fixed two), so all report components render N groups, not a hardcoded A/B pair. **Not** a demographic segment, recruitment cohort, or any admin-defined set — it is derived purely from vote patterns.
@@ -285,11 +355,15 @@ _Avoid_: widget, block, card (too generic).
 _Status_: Partially skeletoned. Each tool folder already exports an (unused) `ReportUI` slot; only Polis has real components — the Insights set in `lib/reports/polis/**` (`VoteBar`, `StatementVoteBlock`, `AreaOfConsensus`) backed by `tools/polis/report.ts`. A separate set (`components/report/**` + `utils/report.ts`) feeds only the `/waves` mock.
 
 **Embeddable section block**:
-The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*) — **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list.
+The subset of [[#report-component]]s a facilitator can pull into the End-of-engagement report from the editor. Section-level and self-contained (Polis: *Key stats*, *Areas of consensus*, *Areas of disagreement*, *Consensus continuum*, *Opinion groups*, *Themes*), **not** the sub-primitives they compose from (`VoteBar`, `OpinionGroupCard`), and **not** the whole-page `PolisInsights` composition. Maintained as an explicit allow-list. HeyForm has one, *Question results*, embedded once per question with the question id in the embed's `config.item`; only choice, rating and opinion scale questions are offered.
 _Avoid_: report piece (use "section block" for the embeddable unit).
 
 **Report component embed**:
 A TipTap node in the report's `summary` document that carries an embedded [[#embeddable-section-block]]. It stores **only a reference** (`toolStepId`, `componentType`, `config`); every surface (editor node view + published page) mounts the **live** component against current data (see [ADR-0012](documentation/adr/0012-report-component-embeds-store-reference-plus-frozen-html.md), which reversed the frozen-snapshot direction of [ADR-0008](documentation/adr/0008-report-pieces-embed-in-tiptap-as-frozen-snapshots.md) for these embeds). Interactive and always-fresh; if the Step/data no longer resolves the embed shows an inline "data unavailable" state. No-JS surfaces (email/print) get a placeholder, not the component.
+
+**Public report data**:
+The anonymised, moderated totals a published report's embeds load for public readers. Served by dedicated per-section-block endpoints, never by the admin **Insights** endpoints, and only for section blocks the published report embeds (see [ADR-0061](documentation/adr/0061-public-report-data-is-served-only-for-section-blocks-the-published-report-embeds.md)). Removing the embed or unpublishing the report turns it off again.
+_Avoid_: published data, open data (the data protocol "Open" is a different setting).
 
 **Report view**:
 A composition of report components. There are exactly four, each a different audience × timing × scope arrangement over the shared per-tool components:
@@ -303,8 +377,9 @@ _Avoid_: report type, report page, Monitor (the ops/funnel tab is a separate con
 The short rich text an admin writes at the top of the End of engagement report (`report.summary`). Participants see it on the report's opening screen, under the "Final report" label. Reports made before the summary and body were split keep their whole text in `summary` and have no executive summary.
 
 **Report body**:
-The full End of engagement report (`report.body`), with its embedded components. Its H2 headings make the **report sections** (one pill each) and its H3 headings and horizontal rules make the **report cards** the participant pages through. See [ADR-0058](documentation/adr/0058-the-public-report-pages-by-its-own-headings.md).
-_Avoid_: card for a [[#report-component]] (a report card is one page of the report body).
+The full End of engagement report (`report.body`), with its embedded components. Each **page break** (a horizontal rule) starts a new **report page**, shown to the participant as one card with its own pill, named by the page's first line of text. Headings are only text styles. See [ADR-0069](documentation/adr/0069-the-report-pages-at-its-page-breaks.md).
+_Avoid_: card for a [[#report-component]] (a report card is one page of the report body); report section for a page.
+
 _Note_: Views 1–3 are system-defined compositions over one per-tool live insight producer; view 4 freezes that output and wraps it in author-edited prose.
 
 ### Room display

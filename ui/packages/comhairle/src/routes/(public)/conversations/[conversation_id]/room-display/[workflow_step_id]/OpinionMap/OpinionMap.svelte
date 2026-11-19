@@ -17,6 +17,7 @@
 		groupCentroids,
 		type Point
 	} from './opinionMap';
+	import { m } from '$lib/paraglide/messages';
 	import { groupLabel } from '$lib/tools/polis/report';
 
 	type Props = {
@@ -130,25 +131,25 @@
 			: [
 					{
 						key: 'agreed',
-						label: 'Agreed',
+						label: m.vote_bar_agreed(),
 						color: 'var(--vote-agreed)',
 						outlined: false
 					},
 					{
 						key: 'passed',
-						label: 'Passed',
+						label: m.vote_bar_pass_unsure(),
 						color: 'var(--vote-passed)',
 						outlined: false
 					},
 					{
 						key: 'notVoted',
-						label: 'Not voted',
+						label: m.vote_bar_not_voted(),
 						color: 'var(--vote-not-voted)',
 						outlined: true
 					},
 					{
 						key: 'disagreed',
-						label: 'Disagreed',
+						label: m.vote_bar_disagreed(),
 						color: 'var(--vote-disagreed)',
 						outlined: false
 					}

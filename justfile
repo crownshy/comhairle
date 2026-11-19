@@ -38,6 +38,11 @@ api-dev-jq:
     -w adaptors \
     -x "run -- --export-api-spec | jq --unbuffered '.'"
 
+api_lint_cmd := `yq -r '.jobs."api-lint".steps[-1].run' .github/workflows/tests.yml`
+api-lint:
+    @echo -e "\n==== Linting API ====\n"
+    {{api_lint_cmd}}
+
 watch-api-spec:
     watchexec -d 3s -w open-api-spec.json -- pnpm --dir ui run client
 
@@ -46,6 +51,12 @@ api-watch:
 
 api-watch-jq:
     just api-dev-jq & just watch-api-spec
+
+ui-lint:
+    @echo -e "\n==== Linting Frontend UI ====\n"
+    pnpm -C ui/packages/comhairle lint
+
+lint: api-lint ui-lint
 
 # Create admin user (requires API running)
 seed:

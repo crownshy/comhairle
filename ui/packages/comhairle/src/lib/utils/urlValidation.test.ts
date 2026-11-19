@@ -4,30 +4,46 @@ import { validateUrl, validateIframeUrl, DEFAULT_ALLOWED_DOMAINS } from './urlVa
 describe('validateUrl', () => {
 	describe('valid HTTPS URLs', () => {
 		it('should accept basic HTTPS URLs', () => {
-			expect(validateUrl('https://example.com/image.jpg')).toBe('https://example.com/image.jpg');
-			expect(validateUrl('https://cdn.example.com/photos/pic.png')).toBe('https://cdn.example.com/photos/pic.png');
+			expect(validateUrl('https://example.com/image.jpg')).toBe(
+				'https://example.com/image.jpg'
+			);
+			expect(validateUrl('https://cdn.example.com/photos/pic.png')).toBe(
+				'https://cdn.example.com/photos/pic.png'
+			);
 		});
 
 		it('should accept URLs with query parameters', () => {
-			expect(validateUrl('https://images.unsplash.com/photo-123?w=800')).toBe('https://images.unsplash.com/photo-123?w=800');
-			expect(validateUrl('https://example.com/page?query=test&foo=bar')).toBe('https://example.com/page?query=test&foo=bar');
+			expect(validateUrl('https://images.unsplash.com/photo-123?w=800')).toBe(
+				'https://images.unsplash.com/photo-123?w=800'
+			);
+			expect(validateUrl('https://example.com/page?query=test&foo=bar')).toBe(
+				'https://example.com/page?query=test&foo=bar'
+			);
 		});
 
 		it('should accept URLs with ports', () => {
-            //QUESTION: DO we want this?
-			expect(validateUrl('https://example.com:8443/secure')).toBe('https://example.com:8443/secure');
+			//QUESTION: DO we want this?
+			expect(validateUrl('https://example.com:8443/secure')).toBe(
+				'https://example.com:8443/secure'
+			);
 		});
 
 		it('should accept URLs with subdomains', () => {
-			expect(validateUrl('https://sub.domain.example.com/path')).toBe('https://sub.domain.example.com/path');
+			expect(validateUrl('https://sub.domain.example.com/path')).toBe(
+				'https://sub.domain.example.com/path'
+			);
 		});
 
 		it('should accept URLs with fragments', () => {
-			expect(validateUrl('https://example.com/page#section')).toBe('https://example.com/page#section');
+			expect(validateUrl('https://example.com/page#section')).toBe(
+				'https://example.com/page#section'
+			);
 		});
 
 		it('should accept URLs with deep paths', () => {
-			expect(validateUrl('https://example.com/a/b/c/d/e/f/g/image.jpg')).toBe('https://example.com/a/b/c/d/e/f/g/image.jpg');
+			expect(validateUrl('https://example.com/a/b/c/d/e/f/g/image.jpg')).toBe(
+				'https://example.com/a/b/c/d/e/f/g/image.jpg'
+			);
 		});
 	});
 
@@ -63,7 +79,7 @@ describe('validateUrl', () => {
 			expect(validateUrl('ftp://example.com/file.txt')).toBeNull();
 		});
 
-        // The following two maybe we don't want?
+		// The following two maybe we don't want?
 		it('should block protocol-relative URLs', () => {
 			expect(validateUrl('//example.com/image.jpg')).toBeNull();
 		});
@@ -95,8 +111,12 @@ describe('validateUrl', () => {
 
 	describe('edge cases', () => {
 		it('should trim whitespace from URLs', () => {
-			expect(validateUrl('  https://example.com/image.jpg  ')).toBe('https://example.com/image.jpg');
-			expect(validateUrl('\nhttps://example.com/image.jpg\n')).toBe('https://example.com/image.jpg');
+			expect(validateUrl('  https://example.com/image.jpg  ')).toBe(
+				'https://example.com/image.jpg'
+			);
+			expect(validateUrl('\nhttps://example.com/image.jpg\n')).toBe(
+				'https://example.com/image.jpg'
+			);
 		});
 
 		it('should handle URLs with unicode characters', () => {
@@ -114,10 +134,10 @@ describe('validateUrl', () => {
 	});
 
 	describe('URL length validation', () => {
-
 		it('should accept URLs exactly at the 2048 character limit', () => {
 			// 2048 characters
-			const exactLimitUrl = 'https://example.com/' + 'x'.repeat(2048 - 'https://example.com/'.length);
+			const exactLimitUrl =
+				'https://example.com/' + 'x'.repeat(2048 - 'https://example.com/'.length);
 			expect(exactLimitUrl.length).toBe(2048);
 			expect(validateUrl(exactLimitUrl)).toBe(exactLimitUrl);
 		});
@@ -133,7 +153,7 @@ describe('validateUrl', () => {
 			// 10KB URL
 			const massiveUrl = 'https://example.com/' + 'x'.repeat(10000);
 			expect(validateUrl(massiveUrl)).toBeNull();
-			
+
 			// 100KB URL
 			const hugeUrl = 'https://example.com/' + 'x'.repeat(100000);
 			expect(validateUrl(hugeUrl)).toBeNull();
@@ -151,15 +171,25 @@ describe('validateIframeUrl', () => {
 	describe('with allowed domains', () => {
 		it('should accept URLs from exact domain matches', () => {
 			const domains = ['youtube.com', 'vimeo.com'];
-			expect(validateIframeUrl('https://youtube.com/embed/abc', domains)).toBe('https://youtube.com/embed/abc');
-			expect(validateIframeUrl('https://vimeo.com/123456', domains)).toBe('https://vimeo.com/123456');
+			expect(validateIframeUrl('https://youtube.com/embed/abc', domains)).toBe(
+				'https://youtube.com/embed/abc'
+			);
+			expect(validateIframeUrl('https://vimeo.com/123456', domains)).toBe(
+				'https://vimeo.com/123456'
+			);
 		});
 
 		it('should accept URLs with wildcard subdomain matches', () => {
 			const domains = ['*.youtube.com', 'youtube.com'];
-			expect(validateIframeUrl('https://www.youtube.com/embed/abc', domains)).toBe('https://www.youtube.com/embed/abc');
-			expect(validateIframeUrl('https://m.youtube.com/embed/abc', domains)).toBe('https://m.youtube.com/embed/abc');
-			expect(validateIframeUrl('https://youtube.com/embed/abc', domains)).toBe('https://youtube.com/embed/abc');
+			expect(validateIframeUrl('https://www.youtube.com/embed/abc', domains)).toBe(
+				'https://www.youtube.com/embed/abc'
+			);
+			expect(validateIframeUrl('https://m.youtube.com/embed/abc', domains)).toBe(
+				'https://m.youtube.com/embed/abc'
+			);
+			expect(validateIframeUrl('https://youtube.com/embed/abc', domains)).toBe(
+				'https://youtube.com/embed/abc'
+			);
 		});
 
 		it('should block URLs from non-whitelisted domains', () => {
@@ -170,11 +200,19 @@ describe('validateIframeUrl', () => {
 		});
 
 		it('should work with DEFAULT_ALLOWED_DOMAINS', () => {
-			expect(validateIframeUrl('https://youtube.com/embed/abc', DEFAULT_ALLOWED_DOMAINS)).toBeTruthy();
-			expect(validateIframeUrl('https://www.youtube.com/embed/abc', DEFAULT_ALLOWED_DOMAINS)).toBeTruthy();
+			expect(
+				validateIframeUrl('https://youtube.com/embed/abc', DEFAULT_ALLOWED_DOMAINS)
+			).toBeTruthy();
+			expect(
+				validateIframeUrl('https://www.youtube.com/embed/abc', DEFAULT_ALLOWED_DOMAINS)
+			).toBeTruthy();
 			expect(validateIframeUrl('https://youtu.be/abc', DEFAULT_ALLOWED_DOMAINS)).toBeTruthy();
-			expect(validateIframeUrl('https://vimeo.com/123', DEFAULT_ALLOWED_DOMAINS)).toBeTruthy();
-			expect(validateIframeUrl('https://player.vimeo.com/video/123', DEFAULT_ALLOWED_DOMAINS)).toBeTruthy();
+			expect(
+				validateIframeUrl('https://vimeo.com/123', DEFAULT_ALLOWED_DOMAINS)
+			).toBeTruthy();
+			expect(
+				validateIframeUrl('https://player.vimeo.com/video/123', DEFAULT_ALLOWED_DOMAINS)
+			).toBeTruthy();
 		});
 	});
 

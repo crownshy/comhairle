@@ -5,24 +5,28 @@ import AgendaEditor from './AgendaEditor.svelte';
 import FacilitatorRoleList from './FacilitatorRoleList.svelte';
 import EventBreakoutRooms from './EventBreakoutRooms.svelte';
 import EventRecordings from './EventRecordings.svelte';
-import type { AgendaItemData } from './agenda-types';
+import type { AgendaDraftItem } from '$lib/utils/eventAgenda';
 
 vi.mock('@crownshy/api-client/client', () => ({ apiClient: {} }));
 vi.mock('$app/navigation', () => ({ invalidate: vi.fn() }));
 
-const agenda: AgendaItemData[] = [
-	{ id: 'standard', type: 'standard', title: 'Welcome' },
+const agenda: AgendaDraftItem[] = [
+	{ id: 'plenary', type: 'plenary', title: 'Welcome', durationMinutes: 10 },
 	{
 		id: 'breakout',
 		type: 'breakout',
-		title: 'Discussion',
-		duration: 10,
-		groupSize: 4,
-		assignmentMode: 'balanced',
-		balanceBy: ['Age'],
-		prompts: [{ title: 'Priorities', instructions: 'Discuss local priorities.' }]
+		prompt: 'Priorities',
+		instructions: 'Discuss local priorities.',
+		durationMinutes: 20,
+		maxPerRoom: 4
 	}
 ];
+
+const agendaProps = {
+	startTime: '2026-11-20T14:00:00Z',
+	onChange: vi.fn(),
+	saveStatus: 'idle' as const
+};
 
 const attendees = [
 	{ id: 'attendance', userId: 'user', email: 'reader@example.com', role: 'facilitator' }
@@ -40,29 +44,37 @@ const recording: AudioRecordingDto = {
 };
 
 describe('Event read-only controls', () => {
-	it('shows agenda details without add, remove, drag, or rich text editing controls', () => {
+	it('shows the run of show without add, reorder, or delete controls', () => {
 		const { body } = render(AgendaEditor, {
-			props: { items: agenda, onUpdate: vi.fn(), editable: false }
+			props: { ...agendaProps, items: agenda, editable: false }
 		});
 
 		expect(body).toContain('Welcome');
 		expect(body).toContain('Priorities');
-		expect(body).toContain('Discuss local priorities.');
-		expect(body).not.toContain('<button');
-		expect(body).not.toContain('draggable="true"');
+		expect(body).toContain('30 min');
+		expect(body).not.toContain('Drag to reorder');
+		expect(body).not.toContain('Options for');
+		expect(body).not.toContain('Agenda item');
 		expect(body).not.toContain('contenteditable="true"');
-		const fields = body.match(/<(?:input|select)\b[^>]*>/g) ?? [];
-		expect(fields.length).toBeGreaterThan(0);
-		expect(fields.every((field) => /\bdisabled\b/.test(field))).toBe(true);
 	});
 
-	it('keeps agenda creation available to editors', () => {
+	it('keeps agenda editing available to editors', () => {
 		const { body } = render(AgendaEditor, {
-			props: { items: [], onUpdate: vi.fn(), editable: true }
+			props: { ...agendaProps, items: agenda, editable: true }
 		});
 
-		expect(body).toContain('Add agenda item');
-		expect(body).toContain('Add breakout session');
+		expect(body).toContain('Drag to reorder Welcome');
+		expect(body).toContain('Options for Priorities');
+		expect(body).toContain('Agenda item');
+		expect(body).toContain('Breakout session');
+	});
+
+	it('explains an empty agenda', () => {
+		const { body } = render(AgendaEditor, {
+			props: { ...agendaProps, items: [], editable: true }
+		});
+
+		expect(body).toContain('No agenda yet');
 	});
 
 	it('shows the current facilitator role without role buttons for readers', () => {

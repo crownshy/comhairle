@@ -17,7 +17,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use super::pagination::{Order, PageOptions, PaginatedResults};
-use super::translations::{TextContentId, TextFormat, new_translation};
+use super::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
 use super::user_participation::UserParticipationIden;
 use super::workflow::WorkflowIden;
 use crate::ComhairleState;
@@ -83,6 +83,7 @@ pub struct Conversation {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub show_thank_you_page_next_steps: bool,
     pub show_thankyou_page_feedback_button: bool,
     /// Whether a participant may return to the workflow's steps after finishing (i.e. once
     /// every step is done). False seals them: no step is reachable and their step writes are
@@ -96,7 +97,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 32] = [
+const DEFAULT_COLUMNS: [ConversationIden; 33] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -126,6 +127,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 32] = [
     ConversationIden::CallToAction,
     ConversationIden::EnableSignupPrompts,
     ConversationIden::ShowThankYouPageAnnonInstructions,
+    ConversationIden::ShowThankYouPageNextSteps,
     ConversationIden::ShowThankyouPageFeedbackButton,
     ConversationIden::AllowRevisitAfterFinishing,
     ConversationIden::Metadata,
@@ -212,6 +214,9 @@ impl PartialConversation {
                 ConversationIden::ShowThankYouPageAnnonInstructions,
                 (*value).into(),
             ))
+        };
+        if let Some(value) = &self.show_thank_you_page_next_steps {
+            values.push((ConversationIden::ShowThankYouPageNextSteps, (*value).into()))
         };
         if let Some(value) = &self.show_thankyou_page_feedback_button {
             values.push((
@@ -605,6 +610,44 @@ pub async fn update(
     Ok(conversation)
 }
 
+/// Sets or clears the organization hosting the conversation.
+#[instrument(err(Debug), skip(db))]
+pub async fn set_hosting_organization(
+    db: &PgPool,
+    id: &Uuid,
+    organization_id: Option<Uuid>,
+) -> Result<Conversation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::OrganizationId, organization_id)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    Ok(sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_one(db)
+        .await?)
+}
+
+/// Makes `new_owner_id` the owning user of the conversation.
+#[instrument(err(Debug), skip(db))]
+pub async fn set_owner(
+    db: &PgPool,
+    id: &Uuid,
+    new_owner_id: Uuid,
+) -> Result<Conversation, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(ConversationIden::Table)
+        .value(ConversationIden::OwnerId, new_owner_id)
+        .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    Ok(sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_one(db)
+        .await?)
+}
+
 /// Merge the supplied object into the conversation's `metadata` jsonb column at
 /// the top level. Existing keys are overwritten by the patch, keys not present
 /// in the patch are left untouched. This is a shallow merge — nested objects
@@ -754,10 +797,12 @@ pub async fn create(
     organization_id: Option<Uuid>,
 ) -> Result<Conversation, ComhairleError> {
     let conversation_id = Uuid::new_v4();
+    let mut transaction = db.begin().await?;
 
     // Generate Translations
     let title = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.title,
         TextFormat::Plain,
@@ -765,7 +810,8 @@ pub async fn create(
     .await?;
 
     let description = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.description,
         TextFormat::Rich,
@@ -773,7 +819,8 @@ pub async fn create(
     .await?;
 
     let short_description = new_translation(
-        db,
+        &mut transaction,
+        TranslationScope::Conversation(conversation_id),
         &conversation.primary_locale,
         &conversation.short_description,
         TextFormat::Rich,
@@ -870,11 +917,14 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation_result = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *transaction)
         .await;
 
     match conversation_result {
-        Ok(conversation) => Ok(conversation),
+        Ok(conversation) => {
+            transaction.commit().await?;
+            Ok(conversation)
+        }
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"

@@ -111,7 +111,7 @@
 			{#if hasSupportDrawer}
 				<Button
 					variant="nav"
-					class="gap-2 rounded-full text-base font-normal lg:hidden"
+					class="gap-2 rounded-full text-base font-normal"
 					onclick={() => (supportDrawer.open = true)}
 				>
 					<CircleHelp class="size-5" aria-hidden="true" />

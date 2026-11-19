@@ -1,5 +1,5 @@
 # ---- Base Stage ----
-FROM node:22 AS base
+FROM node:24 AS base
 WORKDIR /app
 
 # Install pnpm globally
@@ -25,7 +25,7 @@ COPY . .
 RUN pnpm --filter comhairle build
 
 # ---- Production Stage ----
-FROM node:22-slim AS production
+FROM node:24-slim AS production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 WORKDIR /app
 

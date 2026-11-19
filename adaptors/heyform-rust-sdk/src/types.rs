@@ -79,6 +79,8 @@ pub struct Form {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<Vec<FormField>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub logics: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub theme_settings: Option<ThemeSettings>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub draft: Option<bool>,

@@ -143,7 +143,13 @@ pub async fn create(
 }
 
 #[derive(Deserialize, JsonSchema, Debug, Clone, Default)]
-pub struct ProposalResponseFilterOptions;
+pub struct ProposalResponseFilterOptions {
+    // Server-set only — handlers must scope this to the authenticated user.
+    // Hidden from the public schema/query string so callers can't spoof it.
+    #[serde(skip_deserializing)]
+    #[schemars(skip)]
+    pub user_id: Option<Uuid>,
+}
 
 #[derive(Deserialize, JsonSchema, Debug, Clone, Default)]
 pub struct ProposalResponseOrderOptions;
@@ -155,13 +161,19 @@ pub async fn list(
     filter_options: ProposalResponseFilterOptions,
     order_options: ProposalResponseOrderOptions,
 ) -> Result<Vec<ProposalResponse>, ComhairleError> {
-    let query = Query::select()
+    let mut query = Query::select()
         .from(ProposalResponseIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(ProposalResponseIden::ProposalId).eq(proposal_id.to_owned()))
         .to_owned();
 
-    // TODO: filtering and ordering
+    if let Some(user_id) = filter_options.user_id {
+        query = query
+            .and_where(Expr::col(ProposalResponseIden::UserId).eq(user_id))
+            .to_owned();
+    }
+
+    // TODO: ordering
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
@@ -370,7 +382,7 @@ mod tests {
         create(&pool, &proposal_a.id, &user_c.id, &create_response_c_a).await?;
         create(&pool, &proposal_b.id, &user_c.id, &create_response_c_b).await?;
 
-        let filter_options = ProposalResponseFilterOptions;
+        let filter_options = ProposalResponseFilterOptions::default();
         let order_options = ProposalResponseOrderOptions;
         let proposal_a_responses = list(
             &pool,

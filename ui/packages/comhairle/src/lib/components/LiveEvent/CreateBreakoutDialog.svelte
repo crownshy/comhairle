@@ -2,6 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
+	import { isFacilitatorRole } from '$lib/utils/breakoutRoomAssignments';
 	import { X, RefreshCw, Clock, Pin, Users, Crown } from 'lucide-svelte';
 
 	interface Props {
@@ -15,10 +16,21 @@
 		enableModerators?: boolean;
 		/** user_ids that start out flagged as moderators. */
 		moderatorIds?: string[];
+		/**
+		 * Label facilitators and moderators (by their event role), read-only, and count the
+		 * rooms that have none. Used in the live call.
+		 */
+		showFacilitators?: boolean;
 		/** Show the "Time left" duration input. Off for pre-assignment (no live timer). */
 		showDuration?: boolean;
 		/** Label for the confirm button. */
 		confirmLabel?: string;
+		title?: string;
+		/**
+		 * Keep the number of rooms as it is: no reshuffle or room size, and a room you empty
+		 * stays in the list. Used to edit rooms that are already open in the call.
+		 */
+		fixedRooms?: boolean;
 		onClose: () => void;
 		onCreate: (config: {
 			maxPerRoom: number;
@@ -36,8 +48,11 @@
 		initialAssignments,
 		enableModerators = false,
 		moderatorIds,
+		showFacilitators = false,
 		showDuration = true,
 		confirmLabel = 'Create',
+		title = 'Create breakout rooms',
+		fixedRooms = false,
 		onClose,
 		onCreate
 	}: Props = $props();
@@ -63,9 +78,13 @@
 			durationMinutes = defaultDuration;
 			pinnedUsers = new Set();
 			moderators = new Set(moderatorIds ?? []);
-			if (initialAssignments && initialAssignments.length > 0) {
-				// Preserve a pre-existing plan rather than reshuffling it away.
-				roomAssignments = initialAssignments.map((room) => [...room]);
+			// A planned room whose people are not on the call would only be created empty,
+			// unless the rooms are already open and their numbering has to stay.
+			const plannedRooms = fixedRooms
+				? (initialAssignments ?? [])
+				: (initialAssignments ?? []).filter((room) => room.length > 0);
+			if (plannedRooms.length > 0) {
+				roomAssignments = plannedRooms.map((room) => [...room]);
 			} else if (participants.length > 0) {
 				distributeParticipants();
 			} else {
@@ -82,20 +101,24 @@
 		wasOpen = open;
 	});
 
-	function toggleModerator(userId: string) {
-		const next = new Set(moderators);
-		if (next.has(userId)) {
-			next.delete(userId);
-		} else {
-			next.add(userId);
-		}
-		moderators = next;
+	function withToggled(userIds: Set<string>, userId: string): Set<string> {
+		return userIds.has(userId)
+			? new Set([...userIds].filter((id) => id !== userId))
+			: new Set([...userIds, userId]);
 	}
 
-	/** Rooms that have no moderator assigned — surfaced as a hint. */
+	function toggleModerator(userId: string) {
+		moderators = withToggled(moderators, userId);
+	}
+
+	function leadsRoom(p: VideoCallParticipant): boolean {
+		if (enableModerators) return moderators.has(p.user_id);
+		return showFacilitators && isFacilitatorRole(p.role);
+	}
+
 	let roomsMissingModerator = $derived(
-		enableModerators
-			? roomAssignments.filter((room) => !room.some((p) => moderators.has(p.user_id))).length
+		enableModerators || showFacilitators
+			? roomAssignments.filter((room) => !room.some(leadsRoom)).length
 			: 0
 	);
 
@@ -168,13 +191,7 @@
 	}
 
 	function togglePin(userId: string) {
-		const next = new Set(pinnedUsers);
-		if (next.has(userId)) {
-			next.delete(userId);
-		} else {
-			next.add(userId);
-		}
-		pinnedUsers = next;
+		pinnedUsers = withToggled(pinnedUsers, userId);
 	}
 
 	function handleCreate() {
@@ -240,8 +257,9 @@
 		newAssignments[srcRoom].splice(srcIdx, 1);
 		newAssignments[targetRoomIdx].push(participant);
 
-		// Remove empty rooms
-		roomAssignments = newAssignments.filter((room) => room.length > 0);
+		roomAssignments = fixedRooms
+			? newAssignments
+			: newAssignments.filter((room) => room.length > 0);
 		dragSource = null;
 	}
 
@@ -292,7 +310,7 @@
 		<div class="flex min-h-0 flex-1 flex-col gap-6">
 			<!-- Title -->
 			<h2 class="text-foreground shrink-0 text-2xl leading-7 font-semibold">
-				Create breakout rooms
+				{title}
 			</h2>
 
 			<!-- Time left + room size row -->
@@ -311,25 +329,32 @@
 						<span class="text-foreground text-sm font-normal">minutes</span>
 					</div>
 				{/if}
-				<div class="flex items-center gap-2">
-					<Users class="text-foreground h-5 w-5" />
-					<span class="text-foreground text-sm font-normal">Max per room</span>
-					<input
-						type="number"
-						value={maxPerRoom}
-						onchange={handleMaxPerRoomChange}
-						min={1}
-						max={50}
-						class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
-					/>
-					<span class="text-foreground text-sm font-normal">people</span>
-				</div>
+				{#if !fixedRooms}
+					<div class="flex items-center gap-2">
+						<Users class="text-foreground h-5 w-5" />
+						<span class="text-foreground text-sm font-normal">Max per room</span>
+						<input
+							type="number"
+							value={maxPerRoom}
+							onchange={handleMaxPerRoomChange}
+							min={1}
+							max={50}
+							class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
+						/>
+						<span class="text-foreground text-sm font-normal">people</span>
+					</div>
+				{/if}
 			</div>
 
-			{#if enableModerators && roomsMissingModerator > 0 && roomAssignments.length > 0}
+			{#if roomsMissingModerator > 0 && roomAssignments.length > 0}
 				<p class="shrink-0 text-sm text-amber-600">
-					{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a moderator.
-					Use the crown to assign one per room.
+					{#if enableModerators}
+						{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a
+						moderator. Use the crown to assign one per room.
+					{:else}
+						{roomsMissingModerator} room{roomsMissingModerator === 1 ? '' : 's'} without a
+						facilitator.
+					{/if}
 				</p>
 			{/if}
 
@@ -347,7 +372,7 @@
 				<div
 					class="bg-sidebar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl p-3 sm:p-4"
 				>
-					{#each roomAssignments as room, roomIdx}
+					{#each roomAssignments as room, roomIdx (roomIdx)}
 						<div
 							class="flex items-center gap-2 rounded-lg border p-5 transition-colors {dropTargetRoom ===
 							roomIdx
@@ -406,41 +431,52 @@
 											>
 												<Crown class="h-3.5 w-3.5" />
 											</button>
+										{:else if leadsRoom(p)}
+											<span class="text-muted-foreground text-xs"
+												>Facilitator</span
+											>
 										{/if}
-										<button
-											class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
-												p.user_id
-											)
-												? 'text-primary bg-primary/10'
-												: 'text-muted-foreground hover:text-foreground'}"
-											onclick={(e) => {
-												e.stopPropagation();
-												togglePin(p.user_id);
-											}}
-											title={pinnedUsers.has(p.user_id)
-												? 'Unpin (will move on reshuffle)'
-												: 'Pin to this room'}
-										>
-											<Pin class="h-3.5 w-3.5" />
-										</button>
+										{#if !fixedRooms}
+											<button
+												class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
+													p.user_id
+												)
+													? 'text-primary bg-primary/10'
+													: 'text-muted-foreground hover:text-foreground'}"
+												onclick={(e) => {
+													e.stopPropagation();
+													togglePin(p.user_id);
+												}}
+												title={pinnedUsers.has(p.user_id)
+													? 'Unpin (will move on reshuffle)'
+													: 'Pin to this room'}
+											>
+												<Pin class="h-3.5 w-3.5" />
+											</button>
+										{/if}
 									</div>
+								{:else}
+									<span class="text-muted-foreground text-sm"
+										>Drag someone here</span
+									>
 								{/each}
 							</div>
 						</div>
 					{/each}
 
-					<!-- Reshuffle button -->
-					<div>
-						<Button
-							variant="primaryDark"
-							size="sm"
-							class="gap-2 text-sm"
-							onclick={handleReshuffle}
-						>
-							<RefreshCw class="h-4 w-4" />
-							Reshuffle
-						</Button>
-					</div>
+					{#if !fixedRooms}
+						<div>
+							<Button
+								variant="primaryDark"
+								size="sm"
+								class="gap-2 text-sm"
+								onclick={handleReshuffle}
+							>
+								<RefreshCw class="h-4 w-4" />
+								Reshuffle
+							</Button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 

@@ -90,6 +90,7 @@
 		<AddStepDialog
 			workflowId={workflows.ok.current.workflow.id}
 			conversationId={conversation_id}
+			organizationId={data.conversation.organizationId ?? null}
 			highestStepOrder={max(workflows.ok.current.steps, (s) => s.stepOrder)}
 			bind:open={addStepDialogOpen}
 		/>

@@ -42,6 +42,14 @@ pub struct Invite {
 }
 
 impl Invite {
+    pub fn belongs_to_conversation(&self, conversation_id: &Uuid) -> Result<(), ComhairleError> {
+        if self.conversation_id == *conversation_id {
+            Ok(())
+        } else {
+            Err(ComhairleError::ResourceNotFound("Invite".to_string()))
+        }
+    }
+
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
         // If the invite is accepted we still want to return it
@@ -414,7 +422,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             username: Some("Name".into()),
-            password: Some("some password".into()),
+            password: Some("some password".to_string().into()),
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),

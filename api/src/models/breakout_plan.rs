@@ -19,7 +19,7 @@ use crate::models::{event_attendance, invites};
 /// Room size used when the event's agenda has no breakout item with `max_per_room`.
 const DEFAULT_MAX_PER_ROOM: usize = 4;
 
-fn is_moderator_role(role: &str) -> bool {
+pub(crate) fn is_moderator_role(role: &str) -> bool {
     role == "moderator" || role == "facilitator"
 }
 

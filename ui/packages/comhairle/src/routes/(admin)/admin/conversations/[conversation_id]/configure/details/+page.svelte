@@ -33,7 +33,7 @@
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { Autosave } from '../autosave.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
 	import AccessSettings from './AccessSettings.svelte';
@@ -208,7 +208,10 @@
 			if (glossary.length > 0) {
 				for (const locale of newlyAddedLanguages) {
 					const translation = await tryCatchAsync(() =>
-						translateGlossaryToLocale(glossary, locale, primaryLocale)
+						translateGlossaryToLocale(glossary, locale, primaryLocale, {
+							type: 'conversation',
+							id: conversation.id
+						})
 					);
 					if (translation.err !== null) {
 						notifications.send({

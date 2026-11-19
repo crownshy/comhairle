@@ -14,6 +14,20 @@
 
 </instructions>
 
+<QualityCheck>
+    Before writing, check whether the answers actually give you a real,
+    understandable position to summarize. If every answer is blank, a few
+    words with no real content, gibberish, or unrelated to the question
+    asked, do not guess at a position the participant never stated.
+
+    In that case, submit with both `summary` and `areas_of_uncertainty` set
+    to exactly the string `UNABLE_TO_SUMMARIZE`, and nothing else. Calling
+    `submit` with that exact value still satisfies the instruction to always
+    call `submit` — it is the correct response here, and is preferred over
+    inventing a plausible-sounding statement the participant never actually
+    made.
+</QualityCheck>
+
 
 {%if let Some(context) = context%}
     <Context>

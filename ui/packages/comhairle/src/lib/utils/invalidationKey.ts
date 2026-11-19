@@ -1,5 +1,5 @@
 type InvalidationKey = `${string}:${string}`;
-type InputKey =
+export type InputKey =
 	| 'admin/conversation'
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'
@@ -11,10 +11,12 @@ type InputKey =
 	| 'admin/conversation/workflow'
 	| 'admin/conversation/design/workflow'
 	| 'admin/conversations'
+	| 'admin/demographic-forms'
 	| 'admin/documents'
 	| 'admin/email-template-config'
 	| 'admin/event'
 	| 'admin/knowledge-base/documents'
+	| 'admin/media-library/media'
 	| 'admin/organization/details'
 	| 'admin/organization/permissions'
 	| 'admin/organizations'
@@ -28,6 +30,7 @@ type InputKey =
 	| 'public/conversation'
 	| 'public/documents'
 	| 'public/event'
+	| 'public/settings/profile'
 	| 'public/notifications'
 	| 'public/participation'
 	| 'public/participation-count'

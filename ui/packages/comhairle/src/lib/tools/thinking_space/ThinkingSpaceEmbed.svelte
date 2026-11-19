@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Loader2 } from 'lucide-svelte';
+	import { Loader2, RotateCcw } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
+	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
 	import QuestionFlow from './QuestionFlow.svelte';
 	import Summary from './Summary.svelte';
-	import { generateNextRound, hydrateRounds } from './summary';
+	import { generateNextRound, hydrateRounds, isInsufficientAnswersError } from './summary';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
 		QuestionConfig,
@@ -50,6 +52,7 @@
 
 	let loaded = $state(false);
 	let loadError = $state(false);
+	let retryingLoad = $state(false);
 	let phase = $state<ThinkingSpacePhase>('questions');
 	let answers = $state<QuestionAnswers[]>([]);
 	let savedRounds = $state<SummaryRound[]>([]);
@@ -60,6 +63,9 @@
 	let answerCountAtExtensionStart = $state(0);
 	let generatingNextRound = $state(false);
 	let generationError = $state(false);
+	// True when the backend declined because the answers themselves were too
+	// sparse to summarize (distinct from a flaky/glitchy generation failure).
+	let insufficientAnswers = $state(false);
 
 	// QuestionFlow and Summary each report to the pager while they are mounted.
 	$effect(() => {
@@ -71,7 +77,8 @@
 			rootQuestions.every((question) => question.text.trim().length === 0)
 	);
 
-	onMount(async () => {
+	async function loadProgress() {
+		loadError = false;
 		try {
 			answers = await hydrateAnswers();
 			// A returning participant who already finished lands on the summary
@@ -90,10 +97,19 @@
 		} catch (e) {
 			console.error('thinking_space: failed to load saved answers', e);
 			loadError = true;
-		} finally {
-			loaded = true;
 		}
+	}
+
+	onMount(async () => {
+		await loadProgress();
+		loaded = true;
 	});
+
+	async function handleRetryLoad() {
+		retryingLoad = true;
+		await loadProgress();
+		retryingLoad = false;
+	}
 
 	// Rebuild the participant's progress from answers already saved on the backend.
 	async function hydrateAnswers(): Promise<QuestionAnswers[]> {
@@ -159,6 +175,7 @@
 	async function generateRound(forAnswers: QuestionAnswers[]) {
 		generatingNextRound = true;
 		generationError = false;
+		insufficientAnswers = false;
 		try {
 			const round = await generateNextRound({
 				workflowStepId,
@@ -170,10 +187,18 @@
 		} catch (e) {
 			console.error('thinking_space: failed to generate summary round', e);
 			generationError = true;
-			notifications.send({
-				message: 'Could not generate your summary. Please try again.',
-				priority: 'ERROR'
-			});
+			if (isInsufficientAnswersError(e)) {
+				insufficientAnswers = true;
+				notifications.send({
+					message: "There wasn't enough in your answers to write a summary.",
+					priority: 'ERROR'
+				});
+			} else {
+				notifications.send({
+					message: 'Could not generate your summary. Please try again.',
+					priority: 'ERROR'
+				});
+			}
 		} finally {
 			generatingNextRound = false;
 		}
@@ -212,8 +237,14 @@
 	<div class="mx-auto max-w-md px-6 py-12 text-center">
 		<h2 class="text-foreground text-xl font-semibold">Couldn't load your progress</h2>
 		<p class="text-muted-foreground mt-2 text-sm">
-			Something went wrong loading this Thinking Space. Please refresh and try again.
+			Something went wrong loading this Thinking Space.
 		</p>
+		<div class="mt-4 flex justify-center">
+			<Button variant="outline" size="sm" onclick={handleRetryLoad} disabled={retryingLoad}>
+				<RotateCcw class="size-3.5 {retryingLoad ? 'animate-spin' : ''}" />
+				{m.try_again()}
+			</Button>
+		</div>
 	</div>
 {:else}
 	<div class="relative flex min-h-[600px] flex-col">
@@ -241,6 +272,7 @@
 				rounds={savedRounds}
 				pendingNextRound={generatingNextRound}
 				loadError={generationError}
+				{insufficientAnswers}
 				onRetryGenerate={handleRetryGenerate}
 				{onDone}
 				onAnswerMore={handleAnswerMore}

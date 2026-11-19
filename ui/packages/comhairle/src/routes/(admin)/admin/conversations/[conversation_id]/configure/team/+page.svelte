@@ -5,19 +5,23 @@
 	import RoleAssignments from '$lib/components/permissions/RoleAssignments.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { teamConfigTour } from './tour';
+	import HostingOrganizationSection from './HostingOrganizationSection.svelte';
+	import TransferOwnershipSection from './TransferOwnershipSection.svelte';
 	import type { PageProps } from './$types';
 
 	useTour(() => teamConfigTour);
 
 	let { data }: PageProps = $props();
 	let roleAssignments = $state<ReturnType<typeof RoleAssignments>>();
+
+	const canTransferOwnership = $derived(data.isConversationOwner || data.isSuperAdmin);
 </script>
 
 <PageHeader
 	data-tour="page-header"
 	level="h2"
 	title="Team"
-	description="Choose who works on this conversation and what each person can do."
+	description="Manage the hosting organisation, ownership, collaborators and role assignments."
 >
 	{#snippet actions()}
 		{#if data.roleManagement?.err === null}
@@ -27,6 +31,16 @@
 		{/if}
 	{/snippet}
 </PageHeader>
+
+<HostingOrganizationSection
+	conversationId={data.conversation.id}
+	organizationId={data.conversation.organizationId ?? null}
+	organizations={data.userOrganizations.organizations}
+/>
+
+{#if canTransferOwnership}
+	<TransferOwnershipSection conversationId={data.conversation.id} />
+{/if}
 
 <RoleAssignments
 	bind:this={roleAssignments}

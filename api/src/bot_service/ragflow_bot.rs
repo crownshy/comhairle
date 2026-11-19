@@ -17,6 +17,7 @@ use reqwest::StatusCode;
 use serde_json::{Value, from_str};
 use tracing::instrument;
 
+use super::document_cache::DocumentCache;
 use crate::bot_service::{
     AgentConversationRequest, BotServiceSseEvent, ChatConversationRequest, ComhairleAgent,
     ComhairleAgentSession, ComhairleBotService, ComhairleChat, ComhairleChatSession,
@@ -31,6 +32,7 @@ use crate::error::ComhairleError;
 #[derive(Debug)]
 pub struct ComhairleRagBotService {
     client: Arc<RagflowClient>,
+    document_cache: DocumentCache,
 }
 
 impl ComhairleRagBotService {
@@ -40,6 +42,7 @@ impl ComhairleRagBotService {
                 base_url.to_string(),
                 api_key.to_string(),
             )),
+            document_cache: DocumentCache::new(),
         }
     }
 
@@ -203,6 +206,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         knowledge_base_id: &str,
     ) -> Result<StatusCode, ComhairleError> {
+        let documents = self.document_cache.lock(knowledge_base_id).await;
+        documents.invalidate_all();
         let body = DeleteResources {
             ids: vec![knowledge_base_id],
         };
@@ -218,12 +223,26 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledge_base_id: &str,
         params: Option<ApiGetQueryParams>,
     ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError> {
-        let params: Option<GetQueryParams> = params.map(|p| p.into());
+        let cached_documents = self.document_cache.lock(knowledge_base_id).await;
+        if let Some(documents) = cached_documents.get(&params).await {
+            return Ok(documents);
+        }
+        let query: Option<GetQueryParams> = params.clone().map(Into::into);
 
         let (status, documents) =
-            ragflow::document::list(&self.client, knowledge_base_id, params).await?;
+            ragflow::document::list(&self.client, knowledge_base_id, query).await?;
 
         let documents: Vec<ComhairleDocument> = documents.into_iter().map(Into::into).collect();
+
+        if status.is_success()
+            && documents
+                .iter()
+                .all(|document| document.parse_status == "DONE" && document.parse_progress >= 1.0)
+        {
+            cached_documents
+                .insert(params, (status, documents.clone()))
+                .await;
+        }
 
         Ok((status, documents))
     }
@@ -253,6 +272,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledge_base_id: &str,
         file: UploadFileRequest,
     ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let cached_documents = self.document_cache.lock(knowledge_base_id).await;
+        cached_documents.invalidate_all();
         let file: UploadFile = file.into();
 
         let (status, documents) =
@@ -270,6 +291,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledge_base_id: &str,
         body: UpdateDocumentRequest,
     ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let cached_documents = self.document_cache.lock(knowledge_base_id).await;
+        cached_documents.invalidate_all();
         let body: UpdateDocument = body.into();
 
         let (status, _) =
@@ -301,6 +324,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         document_id: String,
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError> {
+        let cached_documents = self.document_cache.lock(&knowledge_base_id).await;
+        cached_documents.invalidate_all();
         let status =
             ragflow::document::delete(&self.client, &document_id, &knowledge_base_id).await?;
 
@@ -312,6 +337,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         document_id: String,
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError> {
+        let cached_documents = self.document_cache.lock(&knowledge_base_id).await;
+        cached_documents.invalidate_all();
         let body = ParseDocuments {
             document_ids: vec![&document_id],
         };
@@ -325,6 +352,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         document_id: String,
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError> {
+        let cached_documents = self.document_cache.lock(&knowledge_base_id).await;
+        cached_documents.invalidate_all();
         let body = ParseDocuments {
             document_ids: vec![&document_id],
         };

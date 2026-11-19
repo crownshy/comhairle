@@ -14,19 +14,7 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
-	import {
-		Bell,
-		BellRing,
-		Check,
-		CheckCheck,
-		Info,
-		AlertCircle,
-		AlertTriangle,
-		CheckCircle,
-		Calendar,
-		Eye,
-		EyeOff
-	} from 'lucide-svelte';
+	import { Bell, BellRing, Check, CheckCheck, Info, Calendar, Eye, EyeOff } from 'lucide-svelte';
 	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
 	import { Second } from '$lib/utils/units';
@@ -39,21 +27,6 @@
 
 	let displayNotifications = $derived(showAll ? data.allNotifications : data.unreadNotifications);
 	let hasUnread = $derived(data.unreadCount.count > 0);
-
-	function getNotificationIcon(type: string) {
-		switch (type) {
-			case 'info':
-				return Info;
-			case 'warning':
-				return AlertTriangle;
-			case 'error':
-				return AlertCircle;
-			case 'success':
-				return CheckCircle;
-			default:
-				return Bell;
-		}
-	}
 
 	$effect(() => {
 		let timeoutId = setTimeout(async () => {

@@ -68,6 +68,9 @@ async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, C
     })
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct LearnExIm;
+
 /// Zero-sized marker type for Learn tool implementation
 pub struct LearnTool;
 
@@ -76,10 +79,13 @@ impl ToolImpl for LearnTool {
     type Config = LearnToolConfig;
     type Setup = LearnToolSetup;
     type Report = LearnReport;
+    type ExportImport = LearnExIm;
 
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _db: &mut sqlx::PgConnection,
+        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         learn_setup(setup).await
@@ -95,6 +101,21 @@ impl ToolImpl for LearnTool {
 
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
+    }
+
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
     }
 
     fn routes() -> ApiRouter<Arc<ComhairleState>> {

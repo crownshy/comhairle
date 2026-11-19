@@ -55,6 +55,44 @@ export async function generateNextRound(params: GenerateRoundParams): Promise<Su
 	return dtoToRound(dto as SummaryDto);
 }
 
+// Matches sensemakar_core's `ThinkingSpaceError::InsufficientAnswers` Display
+// text and the 422 it's mapped to in api/src/error.rs. Both sides are
+// hardcoded (see ui/.../previewAccess.ts's PASSWORD_REQUIRED for the same
+// pattern elsewhere in this codebase) since there's no shared error-code type.
+// `ComhairleError`'s outer variant wraps this in "Thinking space generation
+// error: {inner}" (see error.rs), so we match on the inner text with
+// `includes` rather than pinning the full wrapped string.
+const INSUFFICIENT_ANSWERS_MESSAGE =
+	"participant's answers did not contain enough content to summarize";
+
+type ApiErrorShape = { response?: { status?: number; data?: { err?: unknown } } };
+
+export function isInsufficientAnswersError(error: unknown): boolean {
+	const response = (error as ApiErrorShape | null)?.response;
+	return (
+		response?.status === 422 &&
+		typeof response.data?.err === 'string' &&
+		response.data.err.includes(INSUFFICIENT_ANSWERS_MESSAGE)
+	);
+}
+
+/**
+ * Creates a summary round directly from participant-written text, bypassing
+ * AI generation entirely (`summary_id` omitted, so the backend inserts a new
+ * `is_ai_generated: false` row). Used when generation failed and the
+ * participant chose to write their own summary instead of retrying.
+ */
+export async function createManualRound(params: {
+	workflowStepId: string;
+	summary: string;
+}): Promise<SummaryRound> {
+	const dto = await apiClient.UpdateOrCreateThinkingSpaceSummary({
+		workflow_step_id: params.workflowStepId,
+		summary: params.summary
+	});
+	return dtoToRound(dto as SummaryDto);
+}
+
 export async function saveRound(params: {
 	workflowStepId: string;
 	roundId: string;

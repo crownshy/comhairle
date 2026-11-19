@@ -18,8 +18,9 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::email_template_config::{
-    self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
-    SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
+    self, EmailTemplateScope, MailerContextMap, SCHEMA_CONVERSATION_INVITE,
+    SCHEMA_EVENT_REGISTRATION_CONFIRMATION, SCHEMA_EVENT_REGISTRATION_INVITE,
+    SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::media::{FromWithMedia, MediaResolver};
@@ -156,15 +157,45 @@ pub struct Mailer {
 }
 
 #[cfg(test)]
+pub struct SentEmail {
+    pub to: String,
+    pub subject: String,
+    pub template: String,
+    pub context: String,
+}
+
+#[cfg(test)]
 impl MockComhairleMailer {
     pub fn base() -> MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
+        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
+        Self::expect_other_emails(&mut mailer);
+        mailer
+    }
 
+    /// A mailer that records everything sent through `send_email` into `sent`.
+    pub fn recording(sent: Arc<std::sync::Mutex<Vec<SentEmail>>>) -> MockComhairleMailer {
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_email()
+            .returning(move |to, subject, template, context, _| {
+                sent.lock().unwrap().push(SentEmail {
+                    to: to.to_string(),
+                    subject: subject.to_string(),
+                    template: template.to_string(),
+                    context: context.to_string(),
+                });
+                Ok(())
+            });
+        Self::expect_other_emails(&mut mailer);
+        mailer
+    }
+
+    fn expect_other_emails(mailer: &mut MockComhairleMailer) {
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
         mailer
             .expect_send_verification_email()
             .returning(|_, _, _| Ok(()));
-        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
         mailer
             .expect_send_conversation_invite_email()
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
@@ -198,8 +229,6 @@ impl MockComhairleMailer {
         mailer
             .expect_preview_email()
             .returning(|_, _, _| Ok(String::new()));
-
-        mailer
     }
 }
 
@@ -364,7 +393,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_CONVERSATION_INVITE.email_type,
-            Some(conversation.id),
+            EmailTemplateScope::Conversation(conversation.id),
         )
         .await?;
 
@@ -519,7 +548,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_INVITE.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 
@@ -583,7 +612,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_CONFIRMATION.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 
@@ -681,7 +710,7 @@ impl ComhairleMailer for Mailer {
             &state.db,
             sender_id,
             &SCHEMA_EVENT_REMINDER.email_type,
-            None,
+            EmailTemplateScope::Event(event.id),
         )
         .await?;
 
