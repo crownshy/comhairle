@@ -11,14 +11,18 @@ function get<T extends string>(key: T, url?: URL): string | null {
 	return Url.searchParams.get(key);
 }
 
-function set<T extends string>(key: T, value: string, url?: URL): void {
+function set<T extends string>(key: T, value: string, url?: URL) {
 	const Url = url ?? new URL(page.url);
 	if (!value) {
 		Url.searchParams.delete(key);
 	} else {
 		Url.searchParams.set(key, value);
 	}
-	refresh(url.href);
+
+	return {
+		set: <T extends string>(key: T, value: string) => set(key, value, Url),
+		update: () => refresh(Url.href)
+	};
 }
 
 function remove<T extends string>(key: T, url?: URL): void {
@@ -30,7 +34,6 @@ function remove<T extends string>(key: T, url?: URL): void {
 const QueryParams = {
 	get,
 	set,
-	setMultiple,
 	remove
 };
 
