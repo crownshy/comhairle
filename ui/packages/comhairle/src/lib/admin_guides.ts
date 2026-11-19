@@ -929,6 +929,15 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 								'Later on, choose **Move back to waiting** from the statement’s :more: menu. To move several, select them and click **Move back to waiting** in the bar above the list.'
 							],
 							result: 'The statement goes back to **Waiting** and any reject reason is cleared. If the step needs approval, participants stop seeing it until someone accepts it again.'
+						},
+						{
+							title: 'Undo a split or reword',
+							when: 'You split or reworded a statement and want the participant’s original back.',
+							how: [
+								'Click **Undo** on the message that appears after the split.',
+								'Later on, choose **Undo split** from the original statement’s :more: menu, then confirm.'
+							],
+							result: 'The replacement statements are rejected and any votes on them are lost. The original goes back to **Waiting** for a new decision. If one of the replacements was split again, undo that split first.'
 						}
 					]
 				},

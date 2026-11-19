@@ -40,6 +40,7 @@
 		translationsByStatement: Record<string, PolisStatementTranslation[]>;
 		onTranslationChange: (translation: PolisStatementTranslation) => void;
 		onSplit: (row: PolisStatementAux) => void;
+		onUndoSplit: (row: PolisStatementAux) => void;
 		/** Shown in place of the rows when there are none to show. */
 		empty: Snippet;
 	};
@@ -62,6 +63,7 @@
 		translationsByStatement,
 		onTranslationChange,
 		onSplit,
+		onUndoSplit,
 		empty
 	}: Props = $props();
 
@@ -188,6 +190,7 @@
 					onToggle={(checked, range) => onToggleSelect(row.id, checked, range)}
 					onModerate={(status, reason) => onModerate(row, status, reason)}
 					onSplit={() => onSplit(row)}
+					onUndoSplit={() => onUndoSplit(row)}
 				/>
 			{/each}
 		{/if}

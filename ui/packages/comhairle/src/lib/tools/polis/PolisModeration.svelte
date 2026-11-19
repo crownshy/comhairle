@@ -18,6 +18,7 @@
 	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
 	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
+	import UndoSplitDialog from './polis-moderation/UndoSplitDialog.svelte';
 	import StatementsPagination from './polis-moderation/StatementsPagination.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 	import { StatementSync } from './polis-moderation/statementSync';
@@ -427,6 +428,40 @@
 		return statements.find((s) => s.polis_statement_id === n)?.statement_text;
 	});
 
+	// --- Undo split ---
+	// From the row menu it asks first, since votes on the replacements are lost. The toast
+	// right after a split undoes straight away: there's been no time to collect votes.
+	let undoSplitTarget = $state<PolisStatementAux | null>(null);
+	let undoingSplit = $state(false);
+
+	function askUndoSplit(row: PolisStatementAux) {
+		if (!canModerate) return;
+		undoSplitTarget = row;
+	}
+
+	async function undoSplit(original: PolisStatementAux) {
+		if (!canModerate || undoingSplit) return;
+		undoingSplit = true;
+		const res = await tryCatchAsync(() =>
+			apiClient.PolisUndoSplitStatement(undefined, { params: { id: original.id } })
+		);
+		undoingSplit = false;
+		undoSplitTarget = null;
+		if (res.err !== null) {
+			notifications.send({
+				priority: 'ERROR',
+				message:
+					'Couldn’t undo the split. If one of its statements was split again, undo that one first.'
+			});
+		} else {
+			notifications.send({
+				priority: 'INFO',
+				message: 'Split undone. The original is back in Waiting.'
+			});
+		}
+		await invalidate(key('admin/polis/statements'));
+	}
+
 	function openSplit(row: PolisStatementAux) {
 		if (!canModerate) return;
 		splitTarget = row;
@@ -517,6 +552,7 @@
 			onBulkModerate={bulkModerate}
 			onModerate={setStatus}
 			onSplit={openSplit}
+			onUndoSplit={askUndoSplit}
 		>
 			{#snippet empty()}
 				{#if statements.length === 0}
@@ -557,5 +593,15 @@
 			: undefined}
 		viewedContext={splitContext}
 		onDone={() => invalidate(key('admin/polis/statements'))}
+		onUndo={undoSplit}
+	/>
+	<UndoSplitDialog
+		original={undoSplitTarget}
+		replacementCount={undoSplitTarget
+			? (lineage[undoSplitTarget.id]?.replacedBy?.length ?? 0)
+			: 0}
+		working={undoingSplit}
+		onConfirm={() => undoSplitTarget && undoSplit(undoSplitTarget)}
+		onCancel={() => (undoSplitTarget = null)}
 	/>
 {/if}
