@@ -15,7 +15,8 @@ class NotificationsManager {
 	private static DEFAULT_DURATION = 60000;
 
 	public send(opts: SendOpts) {
-		if (!NotificationsManager.isShown(opts.priority)) return;
+		// A toast with an action (like Undo) is the only way to reach that action, so it always shows.
+		if (!opts.action && !NotificationsManager.isShown(opts.priority)) return;
 		this.toastFn(opts.priority)(opts.message, {
 			duration: opts.duration || NotificationsManager.DEFAULT_DURATION,
 			action: opts.action

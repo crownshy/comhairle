@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PolisStatementAux } from '@crownshy/api-client/api';
-import { buildStatementsCsv } from './statementsCsv';
+import { buildStatementsCsv, moderationReportFilename } from './statementsCsv';
 
 function statement(overrides: Partial<PolisStatementAux>): PolisStatementAux {
 	return {
@@ -75,5 +75,34 @@ describe('buildStatementsCsv', () => {
 
 	it('writes just the header when there are no statements', () => {
 		expect(buildStatementsCsv([], labels)).toBe(HEADER);
+	});
+});
+
+describe('moderationReportFilename', () => {
+	const date = new Date('2026-11-17T09:00:00Z');
+
+	it('names the conversation, step and date', () => {
+		expect(
+			moderationReportFilename({
+				conversationTitle: 'High Street Traffic',
+				stepName: 'Tell us what you think',
+				date
+			})
+		).toBe('moderation-report-high-street-traffic-tell-us-what-you-think-2026-11-17.csv');
+	});
+
+	it('drops accents and symbols, and skips empty parts', () => {
+		expect(
+			moderationReportFilename({ conversationTitle: 'Café: Ùr?', stepName: '!!!', date })
+		).toBe('moderation-report-cafe-ur-2026-11-17.csv');
+	});
+
+	it('keeps long names short', () => {
+		const filename = moderationReportFilename({
+			conversationTitle: 'a'.repeat(100),
+			stepName: 'Poll',
+			date
+		});
+		expect(filename).toBe(`moderation-report-${'a'.repeat(40)}-poll-2026-11-17.csv`);
 	});
 });

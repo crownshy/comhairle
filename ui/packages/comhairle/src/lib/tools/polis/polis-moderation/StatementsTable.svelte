@@ -3,40 +3,47 @@
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Card from '$lib/components/ui/card';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Check, X } from '@lucide/svelte';
+	import { Check, Undo2, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import StatementModerationRow from './StatementModerationRow.svelte';
 	import RejectDialog from './RejectDialog.svelte';
+	import type { Snippet } from 'svelte';
+
+	type ModerationStatus = PolisStatementAux['moderation_status'];
 
 	type Props = {
 		editable?: boolean;
 		/** The visible (filtered + searched) statements, already ordered. */
 		rows: PolisStatementAux[];
+		/** Show each row's status, for views that mix statuses. */
+		showStatus: boolean;
+		/** Names the list in the header, e.g. "10 accepted statements". */
+		heading: string;
 		/** The conversation's moderation policy reasons, offered on reject. */
 		rejectReasons: RejectReason[];
 		/** Selection + per-row in-flight state, keyed by aux row id. */
 		selected: Record<string, boolean>;
 		pending: Record<string, boolean>;
 		/** Which bulk action is in flight, or null when idle. */
-		bulkAction: 'accepted' | 'rejected' | null;
+		bulkAction: ModerationStatus | null;
 		onToggleSelect: (id: string, checked: boolean, range: boolean) => void;
 		onToggleAll: (checked: boolean) => void;
 		onClear: () => void;
-		onBulkModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
-		onModerate: (
-			row: PolisStatementAux,
-			status: 'accepted' | 'rejected',
-			reason?: string
-		) => void;
+		onBulkModerate: (status: ModerationStatus, reason?: string) => void;
+		onModerate: (row: PolisStatementAux, status: ModerationStatus, reason?: string) => void;
 		/** Per-row lineage strings for derived statements, keyed by aux row id. */
 		lineage: Record<string, { editedFrom?: string; replacedBy?: string[] }>;
 		onSplit: (row: PolisStatementAux) => void;
+		/** Shown in place of the rows when there are none to show. */
+		empty: Snippet;
 	};
 
 	let {
 		editable = true,
 		rows,
+		showStatus,
+		heading,
 		rejectReasons,
 		selected,
 		pending,
@@ -47,7 +54,8 @@
 		onBulkModerate,
 		onModerate,
 		lineage,
-		onSplit
+		onSplit,
+		empty
 	}: Props = $props();
 
 	const bulkWorking = $derived(bulkAction !== null);
@@ -56,23 +64,27 @@
 	const selectedCount = $derived(rows.filter((r) => selected[r.id]).length);
 	const allSelected = $derived(rows.length > 0 && selectedCount === rows.length);
 	const someSelected = $derived(selectedCount > 0 && !allSelected);
+	const anySelectedDecided = $derived(
+		rows.some((r) => selected[r.id] && r.moderation_status !== 'pending')
+	);
 </script>
 
-<Card.Root class="gap-0 overflow-hidden py-0">
+<Card.Root class="@container gap-0 overflow-hidden py-0">
 	<!-- The header row doubles as the bulk-actions bar when rows are selected.
 	     Keeping a fixed height means the card (and the list below) never shifts
 	     when a selection starts or clears. -->
 	<div class="flex min-h-[3.5rem] items-center border-b px-4">
 		{#if editable && selectedCount > 0}
-			<div class="flex w-full items-center gap-3">
+			<div class="flex w-full flex-wrap items-center gap-3 py-2">
 				<Checkbox
 					checked={allSelected}
 					indeterminate={someSelected}
 					onCheckedChange={(v) => onToggleAll(v === true)}
 					aria-label="Select all statements"
+					class="border-muted-foreground"
 				/>
-				<span class="text-sm font-medium">{selectedCount} selected</span>
-				<div class="ml-auto flex items-center gap-2">
+				<span class="text-base font-medium">{selectedCount} selected</span>
+				<div class="ml-auto flex flex-wrap items-center gap-2">
 					<LoadingButton
 						size="sm"
 						loading={bulkAction === 'accepted'}
@@ -80,7 +92,7 @@
 						onclick={() => onBulkModerate('accepted')}
 					>
 						<Check class="size-4" />
-						Approve
+						Accept
 					</LoadingButton>
 					<RejectDialog
 						reasons={rejectReasons}
@@ -101,6 +113,18 @@
 							</LoadingButton>
 						{/snippet}
 					</RejectDialog>
+					{#if anySelectedDecided}
+						<LoadingButton
+							size="sm"
+							variant="outline"
+							loading={bulkAction === 'pending'}
+							disabled={bulkWorking}
+							onclick={() => onBulkModerate('pending')}
+						>
+							<Undo2 class="size-4" />
+							Move back to waiting
+						</LoadingButton>
+					{/if}
 					<Button size="sm" variant="ghost" disabled={bulkWorking} onclick={onClear}>
 						Clear
 					</Button>
@@ -108,7 +132,7 @@
 			</div>
 		{:else}
 			<div
-				class="text-muted-foreground grid w-full grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 text-xs font-semibold uppercase"
+				class="text-muted-foreground grid w-full grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-4 text-base font-medium"
 			>
 				<div class="flex items-center">
 					{#if editable}
@@ -117,12 +141,12 @@
 							indeterminate={someSelected}
 							onCheckedChange={(v) => onToggleAll(v === true)}
 							aria-label="Select all statements"
+							class="border-muted-foreground"
 						/>
 					{/if}
 				</div>
-				<div>#</div>
-				<div>Statement</div>
-				<div class="pr-2">{editable ? 'Action' : 'Status'}</div>
+				<div>{heading}</div>
+				<div class="pr-2">{editable ? '' : 'Status'}</div>
 			</div>
 		{/if}
 	</div>
@@ -138,14 +162,13 @@
 		{/if}
 
 		{#if rows.length === 0}
-			<p class="text-muted-foreground px-4 py-6 text-sm italic">
-				No statements match this filter.
-			</p>
+			{@render empty()}
 		{:else}
 			{#each rows as row (row.id)}
 				<StatementModerationRow
 					{editable}
 					{row}
+					{showStatus}
 					{rejectReasons}
 					selected={!!selected[row.id]}
 					selectionCount={selectedCount}
