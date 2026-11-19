@@ -15,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 
 # ---- Build Stage ----
 FROM base AS build
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 WORKDIR /app
 
 # Copy all project files
