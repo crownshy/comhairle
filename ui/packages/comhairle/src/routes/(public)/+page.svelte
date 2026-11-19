@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import Search from './conversations/Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
 	import { PAGE_SIZE } from './conversations/utils';
@@ -9,6 +8,9 @@
 	import Info from '@lucide/svelte/icons/info';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { resolve } from '$app/paths';
+	import SearchBar from '$lib/components/SearchBar.svelte';
+	import QueryParams from '$lib/interfaces/QueryParams.svelte';
+	import { useDebounce } from 'runed';
 
 	let { data } = $props();
 </script>
@@ -65,7 +67,15 @@
 	</section>
 	<div class="relative mx-auto -mt-8 w-full max-w-7xl px-6">
 		<div class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-lg">
-			<Search />
+			<SearchBar
+				placeholder={m.conversations_search()}
+				aria-label={m.conversations_search()}
+				value={QueryParams.get('search') ?? undefined}
+				oninput={useDebounce((event) => {
+					QueryParams.set('search', (event.target as HTMLInputElement).value);
+				}, 300)}
+				class="bg-muted h-12 rounded-full border-0 pl-11 text-lg shadow-none md:text-lg"
+			/>
 		</div>
 	</div>
 	<div class="mx-auto flex h-full w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
