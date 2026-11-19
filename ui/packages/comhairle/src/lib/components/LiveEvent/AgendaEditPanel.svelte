@@ -75,7 +75,7 @@
 	}
 
 	function remove(index: number) {
-		drafts = drafts.filter((_, i) => i !== index);
+		drafts.splice(index, 1);
 	}
 
 	async function save() {

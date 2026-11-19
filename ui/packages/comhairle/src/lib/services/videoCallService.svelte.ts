@@ -1,5 +1,6 @@
 import { ws } from '$lib/api/websockets.svelte';
 import type { EventAgendaItem } from '@crownshy/api-client/api';
+import { Second } from '$lib/utils/units';
 
 export type VideoCallStatus = 'Waiting' | 'InProgress' | 'Ended';
 
@@ -53,7 +54,7 @@ type AgendaUpdateResult = {
 
 type PendingAgendaEdit = { editId: string; settle: (outcome: AgendaEditOutcome) => void };
 
-const AGENDA_EDIT_TIMEOUT_MS = 10_000;
+const AGENDA_EDIT_TIMEOUT_MS = 10 * Second;
 
 export class VideoCallService {
 	private _currentCallState = $state<VideoCallState | null>(null);
