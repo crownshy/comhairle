@@ -22,8 +22,8 @@
 	so it shows in the first screen. -->
 <div class="flex flex-col">
 	<section class="bg-primary text-primary-foreground rounded-b-4xl md:rounded-b-[3rem]">
-		<div class="mx-auto flex w-full max-w-7xl flex-col gap-y-10 px-6 pt-16 pb-20 md:pb-28">
-			<h1 class="scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
+		<div class="mx-auto max-w-7xl px-6 pt-16 pb-20 md:pb-28">
+			<h1 class="scroll-m-20 pb-10 text-4xl font-bold tracking-tight sm:text-5xl">
 				{#if data.isCommunity}
 					{m.welcome_to_the()}
 				{:else}
@@ -36,9 +36,8 @@
 							class="inline-flex cursor-default items-baseline gap-2"
 							onclick={(e) => e.preventDefault()}
 						>
-							Comhairle<Info
-								class="text-primary-foreground inline size-5 self-center"
-							/>
+							Comhairle
+							<Info class="text-primary-foreground inline size-5 self-center" />
 						</Tooltip.Trigger>
 						<Tooltip.Content side="top" class="text-base">
 							{m.comhairle_meaning()}
@@ -53,7 +52,7 @@
 
 			{#if data.isCommunity}
 				{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-					<p class="w-full text-xl sm:text-2xl">
+					<p class="text-xl sm:text-2xl">
 						{description}
 					</p>
 				{/each}
@@ -64,7 +63,7 @@
 			{/if}
 		</div>
 	</section>
-	<div class="relative mx-auto -mt-8 w-full max-w-7xl px-6">
+	<div class="mx-auto w-full max-w-7xl -translate-y-1/2 px-6">
 		<div class="bg-card mx-auto max-w-4xl rounded-full p-3 shadow-lg">
 			<SearchBar
 				placeholder={m.conversations_search()}
@@ -79,7 +78,7 @@
 			/>
 		</div>
 	</div>
-	<div class="mx-auto flex h-full w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
+	<div class="mx-auto flex w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header>
 			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
 			<p class="mb-4">
@@ -101,7 +100,7 @@
 		</header>
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
-			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+			<div class="flex flex-col gap-20 md:gap-10 md:px-2">
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<a
 						class="block w-full"
@@ -114,7 +113,7 @@
 				{/each}
 			</div>
 
-			<div class="my-10 flex w-full justify-center md:mt-20">
+			<div class="my-10 self-center md:mt-20">
 				<Pager
 					pageSize={data.CONVERSATION_PAGE_SIZE}
 					count={data.conversations.ok.total}
