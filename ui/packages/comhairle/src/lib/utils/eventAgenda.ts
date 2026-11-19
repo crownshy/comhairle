@@ -1,8 +1,8 @@
 import type { BasicEventAgendaItem, EventAgendaItem } from '@crownshy/api-client/api';
+import { Minute } from '$lib/utils/units';
 
 const DEFAULT_BREAKOUT_MINUTES = 10;
 const DEFAULT_PEOPLE_PER_ROOM = 4;
-const MINUTE_MS = 60_000;
 
 export type PlenaryDraft = {
 	id: string;
@@ -109,13 +109,13 @@ export type AgendaSchedule = {
 export function agendaSchedule(drafts: AgendaDraftItem[], eventStart: Date): AgendaSchedule {
 	let elapsedMinutes = 0;
 	const starts = drafts.map((draft) => {
-		const start = new Date(eventStart.getTime() + elapsedMinutes * MINUTE_MS);
+		const start = new Date(eventStart.getTime() + elapsedMinutes * Minute);
 		elapsedMinutes += wholeMinutes(draft.durationMinutes);
 		return start;
 	});
 	return {
 		starts,
-		end: new Date(eventStart.getTime() + elapsedMinutes * MINUTE_MS),
+		end: new Date(eventStart.getTime() + elapsedMinutes * Minute),
 		totalMinutes: elapsedMinutes
 	};
 }

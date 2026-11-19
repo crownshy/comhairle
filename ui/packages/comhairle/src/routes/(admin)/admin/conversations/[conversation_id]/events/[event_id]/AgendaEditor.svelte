@@ -23,6 +23,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { cn, formatTime } from '$lib/utils';
 	import type { SaveStatus } from '$lib/utils/autosave.svelte';
+	import { Second } from '$lib/utils/units';
 	import {
 		agendaDraftTitle,
 		agendaSchedule,
@@ -47,7 +48,7 @@
 	let { items = $bindable(), startTime, onChange, saveStatus, editable = true }: Props = $props();
 
 	const FLIP_DURATION_MS = 200;
-	const UNDO_DURATION_MS = 8000;
+	const UNDO_DURATION_MS = 8 * Second;
 	const FIELD_LABEL_CLASS = 'flex flex-col items-start gap-1.5 text-sm font-medium';
 	// Reads as plain text in the row until hovered or focused.
 	const INLINE_INPUT_CLASS =
@@ -87,7 +88,7 @@
 	}
 
 	function restore(item: AgendaDraftItem, index: number) {
-		items = [...items.slice(0, index), item, ...items.slice(index)];
+		items = items.toSpliced(index, 0, item);
 		onChange();
 	}
 
