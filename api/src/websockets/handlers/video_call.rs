@@ -1819,8 +1819,7 @@ mod tests {
         use crate::models::model_test_helpers::{
             get_random_conversation_id, setup_default_app_and_session,
         };
-        use crate::test_helpers::test_state;
-        use crate::websockets::tests::test_user;
+        use crate::test_helpers::{test_state, test_user};
 
         fn basic_item(title: &str) -> EventAgendaItem {
             EventAgendaItem::Basic(BasicEventAgendaItem {
