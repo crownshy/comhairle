@@ -24,7 +24,14 @@
 	let open = $state(false);
 </script>
 
-<Dialog.Root bind:open>
+<Dialog.Root
+	bind:open
+	onOpenChange={(open) => {
+		if (!open) {
+			selected = null;
+		}
+	}}
+>
 	<Dialog.Trigger class="flex justify-start">
 		<Button
 			size="sm"
