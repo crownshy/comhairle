@@ -113,13 +113,7 @@
 			}}
 		>
 			{#if bulkEdit}
-				<form
-					method="POST"
-					bind:this={DeleteForm}
-					action="?/delete"
-					use:enhance
-					bind:this={DeleteForm}
-				>
+				<form method="POST" bind:this={DeleteForm} action="?/delete" use:enhance>
 					<MediaLibrary media={items} mode="multi-select" bind:selected />
 				</form>
 			{:else}
