@@ -74,7 +74,7 @@ export class Autosave {
 			// A failed save must be loud (STYLE_GUIDE Autosave). Stay dirty so the leave-page
 			// guard still warns.
 			notifications.send({
-				message: "Your changes didn't save.",
+				message: 'Could not save changes.',
 				priority: 'ERROR',
 				action: { label: 'Retry', onClick: () => this.retry() }
 			});
