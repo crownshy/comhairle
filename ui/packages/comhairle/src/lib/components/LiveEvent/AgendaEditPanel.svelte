@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { ArrowDown, ArrowUp, Check, Lock, Plus, Trash2, TriangleAlert } from 'lucide-svelte';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import Check from '@lucide/svelte/icons/check';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import type { EventAgendaItem } from '@crownshy/api-client/api';
 	import * as Alert from '$lib/components/ui/alert';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
