@@ -1049,7 +1049,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
         .api_route(
             "/",
             get_with(list_conversations, |op| {
-                op.id("ListConverastions")
+                op.id("ListConversations")
                     .summary("List conversations with optional filtering and ordering")
                     .tag("Conversation")
                     .description("List conversations")

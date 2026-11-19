@@ -1,21 +1,21 @@
 import type { PageLoad } from './$types';
-import { getSort, PAGE_SIZE, getSearch } from './conversations/utils.js';
+import { PAGE_SIZE, getSearch } from './conversations/utils.js';
 import { getPage, calcOffset } from '$lib/pagination';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
-export const load: PageLoad = async ({ parent, fetch, url }) => {
-	const parentData = await parent();
-	const sortBy = getSort(url);
-	const page = getPage(url);
-	const search = getSearch(url);
-	const offset = calcOffset({ page, pageSize: PAGE_SIZE });
-	const resp = await fetch(
-		`/api/conversation?limit=${PAGE_SIZE}&offset=${offset}&sort=${sortBy}&keyword=${search}&is_complete=false`
-	)
-		.then((r) => r.json())
-		.catch((e) => console.log(`error fetching conversations ${JSON.stringify(e, null, 2)}`));
+export const load: PageLoad = async ({ parent, url }) => {
+	const p = await parent();
+
 	return {
-		isCommunity: parentData.isCommunity,
-		records: resp?.records ?? [],
-		total: resp?.total ?? 0
+		conversations: await tryCatchAsync(() =>
+			p.api.ListConversations({
+				queries: {
+					limit: PAGE_SIZE,
+					offset: calcOffset({ page: getPage(url), pageSize: PAGE_SIZE }),
+					keyword: getSearch(url),
+					is_complete: false
+				}
+			})
+		)
 	};
 };
