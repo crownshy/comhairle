@@ -2,7 +2,8 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { formatDateShort, formatTime } from '$lib/utils';
-	import { CalendarDays, Users } from 'lucide-svelte';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import Users from '@lucide/svelte/icons/users';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

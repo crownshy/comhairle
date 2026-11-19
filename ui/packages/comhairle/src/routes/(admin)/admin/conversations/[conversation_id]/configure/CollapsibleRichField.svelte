@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Plus, Pencil, Eye } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Eye from '@lucide/svelte/icons/eye';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { isBlankRichText } from '$lib/utils/isBlankRichText';

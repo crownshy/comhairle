@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { cn } from '$lib/utils';
-	import { Plus } from '@lucide/svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { composeReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 
 	type Props = {

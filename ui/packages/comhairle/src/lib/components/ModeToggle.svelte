@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { themeStore } from '$lib/stores/theme.svelte';
-	import { Moon, Sun } from 'lucide-svelte';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
 	import { Button } from '$lib/components/ui/form';
 
 	function toggleMode() {

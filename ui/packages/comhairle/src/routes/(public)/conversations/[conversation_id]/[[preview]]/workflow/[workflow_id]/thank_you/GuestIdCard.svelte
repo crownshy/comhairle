@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';

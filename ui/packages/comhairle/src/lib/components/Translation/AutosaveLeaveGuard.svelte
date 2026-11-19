@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { LoaderCircle } from 'lucide-svelte';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { mountedAutosaveSources } from './autosaveRegistry.svelte';

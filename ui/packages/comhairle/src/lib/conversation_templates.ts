@@ -1,4 +1,9 @@
-import { Globe, Users, Timer, RefreshCw, type Icon } from 'lucide-svelte';
+import Globe from '@lucide/svelte/icons/globe';
+import Users from '@lucide/svelte/icons/users';
+import Timer from '@lucide/svelte/icons/timer';
+import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 import {
 	basic_learn_config,
 	basic_survey_config,
@@ -30,7 +35,7 @@ export type TemplateBadge = {
 	label: string;
 	class: string;
 	/** Leading glyph, rendered before the label (matches the Figma card badges). */
-	icon: typeof Icon;
+	icon: Component<IconProps>;
 };
 
 /**

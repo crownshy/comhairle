@@ -2,7 +2,11 @@
 	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Check, ChevronDown, Eye, Lock, Rocket } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Eye from '@lucide/svelte/icons/eye';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Rocket from '@lucide/svelte/icons/rocket';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { cn } from '$lib/utils';

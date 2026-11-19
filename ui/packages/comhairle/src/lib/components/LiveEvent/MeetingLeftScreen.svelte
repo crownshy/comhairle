@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { PhoneOff } from 'lucide-svelte';
+	import PhoneOff from '@lucide/svelte/icons/phone-off';
 
 	interface Props {
 		title: string;

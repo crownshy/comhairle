@@ -6,7 +6,11 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Plus, Pencil, Trash2, LoaderCircle, GripVertical } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { createStore } from './store.svelte';

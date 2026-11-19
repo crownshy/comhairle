@@ -21,7 +21,8 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Image, Trash2 } from '@lucide/svelte';
+	import Image from '@lucide/svelte/icons/image';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';

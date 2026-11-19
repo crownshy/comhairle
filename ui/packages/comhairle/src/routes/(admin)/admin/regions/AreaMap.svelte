@@ -3,7 +3,13 @@
 	import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 	import type { Map, IControl } from 'maplibre-gl';
 	import type MapboxDraw from '@mapbox/mapbox-gl-draw';
-	import { MousePointer2, Pentagon, Trash2, Undo2, Redo2, Scan, Spline } from 'lucide-svelte';
+	import MousePointer2 from '@lucide/svelte/icons/mouse-pointer-2';
+	import Pentagon from '@lucide/svelte/icons/pentagon';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import Redo2 from '@lucide/svelte/icons/redo-2';
+	import Scan from '@lucide/svelte/icons/scan';
+	import Spline from '@lucide/svelte/icons/spline';
 	import { Button } from '$lib/components/ui/button';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { multiPolygon, positionsFromCoordinates } from './import';

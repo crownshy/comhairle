@@ -1,14 +1,13 @@
-import {
-	MessagesSquare,
-	Video,
-	ListChecks,
-	ListOrdered,
-	BookOpen,
-	Bot,
-	CircleHelp,
-	ClipboardList,
-	type Icon
-} from 'lucide-svelte';
+import MessagesSquare from '@lucide/svelte/icons/messages-square';
+import Video from '@lucide/svelte/icons/video';
+import ListChecks from '@lucide/svelte/icons/list-checks';
+import ListOrdered from '@lucide/svelte/icons/list-ordered';
+import BookOpen from '@lucide/svelte/icons/book-open';
+import Bot from '@lucide/svelte/icons/bot';
+import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 import { m } from '$lib/paraglide/messages';
 import type { ResolvedPathname } from '$app/types';
 
@@ -53,7 +52,7 @@ export type ToolMeta = {
 	/** One-line tooltip / palette description. */
 	tagline: string;
 	/** Icon shown on cards and the palette. */
-	icon: typeof Icon;
+	icon: Component<IconProps>;
 	/** Route slug under /admin/info/tools/<infoSlug>. Omitted when the tool has no guide page. */
 	infoSlug?: string;
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
@@ -283,7 +282,7 @@ export type EventPaletteMeta = {
 	type: 'videoconference';
 	displayName: string;
 	tagline: string;
-	icon: typeof Icon;
+	icon: Component<IconProps>;
 	infoSlug: string;
 	estimatedMinutes: number;
 	description: string;

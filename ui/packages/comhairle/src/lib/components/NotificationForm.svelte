@@ -8,11 +8,13 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Label } from '$lib/components/ui/label';
-	import { AlertTriangle, ChevronDown, Users } from 'lucide-svelte';
+	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Users from '@lucide/svelte/icons/users';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { Send } from 'lucide-svelte';
+	import Send from '@lucide/svelte/icons/send';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { notificationFormSchema } from './NotificationForm/schema';

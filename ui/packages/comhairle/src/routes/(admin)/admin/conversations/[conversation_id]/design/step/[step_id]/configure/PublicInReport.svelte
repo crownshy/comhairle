@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import ArrowRight from 'lucide-svelte/icons/arrow-right';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { Button } from '$lib/components/ui/button';
 	import { embeddedSectionBlockLabel, type EmbeddedSectionBlockMeta } from '$lib/reports/embeds';
 

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { LayoutGrid, List } from 'lucide-svelte';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import List from '@lucide/svelte/icons/list';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';

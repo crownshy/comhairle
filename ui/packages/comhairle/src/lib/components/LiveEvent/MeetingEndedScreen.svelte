@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { CheckCircle } from 'lucide-svelte';
+	import CheckCircle from '@lucide/svelte/icons/circle-check-big';
 
 	interface Props {
 		title: string;

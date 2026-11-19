@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { CreateRegionArea } from '@crownshy/api-client/api';
-	import { Upload, X } from 'lucide-svelte';
+	import Upload from '@lucide/svelte/icons/upload';
+	import X from '@lucide/svelte/icons/x';
 	import FileInput from '$lib/components/FileInput.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';

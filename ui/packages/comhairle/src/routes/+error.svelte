@@ -3,7 +3,7 @@
 	import NavBar from '$lib/components/NavBar.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { ArrowLeft } from 'lucide-svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { canAccessAdminPortal } from '$lib/utils/permissions';
 	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 

@@ -16,7 +16,7 @@
 	import LoadingButton from './ui/button/loading-button.svelte';
 	import type { ConversationDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
-	import { LucideCircleX } from 'lucide-svelte';
+	import LucideCircleX from '@lucide/svelte/icons/circle-x';
 	import { permissions } from '$lib/permissions.svelte';
 
 	type Props = {

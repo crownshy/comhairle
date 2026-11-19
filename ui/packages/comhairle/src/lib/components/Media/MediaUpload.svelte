@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Trash2 } from 'lucide-svelte';
-	import { Upload } from 'lucide-svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Upload from '@lucide/svelte/icons/upload';
 	import type { ComponentProps } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { MediaDto } from '@crownshy/api-client/api';

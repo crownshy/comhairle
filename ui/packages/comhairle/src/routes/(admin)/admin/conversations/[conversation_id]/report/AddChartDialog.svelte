@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
-	import Check from 'lucide-svelte/icons/check';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import Globe from 'lucide-svelte/icons/globe';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Globe from '@lucide/svelte/icons/globe';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import ReportEmbedLive from '$lib/reports/ReportEmbedLive.svelte';

@@ -3,7 +3,8 @@
 	import type { ReportComment } from '$lib/types/report';
 
 	import BeeswarmDots from './beeswarm/BeeswarmDots.svelte';
-	import { LucideMoveLeft, LucideMoveRight } from 'lucide-svelte';
+	import LucideMoveLeft from '@lucide/svelte/icons/move-left';
+	import LucideMoveRight from '@lucide/svelte/icons/move-right';
 
 	interface Props {
 		comments: ReportComment[];

@@ -6,7 +6,8 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Trash2, LoaderCircle } from 'lucide-svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
 		ComhairleDocument,

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import type { ExtractedClaim } from './types';
 

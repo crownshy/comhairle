@@ -7,9 +7,12 @@
 </script>
 
 <script lang="ts">
-	import { Check, type Icon, Minus, X } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Minus from '@lucide/svelte/icons/minus';
+	import X from '@lucide/svelte/icons/x';
+	import type { IconProps } from '@lucide/svelte';
 	import { Spinner } from '../ui/spinner';
-	import { type ComponentType } from 'svelte';
+	import { type Component } from 'svelte';
 
 	type Props = {
 		state: number;
@@ -19,7 +22,7 @@
 	let { state = StepProgress.Waiting, error }: Props = $props();
 </script>
 
-{#snippet StateIcon(I: ComponentType<Icon>, classes: string)}
+{#snippet StateIcon(I: Component<IconProps>, classes: string)}
 	<div class="flex size-5 items-center justify-center rounded-full {classes}">
 		<I class="size-3" strokeWidth={4.5} />
 	</div>

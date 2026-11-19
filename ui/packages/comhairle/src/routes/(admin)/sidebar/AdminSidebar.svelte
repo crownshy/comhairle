@@ -11,7 +11,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
-	import { ArrowLeft, BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import BookOpenText from '@lucide/svelte/icons/book-open-text';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import { Button } from '$lib/components/ui/button';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import SidebarResizeHandle from '$lib/components/SidebarResizeHandle.svelte';

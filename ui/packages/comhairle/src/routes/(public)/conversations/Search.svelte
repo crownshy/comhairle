@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Input } from '$lib/components/ui/input';
-	import { Search } from 'lucide-svelte';
+	import Search from '@lucide/svelte/icons/search';
 	import { getSearch, setSearch } from './utils';
 	import { m } from '$lib/paraglide/messages';
 

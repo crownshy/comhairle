@@ -3,7 +3,8 @@
 	import type { HTMLMediaElement } from '$lib/utils/types';
 	import '$lib/components/Media/MediaBackground.css';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Edit, Trash2 } from 'lucide-svelte';
+	import Edit from '@lucide/svelte/icons/square-pen';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';

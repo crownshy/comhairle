@@ -7,7 +7,8 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Button } from '$lib/components/ui/button';
 	import * as Alert from '$lib/components/ui/alert';
-	import { TriangleAlert, RefreshCw } from 'lucide-svelte';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Media from '$lib/interfaces/Media.svelte';

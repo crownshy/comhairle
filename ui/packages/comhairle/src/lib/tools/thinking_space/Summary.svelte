@@ -4,15 +4,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import {
-		Sparkles,
-		RotateCcw,
-		Check,
-		CornerDownRight,
-		PlusCircle,
-		LoaderCircle,
-		TriangleAlert
-	} from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Check from '@lucide/svelte/icons/check';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import PlusCircle from '@lucide/svelte/icons/circle-plus';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';

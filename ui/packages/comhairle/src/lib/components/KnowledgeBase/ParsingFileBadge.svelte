@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import FileContainer from './FileContainer.svelte';
-	import { File, X } from 'lucide-svelte';
+	import File from '@lucide/svelte/icons/file';
+	import X from '@lucide/svelte/icons/x';
 	import formatFileSize from '$lib/utils/formatFileSize';
 	import { Progress } from 'bits-ui';
 	import { cubicInOut } from 'svelte/easing';

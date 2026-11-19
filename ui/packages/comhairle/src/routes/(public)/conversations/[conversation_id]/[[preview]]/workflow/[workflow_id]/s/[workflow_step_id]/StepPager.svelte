@@ -1,5 +1,5 @@
 <script lang="ts">
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import * as Popover from '$lib/components/ui/popover';
 	import PagerButton from '$lib/components/pager/PagerButton.svelte';
 	import { PAGER_BUTTON_CLASS, PAGER_ROW_CLASS } from '$lib/components/pager/pager';

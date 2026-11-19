@@ -3,7 +3,7 @@
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
 	import * as Card from '$lib/components/ui/card';
-	import { Download } from 'lucide-svelte';
+	import Download from '@lucide/svelte/icons/download';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';

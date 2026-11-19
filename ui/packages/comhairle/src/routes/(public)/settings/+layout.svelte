@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { ComponentType, Snippet } from 'svelte';
-	import { BellRing, UserRound, type Icon } from 'lucide-svelte';
+	import type { Component, Snippet } from 'svelte';
+	import BellRing from '@lucide/svelte/icons/bell-ring';
+	import UserRound from '@lucide/svelte/icons/user-round';
+	import type { IconProps } from '@lucide/svelte';
 	import { page } from '$app/state';
 
 	interface Props {
@@ -15,7 +17,7 @@
 	<title>Settings - Comhairle</title>
 </svelte:head>
 
-{#snippet MenuItem(Icon: ComponentType<Icon>, label: string, href: 'profile' | 'notifications')}
+{#snippet MenuItem(Icon: Component<IconProps>, label: string, href: 'profile' | 'notifications')}
 	{@const active = page.url.pathname.endsWith(href)}
 	<li>
 		<a

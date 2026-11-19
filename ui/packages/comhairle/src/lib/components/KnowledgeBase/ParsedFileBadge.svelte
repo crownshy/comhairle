@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import FileContainer from './FileContainer.svelte';
-	import { File, Trash2, RefreshCw } from 'lucide-svelte';
+	import File from '@lucide/svelte/icons/file';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import formatFileSize from '$lib/utils/formatFileSize';
 	import Button from '../ui/button/button.svelte';
 	import { notifications } from '$lib/notifications.svelte';

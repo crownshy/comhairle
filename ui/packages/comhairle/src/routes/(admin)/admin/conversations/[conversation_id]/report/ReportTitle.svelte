@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Lock from 'lucide-svelte/icons/lock';
+	import Lock from '@lucide/svelte/icons/lock';
 	import * as Popover from '$lib/components/ui/popover';
 
 	type Props = { title: string };

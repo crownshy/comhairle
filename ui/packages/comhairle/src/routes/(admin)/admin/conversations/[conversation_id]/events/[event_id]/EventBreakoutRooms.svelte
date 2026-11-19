@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Shuffle, Pencil, Crown, Clock } from 'lucide-svelte';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Crown from '@lucide/svelte/icons/crown';
+	import Clock from '@lucide/svelte/icons/clock';
 	import { Button } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';

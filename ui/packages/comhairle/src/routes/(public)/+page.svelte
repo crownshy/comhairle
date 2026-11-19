@@ -2,7 +2,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Info } from 'lucide-svelte';
+	import Info from '@lucide/svelte/icons/info';
 
 	let { data } = $props();
 	const isCommunity = $derived(data.isCommunity);

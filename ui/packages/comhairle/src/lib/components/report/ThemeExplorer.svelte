@@ -21,7 +21,12 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ThemeTag from './ThemeTag.svelte';
 	import { useJob } from '$lib/hooks/use-job.svelte';
-	import { Sparkles, MessagesSquare, Plus, Pin, PinOff, Trash2 } from '@lucide/svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import MessagesSquare from '@lucide/svelte/icons/messages-square';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Pin from '@lucide/svelte/icons/pin';
+	import PinOff from '@lucide/svelte/icons/pin-off';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	import * as Card from '$lib/components/ui/card';
 

@@ -11,7 +11,9 @@
 		CONVERSATION_STATUS_BADGE_VARIANTS,
 		CONVERSATION_STATUS_LABELS
 	} from '$lib/utils/conversationStatus';
-	import { ArrowRight, MessageCircle, MessageSquareText } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
+	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import { cn } from '$lib/utils';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 

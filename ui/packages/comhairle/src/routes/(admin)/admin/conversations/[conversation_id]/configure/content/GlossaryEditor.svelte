@@ -3,7 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
-	import { Plus, Trash2, Upload, Search, Languages, Info } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Upload from '@lucide/svelte/icons/upload';
+	import Search from '@lucide/svelte/icons/search';
+	import Languages from '@lucide/svelte/icons/languages';
+	import Info from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { apiClient } from '@crownshy/api-client/client';

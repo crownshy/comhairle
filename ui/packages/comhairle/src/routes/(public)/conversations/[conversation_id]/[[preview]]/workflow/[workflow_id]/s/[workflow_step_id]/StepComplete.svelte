@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import { m } from '$lib/paraglide/messages';
 </script>
 

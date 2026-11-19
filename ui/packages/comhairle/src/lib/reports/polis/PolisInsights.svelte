@@ -20,7 +20,9 @@
 	import ThemeExplorer from '$lib/components/report/ThemeExplorer.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Alert from '$lib/components/ui/alert';
-	import { Download, ChartNoAxesColumn, TriangleAlert } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
+	import ChartNoAxesColumn from '@lucide/svelte/icons/chart-no-axes-column';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { downloadCsv, toCsv } from '$lib/utils/csv';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';

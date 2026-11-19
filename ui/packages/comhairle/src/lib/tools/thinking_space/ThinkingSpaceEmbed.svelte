@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Loader2, RotateCcw } from 'lucide-svelte';
+	import Loader2 from '@lucide/svelte/icons/loader-circle';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';

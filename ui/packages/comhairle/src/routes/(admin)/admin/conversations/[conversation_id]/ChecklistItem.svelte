@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ResolvedPathname } from '$app/types';
-	import { ArrowUpRight, ChevronRight } from 'lucide-svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	type Props = {
 		title: string;

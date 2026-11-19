@@ -1,13 +1,11 @@
 <script lang="ts">
-	import {
-		type Icon,
-		File as FileIcon,
-		FileVideoCamera,
-		FileAudio,
-		FileImage
-	} from '@lucide/svelte';
+	import FileIcon from '@lucide/svelte/icons/file';
+	import FileVideoCamera from '@lucide/svelte/icons/file-video-camera';
+	import FileAudio from '@lucide/svelte/icons/file-audio';
+	import FileImage from '@lucide/svelte/icons/file-image';
+	import type { IconProps } from '@lucide/svelte';
 
-	interface Props extends Icon {
+	interface Props extends IconProps {
 		file: File;
 	}
 

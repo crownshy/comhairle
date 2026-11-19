@@ -1,4 +1,5 @@
-import { Megaphone, User } from 'lucide-svelte';
+import Megaphone from '@lucide/svelte/icons/megaphone';
+import User from '@lucide/svelte/icons/user';
 import { m } from '$lib/paraglide/messages';
 
 const seedSource = {

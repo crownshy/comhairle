@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Loader from 'lucide-svelte/icons/loader-circle';
+	import Loader from '@lucide/svelte/icons/loader-circle';
 
 	/** Loading and unavailable shells shared by every tool's live report embed. */
 	let { state }: { state: 'loading' | 'unavailable' } = $props();

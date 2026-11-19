@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { AppWindow, Smartphone } from 'lucide-svelte';
+	import AppWindow from '@lucide/svelte/icons/app-window';
+	import Smartphone from '@lucide/svelte/icons/smartphone';
 	import { Button } from '$lib/components/ui/button';
 
 	type Props = {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
-	import { ChevronDown } from 'lucide-svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import * as Table from '$lib/components/ui/table';
 	import Crown from '$lib/components/icons/Crown.svelte';
 	import DivergingProgress from '../DivergingProgress.svelte';

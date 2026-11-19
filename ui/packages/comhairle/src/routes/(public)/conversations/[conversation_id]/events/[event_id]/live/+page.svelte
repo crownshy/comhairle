@@ -37,16 +37,14 @@
 		BreakoutRoomDisplay
 	} from '$lib/components/LiveEvent/types';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-	import {
-		ChevronLeft,
-		ChevronRight,
-		MoveUpRight,
-		Megaphone,
-		CircleStop,
-		Check,
-		Hand,
-		ArrowRight
-	} from 'lucide-svelte';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MoveUpRight from '@lucide/svelte/icons/move-up-right';
+	import Megaphone from '@lucide/svelte/icons/megaphone';
+	import CircleStop from '@lucide/svelte/icons/circle-stop';
+	import Check from '@lucide/svelte/icons/check';
+	import Hand from '@lucide/svelte/icons/hand';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
 	import { mediaTimedOutDuringSwitch } from './roomSwitch';

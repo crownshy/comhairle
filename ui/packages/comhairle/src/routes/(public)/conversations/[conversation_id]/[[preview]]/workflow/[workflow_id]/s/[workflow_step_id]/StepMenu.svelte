@@ -1,17 +1,15 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import {
-		ChevronDown,
-		ChevronRight,
-		Check,
-		CircleHelp,
-		ShieldCheck,
-		Languages,
-		Lock,
-		Moon,
-		Sun
-	} from 'lucide-svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Check from '@lucide/svelte/icons/check';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import Languages from '@lucide/svelte/icons/languages';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';

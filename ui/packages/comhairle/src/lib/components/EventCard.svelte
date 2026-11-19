@@ -3,7 +3,9 @@
 	import { Badge } from './ui/badge';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { formatDateShort, formatTime } from '$lib/utils';
-	import { ArrowRight, CalendarDays, Users } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import Users from '@lucide/svelte/icons/users';
 
 	type Props = {
 		event: LocalizedEventDto;

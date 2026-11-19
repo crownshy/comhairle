@@ -1,6 +1,8 @@
-import type { ComponentType } from 'svelte';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 import { resolve } from '$app/paths';
-import { Flag, Rocket } from 'lucide-svelte';
+import Flag from '@lucide/svelte/icons/flag';
+import Rocket from '@lucide/svelte/icons/rocket';
 import type { ConversationDto } from '@crownshy/api-client/api';
 import {
 	conversationSections,
@@ -21,7 +23,7 @@ export type SectionLink = {
 	name: string;
 	path: string;
 	href: string;
-	icon: ComponentType;
+	icon: Component<IconProps>;
 	active: boolean;
 	/** Why the link can't be opened, or null when it can. */
 	lock: SectionLock | null;

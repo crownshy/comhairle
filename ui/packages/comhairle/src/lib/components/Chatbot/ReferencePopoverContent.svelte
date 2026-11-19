@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { ChevronDown, ChevronUp, FileText } from 'lucide-svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import type { ReferenceChunk } from '$lib/api/chatClient.svelte';
 
 	interface Props {

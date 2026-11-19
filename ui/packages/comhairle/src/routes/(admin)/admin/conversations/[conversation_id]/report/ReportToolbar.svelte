@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import type { ComponentType } from 'svelte';
-	import type { Icon as LucideIcon } from 'lucide-svelte';
-	import ImageIcon from 'lucide-svelte/icons/image';
-	import Video from 'lucide-svelte/icons/video';
-	import Music from 'lucide-svelte/icons/music';
-	import TableIcon from 'lucide-svelte/icons/table';
-	import LinkIcon from 'lucide-svelte/icons/link';
-	import Unlink from 'lucide-svelte/icons/unlink';
-	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
+	import type { Component } from 'svelte';
+	import type { IconProps } from '@lucide/svelte';
+	import ImageIcon from '@lucide/svelte/icons/image';
+	import Video from '@lucide/svelte/icons/video';
+	import Music from '@lucide/svelte/icons/music';
+	import TableIcon from '@lucide/svelte/icons/table';
+	import LinkIcon from '@lucide/svelte/icons/link';
+	import Unlink from '@lucide/svelte/icons/unlink';
+	import ChartNoAxesColumn from '@lucide/svelte/icons/chart-no-axes-column';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import TableControlsPopover from '$lib/components/RichTextEditor/TableControlsPopover.svelte';
 	import { insertDefaultTable } from '$lib/components/RichTextEditor/tableActions';
@@ -65,7 +65,7 @@
 {/snippet}
 
 <!-- The popovers wrap this in their own button, which takes its name from the hidden text. -->
-{#snippet popoverTrigger(label: string, Icon: ComponentType<LucideIcon>, active = false)}
+{#snippet popoverTrigger(label: string, Icon: Component<IconProps>, active = false)}
 	<span class={cn(BUTTON_CLASS, active && ACTIVE_CLASS)} title={label}
 		><Icon class="size-5" aria-hidden="true" /><span class="sr-only">{label}</span></span
 	>

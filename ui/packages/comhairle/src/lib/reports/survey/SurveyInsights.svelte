@@ -11,7 +11,7 @@
 	} from '$lib/tools/heyform/guards';
 	import { handleNested } from './attachments';
 	import { Button } from '$lib/components/ui/button';
-	import { Download } from '@lucide/svelte';
+	import Download from '@lucide/svelte/icons/download';
 	import { permissions } from '$lib/permissions.svelte';
 
 	interface Props {

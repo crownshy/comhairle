@@ -1,5 +1,5 @@
 <script lang="ts">
-	import X from 'lucide-svelte/icons/x';
+	import X from '@lucide/svelte/icons/x';
 	import { REPORT_PILL_CLASS } from '$lib/reports/styles';
 	import { cn } from '$lib/utils';
 	import type { ReportPage } from './reportDocument';

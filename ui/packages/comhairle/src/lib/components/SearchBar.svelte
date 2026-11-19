@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ComponentProps } from 'svelte';
-	import { Search } from 'lucide-svelte';
+	import Search from '@lucide/svelte/icons/search';
 	import { Input } from '$lib/components/ui/input';
 	import { cn } from '$lib/utils';
 

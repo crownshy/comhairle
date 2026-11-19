@@ -4,7 +4,12 @@
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { cn } from '$lib/utils';
-	import { Check, ChevronDown, Ellipsis, Pencil, Undo2, X } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import X from '@lucide/svelte/icons/x';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import RejectDialog from './RejectDialog.svelte';

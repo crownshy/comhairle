@@ -3,7 +3,9 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { ChevronDown, RotateCcw, Trash2 } from '@lucide/svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { Button } from '$lib/components/ui/button';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import { notifications } from '$lib/notifications.svelte';

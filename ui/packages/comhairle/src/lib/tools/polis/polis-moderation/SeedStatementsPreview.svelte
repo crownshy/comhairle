@@ -11,7 +11,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Trash2, TriangleAlert } from '@lucide/svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { pluralise } from '$lib/utils/pluralise';
 	import {
 		findSeedIssues,

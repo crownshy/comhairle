@@ -2,7 +2,7 @@
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ChevronsUpDown } from 'lucide-svelte';
+	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import type { UserDto } from '@crownshy/api-client/api';
 	import UserMenuItems from '../account/UserMenuItems.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronRight, Lightbulb } from 'lucide-svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
 	import { toolMeta } from '$lib/tool_meta';
 
 	let { data } = $props();
