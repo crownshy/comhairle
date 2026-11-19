@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import * as Sheet from '$lib/components/ui/sheet';
+	import Callout from '$lib/components/Callout.svelte';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import { cn } from '$lib/utils';
 	import BookOpen from '@lucide/svelte/icons/book-open';
@@ -36,18 +37,7 @@
 	}: Props = $props();
 </script>
 
-<div
-	data-tour="moderation-guidance"
-	class={compact
-		? 'flex items-center'
-		: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100'}
->
-	{#if !compact}
-		<p class="flex items-center gap-2 text-base">
-			<ShieldAlert class="size-4 shrink-0" />
-			{MODERATION_HEADLINE}
-		</p>
-	{/if}
+{#snippet controls()}
 	<div class="flex items-center gap-1">
 		<Sheet.Root>
 			<Sheet.Trigger
@@ -66,9 +56,9 @@
 				<Sheet.Header class="border-b px-6 py-5">
 					<Sheet.Title class="text-2xl">Moderation rules</Sheet.Title>
 					<Sheet.Description class="text-base">
-						Moderation decides what everyone in the conversation gets to vote on. If
-						people suspect it is one-sided, they stop trusting the results. These rules
-						keep it fair.
+						Moderators decide what participants get to vote on. If people suspect
+						moderation is one-sided, they stop trusting the results. These rules keep it
+						fair.
 					</Sheet.Description>
 				</Sheet.Header>
 
@@ -174,4 +164,22 @@
 			</Button>
 		{/if}
 	</div>
-</div>
+{/snippet}
+
+{#if compact}
+	<div data-tour="moderation-guidance" class="flex items-center">
+		{@render controls()}
+	</div>
+{:else}
+	<Callout
+		variant="warning"
+		data-tour="moderation-guidance"
+		class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2"
+	>
+		<p class="flex items-center gap-2 text-base">
+			<ShieldAlert class="size-4 shrink-0" />
+			{MODERATION_HEADLINE}
+		</p>
+		{@render controls()}
+	</Callout>
+{/if}

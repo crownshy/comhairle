@@ -8,6 +8,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { downloadCsv } from '$lib/utils/csv';
+	import { readStorage, writeStorage } from '$lib/utils/browserStorage';
 	import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
@@ -100,20 +101,12 @@
 	let guidanceDismissed = $state(false);
 
 	onMount(() => {
-		try {
-			guidanceDismissed = localStorage.getItem(GUIDANCE_DISMISSED_KEY) === 'true';
-		} catch {
-			guidanceDismissed = false;
-		}
+		guidanceDismissed = readStorage(GUIDANCE_DISMISSED_KEY) === 'true';
 	});
 
 	function dismissGuidance() {
 		guidanceDismissed = true;
-		try {
-			localStorage.setItem(GUIDANCE_DISMISSED_KEY, 'true');
-		} catch {
-			// Storage blocked: it stays hidden for this visit only.
-		}
+		writeStorage(GUIDANCE_DISMISSED_KEY, 'true');
 	}
 
 	// --- Status views + search ---

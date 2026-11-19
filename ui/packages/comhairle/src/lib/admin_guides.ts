@@ -829,12 +829,12 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 				},
 				environment: {
 					title: 'The moderation screen',
-					intro: 'Open **Moderate** under **Engage** and choose your poll step. New participant statements are fetched when you open the page and when you come back to its tab. Statements are grouped into tabs by what has been decided about them, and the page opens on **Waiting**.',
+					intro: 'Open **Moderate** under **Engage** and choose your poll step. New participant statements are fetched when you open the page and when you come back to its browser tab. Statements are grouped into tabs by what has been decided about them, and the page opens on **Waiting**.',
 					parts: [
 						{
 							name: 'Moderator email',
 							description:
-								'The line under the step name says whether the conversation’s owner and moderators get an email at midday on days statements are waiting. Click **Turn off** or **Turn on** to change it. Keep it on while the conversation is live, and agree who answers it each day.'
+								'The line under the step name says whether the conversation’s owner and moderators get an email when statements are waiting. Emails go out at midday. Click **Turn off** or **Turn on** to change it. Keep it on while the conversation is live, and agree within your team who answers it each day.'
 						},
 						{
 							name: 'Download report',
@@ -984,7 +984,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					]
 				},
 				tips: [
-					'Moderation decides what a whole conversation gets to vote on, so the boundaries matter. Never reject a statement because you disagree with it, because it is critical of the organisers, or because it is awkwardly written but clear. Never reword a statement to make it more moderate, more polite or closer to your own view.',
+					'Moderators decide what participants get to vote on, so the boundaries matter. Never reject a statement because you disagree with it, because it is critical of the organisers, or because it is awkwardly written but clear. Never reword a statement to make it more moderate, more polite or closer to your own view.',
 					'Before you launch, decide whether statements need your approval. In the poll step’s **Setup**, **No comments shown without moderator approval** holds every participant statement in **Waiting** until you accept it. Without it, statements are shown straight away and you can only remove them after people may have seen and voted on them.',
 					'If statements need approval, check **Waiting** often while the conversation is live, or participants will have little to vote on.',
 					'A statement only appears in [Insights](/admin/info/glossary#term-insights) and its CSV once it is accepted and has at least one vote.',
