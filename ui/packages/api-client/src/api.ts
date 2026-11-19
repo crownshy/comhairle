@@ -1004,6 +1004,26 @@ export const SplitStatementResponse = z
   })
   .passthrough();
 export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
+export const ModerationAction = z.union([
+  z.literal("decision"),
+  z.literal("split"),
+  z.literal("undo_split"),
+]);
+export type ModerationAction = z.infer<typeof ModerationAction>;
+export const PolisModerationEvent = z
+  .object({
+    action: ModerationAction,
+    actor_id: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    from_status: ModerationStatus,
+    id: z.string().uuid(),
+    polis_statement_aux_id: z.string().uuid(),
+    reason: z.union([z.string(), z.null()]).optional(),
+    to_status: ModerationStatus,
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type PolisModerationEvent = z.infer<typeof PolisModerationEvent>;
 export const HeyFormPublicChoice = z
   .object({ count: z.number().int().gte(0), label: z.string() })
   .passthrough();
@@ -4446,6 +4466,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
+  ModerationAction,
+  PolisModerationEvent,
   HeyFormPublicChoice,
   HeyFormPublicScalePoint,
   HeyFormPublicScale,
@@ -4991,7 +5013,7 @@ const endpoints = makeApi([
   {
     method: "get",
     path: "/conversation",
-    alias: "ListConverastions",
+    alias: "ListConversations",
     description: `List conversations`,
     requestFormat: "json",
     parameters: [
@@ -8247,6 +8269,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/polis/moderation_events",
+    alias: "PolisListModerationEvents",
+    description: `Every moderation decision on the step&#x27;s statements, newest first: who made it, the status before and after, and the reason. The log is append-only.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PolisModerationEvent),
+  },
+  {
+    method: "get",
     path: "/tools/polis/moderation_policy",
     alias: "PolisGetPublishedModerationPolicy",
     description: `Lists the reject reasons (label and description) the step&#x27;s moderators pick from, so participants can read the rules before they write a statement. Reads the draft config when preview is set or the step isn&#x27;t launched.`,
@@ -8557,14 +8594,6 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "post",
-    path: "/tools/polis/statement_aux/:id/undo_split",
-    alias: "PolisUndoSplitStatement",
-    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
-    requestFormat: "json",
-    response: SplitStatementResponse,
-  },
-  {
-    method: "post",
     path: "/tools/polis/statement_aux/:id/themes",
     alias: "PolisAddStatementAuxTheme",
     description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
@@ -8600,6 +8629,14 @@ Use a raw HTTP request and process the response body incrementally.
     description: `Returns the stored translations of a statement into the conversation&#x27;s supported languages. Each carries ai_generated and requires_validation flags.`,
     requestFormat: "json",
     response: z.array(PolisStatementTranslation),
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/undo_split",
+    alias: "PolisUndoSplitStatement",
+    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
+    requestFormat: "json",
+    response: SplitStatementResponse,
   },
   {
     method: "get",

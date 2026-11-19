@@ -1,50 +1,29 @@
 <script lang="ts">
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { m } from '$lib/paraglide/messages';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
-	import Check from 'svelte-radix/Check.svelte';
-	import ChevronDown from 'svelte-radix/ChevronDown.svelte';
-
 	import Search from './conversations/Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { page } from '$app/state';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './conversations/utils';
+	import { PAGE_SIZE } from './conversations/utils';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Info from '@lucide/svelte/icons/info';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
-	const isCommunity = $derived(data.isCommunity);
-	const pageUrl = $derived(page.url);
 </script>
 
 <svelte:head>
 	<title>Comhairle</title>
 </svelte:head>
 
-{#snippet sortOption(url: URL, sort: SortBy)}
-	<a
-		href={setSort(url, sort).toString()}
-		aria-current={getSort(url) === sort ? 'page' : undefined}
-	>
-		<DropdownMenu.Item>
-			<span class="w-6">
-				{#if getSort(url) === sort}
-					<Check class="h-4 w-4" />
-				{/if}
-			</span>
-			{parseSort(sort)}
-		</DropdownMenu.Item>
-	</a>
-{/snippet}
-
 <!-- No minimum height: the conversation list follows straight after the welcome text,
 	so it shows in the first screen. -->
 <div class="flex flex-col">
 	<div class="flex flex-col gap-y-10 pt-16">
 		<h1 class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
-			{#if isCommunity}
+			{#if data.isCommunity}
 				{m.welcome_to_the()}
 			{:else}
 				{m.welcome_to()}
@@ -64,12 +43,12 @@
 				</Tooltip.Root>
 			</Tooltip.Provider>
 
-			{#if isCommunity}
+			{#if data.isCommunity}
 				{m.community_server()}
 			{/if}
 		</h1>
 
-		{#if isCommunity}
+		{#if data.isCommunity}
 			{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
 				<p class="text-foreground w-full text-xl sm:text-2xl">
 					{description}
@@ -95,46 +74,39 @@
 			<p class="mb-4">
 				{m.conversations_find_open_conversations()}
 			</p>
-			<div class="flex justify-between">
-				<DropdownMenu.Root>
-					<DropdownMenu.Trigger
-						class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
-					>
-						<ChevronDown class="h-4 w-4" />{m.sort()}
-					</DropdownMenu.Trigger>
-					<DropdownMenu.Content>
-						<DropdownMenu.Group>
-							{@render sortOption(pageUrl, 'title+asc')}
-							{@render sortOption(pageUrl, 'title+desc')}
-							{@render sortOption(pageUrl, 'created_at+desc')}
-							{@render sortOption(pageUrl, 'created_at+asc')}
-						</DropdownMenu.Group>
-					</DropdownMenu.Content>
-				</DropdownMenu.Root>
-				<Search />
-			</div>
-			{#if data.records.length === 0}
+			<Search />
+			{#if data.conversations.err !== null}
+				<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
+			{:else if data.conversations.ok.records.length === 0}
 				<p class="text-muted-foreground pt-10">
 					{m.conversations_no_conversations_found()}
 				</p>
 			{/if}
 		</header>
 
-		{#if data.records.length > 0}
-			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
-				{#each data.records as conversation (conversation.id)}
-					<a
-						class="block w-full"
-						href={`/conversations/${conversation.slug || conversation.id}`}
-					>
-						<ConversationCard {conversation} variant="public" />
-					</a>
-				{/each}
-			</div>
+		{#if data.conversations.ok !== null}
+			{#if data.conversations.ok.records.length > 0}
+				<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+					{#each data.conversations.ok.records as conversation (conversation.id)}
+						<a
+							class="block w-full"
+							href={resolve(`/(public)/conversations/[conversation_id]`, {
+								conversation_id: conversation.slug || conversation.id
+							})}
+						>
+							<ConversationCard {conversation} variant="public" />
+						</a>
+					{/each}
+				</div>
 
-			<div class="my-10 flex w-full justify-center md:mt-20">
-				<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
-			</div>
+				<div class="my-10 flex w-full justify-center md:mt-20">
+					<Pager
+						pageSize={PAGE_SIZE}
+						count={data.conversations.ok.total}
+						url={page.url}
+					/>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
