@@ -78,6 +78,9 @@ pub struct VideoCallState {
     pub jitsi_display_names: HashMap<Uuid, String>,
     /// List of breakout room assignments
     pub breakout_rooms: Vec<BreakoutRoomAssignments>,
+    /// People a host chose to keep in the main call while breakout rooms run. Kept
+    /// explicitly so a reconnect doesn't drop them into the emptiest room.
+    pub plenary_participants: HashSet<Uuid>,
     /// Active requests for assistance from breakout rooms
     pub breakout_room_assistance_requests: HashMap<String, BreakoutRoomAssistanceRequest>,
     /// Current step in the agenda (0-indexed)
@@ -166,6 +169,7 @@ impl VideoCallState {
             breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
             breakout_rooms: vec![],
+            plenary_participants: HashSet::new(),
             breakout_session: None,
             main_room_recording_started: false,
         }
@@ -173,7 +177,7 @@ impl VideoCallState {
 
     /// Puts a participant who isn't in a room yet into the room with the fewest people.
     /// Hosts are never placed: they move between rooms themselves, and placing them would
-    /// list them as room members.
+    /// list them as room members. Anyone a host kept in plenary stays there too.
     fn place_in_breakout_room(&mut self, user_id: Uuid) {
         let is_host = self
             .participants
@@ -183,7 +187,8 @@ impl VideoCallState {
             .breakout_rooms
             .iter()
             .any(|room| room.participants.contains(&user_id));
-        if is_host || already_placed {
+        let kept_in_plenary = self.plenary_participants.contains(&user_id);
+        if is_host || already_placed || kept_in_plenary {
             return;
         }
 
@@ -292,6 +297,9 @@ struct AssignBreakoutRoomsData {
     /// When provided, use these explicit assignments instead of random chunking.
     /// Each inner Vec is the list of user IDs for one breakout room.
     pub room_assignments: Option<Vec<Vec<Uuid>>>,
+    /// People to keep in the main call. Only used with explicit room assignments.
+    #[serde(default)]
+    pub plenary: Vec<Uuid>,
 }
 
 /// Data structure for starting a breakout session.
@@ -1088,6 +1096,17 @@ impl VideoCallMessageHandler {
                 if let Some(participant) = call.participants.get(&user_id)
                     && participant.is_host()
                 {
+                    call.plenary_participants = if assignment_data.room_assignments.is_some() {
+                        assignment_data
+                            .plenary
+                            .iter()
+                            .filter(|id| call.participants.contains_key(id))
+                            .copied()
+                            .collect()
+                    } else {
+                        HashSet::new()
+                    };
+
                     let breakout_rooms =
                         if let Some(ref explicit) = assignment_data.room_assignments {
                             // Empty rooms are kept: room numbers are positions in this list,
@@ -1783,6 +1802,17 @@ mod tests {
 
         assert_eq!(room_of(&call, participant), Some(0));
         assert_eq!(call.breakout_rooms[1].participants.len(), 0);
+    }
+
+    #[test]
+    fn someone_kept_in_plenary_stays_there_on_rejoin() {
+        let participant = Uuid::new_v4();
+        let mut call = call_with(&[(participant, "participant")], vec![vec![], vec![]]);
+        call.plenary_participants.insert(participant);
+
+        call.place_in_breakout_room(participant);
+
+        assert_eq!(room_of(&call, participant), None);
     }
 
     #[test]
