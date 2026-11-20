@@ -57,7 +57,7 @@ export class JitsiRoom {
 	 * here can hand it to the backend as that room's identity.
 	 */
 	jidForIndex(roomIndex: number): string | null {
-		return getJitsiBreakoutRoomId(this._rooms, roomIndex);
+		return getJitsiBreakoutRoomId(this.rooms, roomIndex);
 	}
 
 	/**
