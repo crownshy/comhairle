@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
 	import { conversationStatus } from '$lib/utils/conversationStatus';
@@ -11,7 +11,7 @@
 	import { cn } from '$lib/utils';
 
 	type Props = {
-		conversation: ConversationDto | LocalizedConversationDto;
+		conversation: LocalizedConversationDto;
 		/** Where the card goes. Each page decides: admin URL or public URL. */
 		href: string;
 		layout?: ConversationCardLayout;
@@ -41,29 +41,20 @@
 		'bg-card border-border group hover:border-primary/40 has-[a:focus-visible]:ring-ring relative overflow-hidden border transition duration-200 hover:-translate-y-0.5 hover:shadow-md has-[a:focus-visible]:ring-2';
 	const TITLE_LINK_CLASS =
 		'group-hover:text-primary transition-colors after:absolute after:inset-0 focus-visible:outline-none';
-	const BANNER_TONE: Record<typeof status, string> = {
-		live: 'bg-primary/15 text-primary',
-		draft: 'bg-muted text-muted-foreground',
-		completed: 'bg-foreground/10 text-foreground/60'
-	};
+
+	function BANNER_STYLE(s: typeof status): string {
+		switch (s) {
+			case 'live':
+				return 'bg-primary/15 text-primary';
+			case 'draft':
+				return 'bg-muted text-muted-foreground';
+			case 'completed':
+				return 'bg-foreground/10 text-foreground/60';
+		}
+	}
 </script>
 
 {#if conversation}
-	{#snippet banner(sizeClass: string)}
-		<div class={cn('relative shrink-0', sizeClass, BANNER_TONE[status])}>
-			{#if conversation.imageUrl}
-				<img
-					class="absolute inset-0 h-full w-full object-cover"
-					src={conversation.imageUrl}
-					alt=""
-				/>
-			{:else}
-				<div class="flex h-full items-center justify-center">
-					<MessageCircle class="size-6" />
-				</div>
-			{/if}
-		</div>
-	{/snippet}
 	<!-- Pages pass `href` already built with resolve(), which this rule can't see. -->
 	<!-- eslint-disable svelte/no-navigation-without-resolve -->
 	{#if layout === 'list'}
@@ -73,7 +64,7 @@
 				'flex flex-col-reverse gap-6 rounded-2xl p-4 lg:flex-row lg:items-stretch lg:gap-12 lg:p-6'
 			)}
 		>
-			<div class="flex flex-1 flex-col gap-4">
+			<div class="flex flex-col gap-4">
 				<ConversationStatusBadge {status} label={statusLabel} />
 				{@render meta?.()}
 				<svelte:element
@@ -89,21 +80,38 @@
 				{/if}
 				<div class="mt-auto pt-2">{@render actions?.()}</div>
 			</div>
-			{@render banner(
-				'h-40 w-full overflow-hidden rounded-xl sm:h-56 lg:h-72 lg:w-auto lg:flex-1'
-			)}
+			<div
+				class={cn(
+					'h-40 w-full shrink-0 rounded-xl sm:h-56 lg:h-72 lg:w-auto lg:flex-1',
+					BANNER_STYLE(status)
+				)}
+			>
+				{#if conversation.imageUrl}
+					<img
+						class="h-full w-full rounded-xl object-cover"
+						src={conversation.imageUrl}
+						alt="Image for {conversation.title}"
+					/>
+				{:else}
+					<div class="flex items-center justify-center rounded-xl">
+						<MessageCircle class="size-6" />
+					</div>
+				{/if}
+			</div>
 		</article>
 	{:else}
-		<article class={cn(CARD_CLASS, 'flex h-full flex-col gap-4 rounded-2xl p-3')}>
-			<div class="bg-primary/10 relative aspect-video w-full overflow-hidden rounded-xl">
+		<article class={cn(CARD_CLASS, 'flex flex-col gap-4 rounded-2xl p-3')}>
+			<div class="bg-primary/10 relative aspect-video w-full rounded-xl">
 				{#if conversation.imageUrl}
 					<img
 						src={conversation.imageUrl}
-						alt=""
-						class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+						alt="Image for {conversation.title}"
+						class="absolute inset-0 h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
 					/>
 				{:else}
-					<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-16" />
+					<MessageSquareText
+						class="text-primary/30 absolute inset-0 m-auto size-16 rounded-xl"
+					/>
 				{/if}
 				<ConversationStatusBadge
 					{status}
@@ -137,5 +145,4 @@
 			</div>
 		</article>
 	{/if}
-	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {/if}
