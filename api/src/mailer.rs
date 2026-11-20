@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{Datelike, Utc};
 use icalendar::{self as ical, Component, EventLike};
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, Body, Mailbox, MultiPart, SinglePart};
@@ -537,12 +537,7 @@ impl ComhairleMailer for Mailer {
             "{}/conversations/{}/events/{}/invite/{}",
             state.config.domain, event.conversation_id, event.id, invite_id
         );
-        let calendar_invite = create_calendar_invite_attachment(
-            &event.name,
-            &event.description,
-            event.start_time,
-            event.end_time,
-        )?;
+        let calendar_invite = create_calendar_invite_attachment(&event, &invite_link)?;
 
         let event_context = context! {
             event_name => event.name,
@@ -601,12 +596,7 @@ impl ComhairleMailer for Mailer {
             "{}/conversations/{}/events/{}",
             state.config.domain, event.conversation_id, event.id
         );
-        let calendar_invite = create_calendar_invite_attachment(
-            &event.name,
-            &event.description,
-            event.start_time,
-            event.end_time,
-        )?;
+        let calendar_invite = create_calendar_invite_attachment(&event, &event_link)?;
 
         let event_context = context! {
             event_name => event.name,
@@ -675,7 +665,7 @@ impl ComhairleMailer for Mailer {
         let otp = otp::create(
             &state.db,
             &recipient.id,
-            Some(event_path),
+            Some(event_path.clone()),
             Some(event.start_time),
         )
         .await?;
@@ -699,12 +689,8 @@ impl ComhairleMailer for Mailer {
             state.config.domain, otp_token, encoded_redirect_url
         );
 
-        let calendar_invite = create_calendar_invite_attachment(
-            &event.name,
-            &event.description,
-            event.start_time,
-            event.end_time,
-        )?;
+        let live_link = format!("{}{}", state.config.domain, event_path);
+        let calendar_invite = create_calendar_invite_attachment(&event, &live_link)?;
 
         let event_context = context! {
             event_name => event.name,
@@ -861,43 +847,76 @@ impl ComhairleMailer for Mailer {
 }
 
 fn create_calendar_invite_attachment(
-    name: &str,
-    description: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
+    event: &event::LocalizedEvent,
+    event_link: &str,
 ) -> Result<SinglePart, ComhairleError> {
-    let calendar_invite = build_calendar_invite(name, description, start, end);
+    let calendar_invite = build_calendar_invite(event, event_link);
 
     build_invite_attachment(calendar_invite.to_string())
 }
 
-pub fn build_calendar_invite(
-    name: &str,
-    description: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> ical::Calendar {
+/// Builds the calendar entry attached to event emails.
+///
+/// The UID is fixed per event so the invite, confirmation and reminders update one entry
+/// in the recipient's calendar instead of adding a new one each time.
+pub fn build_calendar_invite(event: &event::LocalizedEvent, event_link: &str) -> ical::Calendar {
     ical::Calendar::new()
-        .name(name)
+        .name(&event.name)
+        .append_property(("METHOD", "PUBLISH"))
         .push(
             ical::Event::new()
-                .summary(name)
-                .description(description)
-                .starts(start)
-                .ends(end),
+                .uid(&calendar_event_uid(event.id))
+                .summary(&event.name)
+                .description(&calendar_description(&event.description, event_link))
+                .location(&calendar_location(event))
+                .url(event_link)
+                .starts(event.start_time)
+                .ends(event.end_time),
         )
         .done()
 }
 
+fn calendar_event_uid(event_id: Uuid) -> String {
+    format!("event-{event_id}@comhairle.scot")
+}
+
+/// Many calendar apps hide the URL field, so the link also goes in the description.
+fn calendar_description(description: &str, event_link: &str) -> String {
+    if description.trim().is_empty() {
+        return event_link.to_string();
+    }
+    format!("{description}\n\n{event_link}")
+}
+
+fn calendar_location(event: &event::LocalizedEvent) -> String {
+    match (&event.format, &event.location) {
+        (event::EventFormat::InPerson, Some(location)) => format_postal_address(location),
+        _ => "Online".to_string(),
+    }
+}
+
+fn format_postal_address(location: &event::EventLocation) -> String {
+    [
+        Some(location.venue_name.as_str()),
+        Some(location.address_line_1.as_str()),
+        location.address_line_2.as_deref(),
+        location.address_line_3.as_deref(),
+        Some(location.city.as_str()),
+        Some(location.state_province.as_str()),
+        Some(location.postal_code.as_str()),
+    ]
+    .into_iter()
+    .flatten()
+    .map(str::trim)
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(", ")
+}
+
 pub fn build_invite_attachment(ics_body: String) -> Result<SinglePart, ComhairleError> {
-    let invite_body = Body::new(ics_body);
-    let content_type =
-        ContentType::from_str("text/calendar; charset=utf-8; method=REQUEST; name=\"invite.ics\"")?;
+    let content_type = ContentType::from_str("text/calendar; charset=utf-8; method=PUBLISH")?;
 
-    let attachment =
-        Attachment::new_inline("calendar-invite".to_string()).body(invite_body, content_type);
-
-    Ok(attachment)
+    Ok(Attachment::new("invite.ics".to_string()).body(Body::new(ics_body), content_type))
 }
 
 #[cfg(test)]
@@ -918,5 +937,62 @@ mod tests {
 
         let template = mailer.template_engine.get_template("email_layout.html");
         assert!(template.is_ok(), "error retrieving layout template");
+    }
+
+    fn online_event() -> event::LocalizedEvent {
+        event::LocalizedEvent {
+            id: Uuid::nil(),
+            name: "Community call".to_string(),
+            description: "Talk about the park".to_string(),
+            capacity: None,
+            conversation_id: Uuid::nil(),
+            start_time: "2026-12-01T18:00:00Z".parse().unwrap(),
+            end_time: "2026-12-01T19:00:00Z".parse().unwrap(),
+            signup_mode: event::SignupMode::Invite,
+            video_meeting_id: None,
+            agenda: event::EventAgenda::default(),
+            breakout_plan: event::BreakoutPlan::default(),
+            default_time_zone: "Europe/London".to_string(),
+            format: event::EventFormat::Online,
+            custom_event_link: None,
+            location: None,
+            metadata: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn calendar_invite_links_to_the_event_and_keeps_one_uid_per_event() {
+        let link = "https://comhairle.scot/conversations/c/events/e/invite/i";
+        let ics = build_calendar_invite(&online_event(), link).to_string();
+
+        assert!(ics.contains("METHOD:PUBLISH"));
+        assert!(ics.contains("UID:event-00000000-0000-0000-0000-000000000000@comhairle.scot"));
+        assert!(ics.contains(&format!("URL:{link}")));
+        assert!(ics.contains("LOCATION:Online"));
+        assert!(ics.contains("DTSTART:20261201T180000Z"));
+        assert!(ics.contains("DESCRIPTION:Talk about the park\\n\\nhttps://"));
+    }
+
+    #[test]
+    fn calendar_location_is_the_address_for_in_person_events() {
+        let event = event::LocalizedEvent {
+            format: event::EventFormat::InPerson,
+            location: Some(event::EventLocation {
+                venue_name: "Town Hall".to_string(),
+                address_line_1: "1 High Street".to_string(),
+                address_line_2: Some(" ".to_string()),
+                city: "Perth".to_string(),
+                postal_code: "PH1 5PH".to_string(),
+                ..Default::default()
+            }),
+            ..online_event()
+        };
+
+        assert_eq!(
+            calendar_location(&event),
+            "Town Hall, 1 High Street, Perth, PH1 5PH"
+        );
     }
 }
