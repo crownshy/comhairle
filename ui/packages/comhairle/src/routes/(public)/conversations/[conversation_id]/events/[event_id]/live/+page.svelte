@@ -8,7 +8,12 @@
 	import { formatCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
-	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
+	import {
+		applyRoomEdits,
+		groupParticipantsByRoom,
+		placementOf,
+		type BreakoutPlacement
+	} from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
 	import { JitsiRoom } from './jitsiRoom.svelte';
 	import { MeetingAttendance } from './meetingAttendance.svelte';
@@ -85,6 +90,12 @@
 				username: videoCallService.jitsiDisplayNameFor(p.user_id) ?? p.username
 			}))
 	);
+	/** The current user as the breakout dialogs show them, so they can place themselves. */
+	let currentUserParticipant = $derived.by(() => {
+		const me = allParticipants.find((p) => p.user_id === user?.id);
+		if (!me) return undefined;
+		return { ...me, username: videoCallService.jitsiDisplayNameFor(me.user_id) ?? me.username };
+	});
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
 	let breakoutRooms = $derived(videoCallService.breakoutRooms);
@@ -129,8 +140,8 @@
 	let breakoutEndingDismissed = $state(false);
 	let breakoutAutoEnded = $state(false);
 
-	/** Tracks assigned room index to detect mid-session reassignment by moderator */
-	let trackedRoomIndex = $state<number | null>(null);
+	/** Tracks this user's room or plenary placement to detect a mid-session move by a moderator */
+	let trackedPlacement = $state<BreakoutPlacement | null>(null);
 
 	/** Lightweight toast for admin confirmations */
 	let toastMessage = $state<string | null>(null);
@@ -244,7 +255,12 @@
 	);
 
 	let preassignedBreakoutRooms = $derived(
-		groupParticipantsByRoom(inCallParticipants, videoCallService.breakoutRooms)
+		groupParticipantsByRoom(
+			currentUserParticipant
+				? [currentUserParticipant, ...inCallParticipants]
+				: inCallParticipants,
+			videoCallService.breakoutRooms
+		)
 	);
 
 	$effect(() => {
@@ -338,7 +354,8 @@
 		const roomIndex = breakoutAutoEnterRoom({
 			isModerator,
 			assignedRoom: user ? videoCallService.getUserBreakoutRoom(user.id) : null,
-			moderatorAlreadyAutoEntered: moderatorAutoEnteredThisSession
+			moderatorAlreadyAutoEntered: moderatorAutoEnteredThisSession,
+			keptInPlenary: !!user && videoCallService.plenaryParticipantIds.has(user.id)
 		});
 		if (roomIndex === null) return;
 
@@ -346,24 +363,32 @@
 		handleEnterBreakoutRoom(roomIndex);
 	});
 
-	// Follow a mid-session room change made from the Move people dialog. Facilitators follow
-	// too; this only fires when the assignment changes, so their own room hopping is untouched.
+	// Follow a mid-session move made from the Move people dialog, into another room or back to
+	// plenary. Facilitators follow too; this only fires when the placement changes, so their
+	// own room hopping is untouched.
 	$effect(() => {
 		if (!isBreakoutActive || !user || !jitsiRoom.ready) {
-			trackedRoomIndex = null;
+			trackedPlacement = null;
 			return;
 		}
 
-		const assignedRoom = videoCallService.getUserBreakoutRoom(user.id);
-		const tracked = untrack(() => trackedRoomIndex);
+		const placement = placementOf(
+			user.id,
+			videoCallService.breakoutRooms,
+			videoCallService.plenaryParticipantIds
+		);
+		const tracked = untrack(() => trackedPlacement);
+		if (placement === null || placement === tracked) return;
 
-		if (tracked === null && assignedRoom !== null) {
-			// First assignment — just start tracking
-			trackedRoomIndex = assignedRoom;
-		} else if (assignedRoom !== null && assignedRoom !== tracked && tracked !== null) {
-			handleEnterBreakoutRoom(assignedRoom);
-			pushNotice({ message: `You've been moved to Breakout room #${assignedRoom + 1}` });
-			trackedRoomIndex = assignedRoom;
+		trackedPlacement = placement;
+		if (tracked === null) return;
+
+		if (placement === 'plenary') {
+			handleLeaveBreakoutRoom();
+			pushNotice({ message: "You've been moved to the plenary room" });
+		} else {
+			handleEnterBreakoutRoom(placement);
+			pushNotice({ message: `You've been moved to Breakout room #${placement + 1}` });
 		}
 	});
 
@@ -450,7 +475,7 @@
 		breakoutEndingDismissed = false;
 		breakoutAutoEnded = false;
 		endingBreakoutSession = false;
-		trackedRoomIndex = null;
+		trackedPlacement = null;
 		jitsiRoom.reset();
 		mockBreakoutRooms = [];
 		mobileRoomIndex = 0;
@@ -508,10 +533,12 @@
 		maxPerRoom: number;
 		durationMinutes: number;
 		roomAssignments: VideoCallParticipant[][];
+		plenary: VideoCallParticipant[];
 	}) {
 		// Send explicit room assignments so backend uses the dialog's distribution
 		const roomAssignments = config.roomAssignments.map((room) => room.map((p) => p.user_id));
-		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
+		const plenary = config.plenary.map((p) => p.user_id);
+		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments, plenary);
 		const ends = new Date(Date.now() + config.durationMinutes * 60 * 1000).toISOString();
 		videoCallService.startBreakoutSession(eventId, ends);
 		showCreateBreakout = false;
@@ -535,10 +562,16 @@
 	function handleEditBreakout(config: {
 		maxPerRoom: number;
 		roomAssignments: VideoCallParticipant[][];
+		plenary: VideoCallParticipant[];
 	}) {
 		const editedRooms = config.roomAssignments.map((room) => room.map((p) => p.user_id));
-		const roomAssignments = applyRoomEdits(editedRooms, videoCallService.breakoutRooms);
-		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
+		const plenary = config.plenary.map((p) => p.user_id);
+		const roomAssignments = applyRoomEdits(
+			editedRooms,
+			videoCallService.breakoutRooms,
+			plenary
+		);
+		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments, plenary);
 		showEditBreakout = false;
 		showToast('Breakout rooms updated');
 	}
@@ -1087,6 +1120,8 @@
 	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	showFacilitators
+	showPlenary
+	currentUser={currentUserParticipant}
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
@@ -1098,6 +1133,8 @@
 	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	showFacilitators
+	showPlenary
+	currentUser={currentUserParticipant}
 	title="Move people between rooms"
 	confirmLabel="Save"
 	showDuration={false}

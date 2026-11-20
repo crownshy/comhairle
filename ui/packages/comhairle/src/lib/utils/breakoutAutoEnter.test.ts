@@ -7,7 +7,8 @@ describe('breakoutAutoEnterRoom', () => {
 			breakoutAutoEnterRoom({
 				isModerator: false,
 				assignedRoom: 2,
-				moderatorAlreadyAutoEntered: false
+				moderatorAlreadyAutoEntered: false,
+				keptInPlenary: false
 			})
 		).toBe(2);
 	});
@@ -17,7 +18,8 @@ describe('breakoutAutoEnterRoom', () => {
 			breakoutAutoEnterRoom({
 				isModerator: false,
 				assignedRoom: null,
-				moderatorAlreadyAutoEntered: false
+				moderatorAlreadyAutoEntered: false,
+				keptInPlenary: false
 			})
 		).toBe(0);
 	});
@@ -27,7 +29,8 @@ describe('breakoutAutoEnterRoom', () => {
 			breakoutAutoEnterRoom({
 				isModerator: true,
 				assignedRoom: 1,
-				moderatorAlreadyAutoEntered: false
+				moderatorAlreadyAutoEntered: false,
+				keptInPlenary: false
 			})
 		).toBe(1);
 	});
@@ -37,7 +40,8 @@ describe('breakoutAutoEnterRoom', () => {
 			breakoutAutoEnterRoom({
 				isModerator: true,
 				assignedRoom: 1,
-				moderatorAlreadyAutoEntered: true
+				moderatorAlreadyAutoEntered: true,
+				keptInPlenary: false
 			})
 		).toBeNull();
 	});
@@ -47,7 +51,19 @@ describe('breakoutAutoEnterRoom', () => {
 			breakoutAutoEnterRoom({
 				isModerator: true,
 				assignedRoom: null,
-				moderatorAlreadyAutoEntered: false
+				moderatorAlreadyAutoEntered: false,
+				keptInPlenary: false
+			})
+		).toBeNull();
+	});
+
+	it('keeps a participant a host left in plenary out of the rooms', () => {
+		expect(
+			breakoutAutoEnterRoom({
+				isModerator: false,
+				assignedRoom: null,
+				moderatorAlreadyAutoEntered: false,
+				keptInPlenary: true
 			})
 		).toBeNull();
 	});
