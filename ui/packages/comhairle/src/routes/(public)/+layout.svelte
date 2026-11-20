@@ -18,6 +18,7 @@
 	);
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
+	const isHomePage = $derived(page.route.id === '/(public)');
 
 	// A Room display is projected in a room, so it renders no site chrome at all and
 	// fills the viewport: a NavBar and Footer would both steal space from an eight-metre
@@ -51,7 +52,7 @@
 	{/if}
 	{#if isRoomDisplay}
 		{@render children()}
-	{:else if isAuthPage || isReportPage}
+	{:else if isAuthPage || isReportPage || isHomePage}
 		<div class="grow">
 			{@render children()}
 		</div>
