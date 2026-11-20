@@ -70,7 +70,7 @@
 			<SearchBar
 				placeholder={m.conversations_search()}
 				aria-label={m.conversations_search()}
-				value={QueryParams.get('search') ?? undefined}
+				value={QueryParams.get('search')}
 				oninput={useDebounce((event) => {
 					QueryParams.set('search', (event.target as HTMLInputElement).value)
 						.set('page', '0')
@@ -98,24 +98,20 @@
 						{m.conversations_found_count({ count: data.conversations.ok.total })}
 					{/if}
 				</p>
-				<FilterChips
-					options={[
-						{ value: 'open', label: m.conversations_filter_open() },
-						{ value: 'ended', label: m.conversations_filter_ended() },
-						{ value: 'all', label: m.conversations_filter_all() }
-					]}
-					active={data.status}
-					hrefFor={(value) => statusFilterHref(page.url, value)}
-					label={m.conversations_filter_label()}
-				/>
-				<LayoutToggle
-					value={view}
-					groupLabel={m.conversations_layout()}
-					cardLabel={m.conversations_card_view()}
-					listLabel={m.conversations_list_view()}
-				/>
 			{/if}
 		</header>
+
+		<FilterChips
+			options={[
+				{ value: 'open', label: m.conversations_filter_open() },
+				{ value: 'ended', label: m.conversations_filter_ended() },
+				{ value: 'all', label: m.conversations_filter_all() }
+			]}
+			active={data.status}
+			hrefFor={(value) => statusFilterHref(page.url, value)}
+			label={m.conversations_filter_label()}
+		/>
+		<LayoutToggle />
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div
