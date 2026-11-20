@@ -707,9 +707,21 @@
 	/** Rebuild the Jitsi iframe, which asks for the mic and camera afresh */
 	function reconnectVideo() {
 		roomSwitchStartedAt = null;
-		jitsiRoom.reset();
-		roomContext = 'plenary';
+		forgetJitsiIframe();
 		jitsiInstance += 1;
+	}
+
+	/** Jitsi's own hang-up button. Rejoining builds a new iframe. */
+	function handleHangUp() {
+		forgetJitsiIframe();
+		attendance.leave();
+	}
+
+	/** A new iframe always opens in the main room, so drop back to plenary. Once Jitsi
+	 *  reports the rooms again, the auto-enter effect puts participants back in theirs. */
+	function forgetJitsiIframe() {
+		jitsiRoom.detach();
+		roomContext = 'plenary';
 	}
 </script>
 
@@ -833,7 +845,7 @@
 							onBreakoutRoomsUpdated={(rooms) => jitsiRoom.setRooms(rooms)}
 							onVideoConferenceJoined={handleVideoConferenceJoined}
 							onVideoConferenceLeft={handleVideoConferenceLeft}
-							onReadyToClose={() => attendance.leave()}
+							onReadyToClose={handleHangUp}
 							onDisplayNameChange={handleDisplayNameChange}
 							startWithAudioMuted={true}
 							configOverwrite={{
