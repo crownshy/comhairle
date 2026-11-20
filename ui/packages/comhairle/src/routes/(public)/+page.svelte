@@ -10,6 +10,8 @@
 	import { useDebounce } from 'runed';
 	import { ArrowRight, Info } from '@lucide/svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
+	import FilterChips from '$lib/components/FilterChips.svelte';
+	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 
 	let { data } = $props();
 </script>
@@ -68,7 +70,7 @@
 			<SearchBar
 				placeholder={m.conversations_search()}
 				aria-label={m.conversations_search()}
-				value={QueryParams.get('search') ?? undefined}
+				value={QueryParams.get('search')}
 				oninput={useDebounce((event) => {
 					QueryParams.set('search', (event.target as HTMLInputElement).value)
 						.set('page', '0')
@@ -99,16 +101,36 @@
 			{/if}
 		</header>
 
+		<FilterChips
+			options={[
+				{ value: 'open', label: m.conversations_filter_open() },
+				{ value: 'ended', label: m.conversations_filter_ended() },
+				{ value: 'all', label: m.conversations_filter_all() }
+			]}
+			active={data.status}
+			hrefFor={(value) => statusFilterHref(page.url, value)}
+			label={m.conversations_filter_label()}
+		/>
+		<LayoutToggle />
+
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
-			<div class="flex flex-col gap-20 md:gap-10 md:px-2">
+			<div
+				class={QueryParams.get<'view'>('view') === 'card'
+					? 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
+					: 'flex flex-col gap-3'}
+			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="public">
 						{#snippet Actions()}
 							<span
-								class={buttonVariants({ variant: 'primaryDark' })}
+								class={buttonVariants({
+									variant: conversation.isComplete ? 'outline' : 'primaryDark'
+								})}
 								aria-hidden="true"
 							>
-								{m.take_part()}
+								{conversation.isComplete
+									? m.conversations_see_results()
+									: m.take_part()}
 								<ArrowRight class="size-4" />
 							</span>
 						{/snippet}
