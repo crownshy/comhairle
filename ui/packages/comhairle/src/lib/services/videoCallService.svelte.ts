@@ -33,6 +33,8 @@ export interface VideoCallState {
 	/** Jitsi display name each user chose, keyed by user id. */
 	jitsi_display_names: Record<string, string>;
 	breakout_rooms: BreakoutRoomAssignments[];
+	/** People a host kept in the main call while breakout rooms run. */
+	plenary_participants: string[];
 	breakout_room_assistance_requests: Record<string, BreakoutRoomAssistanceRequest>;
 	jitsi_call_id: string;
 	current_agenda_step: number;
@@ -105,6 +107,11 @@ export class VideoCallService {
 
 	get breakoutRooms(): BreakoutRoomAssignments[] {
 		return this._currentCallState?.breakout_rooms ?? [];
+	}
+
+	get plenaryParticipantIds(): Set<string> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a fresh copy per read, never mutated
+		return new Set(this._currentCallState?.plenary_participants ?? []);
 	}
 
 	get currentAgendaStep(): number {
@@ -227,12 +234,18 @@ export class VideoCallService {
 	}
 
 	/** Moderator/facilitator only. When roomAssignments is provided, uses explicit
-	 *  room assignments instead of random server-side chunking. */
-	assignBreakoutRooms(eventId: string, maxUsersPerRoom: number, roomAssignments?: string[][]) {
+	 *  room assignments instead of random server-side chunking, and keeps the plenary
+	 *  user_ids in the main call. */
+	assignBreakoutRooms(
+		eventId: string,
+		maxUsersPerRoom: number,
+		roomAssignments?: string[][],
+		plenary: string[] = []
+	) {
 		ws.sendCustom('video_call:assign_breakout_rooms', {
 			event_id: eventId,
 			max_users_per_room: maxUsersPerRoom,
-			...(roomAssignments ? { room_assignments: roomAssignments } : {})
+			...(roomAssignments ? { room_assignments: roomAssignments, plenary } : {})
 		});
 	}
 
