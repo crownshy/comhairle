@@ -5,7 +5,6 @@
 	import { page } from '$app/state';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
-	import { resolve } from '$app/paths';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import QueryParams from '$lib/interfaces/QueryParams.svelte';
 	import { useDebounce } from 'runed';
@@ -103,14 +102,8 @@
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div class="flex flex-col gap-20 md:gap-10 md:px-2">
 				{#each data.conversations.ok.records as conversation (conversation.id)}
-					<ConversationCard
-						{conversation}
-						href={resolve('/(public)/conversations/[conversation_id]', {
-							conversation_id: conversation.slug || conversation.id
-						})}
-						headingLevel={3}
-					>
-						{#snippet actions()}
+					<ConversationCard {conversation} for="public">
+						{#snippet Actions()}
 							<span
 								class={buttonVariants({ variant: 'primaryDark' })}
 								aria-hidden="true"
