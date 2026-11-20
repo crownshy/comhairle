@@ -250,6 +250,8 @@ impl PartialConversation {
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ConversationFilterOptions {
+    /// Limit results to conversations intersecting any area attached to this region.
+    pub region_id: Option<Uuid>,
     pub keyword: Option<String>,
     pub is_public: Option<bool>,
     pub is_live: Option<bool>,
@@ -269,6 +271,13 @@ impl ConversationFilterOptions {
     }
 
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
+        if let Some(region_id) = self.region_id {
+            query.and_where(
+                Expr::col((ConversationIden::Table, ConversationIden::Id)).in_subquery(
+                    super::conversation_region_area::intersecting_region(region_id),
+                ),
+            );
+        }
         if let Some(value) = self.is_public {
             query = query
                 .and_where(
@@ -1023,6 +1032,60 @@ pub async fn list(
     Ok(conversations)
 }
 
+/// Matches conversations the user owns or holds a read role on, directly or via a group.
+fn readable_by_user(user_id: Uuid) -> Result<sea_query::Condition, ComhairleError> {
+    let read_role_names = roles_for_action(conversation_permissions::Action::Read);
+
+    let mut permission_query = crate::models::permissions::permission_select(Some("conversation"))?;
+    permission_query.and_where(Expr::col(ResourcePermissionIden::ResourceId)
+        .equals((ConversationIden::Table, ConversationIden::Id)))
+        .and_where(Expr::col(ResourcePermissionIden::RoleName).is_in(read_role_names))
+        .and_where(Expr::cust_with_values("(user_id = $1 OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = $1))", [user_id]));
+
+    Ok(Cond::any()
+        .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+        .add(Expr::exists(permission_query)))
+}
+
+/// List public live conversations plus, for a signed-in user, any conversation they can read,
+/// including drafts and private ones. Super admins see every conversation.
+#[instrument(err(Debug), skip(db))]
+pub async fn list_visible(
+    db: &PgPool,
+    user_id: Option<Uuid>,
+    is_super_admin: bool,
+    page_options: PageOptions,
+    order_options: ConversationOrderOptions,
+    filter_options: ConversationFilterOptions,
+    locale: Option<String>,
+) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
+    let mut query = Query::select();
+    query
+        .from(ConversationIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|c| (ConversationIden::Table, c)));
+
+    if !is_super_admin {
+        let mut visible = Cond::any().add(
+            Cond::all()
+                .add(Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(true))
+                .add(Expr::col((ConversationIden::Table, ConversationIden::IsLive)).eq(true)),
+        );
+        if let Some(user_id) = user_id {
+            visible = visible.add(readable_by_user(user_id)?);
+        }
+        query.cond_where(visible);
+    }
+
+    let query = LocalizedConversation::query_to_localisation(
+        query.to_owned(),
+        &locale.unwrap_or("en".into()),
+    );
+    let query = filter_options.apply_to_localized(query);
+    let query = order_options.apply_to_localized(query);
+
+    Ok(page_options.fetch_paginated_results(db, query).await?)
+}
+
 #[instrument(err(Debug), skip(db))]
 pub async fn list_for_permitted_user(
     db: &PgPool,
@@ -1040,21 +1103,7 @@ pub async fn list_for_permitted_user(
         .distinct();
 
     if !is_super_admin {
-        let read_role_names = roles_for_action(conversation_permissions::Action::Read);
-
-        let mut permission_query =
-            crate::models::permissions::permission_select(Some("conversation"))?;
-        permission_query.and_where(Expr::col(ResourcePermissionIden::ResourceId)
-            .equals((ConversationIden::Table, ConversationIden::Id)))
-            .and_where(Expr::col(ResourcePermissionIden::RoleName).is_in(read_role_names))
-            .and_where(Expr::cust_with_values("(user_id = $1 OR group_id IN (SELECT group_id FROM user_group_member WHERE user_id = $1))", [user_id]));
-
-        query.and_where(
-            Cond::any()
-                .add(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
-                .add(Expr::exists(permission_query))
-                .into(),
-        );
+        query.cond_where(readable_by_user(user_id)?);
     }
 
     let query = query.to_owned();

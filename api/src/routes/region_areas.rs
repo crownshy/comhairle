@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::models::region_area::{self, AreaLocation, CreateRegionArea, PartialRegionArea};
+use crate::models::region_area::{self, CreateRegionArea, PartialRegionArea};
 use crate::routes::auth::RequiredSuperAdminUser;
 use crate::routes::region_areas::dto::RegionAreaDto;
 
@@ -25,19 +25,6 @@ pub struct ImportRegionAreasRequest {
 }
 
 pub use crate::models::region_area::RegionAreaListOptions;
-
-async fn intersecting_region_areas(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredSuperAdminUser(_user): RequiredSuperAdminUser,
-    Query(location): Query<AreaLocation>,
-) -> Result<Json<PaginatedResults<RegionAreaDto>>, ComhairleError> {
-    let areas = region_area::intersecting(&state.db, &location).await?;
-    let area_dtos = PaginatedResults {
-        total: areas.len() as i32,
-        records: areas.into_iter().map(Into::into).collect(),
-    };
-    Ok(Json(area_dtos))
-}
 
 #[instrument(err(Debug), skip(state))]
 async fn create_region_area(
@@ -118,18 +105,6 @@ async fn import_region_areas(
 
 pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-        .api_route(
-            "/intersecting",
-            get_with(intersecting_region_areas, |op| {
-                op.id("IntersectingRegionAreas")
-                    .tag("Region Areas")
-                    .security_requirement("JWT")
-                    .summary(
-                        "Find all region areas intersecting a WGS84 point, including boundaries",
-                    )
-                    .response::<200, Json<PaginatedResults<RegionAreaDto>>>()
-            }),
-        )
         .api_route(
             "/import",
             post_with(import_region_areas, |op| {
