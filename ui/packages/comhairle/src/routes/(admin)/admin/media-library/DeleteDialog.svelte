@@ -9,7 +9,7 @@
 		children: Snippet;
 	}
 
-	const { count, onconfirm, children }: Props = $props();
+	const { count, children }: Props = $props();
 </script>
 
 <Dialog.Root>
@@ -21,7 +21,7 @@
 			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
 				<Dialog.Title class="text-2xl">Delete {count} items?</Dialog.Title>
 				<Dialog.Description>This is permanent</Dialog.Description>
-				<Button onclick={onconfirm}>Yes</Button>
+				<Button type="submit" form="bulk-delete-media">Yes</Button>
 			</Dialog.Header>
 		</Dialog.Content>
 	</Dialog.Portal>

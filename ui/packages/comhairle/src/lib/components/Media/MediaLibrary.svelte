@@ -8,9 +8,11 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import './MediaBackground.css';
+	import ErrorMessage from '../ErrorMessage.svelte';
+	import type { ErrorType, Result } from '$lib/utils/errorHandling';
 
 	type BaseProps = {
-		media: MediaDto[];
+		media: Result<MediaDto[], ErrorType>;
 	};
 	type ViewMode = {
 		mode: 'view';
@@ -69,45 +71,50 @@
 {/snippet}
 
 <ul class="flex flex-row flex-wrap gap-5">
-	{#each media as m (m.id)}
-		<li class="relative max-w-75">
-			{#if mode === 'view'}
-				<button
-					type="button"
-					class="block aspect-video h-full w-full"
-					onclick={() => {
-						onDetailsOpen?.(m);
-					}}
-				>
-					{@render MediaItem(m)}
-				</button>
-			{:else if mode === 'single-select'}
-				<label class="cursor-pointer">
-					<input
-						type="radio"
-						name="selected"
-						value={m.id}
-						class="hidden"
-						bind:group={selected}
-					/>
-					{@render MediaItem(m)}
-				</label>
-			{:else if mode === 'multi-select'}
-				<label class="cursor-pointer">
-					<input
-						type="checkbox"
-						name="media"
-						value={m.id.toString()}
-						class="accent-primary absolute top-2 left-2 z-2 h-4"
-						bind:group={selected}
-					/>
-					{@render MediaItem(m)}
-				</label>
-			{/if}
-		</li>
+	{#if media.err !== null}
+		{console.error(media.err)}
+		<ErrorMessage>Could not load media please try again</ErrorMessage>
 	{:else}
-		<span class="inline-block mt-8 text-muted-foreground font-bold">No media found</span>
-	{/each}
+		{#each media.ok as m (m.id)}
+			<li class="relative max-w-75">
+				{#if mode === 'view'}
+					<button
+						type="button"
+						class="block aspect-video h-full w-full"
+						onclick={() => {
+							onDetailsOpen?.(m);
+						}}
+					>
+						{@render MediaItem(m)}
+					</button>
+				{:else if mode === 'single-select'}
+					<label class="cursor-pointer">
+						<input
+							type="radio"
+							name="selected"
+							value={m.id}
+							class="hidden"
+							bind:group={selected}
+						/>
+						{@render MediaItem(m)}
+					</label>
+				{:else if mode === 'multi-select'}
+					<label class="cursor-pointer">
+						<input
+							type="checkbox"
+							name="media"
+							value={m.id.toString()}
+							class="accent-primary absolute top-2 left-2 z-2 h-4"
+							bind:group={selected}
+						/>
+						{@render MediaItem(m)}
+					</label>
+				{/if}
+			</li>
+		{:else}
+			<span class="inline-block mt-8 text-muted-foreground font-bold">No media found</span>
+		{/each}
+	{/if}
 </ul>
 
 <style>
