@@ -6,9 +6,9 @@ function refresh(href: string = new URL(page.url).href) {
 	goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 }
 
-function get<T extends string>(key: T, url?: URL): string | null {
+function get<T extends string>(key: T, url?: URL): string | undefined {
 	const Url = url ?? new URL(page.url);
-	return Url.searchParams.get(key);
+	return Url.searchParams.get(key) ?? undefined;
 }
 
 function set<T extends string>(key: T, value: string, url?: URL) {
