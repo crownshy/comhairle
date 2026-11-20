@@ -62,6 +62,24 @@ describe('JitsiRoom', () => {
 		expect(sent).toEqual([]);
 	});
 
+	it('reports the jid of the nth breakout room, skipping the main room', () => {
+		const room = new JitsiRoom();
+		room.setRooms(breakouts);
+
+		expect(room.jidForIndex(0)).toBe('one@breakout');
+		expect(room.jidForIndex(1)).toBe('two@breakout');
+		expect(room.jidForIndex(2)).toBeNull();
+	});
+
+	it('does not report a jid for a room from a session that has ended', () => {
+		const room = new JitsiRoom();
+		room.setRooms(breakouts);
+		room.reset();
+		room.setRooms(breakouts);
+
+		expect(room.jidForIndex(0)).toBeNull();
+	});
+
 	it('returns to the main room by joining no room at all', () => {
 		const { api, sent } = fakeApi();
 		const room = new JitsiRoom();
