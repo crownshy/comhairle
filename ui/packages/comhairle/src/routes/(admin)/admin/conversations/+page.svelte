@@ -124,15 +124,11 @@
 			aria-busy={turningPage}
 		>
 			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard
-					{conversation}
-					href={conversationLandingUrl(conversation)}
-					layout={view}
-				>
-					{#snippet meta()}
+				<ConversationCard {conversation} for="admin" layout={view}>
+					{#snippet Meta()}
 						{#if conversation.isShared}<Badge variant="outline">Shared</Badge>{/if}
 					{/snippet}
-					{#snippet actions()}
+					{#snippet Actions()}
 						<Button
 							variant="primaryDark"
 							class="relative z-10 rounded-full"
