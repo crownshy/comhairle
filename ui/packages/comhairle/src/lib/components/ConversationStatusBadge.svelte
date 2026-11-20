@@ -8,6 +8,7 @@
 	type Props = { status: ConversationStatus; label?: string; class?: string };
 	let { status, label, class: className = '' }: Props = $props();
 
+	// FIX: Consolidate with ConversationStatus.svelte
 	// One colour per status, shown as a dot so the meaning doesn't rely on colour alone.
 	const DOT: Record<ConversationStatus, string> = {
 		live: 'bg-green-600',
