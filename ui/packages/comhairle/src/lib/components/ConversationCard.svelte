@@ -12,17 +12,13 @@
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import { resolve } from '$app/paths';
 
-	type ActionsSnippetArgs = {
-		href: string;
-	};
-
 	type Props = {
 		conversation: LocalizedConversationDto;
 		for: 'admin' | 'public';
 		layout?: ConversationCardLayout;
 		// Small facts under the description, e.g. "Shared", or later "Closes in 5 days".
 		Meta?: Snippet;
-		Actions?: Snippet<[ActionsSnippetArgs]>;
+		Actions?: Snippet;
 	};
 
 	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
@@ -78,7 +74,7 @@
 						{conversation.shortDescription}
 					</p>
 				{/if}
-				<div class="mt-auto pt-2">{@render Actions?.({ href })}</div>
+				<div class="mt-auto pt-2">{@render Actions?.()}</div>
 			</div>
 			<div
 				class={cn(
@@ -141,8 +137,8 @@
 				</div>
 			{/if}
 			{#if Actions}
-				<div class="z-2 mt-auto flex flex-wrap items-center gap-3 pt-2">
-					{@render Actions({ href })}
+				<div class="mt-auto flex flex-wrap items-center gap-3 pt-2">
+					{@render Actions()}
 				</div>
 			{/if}
 		</article>
