@@ -24,13 +24,19 @@
 	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
 
 	let status = $derived(conversationStatus(conversation));
-	let href = $derived(
-		_for === 'admin'
-			? conversationLandingUrl(conversation)
-			: resolve('/(public)/conversations/[conversation_id]', {
-					conversation_id: conversation.slug || conversation.id
-				})
-	);
+	let href = $derived.by(() => {
+		if (_for === 'admin') {
+			return conversationLandingUrl(conversation);
+		}
+		if (conversation.isComplete) {
+			return resolve('/(public)/conversations/[conversation_id]/[[preview]]/report', {
+				conversation_id: conversation.slug || conversation.id
+			});
+		}
+		resolve('/(public)/conversations/[conversation_id]', {
+			conversation_id: conversation.slug || conversation.id
+		});
+	});
 
 	// The title's link stretches over the whole card, so the card opens the conversation.
 	const CARD_CLASS =
