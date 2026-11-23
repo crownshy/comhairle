@@ -15,7 +15,8 @@ export const load: PageLoad = async ({ parent, url }) => {
 					limit: CONVERSATION_PAGE_SIZE,
 					offset: calcOffset({ page: getPage(url), pageSize: CONVERSATION_PAGE_SIZE }),
 					keyword: QueryParams.get<ConversationsParams>('search', url),
-					is_complete: false
+					is_live: QueryParams.get<ConversationsParams>('filter', url) === 'open',
+					is_complete: QueryParams.get<ConversationsParams>('filter', url) === 'ended'
 				}
 			})
 		),

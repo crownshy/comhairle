@@ -1,17 +1,13 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
 import type { ConversationCardLayout } from '$lib/components/ConversationCard.svelte';
-import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 
 type DefaultParams = Record<string, string | number>;
 
 export type ConversationsParams = {
 	page: number;
 	search: string;
-	filter: keyof Pick<
-		LocalizedConversationDto,
-		'isComplete' | 'isPublic' | 'isInviteOnly' | 'isLive'
-	>;
+	filter: 'open' | 'ended';
 	view: ConversationCardLayout;
 };
 
@@ -20,9 +16,9 @@ function refresh(href: string = new URL(page.url).href) {
 	goto(href, { replaceState: true, keepFocus: true, noScroll: true });
 }
 
-function get<const T extends DefaultParams>(key: keyof T, url?: URL): string | undefined {
+function get<const T extends DefaultParams>(key: keyof T, url?: URL): T[keyof T] | undefined {
 	const Url = url ?? new URL(page.url);
-	return Url.searchParams.get(key as string) ?? undefined;
+	return (Url.searchParams.get(key as string) as T[keyof T]) ?? undefined;
 }
 
 function set<const T extends DefaultParams>(key: keyof T, value: T[keyof T], url?: URL) {
