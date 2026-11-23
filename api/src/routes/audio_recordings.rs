@@ -1047,6 +1047,7 @@ mod tests {
             recorder_xmpp_username: None,
             recorder_xmpp_password: None,
             recorder_focus_jid: None,
+            recorder_xmpp_domain: None,
         });
 
         let state = Arc::new(
@@ -1138,6 +1139,7 @@ mod tests {
             recorder_xmpp_username: None,
             recorder_xmpp_password: None,
             recorder_focus_jid: None,
+            recorder_xmpp_domain: None,
         });
 
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);

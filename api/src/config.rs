@@ -91,6 +91,11 @@ pub struct JitsiRecorderConfig {
     /// xmpp-domain is set to the recorder account's own auth domain
     /// (hidden.meet.jitsi) rather than the deployment's real one.
     pub recorder_focus_jid: Option<String>,
+    /// e.g. `hidden.meet.jitsi` - the recorder account's own auth domain.
+    /// gst-meet's --xmpp-domain defaults to the deployment's main domain
+    /// (meet.jitsi), which is token-auth only and doesn't have this account
+    /// registered, so SASL PLAIN there fails.
+    pub recorder_xmpp_domain: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
