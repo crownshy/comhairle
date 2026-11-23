@@ -6,7 +6,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
-	import QueryParams from '$lib/interfaces/QueryParams.svelte';
+	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
 	import { useDebounce } from 'runed';
 	import { ArrowRight, Info } from '@lucide/svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
@@ -70,10 +70,13 @@
 			<SearchBar
 				placeholder={m.conversations_search()}
 				aria-label={m.conversations_search()}
-				value={QueryParams.get('search')}
+				value={QueryParams.get<ConversationsParams>('search')}
 				oninput={useDebounce((event) => {
-					QueryParams.set('search', (event.target as HTMLInputElement).value)
-						.set('page', '0')
+					QueryParams.set<ConversationsParams>(
+						'search',
+						(event.target as HTMLInputElement).value
+					)
+						.set<ConversationsParams>('page', 0)
 						.update();
 				}, 300)}
 				class="bg-muted h-12 rounded-full border-0 pl-11 text-lg shadow-none md:text-lg"
@@ -89,33 +92,35 @@
 			{#if data.conversations.err !== null}
 				<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
 			{:else}
-				<p class="text-muted-foreground mt-10 mb-2 font-semibold" aria-live="polite">
-					{#if data.conversations.ok.total === 0}
-						{m.conversations_no_conversations_found()}
-					{:else if data.conversations.ok.total === 1}
-						{m.conversations_found_one()}
-					{:else}
-						{m.conversations_found_count({ count: data.conversations.ok.total })}
-					{/if}
-				</p>
+				<div class="mt-10 mb-2 flex w-full items-center justify-between">
+					<p class="text-muted-foreground font-semibold" aria-live="polite">
+						{#if data.conversations.ok.total === 0}
+							{m.conversations_no_conversations_found()}
+						{:else if data.conversations.ok.total === 1}
+							{m.conversations_found_one()}
+						{:else}
+							{m.conversations_found_count({ count: data.conversations.ok.total })}
+						{/if}
+					</p>
+					<LayoutToggle />
+				</div>
 			{/if}
 		</header>
 
-		<FilterChips
-			options={[
-				{ value: 'open', label: m.conversations_filter_open() },
-				{ value: 'ended', label: m.conversations_filter_ended() },
-				{ value: 'all', label: m.conversations_filter_all() }
-			]}
-			active={data.status}
-			hrefFor={(value) => statusFilterHref(page.url, value)}
-			label={m.conversations_filter_label()}
-		/>
-		<LayoutToggle />
+		<!-- <FilterChips -->
+		<!-- 	options={[ -->
+		<!-- 		{ value: 'open', label: m.conversations_filter_open() }, -->
+		<!-- 		{ value: 'ended', label: m.conversations_filter_ended() }, -->
+		<!-- 		{ value: 'all', label: m.conversations_filter_all() } -->
+		<!-- 	]} -->
+		<!-- 	active={data.status} -->
+		<!-- 	hrefFor={(value) => statusFilterHref(page.url, value)} -->
+		<!-- 	label={m.conversations_filter_label()} -->
+		<!-- /> -->
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div
-				class={QueryParams.get<'view'>('view') === 'card'
+				class={QueryParams.get<ConversationsParams>('view') === 'card'
 					? 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
 					: 'flex flex-col gap-3'}
 			>

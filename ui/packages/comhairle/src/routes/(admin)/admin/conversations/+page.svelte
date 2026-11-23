@@ -11,7 +11,6 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import { listViewFromUrl } from '$lib/utils/listView';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
@@ -19,12 +18,12 @@
 	import StatusFilterChips from './StatusFilterChips.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { conversationsListTour } from './tour';
+	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
 
 	useTour(() => conversationsListTour);
 
 	let { data }: PageProps = $props();
 
-	let view = $derived(listViewFromUrl(page.url));
 	let total = $derived(data.conversations.total);
 	let searchTerm = $derived(data.search.trim());
 	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
@@ -73,7 +72,7 @@
 				<div data-tour="conversation-search">
 					<ConversationSearch />
 				</div>
-				<LayoutToggle value={view} />
+				<LayoutToggle />
 			</div>
 		</div>
 		{#if total > 0}
@@ -82,7 +81,7 @@
 		<div
 			data-tour="conversation-list"
 			class={[
-				view === 'card'
+				QueryParams.get<ConversationsParams>('view') === 'card'
 					? 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3'
 					: 'flex w-full flex-col gap-3',
 				'transition-opacity',
@@ -91,7 +90,7 @@
 			aria-busy={turningPage}
 		>
 			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard {conversation} for="admin" layout={view}>
+				<ConversationCard {conversation} for="admin">
 					{#snippet Meta()}
 						{#if conversation.isShared}<Badge variant="outline">Shared</Badge>{/if}
 					{/snippet}
