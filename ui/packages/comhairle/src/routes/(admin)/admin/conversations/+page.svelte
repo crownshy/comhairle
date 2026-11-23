@@ -1,35 +1,29 @@
 <script lang="ts">
-	import { beforeNavigate, goto } from '$app/navigation';
+	import { beforeNavigate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { ArrowRight, LayoutGrid, List } from '@lucide/svelte';
+	import { ArrowRight } from '@lucide/svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import { Pager } from '$lib/pagination';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import {
-		conversationCountLabel,
-		conversationNoun,
-		isPageTurn,
-		listViewFromUrl,
-		listViewHref
-	} from './conversationFilters';
+	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
+	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
 	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { conversationsListTour } from './tour';
+	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
 
 	useTour(() => conversationsListTour);
 
 	let { data }: PageProps = $props();
 
-	let view = $derived(listViewFromUrl(page.url));
 	let total = $derived(data.conversations.total);
 	let searchTerm = $derived(data.search.trim());
 	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
@@ -43,39 +37,11 @@
 		if (from && to && isPageTurn(from.url, to.url))
 			pageTop?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 	});
-
-	// In the URL so the choice survives a reload and the pager's links. The load doesn't read
-	// `view`, so switching doesn't refetch.
-	function showView(next: string) {
-		if (next !== 'card' && next !== 'list') return;
-		// eslint-disable-next-line svelte/no-navigation-without-resolve -- only swaps the query on this page's URL
-		goto(listViewHref(page.url, next), { replaceState: true, noScroll: true, keepFocus: true });
-	}
-
-	const VIEW_ITEM_CLASS =
-		'text-muted-foreground hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground rounded-full p-2 first:rounded-full last:rounded-full hover:bg-transparent data-[state=on]:shadow-sm';
 </script>
 
 <svelte:head>
 	<title>Your conversations - Comhairle</title>
 </svelte:head>
-
-{#snippet viewSwitch()}
-	<ToggleGroup.Root
-		type="single"
-		value={view}
-		onValueChange={showView}
-		aria-label="Layout"
-		class="bg-muted shrink-0 gap-1 rounded-full p-1"
-	>
-		<ToggleGroup.Item value="card" aria-label="Card view" class={VIEW_ITEM_CLASS}>
-			<LayoutGrid class="size-4" />
-		</ToggleGroup.Item>
-		<ToggleGroup.Item value="list" aria-label="List view" class={VIEW_ITEM_CLASS}>
-			<List class="size-4" />
-		</ToggleGroup.Item>
-	</ToggleGroup.Root>
-{/snippet}
 
 <!-- Page-turn scroll target (see beforeNavigate above). -->
 <div bind:this={pageTop} aria-hidden="true"></div>
@@ -106,7 +72,7 @@
 				<div data-tour="conversation-search">
 					<ConversationSearch />
 				</div>
-				{@render viewSwitch()}
+				<LayoutToggle />
 			</div>
 		</div>
 		{#if total > 0}
@@ -115,7 +81,7 @@
 		<div
 			data-tour="conversation-list"
 			class={[
-				view === 'card'
+				QueryParams.get<ConversationsParams>('view') === 'card'
 					? 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3'
 					: 'flex w-full flex-col gap-3',
 				'transition-opacity',
@@ -124,7 +90,7 @@
 			aria-busy={turningPage}
 		>
 			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard {conversation} for="admin" layout={view}>
+				<ConversationCard {conversation} for="admin">
 					{#snippet Meta()}
 						{#if conversation.isShared}<Badge variant="outline">Shared</Badge>{/if}
 					{/snippet}
