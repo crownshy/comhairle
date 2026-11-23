@@ -44,7 +44,7 @@
 	<div class="flex items-center gap-2">
 		<Select.Root
 			type="single"
-			value={QueryParams.get(param)}
+			value={QueryParams.get(param) as string}
 			onValueChange={(value) => QueryParams.set(param, value).update()}
 		>
 			<Select.Trigger
