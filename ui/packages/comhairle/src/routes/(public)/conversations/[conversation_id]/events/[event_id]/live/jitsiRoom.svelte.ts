@@ -168,6 +168,17 @@ export class JitsiRoom {
 		this._api?.executeCommand('hangup');
 	}
 
+	/**
+	 * Let go of an iframe that has hung up or is being rebuilt. The next iframe starts in
+	 * the main room and reports the rooms afresh, so this forgets the list without retiring
+	 * it: the session's rooms are still the ones to go back into.
+	 */
+	detach() {
+		this._api = null;
+		this._rooms = {};
+		this._ready = false;
+	}
+
 	/** Forget the room list, including rooms Jitsi has yet to remove. The call stays up. */
 	reset() {
 		for (const room of Object.values(this._rooms)) {
