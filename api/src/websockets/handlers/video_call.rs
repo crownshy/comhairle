@@ -221,6 +221,18 @@ impl VideoCallState {
             .collect()
     }
 
+    /// Who stays in plenary after a host saves rooms. Someone already kept there stays even
+    /// while offline, so they come back to the main call rather than an empty room.
+    fn plenary_after_assignment(&self, requested: &[Uuid]) -> HashSet<Uuid> {
+        requested
+            .iter()
+            .filter(|id| {
+                self.participants.contains_key(id) || self.plenary_participants.contains(id)
+            })
+            .copied()
+            .collect()
+    }
+
     /// Ids of everyone in the call who should be split into breakout rooms, hosts left out.
     fn breakout_candidates(&self) -> Vec<Uuid> {
         self.participants
@@ -1117,12 +1129,7 @@ impl VideoCallMessageHandler {
                     && participant.is_host()
                 {
                     call.plenary_participants = if assignment_data.room_assignments.is_some() {
-                        assignment_data
-                            .plenary
-                            .iter()
-                            .filter(|id| call.participants.contains_key(id))
-                            .copied()
-                            .collect()
+                        call.plenary_after_assignment(&assignment_data.plenary)
                     } else {
                         HashSet::new()
                     };
@@ -1841,6 +1848,17 @@ mod tests {
         call.place_in_breakout_room(participant);
 
         assert_eq!(room_of(&call, participant), None);
+    }
+
+    #[test]
+    fn someone_kept_in_plenary_stays_there_while_offline() {
+        let (online, offline, stranger) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(&[(online, "participant")], vec![vec![]]);
+        call.plenary_participants.insert(offline);
+
+        let plenary = call.plenary_after_assignment(&[online, offline, stranger]);
+
+        assert_eq!(plenary, HashSet::from([online, offline]));
     }
 
     #[test]

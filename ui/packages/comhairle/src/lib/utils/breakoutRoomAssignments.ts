@@ -88,6 +88,36 @@ export function applyRoomEdits(
 	return result;
 }
 
+/**
+ * Who stays in plenary after a mid-session edit. The dialog only lists people in the call,
+ * so anyone already kept in plenary who is offline right now stays there unless the edit
+ * put them in a room.
+ */
+export function plenaryAfterEdit(
+	dialogPlenary: string[],
+	editedRooms: string[][],
+	currentPlenary: Set<string>
+): string[] {
+	const listed = new Set([...dialogPlenary, ...editedRooms.flat()]);
+	const offlineInPlenary = [...currentPlenary].filter((userId) => !listed.has(userId));
+	return [...dialogPlenary, ...offlineInPlenary];
+}
+
+/**
+ * The rooms with one person moved to where they actually are: a room index, or null for
+ * the main call. Used for the person assigning, whose own client knows where they are even
+ * when that differs from their assignment.
+ */
+export function withPersonAt(
+	rooms: VideoCallParticipant[][],
+	person: VideoCallParticipant,
+	roomIndex: number | null
+): VideoCallParticipant[][] {
+	const moved = rooms.map((room) => room.filter((p) => p.user_id !== person.user_id));
+	if (roomIndex !== null && roomIndex < moved.length) moved[roomIndex].push(person);
+	return moved;
+}
+
 /** Whether an event role can run a breakout room (moderators and facilitators). */
 export function isFacilitatorRole(role: string): boolean {
 	return role === 'moderator' || role === 'facilitator';

@@ -8,7 +8,9 @@ import {
 	groupParticipantsByRoom,
 	isFacilitatorRole,
 	peopleOutsideRooms,
-	placementOf
+	placementOf,
+	plenaryAfterEdit,
+	withPersonAt
 } from './breakoutRoomAssignments';
 
 const participant = (user_id: string, role = 'participant'): VideoCallParticipant => ({
@@ -130,5 +132,32 @@ describe('placementOf', () => {
 
 	it('gives null for someone with no placement', () => {
 		expect(placementOf('host', rooms, new Set())).toBeNull();
+	});
+});
+
+describe('plenaryAfterEdit', () => {
+	it('keeps someone offline in plenary when the dialog never listed them', () => {
+		expect(plenaryAfterEdit(['a'], [['b']], new Set(['a', 'offline']))).toEqual([
+			'a',
+			'offline'
+		]);
+	});
+
+	it('drops someone from plenary once the edit puts them in a room', () => {
+		expect(plenaryAfterEdit([], [['a']], new Set(['a']))).toEqual([]);
+	});
+});
+
+describe('withPersonAt', () => {
+	const me = participant('me', 'facilitator');
+
+	it('moves the person out of their assigned room into the one they are in', () => {
+		const rooms = withPersonAt([[me, participant('a')], [participant('b')]], me, 1);
+		expect(rooms.map((r) => r.map((p) => p.user_id))).toEqual([['a'], ['b', 'me']]);
+	});
+
+	it('takes the person out of every room when they are in the main call', () => {
+		const rooms = withPersonAt([[me, participant('a')]], me, null);
+		expect(rooms.map((r) => r.map((p) => p.user_id))).toEqual([['a']]);
 	});
 });

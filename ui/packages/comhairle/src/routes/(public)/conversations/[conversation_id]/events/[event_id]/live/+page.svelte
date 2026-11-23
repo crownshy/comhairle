@@ -12,6 +12,8 @@
 		applyRoomEdits,
 		groupParticipantsByRoom,
 		placementOf,
+		plenaryAfterEdit,
+		withPersonAt,
 		type BreakoutPlacement
 	} from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
@@ -390,6 +392,25 @@
 	// Follow a mid-session move made from the Move people dialog, into another room or back to
 	// plenary. Facilitators follow too; this only fires when the placement changes, so their
 	// own room hopping is untouched.
+	/** Where this client is right now, which can differ from its assignment once a host
+	 *  moves between rooms themselves. */
+	let currentPlacement: BreakoutPlacement = $derived(placementIn(roomContext));
+
+	function placementIn(context: RoomContext): BreakoutPlacement {
+		return context === 'plenary' ? 'plenary' : context.roomIndex;
+	}
+
+	/** The live rooms for the Move people dialog, with you shown where you actually are. */
+	let roomsForMoveDialog = $derived(
+		currentUserParticipant
+			? withPersonAt(
+					preassignedBreakoutRooms,
+					currentUserParticipant,
+					currentPlacement === 'plenary' ? null : currentPlacement
+				)
+			: preassignedBreakoutRooms
+	);
+
 	$effect(() => {
 		if (!isBreakoutActive || !user || !jitsiRoom.ready) {
 			trackedPlacement = null;
@@ -406,6 +427,8 @@
 
 		trackedPlacement = placement;
 		if (tracked === null) return;
+		// A host who already went there themselves needs no move and no notice.
+		if (placement === untrack(() => currentPlacement)) return;
 
 		if (placement === 'plenary') {
 			handleLeaveBreakoutRoom();
@@ -595,7 +618,11 @@
 		plenary: VideoCallParticipant[];
 	}) {
 		const editedRooms = config.roomAssignments.map((room) => room.map((p) => p.user_id));
-		const plenary = config.plenary.map((p) => p.user_id);
+		const plenary = plenaryAfterEdit(
+			config.plenary.map((p) => p.user_id),
+			editedRooms,
+			videoCallService.plenaryParticipantIds
+		);
 		const roomAssignments = applyRoomEdits(
 			editedRooms,
 			videoCallService.breakoutRooms,
@@ -1156,7 +1183,7 @@
 <CreateBreakoutDialog
 	bind:open={showEditBreakout}
 	participants={inCallParticipants}
-	initialAssignments={preassignedBreakoutRooms}
+	initialAssignments={roomsForMoveDialog}
 	showFacilitators
 	showPlenary
 	currentUser={currentUserParticipant}
