@@ -161,11 +161,7 @@
 					/>
 				</div>
 			{/if}
-			<h2
-				id="conversations"
-				tabindex="-1"
-				class="mb-6 text-2xl font-bold focus:outline-none sm:text-3xl"
-			>
+			<h2 id="conversations" class="mb-6 text-2xl font-bold sm:text-3xl">
 				{m.conversations_all_heading()}
 			</h2>
 			<p>
