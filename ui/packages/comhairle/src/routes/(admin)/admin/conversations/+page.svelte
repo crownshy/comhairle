@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { beforeNavigate } from '$app/navigation';
-	import { navigating, page } from '$app/state';
+	import { page } from '$app/state';
 	import { ArrowRight } from '@lucide/svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
@@ -13,36 +12,30 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { isModeratorOnly, moderatorOnlyConversationIds } from '$lib/utils/permissions';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
-	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
-	import type { PageProps } from './$types';
-	import ConversationSearch from './ConversationSearch.svelte';
 	import StatusFilterChips from './StatusFilterChips.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { conversationsListTour } from './tour';
 	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
+	import { useDebounce } from 'runed';
+	import { m } from '$lib/paraglide/messages';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 
 	useTour(() => conversationsListTour);
 
-	let { data }: PageProps = $props();
+	let { data } = $props();
 
 	// Only for someone who does nothing but moderate. Anyone with another role may also have
 	// edit rights through it, so their card opens as usual and the conversation layout decides.
 	let moderatorOnlyIds = $derived(
 		new Set(isModeratorOnly(data.userRoles) ? moderatorOnlyConversationIds(data.userRoles) : [])
 	);
-	let total = $derived(data.conversations.total);
-	let searchTerm = $derived(data.search.trim());
-	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
 	let pageTop: HTMLElement | undefined = $state();
 
-	let turningPage = $derived(!!navigating.to && isPageTurn(page.url, navigating.to.url));
-
-	// The admin layout scrolls inside <main>, which SvelteKit's own scroll reset doesn't reach.
-	// Scrolling on click rather than on arrival shows the page turn has started.
-	beforeNavigate(({ from, to }) => {
-		if (from && to && isPageTurn(from.url, to.url))
-			pageTop?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-	});
+	function scrollToTop() {
+		pageTop?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
+	}
 </script>
 
 <svelte:head>
@@ -69,65 +62,79 @@
 </SectionHeader>
 
 <TabContent>
-	<div class="@container flex w-full flex-col gap-11">
-		<div class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between">
-			<div data-tour="status-filters">
-				<StatusFilterChips active={data.filter} />
-			</div>
-			<div class="flex items-center gap-3">
-				<div data-tour="conversation-search">
-					<ConversationSearch />
+	{#if data.conversations.err !== null}
+		{console.error(data.conversations.err)}
+		<ErrorMessage>Could not load conversations, please try again</ErrorMessage>
+	{:else}
+		<div class="@container flex w-full flex-col gap-11">
+			<div class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between">
+				<div data-tour="status-filters">
+					<StatusFilterChips />
 				</div>
-				<LayoutToggle />
+				<div class="flex items-center gap-3">
+					<SearchBar
+						data-tour="conversation-search"
+						oninput={useDebounce((e) => {
+							QueryParams.set<ConversationsParams>(
+								'search',
+								e.currentTarget.value
+							).update();
+						})}
+						placeholder={m.conversations_search()}
+						aria-label="Search conversations"
+						class="bg-card h-10 w-full @4xl:w-80"
+					/>
+					<LayoutToggle />
+				</div>
 			</div>
-		</div>
-		{#if total > 0}
-			<p class="text-muted-foreground text-base" aria-live="polite">{countLabel}</p>
-		{/if}
-		<div
-			data-tour="conversation-list"
-			class={[
-				QueryParams.get<ConversationsParams>('view') === 'list'
-					? 'flex w-full flex-col gap-3'
-					: 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3',
-				'transition-opacity',
-				turningPage && 'pointer-events-none opacity-50'
-			]}
-			aria-busy={turningPage}
-		>
-			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard {conversation} for="admin">
-					{#snippet Meta()}
-						{#if conversation.isShared}<Badge variant="outline">Shared</Badge>{/if}
-					{/snippet}
-					{#snippet Actions()}
-						<Button
-							variant="primaryDark"
-							class="relative z-10 rounded-full"
-							href={conversationLandingUrl(
-								conversation,
-								moderatorOnlyIds.has(conversation.id) ? 'moderation' : 'full'
-							)}
-						>
-							Open conversation <ArrowRight class="size-4" />
-						</Button>
-					{/snippet}
-				</ConversationCard>
-			{:else}
-				<p class="text-muted-foreground text-base">
-					{#if searchTerm}
-						No {conversationNoun(data.filter, 0)} match "{searchTerm}"
-					{:else if data.filter === 'all'}
-						You don't have any conversations yet.
-					{:else}
-						No {conversationNoun(data.filter, 0)}.
-					{/if}
+			{#if data.conversations.ok.total > 0}
+				<p class="text-muted-foreground text-base" aria-live="polite">
+					{data.conversations.ok.total} conversation(s) found
 				</p>
-			{/each}
-		</div>
+			{/if}
+			<div
+				data-tour="conversation-list"
+				class={[
+					QueryParams.get<ConversationsParams>('view') === 'list'
+						? 'flex w-full flex-col gap-3'
+						: 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3',
+					'transition-opacity'
+				]}
+			>
+				{#each data.conversations.ok.records as conversation (conversation.id)}
+					<ConversationCard {conversation} for="admin">
+						{#snippet Meta()}
+							{#if conversation.isShared}
+								<Badge variant="outline">Shared</Badge>
+							{/if}
+						{/snippet}
+						{#snippet Actions()}
+							<Button
+								variant="primaryDark"
+								class="relative z-10 rounded-full"
+								href={conversationLandingUrl(
+									conversation,
+									moderatorOnlyIds.has(conversation.id) ? 'moderation' : 'full'
+								)}
+							>
+								Open conversation <ArrowRight class="size-4" />
+							</Button>
+						{/snippet}
+					</ConversationCard>
+				{:else}
+					<p class="text-muted-foreground text-base">No conversations found</p>
+				{/each}
+			</div>
 
-		{#if total > data.pageSize}
-			<Pager pageSize={data.pageSize} count={total} url={page.url} />
-		{/if}
-	</div>
+			{#if data.conversations.ok.total > data.PAGE_SIZE}
+				<Pager
+					pageSize={data.PAGE_SIZE}
+					count={data.conversations.ok.total}
+					url={page.url}
+					onNext={() => void scrollToTop()}
+					onPrev={() => void scrollToTop()}
+				/>
+			{/if}
+		</div>
+	{/if}
 </TabContent>

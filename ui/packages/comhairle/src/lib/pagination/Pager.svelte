@@ -8,9 +8,15 @@
 	import { m } from '$lib/paraglide/messages';
 	import { getPage, setPage, calcPageCount, pageItems } from './utils';
 
-	type Props = { url: URL; pageSize: number; count: number };
+	type Props = {
+		url: URL;
+		pageSize: number;
+		count: number;
+		onNext?: () => void;
+		onPrev?: () => void;
+	};
 
-	const { url, pageSize, count }: Props = $props();
+	const { url, pageSize, count, onNext, onPrev }: Props = $props();
 
 	const pageNumber = $derived(getPage(url));
 	const pageCount = $derived(calcPageCount({ pageSize, total: count }));
@@ -41,7 +47,10 @@
 				variant="ghost"
 				class="text-base"
 				aria-label={m.previous()}
-				onclick={() => (clicked = 'previous')}
+				onclick={() => {
+					clicked = 'previous';
+					onPrev?.();
+				}}
 			>
 				{#if isLoading('previous', pageNumber - 1)}<Spinner />{:else}<ChevronLeft />{/if}
 				<span class="hidden sm:inline">{m.previous()}</span>
@@ -79,7 +88,10 @@
 				variant="ghost"
 				class="text-base"
 				aria-label={m.next()}
-				onclick={() => (clicked = 'next')}
+				onclick={() => {
+					clicked = 'next';
+					onNext?.();
+				}}
 			>
 				<span class="hidden sm:inline">{m.next()}</span>
 				{#if isLoading('next', pageNumber + 1)}<Spinner />{:else}<ChevronRight />{/if}
