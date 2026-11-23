@@ -11,8 +11,18 @@ export const fadeScrollEdges: Attachment<HTMLElement> = (element) => {
 	};
 
 	const resizeObserver = new ResizeObserver(update);
+	const observeChildren = () => {
+		for (const child of element.children) resizeObserver.observe(child);
+	};
 	resizeObserver.observe(element);
-	for (const child of element.children) resizeObserver.observe(child);
+	observeChildren();
+
+	// The question card can mount after the container (it sits in an {#if}), so watch for new children.
+	const mutationObserver = new MutationObserver(() => {
+		observeChildren();
+		update();
+	});
+	mutationObserver.observe(element, { childList: true });
 
 	element.addEventListener('scroll', update, { passive: true });
 	update();
@@ -20,5 +30,6 @@ export const fadeScrollEdges: Attachment<HTMLElement> = (element) => {
 	return () => {
 		element.removeEventListener('scroll', update);
 		resizeObserver.disconnect();
+		mutationObserver.disconnect();
 	};
 };
