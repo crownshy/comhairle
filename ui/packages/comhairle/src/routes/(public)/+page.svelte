@@ -197,9 +197,9 @@
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div
-				class={QueryParams.get<ConversationsParams>('view') === 'card'
-					? 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'
-					: 'flex flex-col gap-3'}
+				class={QueryParams.get<ConversationsParams>('view') === 'list'
+					? 'flex flex-col gap-3'
+					: 'grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3'}
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="public">
