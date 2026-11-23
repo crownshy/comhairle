@@ -1,14 +1,16 @@
-<script lang="ts">
-	import { LayoutGrid, List, type IconProps } from '@lucide/svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+<script lang="ts" module>
 	import type { ConversationCardLayout } from '$lib/components/ConversationCard.svelte';
-	import type { Component } from 'svelte';
-	import { m } from '$lib/paraglide/messages';
-	import QueryParams from '$lib/interfaces/QueryParams.svelte';
-
 	type Params = {
 		view: ConversationCardLayout;
 	};
+</script>
+
+<script lang="ts">
+	import { LayoutGrid, List, type IconProps } from '@lucide/svelte';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import type { Component } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
+	import QueryParams from '$lib/interfaces/QueryParams.svelte';
 
 	const options: [value: ConversationCardLayout, label: string, icon: Component<IconProps>][] = [
 		['card', m.filter_card_view(), LayoutGrid],

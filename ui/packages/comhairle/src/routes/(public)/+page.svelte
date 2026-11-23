@@ -10,7 +10,7 @@
 	import { useDebounce } from 'runed';
 	import { ArrowRight, Info } from '@lucide/svelte';
 	import { buttonVariants } from '$lib/components/ui/button';
-	import FilterChips from '$lib/components/FilterChips.svelte';
+	import FilterBadges from '$lib/components/FilterBadges.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 
 	let { data } = $props();
@@ -86,13 +86,24 @@
 	<div class="mx-auto flex w-full max-w-7xl flex-col px-6 pt-10 md:pt-20">
 		<header>
 			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
-			<p class="mb-4">
+			<p>
 				{m.conversations_find_open_conversations()}
 			</p>
-			{#if data.conversations.err !== null}
-				<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
-			{:else}
-				<div class="mt-10 mb-2 flex w-full items-center justify-between">
+			<div class="mt-1 flex w-full items-center justify-between">
+				<FilterBadges
+					param="filter"
+					label={m.conversations_filter_label()}
+					options={[
+						['open', m.conversations_filter_open()],
+						['ended', m.conversations_filter_ended()]
+					]}
+				/>
+				<LayoutToggle />
+			</div>
+			<div class="mt-10 mb-2">
+				{#if data.conversations.err !== null}
+					<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
+				{:else}
 					<p class="text-muted-foreground font-semibold" aria-live="polite">
 						{#if data.conversations.ok.total === 0}
 							{m.conversations_no_conversations_found()}
@@ -102,21 +113,9 @@
 							{m.conversations_found_count({ count: data.conversations.ok.total })}
 						{/if}
 					</p>
-					<LayoutToggle />
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</header>
-
-		<!-- <FilterChips -->
-		<!-- 	options={[ -->
-		<!-- 		{ value: 'open', label: m.conversations_filter_open() }, -->
-		<!-- 		{ value: 'ended', label: m.conversations_filter_ended() }, -->
-		<!-- 		{ value: 'all', label: m.conversations_filter_all() } -->
-		<!-- 	]} -->
-		<!-- 	active={data.status} -->
-		<!-- 	hrefFor={(value) => statusFilterHref(page.url, value)} -->
-		<!-- 	label={m.conversations_filter_label()} -->
-		<!-- /> -->
 
 		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
 			<div

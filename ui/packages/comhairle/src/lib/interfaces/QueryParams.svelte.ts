@@ -44,10 +44,14 @@ function set<const T extends DefaultParams>(key: keyof T, value: T[keyof T], url
 	};
 }
 
-function remove<T extends string>(key: T, url?: URL): void {
+function remove<const T extends DefaultParams>(key: keyof T, url?: URL) {
 	const Url = url ?? new URL(page.url);
-	Url.searchParams.delete(key);
-	refresh(Url.href);
+	Url.searchParams.delete(key as string);
+
+	return {
+		remove: <const T extends DefaultParams>(key: keyof T) => remove(key as string, Url),
+		update: () => refresh(Url.href)
+	};
 }
 
 const QueryParams = {
