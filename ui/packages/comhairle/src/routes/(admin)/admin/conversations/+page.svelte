@@ -81,9 +81,9 @@
 		<div
 			data-tour="conversation-list"
 			class={[
-				QueryParams.get<ConversationsParams>('view') === 'card'
-					? 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3'
-					: 'flex w-full flex-col gap-3',
+				QueryParams.get<ConversationsParams>('view') === 'list'
+					? 'flex w-full flex-col gap-3'
+					: 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3',
 				'transition-opacity',
 				turningPage && 'pointer-events-none opacity-50'
 			]}
