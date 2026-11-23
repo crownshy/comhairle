@@ -162,7 +162,7 @@
 				</div>
 			{/if}
 			<h2
-				id="conversations-heading"
+				id="conversations"
 				tabindex="-1"
 				class="mb-6 text-2xl font-bold focus:outline-none sm:text-3xl"
 			>
