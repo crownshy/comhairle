@@ -50,6 +50,7 @@
 	import type { PageProps } from './$types';
 	import { mediaTimedOutDuringSwitch } from './roomSwitch';
 	import { nudgeBackToTab } from './tabNudge';
+	import MobileSheetToggle from './MobileSheetToggle.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -939,18 +940,11 @@
 			<div
 				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
 			>
-				<button
-					type="button"
-					class="flex h-16 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2"
-					onclick={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
-					aria-expanded={!mobileSheetCollapsed}
-					aria-label={mobileSheetCollapsed
-						? 'Expand breakout session'
-						: 'Collapse breakout session'}
-				>
-					<div class="bg-foreground/20 h-1 w-10 rounded-full"></div>
-					<span class="text-foreground text-sm font-medium">Breakout Session</span>
-				</button>
+				<MobileSheetToggle
+					title="Breakout Session"
+					expanded={!mobileSheetCollapsed}
+					onToggle={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
+				/>
 
 				{#if !mobileSheetCollapsed}
 					<div
@@ -1010,18 +1004,11 @@
 			<div
 				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
 			>
-				<button
-					type="button"
-					class="flex h-16 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2"
-					onclick={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
-					aria-expanded={!mobileSheetCollapsed}
-					aria-label={mobileSheetCollapsed ? 'Expand controls' : 'Collapse controls'}
-				>
-					<div class="bg-foreground/20 h-1 w-10 rounded-full"></div>
-					<span class="text-foreground text-sm font-medium">
-						{isBreakoutActive ? 'Breakout Session' : 'Agenda'}
-					</span>
-				</button>
+				<MobileSheetToggle
+					title={isBreakoutActive ? 'Breakout Session' : 'Agenda'}
+					expanded={!mobileSheetCollapsed}
+					onToggle={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
+				/>
 
 				{#if !mobileSheetCollapsed}
 					<div
