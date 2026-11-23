@@ -747,7 +747,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
 					'Open **Moderate** under **Engage**, then choose the Participant-led poll step.',
 					'The page opens on **Waiting**, the statements that need a decision. New statements are fetched when you open the page and when you come back to it. Switch to **Accepted**, **Rejected** or **All**, or search for a word.',
-					'Open **Moderation rules** at the top of the page if you haven’t moderated before, then accept, split or reject each statement. When you reject a statement, choose the reason from your moderation policy.'
+					'Accept, split or reject each statement. When you reject a statement, choose the reason from your moderation policy.'
 				],
 				tips: [
 					'Check **Waiting** regularly while the conversation is live, so new statements don’t wait long for review.',
@@ -840,11 +840,6 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							name: 'Download report',
 							description:
 								'A CSV of every statement, its status, and the reason and note recorded for each decision.'
-						},
-						{
-							name: 'Moderation rules',
-							description:
-								'The yellow line above the statements opens the rules: what to do, what never to do, and your policy’s reasons for rejecting.'
 						},
 						{
 							name: 'Waiting',
