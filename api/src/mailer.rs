@@ -537,6 +537,12 @@ impl ComhairleMailer for Mailer {
             "{}/conversations/{}/events/{}/invite/{}",
             state.config.domain, event.conversation_id, event.id, invite_id
         );
+        let calendar_invite = create_calendar_invite_attachment(
+            &event.name,
+            &event.description,
+            event.start_time,
+            event.end_time,
+        )?;
 
         let event_context = context! {
             event_name => event.name,
@@ -577,7 +583,7 @@ impl ComhairleMailer for Mailer {
             &subject,
             SCHEMA_EVENT_REGISTRATION_INVITE.template,
             context,
-            None,
+            Some(calendar_invite),
         )
     }
 
