@@ -33,7 +33,7 @@
 				conversation_id: conversation.slug || conversation.id
 			});
 		}
-		resolve('/(public)/conversations/[conversation_id]', {
+		return resolve('/(public)/conversations/[conversation_id]', {
 			conversation_id: conversation.slug || conversation.id
 		});
 	});
