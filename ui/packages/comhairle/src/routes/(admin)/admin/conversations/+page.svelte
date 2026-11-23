@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
-	import List from '@lucide/svelte/icons/list';
+	import { ArrowRight, LayoutGrid, List } from '@lucide/svelte';
 	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import { Pager } from '$lib/pagination';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
 	import {
 		conversationCountLabel,
@@ -122,7 +124,20 @@
 			aria-busy={turningPage}
 		>
 			{#each data.conversations.records as conversation (conversation.id)}
-				<ConversationCard {conversation} isShared={conversation.isShared} layout={view} />
+				<ConversationCard {conversation} for="admin" layout={view}>
+					{#snippet Meta()}
+						{#if conversation.isShared}<Badge variant="outline">Shared</Badge>{/if}
+					{/snippet}
+					{#snippet Actions()}
+						<Button
+							variant="primaryDark"
+							class="relative z-10 rounded-full"
+							href={conversationLandingUrl(conversation)}
+						>
+							Open conversation <ArrowRight class="size-4" />
+						</Button>
+					{/snippet}
+				</ConversationCard>
 			{:else}
 				<p class="text-muted-foreground text-base">
 					{#if searchTerm}
