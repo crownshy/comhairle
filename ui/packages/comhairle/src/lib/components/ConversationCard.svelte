@@ -33,9 +33,11 @@
 				conversation_id: conversation.slug || conversation.id
 			});
 		}
-		resolve('/(public)/conversations/[conversation_id]', {
+		const h = resolve('/(public)/conversations/[conversation_id]', {
 			conversation_id: conversation.slug || conversation.id
 		});
+		console.log(h);
+		return h;
 	});
 
 	// The title's link stretches over the whole card, so the card opens the conversation.

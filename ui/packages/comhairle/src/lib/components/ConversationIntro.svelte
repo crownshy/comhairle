@@ -2,7 +2,7 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { ChevronLeft, MessageSquareText } from 'lucide-svelte';
+	import { ChevronLeft, MessageSquareText } from '@lucide/svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
 	import { conversationStatus } from '$lib/utils/conversationStatus';
 	import { m } from '$lib/paraglide/messages';
@@ -57,14 +57,14 @@
 				<span class="text-lg font-semibold">{statusLabel}</span>
 			</div>
 			<!-- The join controls bring their own top margin from the old layout; cancel it here. -->
-			<div class="flex flex-col gap-2 md:items-end [&>*]:mt-0">
+			<div class="flex flex-col gap-2 *:mt-0 md:items-end">
 				{@render children()}
 			</div>
 		</div>
 	</div>
 </div>
 
-<div class="bg-primary/10 relative h-72 w-full overflow-hidden sm:h-96 lg:h-[32rem]">
+<div class="bg-primary/10 relative h-72 w-full overflow-hidden sm:h-96 lg:h-128">
 	{#if conversation.imageUrl}
 		<img src={conversation.imageUrl} alt="" class="absolute inset-0 size-full object-cover" />
 	{:else}
