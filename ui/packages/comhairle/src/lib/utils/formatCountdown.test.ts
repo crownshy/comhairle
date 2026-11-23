@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCountdown } from './formatCountdown';
+import { formatCountdown, formatLongCountdown } from './formatCountdown';
 
 describe('formatCountdown', () => {
 	it('formats whole minutes', () => {
@@ -25,5 +25,20 @@ describe('formatCountdown', () => {
 
 	it('reads 0:00 when there is no session', () => {
 		expect(formatCountdown(null)).toBe('0:00');
+	});
+});
+
+describe('formatLongCountdown', () => {
+	it('reads m:ss under an hour', () => {
+		expect(formatLongCountdown(59 * 60 * 1000 + 5000)).toBe('59:05');
+	});
+
+	it('rolls over to h:mm:ss from an hour', () => {
+		expect(formatLongCountdown(60 * 60 * 1000)).toBe('1:00:00');
+		expect(formatLongCountdown(90 * 60 * 1000 + 7000)).toBe('1:30:07');
+	});
+
+	it('reads 0:00 when there is no end time', () => {
+		expect(formatLongCountdown(null)).toBe('0:00');
 	});
 });

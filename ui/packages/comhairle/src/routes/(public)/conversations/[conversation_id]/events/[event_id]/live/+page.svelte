@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onDestroy, untrack } from 'svelte';
+	import { onDestroy, onMount, untrack } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { dev } from '$app/environment';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import { formatDateShort, formatTime } from '$lib/utils';
-	import { formatCountdown } from '$lib/utils/formatCountdown';
+	import { formatCountdown, formatLongCountdown } from '$lib/utils/formatCountdown';
 	import { isBreakoutWrappingUp, wrapUpEndTime } from '$lib/utils/breakoutWrapUp';
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
 	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
@@ -217,6 +217,26 @@
 	});
 
 	let timeLeftFormatted = $derived(formatCountdown(breakoutTimeRemaining));
+
+	let now = $state(Date.now());
+	onMount(() => {
+		const clock = setInterval(() => (now = Date.now()), 1000);
+		return () => clearInterval(clock);
+	});
+
+	/** Null once the scheduled end has passed, so the plenary chip stops counting. */
+	let meetingTimeRemaining = $derived.by(() => {
+		if (!event) return null;
+		const remaining = new Date(event.endTime).getTime() - now;
+		return remaining > 0 ? remaining : null;
+	});
+
+	/** Breakout rooms count down the session; the plenary room counts down the meeting. */
+	let roomChipTimeLeft = $derived.by(() => {
+		if (isBreakoutActive && inBreakoutRoom) return timeLeftFormatted;
+		if (meetingTimeRemaining === null) return null;
+		return formatLongCountdown(meetingTimeRemaining);
+	});
 
 	let isBreakoutWrapUp = $derived(
 		isBreakoutActive && isBreakoutWrappingUp(breakoutTimeRemaining)
@@ -1152,7 +1172,7 @@
 {/if}
 
 {#snippet roomChip()}
-	{#if isBreakoutActive && inBreakoutRoom}
+	{#if roomChipTimeLeft}
 		<div
 			class="bg-sidebar-foreground/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 md:px-3 md:py-1"
 		>
@@ -1162,7 +1182,7 @@
 			<span class="text-sidebar-foreground text-sm font-semibold tabular-nums md:text-xs">
 				<span class="md:hidden">Time left </span>
 				<span class="hidden md:inline">·</span>
-				{timeLeftFormatted}
+				{roomChipTimeLeft}
 			</span>
 		</div>
 	{:else}
