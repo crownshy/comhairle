@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { ArrowRight, ChevronLeft, ChevronRight, MessageSquareText, Star } from '@lucide/svelte';
 	import * as Carousel from '$lib/components/ui/carousel';
 	import type { CarouselAPI } from '$lib/components/ui/carousel/context';
 	import { m } from '$lib/paraglide/messages';
 	import { cn } from '$lib/utils';
 
-	type Conversation = ConversationDto | LocalizedConversationDto;
+	type Conversation = LocalizedConversationDto;
 
 	type Props = {
 		conversations: Conversation[];
@@ -76,7 +76,7 @@
 							<!-- A soft band of theme colour along the bottom: brand only, no text on it. -->
 							<div
 								aria-hidden="true"
-								class="from-primary/45 absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t to-transparent"
+								class="from-primary/45 absolute inset-x-0 bottom-0 h-1/3 bg-linear-to-t to-transparent"
 							></div>
 						</div>
 
