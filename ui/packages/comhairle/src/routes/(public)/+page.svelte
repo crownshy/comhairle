@@ -1,27 +1,29 @@
 <script lang="ts">
 	import { m } from '$lib/paraglide/messages';
+	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import Search from './conversations/Search.svelte';
+	import { Pager } from '$lib/pagination';
+	import { page } from '$app/state';
+	import { PAGE_SIZE } from './conversations/utils';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Info from '@lucide/svelte/icons/info';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
-	const isCommunity = $derived(data.isCommunity);
 </script>
 
 <svelte:head>
 	<title>Comhairle</title>
 </svelte:head>
 
-<!-- Centred rather than pushed down by a fixed top padding, which grows with browser zoom
-	while the viewport shrinks and drops the text below the fold. -->
-<div class="flex min-h-[80vh] flex-col items-center justify-center">
-	<div class="flex flex-col items-center justify-center gap-y-10 p-6 sm:p-10">
-		<h1
-			class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl {isCommunity
-				? 'text-left'
-				: 'text-center'}"
-		>
-			{#if isCommunity}
+<!-- No minimum height: the conversation list follows straight after the welcome text,
+	so it shows in the first screen. -->
+<div class="flex flex-col">
+	<div class="flex flex-col gap-y-10 pt-16">
+		<h1 class="text-foreground scroll-m-20 text-4xl font-bold tracking-tight sm:text-5xl">
+			{#if data.isCommunity}
 				{m.welcome_to_the()}
 			{:else}
 				{m.welcome_to()}
@@ -41,31 +43,64 @@
 				</Tooltip.Root>
 			</Tooltip.Provider>
 
-			{#if isCommunity}
+			{#if data.isCommunity}
 				{m.community_server()}
 			{/if}
 		</h1>
 
-		{#if isCommunity}
+		{#if data.isCommunity}
 			{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-				<p class="text-foreground w-full text-left text-xl sm:text-2xl">
+				<p class="text-foreground w-full text-xl sm:text-2xl">
 					{description}
 				</p>
 			{/each}
 		{:else}
-			<p class="text-foreground max-w-xl text-center text-xl sm:text-2xl">
+			<p class="text-foreground max-w-xl text-xl sm:text-2xl">
 				{m.landing_page_subtitle()}
 			</p>
 		{/if}
 
 		<Button
 			size="lg"
-			class="bg-sidebar text-sidebar-foreground px-8 py-6 text-lg {isCommunity
-				? 'sm:self-start'
-				: ''}"
+			class="bg-sidebar text-sidebar-foreground px-8 py-6 text-lg"
 			href="/conversations"
 		>
 			{m.explore_conversations()}
 		</Button>
+	</div>
+	<div class="flex h-full flex-col pt-10 md:pt-20">
+		<header class="pb-5 md:pb-20">
+			<h2 class="mb-4 text-4xl font-bold">{m.conversations()}</h2>
+			<p class="mb-4">
+				{m.conversations_find_open_conversations()}
+			</p>
+			<Search />
+			{#if data.conversations.err !== null}
+				<ErrorMessage>{m.conversations_loading_error()}</ErrorMessage>
+			{:else if data.conversations.ok.records.length === 0}
+				<p class="text-muted-foreground pt-10">
+					{m.conversations_no_conversations_found()}
+				</p>
+			{/if}
+		</header>
+
+		{#if data.conversations.ok !== null && data.conversations.ok.records.length > 0}
+			<div class="flex grow flex-col items-stretch gap-20 md:gap-10 md:px-2">
+				{#each data.conversations.ok.records as conversation (conversation.id)}
+					<a
+						class="block w-full"
+						href={resolve(`/(public)/conversations/[conversation_id]`, {
+							conversation_id: conversation.slug || conversation.id
+						})}
+					>
+						<ConversationCard {conversation} variant="public" />
+					</a>
+				{/each}
+			</div>
+
+			<div class="my-10 flex w-full justify-center md:mt-20">
+				<Pager pageSize={PAGE_SIZE} count={data.conversations.ok.total} url={page.url} />
+			</div>
+		{/if}
 	</div>
 </div>
