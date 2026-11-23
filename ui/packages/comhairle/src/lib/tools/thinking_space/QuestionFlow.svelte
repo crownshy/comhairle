@@ -109,20 +109,6 @@
 	let inExtensionChain = $derived(
 		flow.mode === 'extension' && flow.extensionPhase === 'in-chain'
 	);
-
-	function handleRootKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			flow.submitRootAnswer();
-		}
-	}
-
-	function handleFollowUpKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			flow.submitFollowUp();
-		}
-	}
 </script>
 
 <div class="flex h-full flex-col">
@@ -215,7 +201,6 @@
 							aria-labelledby="thinking-space-root-question"
 							value={flow.currentState.rootAnswer}
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
-							onkeydown={handleRootKeydown}
 							placeholder={m.thinking_space_write_thoughts()}
 							rows={4}
 							class="text-base"
@@ -487,7 +472,6 @@
 							aria-labelledby="thinking-space-follow-up-pick"
 							value={flow.currentState.currentPickAnswer}
 							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
-							onkeydown={handleFollowUpKeydown}
 							placeholder={m.thinking_space_write_thoughts()}
 							rows={4}
 							class="text-base"
