@@ -333,7 +333,7 @@ async fn list_all_sessions(mut con: redis::aio::MultiplexedConnection) -> Result
         }
     }
 
-    sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    sessions.sort_by_key(|s| std::cmp::Reverse(s.started_at));
     Ok(sessions)
 }
 
@@ -703,6 +703,16 @@ async fn monitor_recording_process(
 // API Handlers
 // ============================================================================
 
+/// Where a recording's output goes once gst-meet exits - bundled into one
+/// param (rather than 4 separate ones) to keep `start_recording_for_room`
+/// under clippy's too-many-arguments limit.
+struct RecordingDestination {
+    s3_bucket: Option<String>,
+    s3_path: Option<String>,
+    webhook_url: String,
+    webhook_secret: Option<String>,
+}
+
 /// Shared recording-start logic used by both the manual `/recordings` API and the
 /// Prosody `room/created` webhook.
 async fn start_recording_for_room(
@@ -712,10 +722,7 @@ async fn start_recording_for_room(
     nickname: String,
     jwt_token: Option<String>,
     password_auth: Option<(String, String, String, String, String)>,
-    s3_bucket: Option<String>,
-    s3_path: Option<String>,
-    webhook_url: String,
-    webhook_secret: Option<String>,
+    destination: RecordingDestination,
 ) -> Result<RecordingSession> {
     let session_id = Uuid::new_v4();
 
@@ -731,8 +738,14 @@ async fn start_recording_for_room(
     // comhairle-api's trigger_recording doesn't set these - this bucket/path is
     // just this recorder's own scratch space, re-uploaded elsewhere via the
     // completion webhook's presigned download_url, not the final destination.
-    let s3_bucket = s3_bucket.unwrap_or_else(|| state.config.default_s3_bucket.clone());
-    let s3_path = s3_path.unwrap_or_else(|| format!("recordings/{}/{}.ogg", room_name, timestamp));
+    let s3_bucket = destination
+        .s3_bucket
+        .unwrap_or_else(|| state.config.default_s3_bucket.clone());
+    let s3_path = destination
+        .s3_path
+        .unwrap_or_else(|| format!("recordings/{}/{}.ogg", room_name, timestamp));
+    let webhook_url = destination.webhook_url;
+    let webhook_secret = destination.webhook_secret;
 
     let session = RecordingSession {
         session_id,
@@ -831,10 +844,12 @@ async fn start_recording(
         req.nickname,
         req.jwt_token,
         password_auth,
-        req.s3_bucket,
-        req.s3_path,
-        req.webhook_url,
-        req.webhook_secret,
+        RecordingDestination {
+            s3_bucket: req.s3_bucket,
+            s3_path: req.s3_path,
+            webhook_url: req.webhook_url,
+            webhook_secret: req.webhook_secret,
+        },
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -912,10 +927,12 @@ async fn room_created_webhook(
         nickname,
         jwt_token,
         None,
-        Some(state.config.default_s3_bucket.clone()),
-        Some(s3_path),
-        state.config.default_webhook_url.clone(),
-        None,
+        RecordingDestination {
+            s3_bucket: Some(state.config.default_s3_bucket.clone()),
+            s3_path: Some(s3_path),
+            webhook_url: state.config.default_webhook_url.clone(),
+            webhook_secret: None,
+        },
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;

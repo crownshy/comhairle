@@ -117,7 +117,10 @@ pub async fn trigger_recording(
     room_name: &str,
     muc_domain: Option<&str>,
     recording_name: &str,
-    use_recorder_account: bool,
+    // Some(_) => breakout room: use the password-authenticated recorder
+    // account, granting it this main room's affiliation first (see
+    // `jitsi_recorder::trigger_recording`'s doc comment). None => main room:
+    // mint a bot JWT as before.
     main_room_jid: Option<&str>,
 ) -> Result<(), ComhairleError> {
     let recorder_config = state.required_jitsi_recorder_config()?;
@@ -142,7 +145,7 @@ pub async fn trigger_recording(
     .await?;
 
     let (jwt_token, xmpp_username, xmpp_password, focus_jid, xmpp_auth_domain, main_room_jid) =
-        if use_recorder_account {
+        if let Some(main_room_jid) = main_room_jid {
             let username = recorder_config
                 .recorder_xmpp_username
                 .as_deref()
@@ -179,11 +182,6 @@ pub async fn trigger_recording(
                             .to_string(),
                     )
                 })?;
-            let main_room_jid = main_room_jid.ok_or_else(|| {
-                ComhairleError::JitsiRecorderError(
-                    "breakout recording requires the main room's JID".to_string(),
-                )
-            })?;
             (
                 None,
                 Some(username),

@@ -1525,7 +1525,6 @@ async fn trigger_main_room_recording(
         &video_meeting_id.to_string(),
         Some(&recorder_config.main_muc_domain),
         "Main room",
-        false,
         None,
     )
     .await
@@ -1560,7 +1559,6 @@ async fn trigger_breakout_room_recording(
         room_name,
         Some(muc_domain),
         &format!("Breakout room #{}", room_index + 1),
-        true,
         Some(&main_room_jid),
     )
     .await
