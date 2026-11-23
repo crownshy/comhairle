@@ -77,6 +77,20 @@ pub struct JitsiRecorderConfig {
     /// singleton only ever sees a request-scoped derived secret, never this
     /// value itself.
     pub webhook_secret: String,
+    /// Password-authenticated XMPP account (registered directly on Prosody,
+    /// admin-listed) used for breakout-room recordings instead of a bot JWT.
+    /// mod_muc_breakout_rooms.lua rejects any breakout join whose session
+    /// didn't already join the main room first; is_admin() is the only
+    /// exemption, and anonymous+JWT sessions can't be made admins. Optional
+    /// so tenants that haven't provisioned the account yet keep working -
+    /// breakout recording is simply unavailable for them until they do.
+    pub recorder_xmpp_username: Option<String>,
+    pub recorder_xmpp_password: Option<String>,
+    /// e.g. `focus@auth.meet.jitsi/focus`. gst-meet would otherwise default
+    /// this to `focus@auth.<xmpp-domain>`, which resolves wrong once
+    /// xmpp-domain is set to the recorder account's own auth domain
+    /// (hidden.meet.jitsi) rather than the deployment's real one.
+    pub recorder_focus_jid: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
