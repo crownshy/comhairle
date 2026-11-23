@@ -65,43 +65,44 @@
 			class="mx-auto flex w-full max-w-7xl flex-col items-start gap-8 px-6 pt-16 pb-16 md:pb-28"
 		>
 			<div class="flex max-w-3xl flex-col gap-4">
-				<h1
-					class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
-				>
-					{#if data.isCommunity}
-						{m.welcome_to_the()}
-					{:else}
-						{m.welcome_to()}
-					{/if}
-
-					<Tooltip.Provider delayDuration={0}>
-						<Tooltip.Root>
-							<Tooltip.Trigger
-								class="inline-flex cursor-default items-baseline gap-2"
-								onclick={(e) => e.preventDefault()}
-							>
-								Comhairle<Info class="text-foreground inline size-5 self-center" />
-							</Tooltip.Trigger>
-							<Tooltip.Content side="top" class="text-base">
-								{m.comhairle_meaning()}
-							</Tooltip.Content>
-						</Tooltip.Root>
-					</Tooltip.Provider>
-
-					{#if data.isCommunity}
-						{m.community_server()}
-					{/if}
-				</h1>
-
 				{#if data.isCommunity}
+					<h1
+						class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
+					>
+						{m.welcome_to_the()}
+
+						<Tooltip.Provider delayDuration={0}>
+							<Tooltip.Root>
+								<Tooltip.Trigger
+									class="inline-flex cursor-default items-baseline gap-2"
+									onclick={(e) => e.preventDefault()}
+								>
+									Comhairle<Info
+										class="text-foreground inline size-5 self-center"
+									/>
+								</Tooltip.Trigger>
+								<Tooltip.Content side="top" class="text-base">
+									{m.comhairle_meaning()}
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
+
+						{m.community_server()}
+					</h1>
+
 					{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
 						<p class="text-lg text-pretty sm:text-xl">
 							{description}
 						</p>
 					{/each}
 				{:else}
+					<h1
+						class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
+					>
+						{m.home_hero_title()}
+					</h1>
 					<p class="text-lg text-pretty sm:text-xl">
-						{m.landing_page_subtitle()}
+						{m.home_hero_subtitle()}
 					</p>
 				{/if}
 
