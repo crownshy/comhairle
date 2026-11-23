@@ -1044,6 +1044,9 @@ mod tests {
             base_url: "http://unused.invalid".to_string(),
             main_muc_domain: "muc.meet.jitsi".to_string(),
             webhook_secret: "test_master_secret".to_string(),
+            recorder_xmpp_username: None,
+            recorder_xmpp_password: None,
+            recorder_focus_jid: None,
         });
 
         let state = Arc::new(
@@ -1132,6 +1135,9 @@ mod tests {
             base_url: "http://unused.invalid".to_string(),
             main_muc_domain: "muc.meet.jitsi".to_string(),
             webhook_secret: "test_master_secret".to_string(),
+            recorder_xmpp_username: None,
+            recorder_xmpp_password: None,
+            recorder_focus_jid: None,
         });
 
         let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);

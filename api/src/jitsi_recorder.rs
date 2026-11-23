@@ -137,23 +137,32 @@ pub async fn trigger_recording(
     .await?;
 
     let (jwt_token, xmpp_username, xmpp_password, focus_jid) = if use_recorder_account {
-        let username = recorder_config.recorder_xmpp_username.as_deref().ok_or_else(|| {
-            ComhairleError::JitsiRecorderError(
-                "breakout recording requires recorder_xmpp_username/password to be configured"
-                    .to_string(),
-            )
-        })?;
-        let password = recorder_config.recorder_xmpp_password.as_deref().ok_or_else(|| {
-            ComhairleError::JitsiRecorderError(
-                "breakout recording requires recorder_xmpp_username/password to be configured"
-                    .to_string(),
-            )
-        })?;
-        let focus_jid = recorder_config.recorder_focus_jid.as_deref().ok_or_else(|| {
-            ComhairleError::JitsiRecorderError(
-                "breakout recording requires recorder_focus_jid to be configured".to_string(),
-            )
-        })?;
+        let username = recorder_config
+            .recorder_xmpp_username
+            .as_deref()
+            .ok_or_else(|| {
+                ComhairleError::JitsiRecorderError(
+                    "breakout recording requires recorder_xmpp_username/password to be configured"
+                        .to_string(),
+                )
+            })?;
+        let password = recorder_config
+            .recorder_xmpp_password
+            .as_deref()
+            .ok_or_else(|| {
+                ComhairleError::JitsiRecorderError(
+                    "breakout recording requires recorder_xmpp_username/password to be configured"
+                        .to_string(),
+                )
+            })?;
+        let focus_jid = recorder_config
+            .recorder_focus_jid
+            .as_deref()
+            .ok_or_else(|| {
+                ComhairleError::JitsiRecorderError(
+                    "breakout recording requires recorder_focus_jid to be configured".to_string(),
+                )
+            })?;
         (None, Some(username), Some(password), Some(focus_jid))
     } else {
         let video_call_config = state
@@ -161,7 +170,12 @@ pub async fn trigger_recording(
             .video_call_service
             .as_ref()
             .ok_or(ComhairleError::NoVideoServiceConfigured)?;
-        (Some(mint_bot_jwt(video_call_config, room_name)?), None, None, None)
+        (
+            Some(mint_bot_jwt(video_call_config, room_name)?),
+            None,
+            None,
+            None,
+        )
     };
     let webhook_secret =
         derive_recorder_webhook_secret(&recorder_config.webhook_secret, &recording_id)?;
