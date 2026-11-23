@@ -97,3 +97,11 @@ pub struct SubmitReportResponse {
     pub url: String,
     pub success: bool,
 }
+
+/// Response after jitsi-recorder's completion webhook is processed.
+#[cfg_attr(test, derive(Deserialize))]
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RecorderWebhookResponse {
+    pub success: bool,
+}

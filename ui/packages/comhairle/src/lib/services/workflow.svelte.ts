@@ -76,11 +76,11 @@ export class WorkflowService {
 		});
 	}
 
-	// Start a workflow step
+	// Start / resume a workflow step
 	startWorkflowStep(workflowStepId: string) {
 		// End previous step if exists
-		if (this.currentWorkflowStep) {
-			this.finishWorkflowStep(this.currentWorkflowStep);
+		if (this.currentWorkflowStep && this.currentWorkflowStep !== workflowStepId) {
+			this.finishWorkflowStep(this.currentWorkflowStep, 'finished');
 		}
 
 		this.currentWorkflowStep = workflowStepId;
@@ -95,24 +95,24 @@ export class WorkflowService {
 	}
 
 	// Finish a workflow step
-	finishWorkflowStep(workflowStepId: string) {
+	finishWorkflowStep(workflowStepId: string, endReason: string) {
 		if (this.currentWorkflowStep === workflowStepId) {
 			this.currentWorkflowStep = null;
 		}
 
 		ws.send({
 			type: 'user_finished_workflow_step',
-			payload: { workflow_step_id: workflowStepId }
+			payload: { workflow_step_id: workflowStepId, end_reason: endReason }
 		} as WorkflowWebSocketMessage);
 
 		console.log(`Finished workflow step: ${workflowStepId}`);
 	}
 
 	// Mark user as idle on a workflow step
-	markIdle(workflowStepId: string) {
+	markIdle(workflowStepId: string, inactiveSeconds: number) {
 		ws.send({
 			type: 'user_idle',
-			payload: { workflow_step_id: workflowStepId }
+			payload: { workflow_step_id: workflowStepId, inactive_seconds: inactiveSeconds }
 		} as WorkflowWebSocketMessage);
 
 		console.log(`Marked idle on workflow step: ${workflowStepId}`);
@@ -184,9 +184,7 @@ export class WorkflowService {
 
 	// Cleanup method to call when service is no longer needed
 	destroy() {
-		if (this.currentWorkflowStep) {
-			this.finishWorkflowStep(this.currentWorkflowStep);
-		}
+		this.currentWorkflowStep = null;
 	}
 }
 

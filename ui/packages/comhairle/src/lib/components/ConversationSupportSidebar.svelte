@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { CircleHelp, LucideChevronRight } from 'lucide-svelte';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+	import LucideChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type { ComhairleDocument, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
@@ -43,7 +44,7 @@
 	const TAB_TRIGGER_CLASS =
 		'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-muted-foreground/40 active:bg-muted data-[state=active]:text-foreground data-[state=active]:border-primary dark:data-[state=active]:border-primary data-[state=active]:hover:bg-muted/60 dark:data-[state=active]:hover:bg-muted/60 h-11 flex-none cursor-pointer rounded-none rounded-t-md border-0 border-b-2 border-transparent bg-transparent px-3 text-base shadow-none transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent';
 
-	// Embedded pages have no NavBar to hold the phone trigger, so they keep a floating one.
+	// Embedded pages have no NavBar to hold the trigger, so they keep a floating one.
 	let isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 
 	let tabs = [
@@ -63,18 +64,10 @@
 </script>
 
 <Drawer.Root direction="right" bind:open={supportDrawer.open}>
-	<!-- The sideways tab covers the step header below lg, so smaller screens open the drawer
-	     from a NavBar button instead. -->
-	<!-- Vertical writing mode rather than a rotation, so the tab stays flush with the edge
-	     however long the translated label is. -->
-	<Drawer.Trigger
-		class="bg-primary text-primary-foreground fixed top-1/5 right-0 rotate-180 p-3 font-bold [writing-mode:vertical-rl] max-lg:hidden"
-		>{m.support_find_out_more()}</Drawer.Trigger
-	>
 	{#if isEmbed}
 		<!-- Raised to clear sticky bottom bars like Prioritization's. -->
 		<Drawer.Trigger
-			class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg lg:hidden"
+			class="bg-primary text-primary-foreground fixed end-4 bottom-20 z-40 inline-flex size-14 items-center justify-center rounded-full shadow-lg"
 			aria-label={m.support_find_out_more()}
 		>
 			<CircleHelp class="size-7" aria-hidden="true" />
@@ -108,13 +101,18 @@
 				{#each tabs as tab (tab.value)}
 					<Tabs.Content value={tab.value} class="overflow-y-auto pe-2">
 						{#if tab.value === 'privacyPolicy' && stepDataProtocol}
-							<StepDataProtocol
-								text={stepDataProtocol.text}
-								toolType={stepDataProtocol.toolType}
-								onOpenFaq={() => (activeTab = 'faqs')}
-								{availableDocuments}
-								conversationId={conversation.id}
-							/>
+							<section class="border-border mb-6 flex flex-col gap-3 border-b pb-6">
+								<h2 class="text-primary text-xl font-bold">
+									{m.data_protocol_step_heading()}
+								</h2>
+								<StepDataProtocol
+									text={stepDataProtocol.text}
+									toolType={stepDataProtocol.toolType}
+									onOpenFaq={() => (activeTab = 'faqs')}
+									{availableDocuments}
+									conversationId={conversation.id}
+								/>
+							</section>
 						{/if}
 						{#if tab.content}
 							<ContentRenderer

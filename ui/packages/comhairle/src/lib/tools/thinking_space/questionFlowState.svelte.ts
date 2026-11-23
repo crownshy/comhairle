@@ -2,6 +2,7 @@ import { apiClient } from '@crownshy/api-client/client';
 import { notifications } from '$lib/notifications.svelte';
 import { fetchFollowUps } from './converse';
 import type { QuestionConfig, QuestionAnswers, FollowUpAnswer } from './types';
+import { countWords, MAX_ANSWER_WORDS } from './wordLimit';
 
 export type Phase = 'root' | 'picking' | 'answering';
 
@@ -134,6 +135,20 @@ export class QuestionFlowState {
 		return Math.max(0, this.questions.length - 1);
 	}
 
+	get activeDraft(): string {
+		return this.currentState.phase === 'answering'
+			? this.currentState.currentPickAnswer
+			: this.currentState.rootAnswer;
+	}
+
+	get draftWordCount() {
+		return countWords(this.activeDraft);
+	}
+
+	get draftOverLimit() {
+		return this.draftWordCount > MAX_ANSWER_WORDS;
+	}
+
 	get currentState(): LocalQuestionState {
 		return this.states[this.currentQuestionIndex];
 	}
@@ -185,21 +200,6 @@ export class QuestionFlowState {
 		}));
 	}
 
-	// Build the running Q/A history the agent uses to generate follow-ups.
-	private buildHistory(questionIndex: number): string {
-		const state = this.states[questionIndex];
-		const lines: string[] = [];
-		let turn = 1;
-		lines.push(`Q${turn}: ${this.questions[questionIndex].text}`);
-		lines.push(`A${turn}: ${state.rootAnswer}`);
-		for (const followUp of state.followUps) {
-			turn++;
-			lines.push(`Q${turn}: ${followUp.question}`);
-			lines.push(`A${turn}: ${followUp.answer}`);
-		}
-		return lines.join('\n');
-	}
-
 	// Participant has opted to keep going deeper after meeting the minimum.
 	// Reveals the picker; loads it if it isn't already in flight or cached.
 	chooseMore() {
@@ -227,6 +227,18 @@ export class QuestionFlowState {
 	}
 
 	async loadPicker(questionIndex: number) {
+		const rootAnswerId = this.states[questionIndex].rootAnswerId;
+		if (!rootAnswerId) {
+			console.error('loadPicker called before the root answer was submitted');
+			this.states[questionIndex] = {
+				...this.states[questionIndex],
+				picker: [],
+				pickerLoading: false,
+				pickerError: true
+			};
+			return;
+		}
+
 		this.states[questionIndex] = {
 			...this.states[questionIndex],
 			pickerLoading: true,
@@ -234,13 +246,11 @@ export class QuestionFlowState {
 		};
 		try {
 			const question = this.questions[questionIndex];
-			const followUps = await fetchFollowUps({
+			const picker = await fetchFollowUps({
 				workflowStepId: this.workflowStepId,
-				startingQuestion: question.text,
-				questionIntent: question.intent,
-				history: this.buildHistory(questionIndex)
+				rootQuestionId: rootAnswerId,
+				questionIntent: question.intent
 			});
-			const picker = followUps.map((followUp) => followUp.question);
 			this.states[questionIndex] = {
 				...this.states[questionIndex],
 				picker,
@@ -251,12 +261,12 @@ export class QuestionFlowState {
 			// audit trail required to resume a participant later. Fire-and-forget:
 			// failure must not block the picker UI. Skips when the root answer id
 			// is missing (shouldn't happen post-root-submit, but defensive).
-			const rootAnswerId = this.states[questionIndex].rootAnswerId;
-			if (rootAnswerId && picker.length > 0) {
+			const persistRootAnswerId = this.states[questionIndex].rootAnswerId;
+			if (persistRootAnswerId && picker.length > 0) {
 				apiClient
 					.CreateThinkingSpaceFollowUpQuestions({
 						workflow_step_id: this.workflowStepId,
-						root_question_id: rootAnswerId,
+						root_question_id: persistRootAnswerId,
 						follow_up_questions: picker
 					})
 					.catch((err) => {
@@ -284,7 +294,8 @@ export class QuestionFlowState {
 
 	async submitRootAnswer() {
 		const value = this.currentState.rootAnswer.trim();
-		if (!value || this.submitting) return;
+		if (!value || this.submitting || this.draftOverLimit) return;
+
 		this.submitting = true;
 		try {
 			const saved = await apiClient.CreateThinkingSpaceAnswer({
@@ -347,7 +358,7 @@ export class QuestionFlowState {
 
 	async submitFollowUp() {
 		const value = this.currentState.currentPickAnswer.trim();
-		if (!value || this.submitting) return;
+		if (!value || this.submitting || this.draftOverLimit) return;
 		this.submitting = true;
 		try {
 			const saved = await apiClient.CreateThinkingSpaceAnswer({

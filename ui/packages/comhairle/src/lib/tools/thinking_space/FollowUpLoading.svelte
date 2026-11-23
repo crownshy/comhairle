@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles } from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { m } from '$lib/paraglide/messages';
 
 	const messages = [

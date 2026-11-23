@@ -1,6 +1,7 @@
 # ADR-0058: The public report pages through cards cut from its own headings
 
-**Status:** proposed
+**Status:** proposed. Decision 1, and the "2 of 3" in decision 3, are superseded by
+[ADR-0069](0069-the-report-pages-at-its-page-breaks.md).
 **Date:** 2026-10-21
 **Builds on:** [ADR-0047](0047-one-pager-innermost-first-navigation.md),
 [ADR-0048](0048-the-middle-is-the-move-the-corners-are-navigation.md)

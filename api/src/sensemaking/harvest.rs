@@ -186,7 +186,7 @@ async fn harvest_prioritization(
         let responses = proposal_response::list(
             &state.db,
             &prop.id,
-            ProposalResponseFilterOptions,
+            ProposalResponseFilterOptions::default(),
             ProposalResponseOrderOptions,
         )
         .await?;

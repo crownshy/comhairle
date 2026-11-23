@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowRight, BookOpen, Lightbulb } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
 	import GuideImageCarousel from '$lib/components/AdminGuide/GuideImageCarousel.svelte';
 	import GuideRichText from '$lib/components/AdminGuide/GuideRichText.svelte';
 	import type { AdminGuideImage } from '$lib/admin_guides';

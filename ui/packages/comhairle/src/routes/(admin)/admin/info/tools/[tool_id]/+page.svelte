@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ArrowRight, Clock, Target, Timer } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Target from '@lucide/svelte/icons/target';
+	import Timer from '@lucide/svelte/icons/timer';
 	import { GUIDE_NAV, TOOL_GUIDES } from '$lib/tool_guides';
 	import { toSlug } from '$lib/utils/casingUtils';
 	import { cn } from '$lib/utils';

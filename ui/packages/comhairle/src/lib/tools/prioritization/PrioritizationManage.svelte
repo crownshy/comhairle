@@ -6,7 +6,11 @@
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Plus, Pencil, Trash2, LoaderCircle, GripVertical } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { createStore } from './store.svelte';
@@ -257,10 +261,10 @@
 		}
 	}, 500);
 
-	function describeType(type: DraftQuestionType): string {
+	function describeType({ type, required }: DraftQuestion): string {
 		switch (type.kind) {
 			case 'text':
-				return 'Free text';
+				return required ? 'Free text · Required' : 'Free text · Optional';
 			case 'likert':
 				return `Likert · ${type.categories.length} options`;
 			case 'continuous':
@@ -347,7 +351,7 @@
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
 									>
-										<Badge variant="outline">{describeType(q.type)}</Badge>
+										<Badge variant="outline">{describeType(q)}</Badge>
 										{#if summariseScale(q.type)}
 											<span>{summariseScale(q.type)}</span>
 										{/if}
@@ -466,7 +470,7 @@
 									<div
 										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
 									>
-										<Badge variant="outline">{describeType(q.type)}</Badge>
+										<Badge variant="outline">{describeType(q)}</Badge>
 										{#if summariseScale(q.type)}
 											<span>{summariseScale(q.type)}</span>
 										{/if}
@@ -636,6 +640,7 @@
 		open={questionEditorOpen}
 		question={selectedQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="proposal"
 		onOpenChange={(o) => {
@@ -650,6 +655,7 @@
 		open={sectionQuestionEditorOpen}
 		question={selectedSectionQuestion}
 		{store}
+		conversationId={conversation.id}
 		{toolConfig}
 		target="section"
 		onOpenChange={(o) => {

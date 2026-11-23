@@ -1,0 +1,35 @@
+# Git
+.git/
+.gitignore
+
+# Rust build artifacts
+target/
+# Note: Cargo.lock is NOT excluded - needed for reproducible builds
+
+# Environment files
+.env
+.env.local
+
+# Recordings
+*.wav
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in image)
+*.md
+!README.md
+
+# Test scripts
+test-*.sh
+
+# Claude
+.claude/

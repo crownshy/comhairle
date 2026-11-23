@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CircleHelp } from 'lucide-svelte';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { Button } from '$lib/components/ui/button';
 	import { tourStore } from './tourStore.svelte';
 </script>

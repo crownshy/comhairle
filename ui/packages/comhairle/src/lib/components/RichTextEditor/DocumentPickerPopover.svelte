@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Popover from '$lib/components/ui/popover';
-	import { FileText } from 'lucide-svelte';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 

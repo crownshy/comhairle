@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { CalendarDays, Plus } from 'lucide-svelte';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import Plus from '@lucide/svelte/icons/plus';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import { sectionTabClass } from './sectionTabClass';
 	import type { LocalizedEventDto } from '@crownshy/api-client/api';

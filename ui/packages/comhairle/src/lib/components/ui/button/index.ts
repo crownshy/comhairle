@@ -2,9 +2,9 @@ import Root, {
 	type ButtonProps,
 	type ButtonSize,
 	type ButtonVariant,
-	buttonVariants,
-} from "./button.svelte";
-import LoadingButton from "./loading-button.svelte";
+	buttonVariants
+} from './button.svelte';
+import LoadingButton from './loading-button.svelte';
 
 export {
 	Root,
@@ -15,5 +15,5 @@ export {
 	buttonVariants,
 	type ButtonProps,
 	type ButtonSize,
-	type ButtonVariant,
+	type ButtonVariant
 };

@@ -7,7 +7,7 @@ export const stepTour: Tour = {
 			element: '[data-tour="step-subtabs"]',
 			title: 'Step tabs',
 			description:
-				'Setup holds the content participants see. Configure sets the step name and navigation rules. Insights only applies to tools that collect contributions.',
+				'Setup holds the content participants see. Configure sets the step name and navigation rules.',
 			side: 'bottom'
 		}
 	]

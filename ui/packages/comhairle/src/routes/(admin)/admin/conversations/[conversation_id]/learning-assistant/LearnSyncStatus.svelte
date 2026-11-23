@@ -2,7 +2,9 @@
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate } from '$app/navigation';
-	import { CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-svelte';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { key } from '$lib/utils/invalidationKey';
 

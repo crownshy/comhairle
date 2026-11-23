@@ -30,11 +30,13 @@ function polisConfig(moderationPolicyId: string | null): ToolConfigWithTranslati
 		admin_password: 'secret',
 		required_votes: 10,
 		show_remaining_statements: true,
+		show_onboarding: false,
 		topic: null,
 		description: null,
 		is_active: true,
 		strict_moderation: false,
-		moderation_policy_id: moderationPolicyId
+		moderation_policy_id: moderationPolicyId,
+		notify_moderators: true
 	};
 }
 

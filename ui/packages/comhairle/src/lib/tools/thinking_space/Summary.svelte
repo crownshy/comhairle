@@ -1,27 +1,27 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import {
-		Sparkles,
-		RotateCcw,
-		Check,
-		CornerDownRight,
-		PlusCircle,
-		LoaderCircle,
-		TriangleAlert
-	} from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Check from '@lucide/svelte/icons/check';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import PlusCircle from '@lucide/svelte/icons/circle-plus';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { saveRound } from './summary';
+	import { createManualRound, saveRound } from './summary';
 	import ConsentModal from './ConsentModal.svelte';
 	import ConsentToggle from './ConsentToggle.svelte';
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
+	import { cn } from '$lib/utils';
 
 	type Props = {
 		topic: string;
@@ -46,6 +46,13 @@
 		 * failure).
 		 */
 		loadError?: boolean;
+		/**
+		 * True when `loadError` is specifically because the participant's
+		 * answers were too sparse to summarize. Swaps the retry button for
+		 * "answer more questions" (retrying the same answers would just fail
+		 * the same way again) alongside the write-your-own option.
+		 */
+		insufficientAnswers?: boolean;
 		/** Step-level admin flag. When false, the consent modal/toggle never render. */
 		requestUserSharePermission?: boolean;
 		/** Current backend value for `permission_to_share_with_organizers`. */
@@ -72,6 +79,7 @@
 		rounds,
 		pendingNextRound = false,
 		loadError = false,
+		insufficientAnswers = false,
 		requestUserSharePermission = false,
 		initialPermissionToShareWithOrganizers = null,
 		progressStatus = 'not_started',
@@ -87,6 +95,9 @@
 	// kept as the display source of truth after saving, because the parent's
 	// `rounds` prop is never refreshed with the saved text (see valueFor).
 	let editsById = $state<Record<string, string>>({});
+	// Participant-written summary, offered when generation failed outright
+	// (no rounds exist yet). Only created on submit, not autosaved.
+	let manualDraft = $state('');
 	// Quiet autosave indicator per round: 'saving' → 'saved' (auto-clears after
 	// 2s) or 'error' (sticks). Absent means idle. Mirrors the configure-page
 	// pattern (see TranslatableField / translationSource).
@@ -201,10 +212,34 @@
 
 	async function doSubmit() {
 		if (submitting) return;
-		// With no summary (generation failed) there is nothing to save, so the step just completes.
+		submitting = true;
+
+		// The answers were too sparse to summarize and the participant wrote
+		// their own instead. Create it directly, bypassing AI generation. This
+		// takes priority over any existing round, whether this is the first
+		// attempt (no rounds yet) or a later one (prior rounds already exist).
+		if (insufficientAnswers && manualDraft.trim()) {
+			const res = await tryCatchAsync(() =>
+				createManualRound({ workflowStepId, summary: manualDraft.trim() })
+			);
+			if (res.err !== null) {
+				console.error(res.err);
+				notifications.send({
+					message: 'Could not save your summary. Please try again.',
+					priority: 'ERROR'
+				});
+				submitting = false;
+				return;
+			}
+			submitting = false;
+			onDone?.();
+			return;
+		}
+
+		// Generation failed and the participant left the manual field blank:
+		// there is nothing to save, so the step just completes.
 		const latest = rounds.at(-1);
 		const value = latest ? valueFor(latest).trim() : '';
-		submitting = true;
 		if (latest && editsById[latest.id] !== undefined) {
 			const res = await tryCatchAsync(() =>
 				saveRound({ workflowStepId, roundId: latest.id, submittedText: value })
@@ -287,12 +322,26 @@
 		return `${m.round()} ${index + 1} ${m.thinking()}`;
 	}
 
+	let latest = $derived(rounds.at(-1));
+	let isLatestEdited = $derived(latest !== undefined && editsById[latest.id] !== undefined);
+	let latestWordCount = $derived(latest ? countWords(valueFor(latest)) : 0);
+	let latestOverLimit = $derived(isLatestEdited && latestWordCount > MAX_SUMMARY_WORDS);
 	let latestHasText = $derived(
 		rounds.length > 0 && valueFor(rounds[rounds.length - 1]).trim().length > 0
 	);
 	// A failed generation must not trap the participant: their answers are already saved.
 	let summaryFailed = $derived(loadError && rounds.length === 0 && !pendingNextRound);
-	let canSubmit = $derived((latestHasText || summaryFailed) && !pendingNextRound && !submitting);
+	let manualWordCount = $derived(countWords(manualDraft));
+	let manualOverLimit = $derived(
+		manualDraft.trim().length > 0 && manualWordCount > MAX_SUMMARY_WORDS
+	);
+	let canSubmit = $derived(
+		(latestHasText || summaryFailed) &&
+			!pendingNextRound &&
+			!submitting &&
+			!latestOverLimit &&
+			!manualOverLimit
+	);
 	let blockedReason = $derived.by(() => {
 		if (canSubmit) return undefined;
 		if (pendingNextRound || rounds.length === 0)
@@ -375,54 +424,99 @@
 
 	<!-- Summary stack: one editable textarea per round. -->
 	<section class="mt-12 space-y-8">
+		{#snippet summaryEditor(
+			labelId: string,
+			label: string,
+			description: string | undefined,
+			value: string,
+			oninput: (value: string) => void,
+			onblur: (() => void) | undefined,
+			readonly: boolean,
+			placeholder: string,
+			status?: Snippet
+		)}
+			<div class="bg-primary/10 space-y-3 rounded-lg p-4">
+				<div class="flex items-center gap-2">
+					<Sparkles class="text-primary size-4 shrink-0" />
+					<p
+						id={labelId}
+						class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+					>
+						{label}
+					</p>
+					{@render status?.()}
+				</div>
+				{#if description}
+					<p class="text-foreground text-sm leading-relaxed">{description}</p>
+				{/if}
+				<Textarea
+					{value}
+					oninput={(e) => oninput(e.currentTarget.value)}
+					{onblur}
+					{readonly}
+					rows={10}
+					aria-labelledby={labelId}
+					class="bg-background text-base leading-relaxed {readonly
+						? 'cursor-not-allowed opacity-70'
+						: ''}"
+					{placeholder}
+				/>
+			</div>
+		{/snippet}
+
+		{#snippet manualSummaryEditor()}
+			{@render summaryEditor(
+				'thinking-space-manual-summary-label',
+				m.thinking_space_summary_manual_label(),
+				undefined,
+				manualDraft,
+				(v) => (manualDraft = v),
+				undefined,
+				false,
+				m.thinking_space_latest_thinking()
+			)}
+			{#if manualDraft.trim().length > 0}
+				<p class={cn('text-right text-xs', manualOverLimit && 'text-destructive')}>
+					{manualWordCount} / {MAX_SUMMARY_WORDS}
+				</p>
+			{/if}
+		{/snippet}
+
 		{#each rounds as round, i (round.id)}
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
-				<div class="bg-primary/10 space-y-3 rounded-lg p-4">
-					<div class="flex items-center gap-2">
-						<Sparkles class="text-primary size-4 shrink-0" />
-						<p
-							class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
-						>
-							{latestLabel(rounds.length)}
-						</p>
-						{#if saveStateById[round.id] === 'saving'}
-							<span
-								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
-							>
-								<LoaderCircle class="size-3 animate-spin" />
-								{m.saving()}
-							</span>
-						{:else if saveStateById[round.id] === 'saved'}
-							<span class="inline-flex items-center gap-1 text-xs text-green-600">
-								<Check class="size-3" />
-								{m.saved()}
-							</span>
-						{:else if saveStateById[round.id] === 'error'}
-							<span class="text-destructive inline-flex items-center gap-1 text-xs">
-								<TriangleAlert class="size-3" />
-								{m.not_saved()}
-							</span>
-						{/if}
-					</div>
-					<p class="text-foreground text-sm leading-relaxed">
-						{m.thinking_space_summary_edit_desc()}
-					</p>
-					<!-- Lock the previous round while the next one generates: once
-					generation starts this round is about to freeze, so editing it
-					would be lost. -->
-					<Textarea
-						value={valueFor(round)}
-						oninput={(e) => editLatest(round.id, e.currentTarget.value)}
-						onblur={() => persistEdit(round.id)}
-						readonly={pendingNextRound}
-						rows={10}
-						class="bg-background text-base leading-relaxed {pendingNextRound
-							? 'cursor-not-allowed opacity-70'
-							: ''}"
-						placeholder={m.thinking_space_latest_thinking()}
-					/>
-				</div>
+				{#snippet saveStatus()}
+					{#if saveStateById[round.id] === 'saving'}
+						<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
+							<LoaderCircle class="size-3 animate-spin" />
+							{m.saving()}
+						</span>
+					{:else if saveStateById[round.id] === 'saved'}
+						<span class="inline-flex items-center gap-1 text-xs text-green-600">
+							<Check class="size-3" />
+							{m.saved()}
+						</span>
+					{:else if saveStateById[round.id] === 'error'}
+						<span class="text-destructive inline-flex items-center gap-1 text-xs">
+							<TriangleAlert class="size-3" />
+							{m.not_saved()}
+						</span>
+					{/if}
+				{/snippet}
+				<!-- Lock the previous round while the next one generates: once
+				generation starts this round is about to freeze, so editing it
+				would be lost. -->
+				{@render summaryEditor(
+					'thinking-space-latest-summary-label',
+					latestLabel(rounds.length),
+					m.thinking_space_summary_edit_desc(),
+					valueFor(round),
+					(v) => editLatest(round.id, v),
+					() => persistEdit(round.id),
+					pendingNextRound,
+					m.thinking_space_latest_thinking(),
+					saveStatus
+				)}
 			{:else}
 				<div class="space-y-2">
 					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
@@ -465,65 +559,108 @@
 		{/if}
 
 		{#if showFirstGenError}
-			<div class="space-y-3 text-center">
-				<p class="text-muted-foreground text-sm">
-					{m.thinking_space_summary_gen_failure()}
+			<div class="space-y-3">
+				<p class="text-muted-foreground text-center text-sm">
+					{insufficientAnswers
+						? m.thinking_space_summary_insufficient_failure()
+						: m.thinking_space_summary_gen_failure()}
 				</p>
-				<p class="text-muted-foreground text-sm">
+				<p class="text-muted-foreground text-center text-sm">
 					{m.thinking_space_summary_continue_without()}
 				</p>
 				<div class="flex justify-center">
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => onRetryGenerate?.()}
-						disabled={!onRetryGenerate}
-					>
-						<RotateCcw class="size-3.5" />
-						{m.try_again()}
-					</Button>
+					{#if insufficientAnswers}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => onAnswerMore?.()}
+							disabled={!onAnswerMore}
+						>
+							<PlusCircle class="size-3.5" />
+							{m.thinking_space_answer_more()}
+						</Button>
+					{:else}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => onRetryGenerate?.()}
+							disabled={!onRetryGenerate}
+						>
+							<RotateCcw class="size-3.5" />
+							{m.try_again()}
+						</Button>
+					{/if}
 				</div>
+				{@render manualSummaryEditor()}
 			</div>
 		{:else if !pendingNextRound && rounds.length > 0}
 			{#if showRetryInline}
-				<div
-					class="border-border flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
-				>
-					<p class="text-muted-foreground text-sm">
-						{m.thinking_space_summary_gen_round_failure()}
-					</p>
-					<Button
-						variant="outline"
-						size="sm"
-						onclick={() => onRetryGenerate?.()}
-						disabled={!onRetryGenerate}
-					>
-						<RotateCcw class="size-3.5" />
-						{m.try_again()}
-					</Button>
+				<div class="border-border flex flex-col gap-3 rounded-lg border px-4 py-3">
+					<div class="flex items-center justify-between gap-3">
+						<p class="text-muted-foreground text-sm">
+							{insufficientAnswers
+								? m.thinking_space_summary_insufficient_failure()
+								: m.thinking_space_summary_gen_round_failure()}
+						</p>
+						{#if insufficientAnswers}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => onAnswerMore?.()}
+								disabled={!onAnswerMore}
+							>
+								<PlusCircle class="size-3.5" />
+								{m.thinking_space_answer_more()}
+							</Button>
+						{:else}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => onRetryGenerate?.()}
+								disabled={!onRetryGenerate}
+							>
+								<RotateCcw class="size-3.5" />
+								{m.try_again()}
+							</Button>
+						{/if}
+					</div>
+					{#if insufficientAnswers}
+						{@render manualSummaryEditor()}
+					{/if}
 				</div>
 			{/if}
-			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-				<Button
-					variant="outline"
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={onAnswerMore}
-					disabled={!onAnswerMore}
+			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+				<span class={cn(latestOverLimit && 'text-destructive')}
+					>{#if isLatestEdited}{latestWordCount} / {MAX_SUMMARY_WORDS}{/if}</span
 				>
-					<PlusCircle class="size-4" />
-					{m.thinking_space_answer_more()}
-				</Button>
-				<Button
-					size="lg"
-					class="w-full sm:w-auto"
-					onclick={submit}
-					disabled={!latestHasText || submitting}
-				>
-					<Check class="size-4" />
-					{submitting ? `${m.saving()}...` : m.confirm_and_save()}
-				</Button>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<Button
+						variant="outline"
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={onAnswerMore}
+						disabled={latestOverLimit || !onAnswerMore}
+					>
+						<PlusCircle class="size-4" />
+						{m.thinking_space_answer_more()}
+					</Button>
+					<Button
+						size="lg"
+						class="w-full sm:w-auto"
+						onclick={submit}
+						disabled={!latestHasText || submitting || latestOverLimit}
+					>
+						<Check class="size-4" />
+						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
+					</Button>
+				</div>
 			</div>
+			{#if latestOverLimit}
+				<p>
+					Your summary is {latestWordCount}. Trim it to {MAX_SUMMARY_WORDS} words or fewer to
+					save your changes.
+				</p>
+			{/if}
 		{/if}
 	</section>
 </div>

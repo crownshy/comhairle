@@ -16,7 +16,7 @@
 	{#if avatarUrl}
 		<Avatar.Image src={avatarUrl} alt="Avatar for {username}" />
 	{/if}
-	<Avatar.Fallback>{user_initials}</Avatar.Fallback>
+	<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 </Avatar.Root>
 {#if withUsername}
 	<h2 class="text-2xl capitalize">{username}</h2>

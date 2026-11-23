@@ -11,8 +11,9 @@ use uuid::Uuid;
 use super::auth::RequiredUser;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::user_progress::{self, UpdateUserProgress};
-use crate::models::workflow_step;
+use crate::models::user_activity::EndReason;
+use crate::models::user_progress::{self, ProgressStatus, UpdateUserProgress};
+use crate::models::{user_activity, workflow_step};
 use crate::routes::user_progress::dto::UserProgressDto;
 
 pub mod dto;
@@ -73,6 +74,11 @@ pub async fn update_user_progress(
 
     let user_progress =
         user_progress::update(&state.db, &user.id, &workflow_step_id, &payload).await?;
+
+    if payload.status == Some(ProgressStatus::Done) {
+        let mut db = state.db.acquire().await?;
+        user_activity::close(&mut db, user.id, workflow_step_id, EndReason::Finished).await?;
+    }
 
     let user_progress: UserProgressDto = user_progress.into();
     Ok((StatusCode::OK, Json(user_progress)))

@@ -1,16 +1,35 @@
 <script lang="ts">
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Check, Languages, Pencil, X } from '@lucide/svelte';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { cn } from '$lib/utils';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import X from '@lucide/svelte/icons/x';
+	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
-	import RejectReasonPopover from './RejectReasonPopover.svelte';
+	import RejectDialog from './RejectDialog.svelte';
 	import TranslationsPanel from './TranslationsPanel.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
+	import {
+		isForeign,
+		languageName,
+		needsReview,
+		translationForReader
+	} from './statementTranslations';
+
+	type ModerationStatus = PolisStatementAux['moderation_status'];
 
 	type Props = {
 		editable?: boolean;
 		row: PolisStatementAux;
+		/** Show the status in the meta line, for views that mix statuses. */
+		showStatus: boolean;
 		/** The conversation's moderation policy reasons, offered on reject. */
 		rejectReasons: RejectReason[];
 		selected: boolean;
@@ -25,16 +44,21 @@
 		editedFrom?: string;
 		/** Texts of the derived statements that replaced this row (if it was split). */
 		replacedBy?: string[];
+		translations: PolisStatementTranslation[];
+		onTranslationChange: (translation: PolisStatementTranslation) => void;
 		/** `range` is true when shift was held, requesting a range select. */
 		onToggle: (checked: boolean, range: boolean) => void;
-		onModerate: (status: 'accepted' | 'rejected', reason?: string) => void;
+		onModerate: (status: ModerationStatus, reason?: string) => void;
 		/** Open the split/reword dialog for this row. */
 		onSplit: () => void;
+		/** Ask to undo the split that replaced this row. */
+		onUndoSplit: () => void;
 	};
 
 	let {
 		editable = true,
 		row,
+		showStatus,
 		rejectReasons,
 		selected,
 		selectionCount,
@@ -42,29 +66,67 @@
 		bulkWorking,
 		editedFrom,
 		replacedBy,
+		translations,
+		onTranslationChange,
 		onToggle,
 		onModerate,
-		onSplit
+		onSplit,
+		onUndoSplit
 	}: Props = $props();
 
 	// When this row is part of a multi-selection, its accept/reject applies to the
 	// whole selection (the parent routes it through the bulk path), so label the
 	// controls accordingly instead of implying a single-statement action.
 	const actsOnSelection = $derived(selected && selectionCount > 1);
-	const acceptTitle = $derived(actsOnSelection ? `Accept ${selectionCount} selected` : 'Accept');
-	const rejectTitle = $derived(actsOnSelection ? `Reject ${selectionCount} selected` : 'Reject');
+	const acceptLabel = $derived(actsOnSelection ? `Accept ${selectionCount}` : 'Accept');
+	const rejectLabel = $derived(actsOnSelection ? `Reject ${selectionCount}` : 'Reject');
+	const controlsDisabled = $derived(pending || bulkWorking);
+	// A decided row swaps its spent action for the way back, so every button does something.
+	const showsAccepted = $derived(!actsOnSelection && row.moderation_status === 'accepted');
+	const showsRejected = $derived(!actsOnSelection && row.moderation_status === 'rejected');
+	// Decided rows are for reading back, so their actions stay quiet icons until hovered.
+	const quiet = $derived(showsAccepted || showsRejected);
+	const ACTION_SIZE = 'h-11 min-w-11 px-3 text-base';
+	const acceptClass = $derived(
+		cn(
+			ACTION_SIZE,
+			'hover:bg-primary/15 hover:text-primary',
+			quiet ? 'text-muted-foreground' : 'text-primary'
+		)
+	);
+	const rejectClass = $derived(
+		cn(
+			ACTION_SIZE,
+			'hover:bg-destructive/15 hover:text-destructive',
+			quiet ? 'text-muted-foreground' : 'text-destructive'
+		)
+	);
+	const labelClass = $derived(quiet ? 'sr-only' : 'sr-only lg:not-sr-only');
 	const rejectHeading = $derived(
 		actsOnSelection ? `Reject ${selectionCount} statements` : 'Reject statement'
 	);
 
-	// Left accent bar colour keyed on seed/status. Olive-green primary stands in
-	// for "accepted"; there is no dedicated success token in the theme.
+	const readerLocale = getLocale();
+	const writtenElsewhere = $derived(isForeign(row.source_locale, readerLocale));
+	const readerTranslation = $derived(
+		translationForReader(row.source_locale, translations, readerLocale)
+	);
+	const reviewCount = $derived(translations.filter(needsReview).length);
+	const hasMoreActions = $derived(editable && (quiet || actsOnSelection));
+
+	// Left accent bar colour keyed on status, so a seed statement shows its status too.
+	// Olive-green primary stands in for "accepted"; there is no dedicated success token.
 	function accentFor(r: PolisStatementAux): string {
-		if (r.is_seed) return 'bg-accent';
 		if (r.moderation_status === 'accepted') return 'bg-primary';
 		if (r.moderation_status === 'rejected') return 'bg-destructive';
 		return 'bg-muted-foreground/40';
 	}
+
+	const STATUS_LABELS: Record<ModerationStatus, string> = {
+		pending: 'Waiting',
+		accepted: 'Accepted',
+		rejected: 'Rejected'
+	};
 
 	// Whether shift was held, for range-select. Every toggle path reads this one
 	// snapshot: we capture it in the capture phase, which runs before the checkbox's
@@ -79,11 +141,10 @@
 	let translationsOpen = $state(false);
 </script>
 
+<!-- Clicking the row is a mouse shortcut for its checkbox, which stays the keyboard and
+     screen reader control, so the row itself is not a button. -->
+<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
-	role="button"
-	tabindex={editable ? 0 : -1}
-	aria-disabled={!editable}
-	aria-pressed={selected}
 	onmousedowncapture={(e) => {
 		snapshotShift(e);
 		// Suppress the browser's text selection on shift-click.
@@ -91,140 +152,212 @@
 	}}
 	onkeydowncapture={snapshotShift}
 	onclick={(e) => {
-		// Ignore clicks that land on the checkbox or the accept/reject controls.
-		if (!editable || bulkWorking || (e.target as HTMLElement).closest('[data-row-control]'))
+		// Clicking the row toggles selection, except on its own controls (checkbox, accept/reject, translations).
+		if (!editable || bulkWorking || (e.target as HTMLElement).closest('[data-skip-row-toggle]'))
 			return;
 		onToggle(!selected, shiftHeld);
 	}}
-	onkeydown={(e) => {
-		if (!editable) return;
-		if (e.key !== 'Enter' && e.key !== ' ') return;
-		// Ignore keys aimed at the checkbox / accept-reject controls; those toggle
-		// themselves (the checkbox via onCheckedChange).
-		if ((e.target as HTMLElement).closest('[data-row-control]')) return;
-		e.preventDefault();
-		if (!bulkWorking) onToggle(!selected, shiftHeld);
-	}}
 	class:cursor-pointer={editable}
-	class={`border-border group relative grid grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
+	class={`border-border group relative grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 border-b py-4 pl-4 transition-colors last:border-b-0 @2xl:grid-cols-[2.5rem_minmax(0,1fr)_auto] ${
 		selected ? 'bg-primary/5' : 'hover:bg-muted/40'
 	}`}
 >
-	<!-- Left accent bar (status colour) -->
-	<span
-		class={`absolute top-0 bottom-0 left-0 w-1 transition-all group-hover:w-1.5 ${accentFor(row)}`}
-	></span>
+	<!-- Status colour, only where statuses mix. In a filtered tab every bar would match. -->
+	{#if showStatus}
+		<span
+			class={`absolute top-0 bottom-0 left-0 w-1 transition-all group-hover:w-1.5 ${accentFor(row)}`}
+		></span>
+	{/if}
 
 	<!-- Select -->
-	<div class="flex items-center" data-row-control>
+	<div class="flex items-center" data-skip-row-toggle>
 		{#if editable}
 			<Checkbox
 				checked={selected}
 				disabled={bulkWorking}
 				onCheckedChange={(v) => onToggle(v === true, shiftHeld)}
 				aria-label="Select statement"
+				class="border-muted-foreground"
 			/>
 		{/if}
 	</div>
 
-	<!-- # -->
-	<div class="text-muted-foreground text-center text-xs tabular-nums">
-		{row.polis_statement_id}
-	</div>
-
-	<!-- Statement text (+ derived-statement badge / lineage) -->
+	<!-- Statement text, then its meta line and lineage -->
 	<div class="flex min-w-0 flex-col gap-1">
-		<div class="flex items-start gap-2">
-			{#if row.original_statement_id}
-				<Badge variant="secondary" class="mt-1 shrink-0">Edited</Badge>
-			{/if}
-			<p class="min-w-0 text-base leading-7">{row.statement_text}</p>
-		</div>
-		{#if editedFrom}
-			<p class="text-muted-foreground text-sm">
-				Edited from: <span class="italic">{editedFrom}</span>
+		<p class="min-w-0 text-base leading-7 font-medium">{row.statement_text}</p>
+		{#if readerTranslation}
+			<p class="min-w-0 text-base leading-7">
+				“{readerTranslation.content}”
+				<span class="text-muted-foreground">
+					· translated from {languageName(row.source_locale ?? '')}
+				</span>
+			</p>
+		{:else if writtenElsewhere}
+			<p class="text-muted-foreground text-base">
+				Written in {languageName(row.source_locale ?? '')}, no translation yet
 			</p>
 		{/if}
+		<div class="text-muted-foreground flex flex-wrap items-center gap-2 text-base">
+			<span class="tabular-nums">#{row.polis_statement_id}</span>
+			{#if editable && showStatus}
+				<span>{STATUS_LABELS[row.moderation_status]}</span>
+			{/if}
+			{#if row.is_seed}
+				<Badge variant="secondary">Seed</Badge>
+			{/if}
+			{#if editedFrom}
+				<span>Edited from <span class="italic">“{editedFrom}”</span></span>
+			{:else if row.original_statement_id}
+				<Badge variant="secondary">Edited</Badge>
+			{/if}
+			{#if translations.length > 0}
+				<button
+					type="button"
+					data-skip-row-toggle
+					aria-expanded={translationsOpen}
+					onclick={() => (translationsOpen = !translationsOpen)}
+					class="hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-6 items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-[3px]"
+				>
+					Translations
+					<ChevronDown
+						class={cn('size-4 transition-transform', translationsOpen && 'rotate-180')}
+					/>
+				</button>
+				{#if reviewCount > 0}
+					<Badge variant="secondary">
+						{reviewCount}
+						{pluralise(reviewCount, 'translation')} to review
+					</Badge>
+				{/if}
+			{/if}
+		</div>
 		{#if replacedBy && replacedBy.length}
-			<p class="text-muted-foreground text-sm">
+			<p class="text-muted-foreground text-base">
 				Replaced by {replacedBy.length}
 				{pluralise(replacedBy.length, 'statement')}
 			</p>
 		{/if}
 		{#if row.moderation_status === 'rejected' && row.moderation_reason}
-			<p class="text-muted-foreground text-sm">
+			<p class="text-muted-foreground text-base">
 				Reason: <span class="italic">{row.moderation_reason}</span>
 			</p>
 		{/if}
 	</div>
 
-	<!-- Actions -->
-	<div class="flex items-center gap-1 self-center pr-2" data-row-control>
-		<button
-			type="button"
-			aria-pressed={translationsOpen}
-			onclick={() => (translationsOpen = !translationsOpen)}
-			title="Translations"
-			class={`inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 ${
-				translationsOpen
-					? 'bg-muted text-foreground'
-					: 'text-muted-foreground hover:bg-muted'
-			}`}
-		>
-			<Languages class="size-5" />
-		</button>
+	<div
+		class="col-start-2 -ml-3 flex items-center gap-1 self-center pr-2 @2xl:col-start-auto @2xl:ml-0"
+		data-skip-row-toggle
+	>
 		{#if editable}
-			{#if !row.is_seed}
-				<button
-					type="button"
-					disabled={pending || bulkWorking}
-					onclick={onSplit}
-					title="Split or reword"
-					class="text-muted-foreground hover:bg-muted inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+			{#snippet acceptButton()}
+				<Button
+					variant="ghost"
+					disabled={controlsDisabled}
+					onclick={() => onModerate('accepted')}
+					title={quiet ? acceptLabel : undefined}
+					class={acceptClass}
 				>
-					<Pencil class="size-5" />
-				</button>
+					<Check class="size-5" />
+					<span class={labelClass}>{acceptLabel}</span>
+				</Button>
+			{/snippet}
+
+			{#if !showsAccepted && !showsRejected}
+				{@render acceptButton()}
 			{/if}
-			<button
-				type="button"
-				disabled={pending ||
-					bulkWorking ||
-					(!actsOnSelection && row.moderation_status === 'accepted')}
-				onclick={() => onModerate('accepted')}
-				title={acceptTitle}
-				class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
+			<!-- Seeds can't be split, but keep the slot so every row's actions line up. -->
+			<Button
+				variant="ghost"
+				disabled={controlsDisabled || row.is_seed}
+				onclick={onSplit}
+				title={quiet ? 'Split or reword' : undefined}
+				aria-hidden={row.is_seed}
+				tabindex={row.is_seed ? -1 : undefined}
+				class={cn(
+					ACTION_SIZE,
+					'text-muted-foreground hover:text-foreground',
+					row.is_seed && 'invisible'
+				)}
 			>
-				<Check class="size-6" />
-			</button>
-			<RejectReasonPopover
-				reasons={rejectReasons}
-				heading={rejectHeading}
-				disabled={pending ||
-					bulkWorking ||
-					(!actsOnSelection && row.moderation_status === 'rejected')}
-				onConfirm={(reason) => onModerate('rejected', reason)}
-			>
-				{#snippet trigger()}
-					<button
-						type="button"
-						disabled={pending ||
-							bulkWorking ||
-							(!actsOnSelection && row.moderation_status === 'rejected')}
-						title={rejectTitle}
-						class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-					>
-						<X class="size-6" />
-					</button>
-				{/snippet}
-			</RejectReasonPopover>
+				<Pencil class="size-5" />
+				<span class={labelClass}>Split or reword</span>
+			</Button>
+			{#if showsRejected}
+				{@render acceptButton()}
+			{:else}
+				<RejectDialog
+					reasons={rejectReasons}
+					heading={rejectHeading}
+					statementText={actsOnSelection ? undefined : row.statement_text}
+					disabled={controlsDisabled}
+					onConfirm={(reason) => onModerate('rejected', reason)}
+				>
+					{#snippet trigger({ props })}
+						<Button
+							{...props}
+							variant="ghost"
+							disabled={controlsDisabled}
+							title={quiet ? rejectLabel : undefined}
+							class={rejectClass}
+						>
+							<X class="size-5" />
+							<span class={labelClass}>{rejectLabel}</span>
+						</Button>
+					{/snippet}
+				</RejectDialog>
+			{/if}
 		{:else}
-			<Badge variant="outline" class="text-base capitalize">{row.moderation_status}</Badge>
+			<Badge variant="outline" class="text-base">{STATUS_LABELS[row.moderation_status]}</Badge
+			>
+		{/if}
+		{#if hasMoreActions}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					aria-label="More actions"
+					title="More actions"
+					class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-11')}
+				>
+					<Ellipsis class="size-5" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="min-w-56">
+					{#if quiet && replacedBy?.length}
+						<!-- Moving a split original back on its own would put it in the poll next to its replacements. -->
+						<DropdownMenu.Item
+							disabled={controlsDisabled}
+							onSelect={onUndoSplit}
+							class="text-base"
+						>
+							<Undo2 class="size-4" />
+							Undo split
+						</DropdownMenu.Item>
+					{:else if quiet}
+						<DropdownMenu.Item
+							disabled={controlsDisabled}
+							onSelect={() => onModerate('pending')}
+							class="text-base"
+						>
+							<Undo2 class="size-4" />
+							Move back to waiting
+						</DropdownMenu.Item>
+					{/if}
+					{#if actsOnSelection}
+						<DropdownMenu.Item
+							disabled={controlsDisabled}
+							onSelect={() => onModerate('pending')}
+							class="text-base"
+						>
+							<Undo2 class="size-4" />
+							Move {selectionCount} back to waiting
+						</DropdownMenu.Item>
+					{/if}
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		{/if}
 	</div>
 
 	{#if translationsOpen}
-		<div class="col-span-full pt-2 pr-2 pb-4 pl-[5.5rem]" data-row-control>
-			<TranslationsPanel polisStatementAuxId={row.id} />
+		<div class="col-span-full pr-2 pl-[3.5rem]" data-skip-row-toggle>
+			<TranslationsPanel {translations} onChange={onTranslationChange} />
 		</div>
 	{/if}
 </div>

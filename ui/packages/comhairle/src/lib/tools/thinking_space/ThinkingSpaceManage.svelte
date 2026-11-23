@@ -8,11 +8,17 @@
 		CardTitle,
 		CardDescription
 	} from '$lib/components/ui/card';
-	import { Plus, Trash2, GripVertical, Pencil, Minus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Minus from '@lucide/svelte/icons/minus';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { Label } from '$lib/components/ui/label';
 	import type {
 		ConversationWithTranslations,
 		WorkflowStepWithTranslationsDto
@@ -49,9 +55,13 @@
 	let config = $state<{
 		questions: QuestionConfig<DraftTranslatableJsonField>[];
 		followUpRoundsCount: number;
+		questionAdditionalInstructions: string;
+		summaryAdditionalInstructions: string;
 	}>({
 		questions: [],
-		followUpRoundsCount: 2
+		followUpRoundsCount: 2,
+		questionAdditionalInstructions: '',
+		summaryAdditionalInstructions: ''
 	});
 	let saving = $state(false);
 	let questionEditorOpen = $state(false);
@@ -80,6 +90,8 @@
 					topic?: DraftTranslatableJsonField;
 					root_questions?: QuestionConfig<DraftTranslatableJsonField>[];
 					follow_up_rounds_count?: number;
+					question_additional_instructions?: string | null;
+					summary_additional_instructions?: string | null;
 			  }
 			| undefined;
 		config = {
@@ -92,7 +104,9 @@
 			followUpRoundsCount:
 				typeof cfg?.follow_up_rounds_count === 'number'
 					? Math.max(0, Math.min(5, cfg.follow_up_rounds_count))
-					: 2
+					: 2,
+			questionAdditionalInstructions: cfg?.question_additional_instructions ?? '',
+			summaryAdditionalInstructions: cfg?.summary_additional_instructions ?? ''
 		};
 	});
 
@@ -149,12 +163,16 @@
 				type: 'thinkingspace' as const,
 				topic,
 				root_questions: config.questions,
-				follow_up_rounds_count: config.followUpRoundsCount
+				follow_up_rounds_count: config.followUpRoundsCount,
+				question_additional_instructions:
+					config.questionAdditionalInstructions.trim() || null,
+				summary_additional_instructions: config.summaryAdditionalInstructions.trim() || null
 			};
 			const payloadWithNewlyCreatedTranslations =
 				await traverseTranslatableJsonAndCreateTranslations(
 					payload,
-					conversation.primaryLocale
+					conversation.primaryLocale,
+					{ type: 'conversation', id: conversation.id }
 				);
 			const resolvedToolConfig = resolveTranslatableJsonToTextContentIds(
 				payloadWithNewlyCreatedTranslations
@@ -248,6 +266,37 @@
 				</Button>
 			</div>
 		</CardHeader>
+	</Card>
+
+	<Card data-tour="thinkingspace-ai-instructions">
+		<CardHeader>
+			<CardTitle>AI instructions</CardTitle>
+			<CardDescription>
+				Private instructions for the AI model. Participants never see these.
+			</CardDescription>
+		</CardHeader>
+		<CardContent class="space-y-5">
+			<div class="space-y-2">
+				<Label for="ts-question-instructions">Follow-up question generation</Label>
+				<Textarea
+					id="ts-question-instructions"
+					bind:value={config.questionAdditionalInstructions}
+					disabled={!canEdit}
+					placeholder="e.g. Keep follow-ups focused on concrete examples rather than opinions."
+					rows={3}
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="ts-summary-instructions">Summary generation</Label>
+				<Textarea
+					id="ts-summary-instructions"
+					bind:value={config.summaryAdditionalInstructions}
+					disabled={!canEdit}
+					placeholder="e.g. Write the summary in plain, non-technical language."
+					rows={3}
+				/>
+			</div>
+		</CardContent>
 	</Card>
 
 	<section data-tour="thinkingspace-questions" class="space-y-4">

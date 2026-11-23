@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import * as Carousel from '$lib/components/ui/carousel';
 	import type { CarouselAPI } from '$lib/components/ui/carousel/context';
 	import type { AdminGuideImage } from '$lib/admin_guides';

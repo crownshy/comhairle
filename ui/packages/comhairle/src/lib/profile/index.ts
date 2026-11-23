@@ -12,6 +12,8 @@ export {
 	type GuestLoginFrom,
 	sendOtpSchema,
 	type SendOtpForm,
+	signupOtpSchema,
+	type SignupOtpForm,
 	loginOtpSchema,
 	type LoginOtpForm
 } from './schema';

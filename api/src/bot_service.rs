@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use crate::error::ComhairleError;
 
 pub mod config;
+mod document_cache;
+#[cfg(test)]
+mod document_cache_tests;
 pub mod ragflow_bot;
 
 pub use ragflow_bot::ComhairleRagBotService;
@@ -268,7 +271,7 @@ fn default_page_size() -> Option<i32> {
     Some(400)
 }
 
-#[derive(Deserialize, Debug, JsonSchema, PartialEq)]
+#[derive(Deserialize, Debug, JsonSchema, PartialEq, Eq, Hash, Clone)]
 pub struct GetQueryParams {
     pub page: Option<i32>,
     #[serde(default = "default_page_size")]

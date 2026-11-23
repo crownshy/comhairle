@@ -3,18 +3,18 @@
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import {
-		CornerDownRight,
-		Shuffle,
-		Check,
-		RotateCcw,
-		ChevronLeft,
-		ChevronRight
-	} from 'lucide-svelte';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
+	import Check from '@lucide/svelte/icons/check';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
+	import { cn } from '$lib/utils';
+	import { MAX_ANSWER_WORDS } from './wordLimit';
 
 	type Props = {
 		workflowStepId: string;
@@ -67,6 +67,7 @@
 	let continueEl = $state<HTMLElement | null>(null);
 	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let overWordLimit = $derived(flow.draftWordCount > MAX_ANSWER_WORDS);
 
 	async function scrollToFocus() {
 		await tick();
@@ -77,27 +78,20 @@
 		}
 	}
 
+	// Typing replaces the whole question state object, so the effect keys off this string
+	// instead. A $derived string only notifies when its value changes, not on every keystroke.
+	let flowPosition = $derived(
+		`${flow.currentState.phase}:${flow.currentState.followUps.length}:${flow.currentQuestionIndex}:${flow.currentState.wantsMore}`
+	);
+
 	$effect(() => {
-		// Re-scroll when current phase, follow-up count, or deepen choice changes
-		const _ =
-			flow.currentState.phase +
-			':' +
-			flow.currentState.followUps.length +
-			':' +
-			flow.currentQuestionIndex +
-			':' +
-			flow.currentState.wantsMore;
-		untrack(() => {
-			scrollToFocus();
-		});
-		// Focus textareas
+		void flowPosition;
 		untrack(async () => {
-			await tick();
-			if (flow.currentState.phase === 'root') rootTextareaEl?.focus();
-			if (flow.currentState.phase === 'answering') followUpTextareaEl?.focus();
+			await scrollToFocus();
+			if (flow.currentState.phase === 'root') rootTextareaEl?.focus({ preventScroll: true });
+			if (flow.currentState.phase === 'answering')
+				followUpTextareaEl?.focus({ preventScroll: true });
 		});
-		// reference _ to satisfy linter
-		void _;
 	});
 
 	onMount(() => {
@@ -206,7 +200,10 @@
 						{m.question()}
 						{flow.currentQuestionIndex + 1}
 					</p>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						id="thinking-space-root-question"
+						class="text-foreground text-2xl leading-snug font-semibold"
+					>
 						{flow.currentQuestion.text || '(unnamed question)'}
 					</h2>
 				</section>
@@ -215,6 +212,7 @@
 					<section class="space-y-3">
 						<Textarea
 							bind:ref={rootTextareaEl}
+							aria-labelledby="thinking-space-root-question"
 							value={flow.currentState.rootAnswer}
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
 							onkeydown={handleRootKeydown}
@@ -222,7 +220,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitRootAnswer()}
 								disabled={!flow.currentState.rootAnswer.trim() || flow.submitting}
@@ -473,11 +476,15 @@
 								{m.thinking_space_pick_different()}
 							</Button>
 						</div>
-						<p class="text-foreground text-lg leading-snug italic">
+						<p
+							id="thinking-space-follow-up-pick"
+							class="text-foreground text-lg leading-snug italic"
+						>
 							{flow.currentState.currentPick}
 						</p>
 						<Textarea
 							bind:ref={followUpTextareaEl}
+							aria-labelledby="thinking-space-follow-up-pick"
 							value={flow.currentState.currentPickAnswer}
 							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
 							onkeydown={handleFollowUpKeydown}
@@ -485,7 +492,12 @@
 							rows={4}
 							class="text-base"
 						/>
-						<div class="flex justify-end">
+						<div class="flex justify-between">
+							<span class={cn(overWordLimit && 'text-destructive')}>
+								{flow.draftWordCount}
+								/
+								{MAX_ANSWER_WORDS}
+							</span>
 							<Button
 								onclick={() => flow.submitFollowUp()}
 								disabled={!flow.currentState.currentPickAnswer.trim() ||

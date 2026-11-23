@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { highlightsFromPositions } from './highlights';
+import { firstHighlightTop, highlightsFromPositions } from './highlights';
 
 describe('highlightsFromPositions', () => {
 	it('returns an empty array for missing or empty input', () => {
@@ -33,5 +33,26 @@ describe('highlightsFromPositions', () => {
 		const [h] = highlightsFromPositions([[3, 400, 100, 500, 480]]);
 		expect(h.width).toBe(0);
 		expect(h.height).toBe(0);
+	});
+});
+
+describe('firstHighlightTop', () => {
+	const highlights = [
+		{ page: 2, left: 70, top: 380, width: 430, height: 15 },
+		{ page: 3, left: 70, top: 520, width: 430, height: 15 },
+		{ page: 3, left: 70, top: 505, width: 430, height: 15 }
+	];
+
+	it('returns the highest highlight on the page, even when listed out of order', () => {
+		expect(firstHighlightTop(highlights, 3)).toBe(505);
+	});
+
+	it('ignores highlights on other pages', () => {
+		expect(firstHighlightTop(highlights, 2)).toBe(380);
+	});
+
+	it('returns null when the page has no highlights', () => {
+		expect(firstHighlightTop(highlights, 1)).toBeNull();
+		expect(firstHighlightTop([], 1)).toBeNull();
 	});
 });

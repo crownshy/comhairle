@@ -8,11 +8,12 @@
 	import { page } from '$app/state';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import { Download } from 'lucide-svelte';
+	import Download from '@lucide/svelte/icons/download';
 	import { downloadTextFile } from '$lib/utils/downloadFile';
+	import { backToFromUrl } from '$lib/utils/backTo';
 
 	let { data } = $props();
-	let backTo = page.url.searchParams.get('backTo') ?? '/';
+	const backTo = backToFromUrl(page.url);
 
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout>;

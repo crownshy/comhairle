@@ -10,5 +10,5 @@
 </script>
 
 <Story name="Default">
-	<ComhairleLogo showText={false}/>
+	<ComhairleLogo showText={false} />
 </Story>

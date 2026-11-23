@@ -9,6 +9,7 @@ type Tabs = {
 	Events: undefined;
 	Recruit: readonly ['Email', 'Open Links'];
 	Monitor: undefined;
+	Insights: undefined;
 	Notify: undefined;
 	Report: undefined;
 };
@@ -21,6 +22,7 @@ type Subtabs<T extends keyof Tabs> = Tabs[T] extends readonly string[]
 const FOLDED_GROUP: Partial<Record<keyof Tabs, string>> = {
 	Recruit: 'Engage',
 	Monitor: 'Engage',
+	Insights: 'Engage',
 	Notify: 'Engage',
 	Report: 'Results'
 };
@@ -45,7 +47,7 @@ async function openOrCreate(page: Page, title: string) {
 		.filter({ has: page.getByRole('link', { name: title, exact: true }) });
 
 	if ((await card.count()) > 0) {
-		await card.first().getByRole('link', { name: 'Edit conversation' }).click();
+		await card.first().getByRole('link', { name: 'Open conversation' }).click();
 		await page.waitForURL(/\/admin\/conversations\/[^/?]+\//);
 	} else {
 		// The list is server-rendered, so the button shows before the app has hydrated and an
@@ -79,7 +81,7 @@ async function openOrCreate(page: Page, title: string) {
 const Conversation = {
 	open: (page: Page) => openOrCreate(page, TEST_CONVERSATION_TITLE),
 	/**
-	 * Recruit, Notify, Monitor and Report only open once a conversation is live, and launching
+	 * Recruit, Notify, Monitor, Insights and Report only open once a conversation is live, and launching
 	 * locks the set-up, so these tests use their own conversation rather than the shared one.
 	 */
 	openLaunched: async (page: Page) => {

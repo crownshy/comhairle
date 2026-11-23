@@ -9,6 +9,7 @@ use uuid::Uuid;
 use super::{self as permissions, ActorId, ResourceType};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::user_group::{self, OrganizationGroup};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", content = "id", rename_all = "snake_case")]
@@ -326,7 +327,29 @@ pub async fn save(
         recipient.into(),
     )
     .await?;
+    if let (ResourceType::Organization, Recipient::User(user_id)) = (resource_type, recipient)
+        && let Some(group) = newly_granted_organization_group(&current.roles, &request.roles)
+    {
+        user_group::notify_organization_addition(state, resource_id, user_id, group).await;
+    }
     Ok(snapshot)
+}
+
+/// The organization group a user has just joined by gaining a role, preferring administrator.
+fn newly_granted_organization_group(
+    current_roles: &[String],
+    saved_roles: &[String],
+) -> Option<OrganizationGroup> {
+    let gained = |role: &str| {
+        saved_roles.iter().any(|saved| saved == role) && !current_roles.iter().any(|r| r == role)
+    };
+    if gained("organization_admin") {
+        Some(OrganizationGroup::Admins)
+    } else if gained("organization_member") {
+        Some(OrganizationGroup::Members)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -382,6 +405,94 @@ mod tests {
         .await?;
         assert_eq!(snapshot.version, first.version);
         assert_eq!(snapshot.roles, first.roles);
+        Ok(())
+    }
+
+    #[test]
+    fn only_newly_gained_organization_roles_count_as_additions() {
+        let roles = |names: &[&str]| names.iter().map(ToString::to_string).collect::<Vec<_>>();
+        assert_eq!(
+            newly_granted_organization_group(&roles(&[]), &roles(&["organization_member"])),
+            Some(OrganizationGroup::Members)
+        );
+        assert_eq!(
+            newly_granted_organization_group(
+                &roles(&["organization_member"]),
+                &roles(&["organization_member", "organization_admin"])
+            ),
+            Some(OrganizationGroup::Admins)
+        );
+        assert_eq!(
+            newly_granted_organization_group(
+                &roles(&["organization_member"]),
+                &roles(&["organization_member"])
+            ),
+            None
+        );
+        assert_eq!(
+            newly_granted_organization_group(&roles(&["organization_admin"]), &roles(&[])),
+            None
+        );
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn saving_organization_roles_emails_the_added_user_once(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::sync::Mutex;
+
+        use crate::mailer::{MockComhairleMailer, SentEmail};
+        use crate::models::model_test_helpers::setup_app_and_session_with_state;
+        use crate::test_helpers::{TEST_PASSWORD, UserSession};
+
+        let sent: Arc<Mutex<Vec<SentEmail>>> = Arc::default();
+        let state = Arc::new(
+            test_state()
+                .db(pool)
+                .mailer(Arc::new(MockComhairleMailer::recording(sent.clone())))
+                .call()?,
+        );
+        let (app, mut session) = setup_app_and_session_with_state(state.clone()).await?;
+        let caller_id = session.id.unwrap();
+        let organization_id = get_random_organization_id(&app, &mut session).await?;
+        let mut colleague = UserSession::new("colleague", TEST_PASSWORD, "colleague@example.com");
+        colleague.signup(&app).await?;
+        let recipient = Recipient::User(colleague.id.ok_or("missing colleague id")?);
+        let save_roles = |expected_version: i64, roles: Vec<String>| {
+            save(
+                &state,
+                ResourceType::Organization,
+                organization_id,
+                caller_id,
+                recipient,
+                SaveAssignments {
+                    expected_version,
+                    roles,
+                    grant_reason: "Test".into(),
+                },
+            )
+        };
+        let additions = || {
+            sent.lock()
+                .unwrap()
+                .iter()
+                .filter(|email| email.template == "organization_team_onboarding.html")
+                .map(|email| email.to.clone())
+                .collect::<Vec<_>>()
+        };
+
+        let first = save_roles(0, vec!["organization_member".into()]).await?;
+        assert_eq!(additions(), vec!["colleague@example.com".to_string()]);
+
+        let second = save_roles(
+            first.version,
+            vec!["organization_member".into(), "organization_admin".into()],
+        )
+        .await?;
+        assert_eq!(additions().len(), 2);
+
+        save_roles(second.version, vec!["organization_member".into()]).await?;
+        assert_eq!(additions().len(), 2, "removing a role sends nothing");
         Ok(())
     }
 }

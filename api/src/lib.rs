@@ -5,9 +5,11 @@ pub mod config;
 pub mod db;
 mod docs;
 pub mod error;
+pub mod jitsi_recorder;
 pub mod mailer;
 mod middleware;
 pub mod models;
+pub mod pii;
 pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;
@@ -31,6 +33,7 @@ use aide::transform::TransformOpenApi;
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderValue, Method, header};
 use axum::{Extension, Router};
+use axum_prometheus::metrics_exporter_prometheus::{BuildError, Matcher, PrometheusBuilder};
 use bot_service::ComhairleBotService;
 use clap::Parser;
 use config::ComhairleConfig;
@@ -120,6 +123,15 @@ impl ComhairleState {
             .as_ref()
             .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
     }
+
+    fn required_jitsi_recorder_config(
+        &self,
+    ) -> Result<&config::JitsiRecorderConfig, ComhairleError> {
+        self.config
+            .jitsi_recorder
+            .as_ref()
+            .ok_or(ComhairleError::NoJitsiRecorderConfigured)
+    }
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -150,6 +162,17 @@ pub struct Args {
 async fn health_check() -> &'static str {
     "OK"
 }
+
+fn request_duration_metrics_builder() -> Result<PrometheusBuilder, BuildError> {
+    let mut buckets = axum_prometheus::utils::SECONDS_DURATION_BUCKETS.to_vec();
+    buckets.extend_from_slice(&[15.0, 20.0, 30.0, 60.0]);
+
+    PrometheusBuilder::new().set_buckets_for_metric(
+        Matcher::Full(axum_prometheus::utils::requests_duration_name().to_string()),
+        &buckets,
+    )
+}
+
 /// Constructs the ApiRouter and extracts the OpenAPI spec.
 /// Note that sub-routers like `routes::auth::router` are async and must be `.await`ed.
 pub async fn build_router_and_spec(
@@ -163,7 +186,21 @@ pub async fn build_router_and_spec(
     let mut api = OpenApi::default();
 
     #[cfg(not(test))]
-    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayer::pair();
+    let (prometheus_layer, metric_handle) = axum_prometheus::PrometheusMetricLayerBuilder::new()
+        .with_metrics_from_fn(|| {
+            let handle = request_duration_metrics_builder()
+                .and_then(PrometheusBuilder::install_recorder)
+                .unwrap_or_else(|error| panic!("Failed to configure Prometheus metrics: {error}"));
+            let upkeep_handle = handle.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    upkeep_handle.run_upkeep();
+                }
+            });
+            handle
+        })
+        .build_pair();
 
     // Rate limiting is applied per route inside the auth router: the strict
     // limiter belongs on the credential endpoints, not on session reads.
@@ -171,7 +208,6 @@ pub async fn build_router_and_spec(
     let auth_router = routes::auth::router(rate_limiters.as_ref()).await;
 
     let router = ApiRouter::new()
-        .route("/health", axum::routing::get(health_check))
         .nest("/auth", auth_router)
         .nest(
             "/user",
@@ -271,12 +307,13 @@ pub async fn build_router_and_spec(
         )
         .nest("/permissions", routes::permissions::router())
         .nest_api_service("/docs", docs_routes())
-        .nest("/demographics", routes::demographics::router())
         .finish_api_with(&mut api, api_docs)
-        // Place before metrics route so metrics isn't rate limited
         .layer(option_layer(
             rate_limiters.map(|l| l.lenient_rate_limiter()),
-        ));
+        ))
+        // /health & /metrics endpoints placed after global rate limiter ^ applied
+        // so that those endpoints aren't rate limited
+        .route("/health", axum::routing::get(health_check));
 
     #[cfg(not(test))]
     let router = router
@@ -299,6 +336,7 @@ pub async fn build_app(
     let mut allowed_origins = vec![
         HeaderValue::from_static("http://localhost"),
         HeaderValue::from_static("http://localhost:3000"),
+        HeaderValue::from_static("http://localhost:4173"),
         HeaderValue::from_static("http://localhost:5173"),
         HeaderValue::from_static("https://stage.comhairle.scot"),
     ];
@@ -366,4 +404,37 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<App, ComhairleEr
     run_migrations(&state.db).await?;
 
     build_app(state, args.export_api_spec).await
+}
+
+#[cfg(test)]
+mod metrics_tests {
+    use axum_prometheus::metrics;
+    use axum_prometheus::metrics_exporter_prometheus::BuildError;
+
+    use super::request_duration_metrics_builder;
+
+    #[test]
+    fn request_duration_histogram_covers_slow_requests() -> Result<(), BuildError> {
+        let recorder = request_duration_metrics_builder()?.build_recorder();
+        let handle = recorder.handle();
+        let metric_name = axum_prometheus::utils::requests_duration_name();
+
+        metrics::with_local_recorder(&recorder, || {
+            let histogram = metrics::histogram!(metric_name);
+            for duration in [15.0, 20.0, 30.0, 60.0, 75.0] {
+                histogram.record(duration);
+            }
+        });
+
+        let output = handle.render();
+        for bucket in axum_prometheus::utils::SECONDS_DURATION_BUCKETS {
+            assert!(output.contains(&format!("{metric_name}_bucket{{le=\"{bucket}\"}} 0")));
+        }
+        for (bucket, count) in [("15", 1), ("20", 2), ("30", 3), ("60", 4), ("+Inf", 5)] {
+            assert!(output.contains(&format!("{metric_name}_bucket{{le=\"{bucket}\"}} {count}")));
+        }
+        assert!(output.contains(&format!("{metric_name}_count 5")));
+
+        Ok(())
+    }
 }

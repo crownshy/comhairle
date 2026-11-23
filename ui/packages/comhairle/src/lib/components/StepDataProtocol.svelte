@@ -20,8 +20,7 @@
 	let { text, toolType, onOpenFaq, availableDocuments = [], conversationId }: Props = $props();
 </script>
 
-<section class="border-border mb-6 flex flex-col gap-3 border-b pb-6">
-	<h2 class="text-primary text-xl font-bold">{m.data_protocol_step_heading()}</h2>
+<div class="flex flex-col gap-3">
 	{#if hasDataProtocolText(text)}
 		<ContentRenderer content={text ?? ''} {availableDocuments} {conversationId} />
 	{:else}
@@ -38,4 +37,4 @@
 			{m.data_protocol_ai_faq()}
 		</button>
 	{/if}
-</section>
+</div>

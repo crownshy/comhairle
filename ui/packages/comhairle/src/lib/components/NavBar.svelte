@@ -9,19 +9,17 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import {
-		Menu,
-		Home,
-		Info,
-		MessageSquare,
-		Shield,
-		Settings,
-		Bell,
-		LogOut,
-		Briefcase,
-		LayoutGrid,
-		CircleHelp
-	} from 'lucide-svelte';
+	import Menu from '@lucide/svelte/icons/menu';
+	import Home from '@lucide/svelte/icons/house';
+	import Info from '@lucide/svelte/icons/info';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Shield from '@lucide/svelte/icons/shield';
+	import Settings from '@lucide/svelte/icons/settings';
+	import Bell from '@lucide/svelte/icons/bell';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import Briefcase from '@lucide/svelte/icons/briefcase';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
@@ -111,7 +109,7 @@
 			{#if hasSupportDrawer}
 				<Button
 					variant="nav"
-					class="gap-2 rounded-full text-base font-normal lg:hidden"
+					class="gap-2 rounded-full text-base font-normal"
 					onclick={() => (supportDrawer.open = true)}
 				>
 					<CircleHelp class="size-5" aria-hidden="true" />

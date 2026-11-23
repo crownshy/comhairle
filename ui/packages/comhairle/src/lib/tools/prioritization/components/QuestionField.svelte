@@ -75,7 +75,7 @@
 <div class="space-y-3" class:opacity-60={disabled}>
 	<p class="text-base font-medium" class:text-destructive={invalid}>
 		{question.text}
-		{#if question.type.kind === 'text'}
+		{#if question.type.kind === 'text' && !question.required}
 			<span class="text-muted-foreground font-normal">(optional)</span>
 		{/if}
 	</p>
@@ -89,8 +89,11 @@
 			style="--likert-cols: {question.type.categories.length};"
 		>
 			{#each question.type.categories as cat (cat.value)}
+				<!-- relative keeps the sr-only radio inside its option. Without it the radio is
+					placed against the step shell, outside the step scroll, and focusing it on
+					click scrolls the whole step out of view. -->
 				<Label
-					class="group hover:border-primary/60 hover:bg-muted/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary bg-background flex min-h-[44px] w-full cursor-pointer flex-row items-center gap-3 rounded-lg border p-3 transition-colors sm:min-h-[64px] sm:flex-col sm:justify-center sm:gap-1 sm:p-4 sm:text-center"
+					class="group hover:border-primary/60 hover:bg-muted/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary bg-background relative flex min-h-[44px] w-full cursor-pointer flex-row items-center gap-3 rounded-lg border p-3 transition-colors sm:min-h-[64px] sm:flex-col sm:justify-center sm:gap-1 sm:p-4 sm:text-center"
 					data-state={value === cat.value ? 'checked' : 'unchecked'}
 				>
 					<RadioGroup.Item value={String(cat.value)} class="sm:sr-only" />

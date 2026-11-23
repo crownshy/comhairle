@@ -1,14 +1,13 @@
 <script lang="ts">
-	import {
-		ArrowUpRight,
-		Briefcase,
-		Check,
-		EllipsisVertical,
-		PanelLeftClose,
-		PanelLeftOpen,
-		Pencil,
-		X
-	} from '@lucide/svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Briefcase from '@lucide/svelte/icons/briefcase';
+	import Check from '@lucide/svelte/icons/check';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import X from '@lucide/svelte/icons/x';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as m from '$lib/paraglide/messages';
@@ -17,7 +16,7 @@
 	let { name }: { name: GuideIconName } = $props();
 
 	// Pictures of real buttons, not interactive. Keep them in step with:
-	// - accept/reject/split: lib/tools/polis/polis-moderation/StatementModerationRow.svelte
+	// - accept/reject/split/more: lib/tools/polis/polis-moderation/StatementModerationRow.svelte
 	//   (shown in their hover state so they read as buttons)
 	// - collapse/expand: routes/(admin)/sidebar/AdminSidebar.svelte (on the sidebar's own background)
 	// - actions: a step's actions menu trigger (MoreVertical) in
@@ -44,6 +43,12 @@
 			icon: Pencil,
 			label: 'Split or reword (pencil)',
 			tone: 'text-muted-foreground bg-muted rounded-full',
+			stroke: 2.5
+		},
+		more: {
+			icon: Ellipsis,
+			label: 'More actions (three dots)',
+			tone: 'text-foreground bg-muted rounded-full',
 			stroke: 2.5
 		},
 		collapse: {

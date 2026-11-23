@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { m } from '$lib/paraglide/messages';
 import {
 	defaultDataProtocol,
-	defaultDataProtocolHtml,
+	defaultDataProtocolDoc,
 	defaultDataProtocolParagraphs,
 	hasDataProtocolText,
+	isDefaultDataProtocol,
 	toolUsesAI
 } from './dataProtocol';
 
@@ -18,16 +19,36 @@ describe('defaultDataProtocol', () => {
 		expect(defaultDataProtocol(undefined)).toBe(m.data_protocol_default_generic());
 	});
 
-	it('wraps the default in a paragraph for the rich editor', () => {
-		expect(defaultDataProtocolHtml('polis')).toBe(`<p>${m.data_protocol_default_polis()}</p>`);
-	});
-
 	it('splits a default with a blank line into paragraphs', () => {
 		const paragraphs = defaultDataProtocolParagraphs('learn');
 		expect(paragraphs).toHaveLength(2);
-		expect(defaultDataProtocolHtml('learn')).toBe(
-			paragraphs.map((p) => `<p>${p}</p>`).join('')
-		);
+		const doc = JSON.parse(defaultDataProtocolDoc('learn'));
+		expect(
+			doc.content.map((node: { content: { text: string }[] }) => node.content[0].text)
+		).toEqual(paragraphs);
+	});
+});
+
+describe('isDefaultDataProtocol', () => {
+	it('treats blank and the untouched default as the default', () => {
+		expect(isDefaultDataProtocol(null, 'learn')).toBe(true);
+		expect(
+			isDefaultDataProtocol('{"type":"doc","content":[{"type":"paragraph"}]}', 'learn')
+		).toBe(true);
+		expect(isDefaultDataProtocol(defaultDataProtocolDoc('learn'), 'learn')).toBe(true);
+	});
+
+	it('recognises the default saved as HTML by the old Start from the default button', () => {
+		const html = defaultDataProtocolParagraphs('polis')
+			.map((p) => `<p>${p}</p>`)
+			.join('');
+		expect(isDefaultDataProtocol(html, 'polis')).toBe(true);
+	});
+
+	it('sees an edit as custom text', () => {
+		const edited = defaultDataProtocolDoc('learn').replace('reading', 'skimming');
+		expect(isDefaultDataProtocol(edited, 'learn')).toBe(false);
+		expect(isDefaultDataProtocol(defaultDataProtocolDoc('learn'), 'polis')).toBe(false);
 	});
 });
 

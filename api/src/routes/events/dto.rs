@@ -152,3 +152,12 @@ impl From<PaginatedResults<LocalizedEventWithAttendance>> for PaginatedResults<L
         }
     }
 }
+
+impl From<PaginatedResults<LocalizedEvent>> for PaginatedResults<LocalizedEventDto> {
+    fn from(r: PaginatedResults<LocalizedEvent>) -> Self {
+        Self {
+            total: r.total,
+            records: r.records.into_iter().map(Into::into).collect(),
+        }
+    }
+}

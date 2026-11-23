@@ -3,7 +3,8 @@
 	import { page } from '$app/state';
 	import AddStepDialog from './AddStepDialog.svelte';
 	import { permissions } from '$lib/permissions.svelte';
-	import { Plus, Settings2 } from '@lucide/svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import TabStripItem from '$lib/components/TabStripItem.svelte';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
@@ -90,6 +91,7 @@
 		<AddStepDialog
 			workflowId={workflows.ok.current.workflow.id}
 			conversationId={conversation_id}
+			organizationId={data.conversation.organizationId ?? null}
 			highestStepOrder={max(workflows.ok.current.steps, (s) => s.stepOrder)}
 			bind:open={addStepDialogOpen}
 		/>

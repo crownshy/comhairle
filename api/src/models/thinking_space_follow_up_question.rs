@@ -131,7 +131,11 @@ pub async fn get_by_id(
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceFollowUpQuestionFilterOptions {
-    user_id: Option<Uuid>,
+    // Server-set only — handlers must scope this to the authenticated user.
+    // Hidden from the public schema/query string so callers can't spoof it.
+    #[serde(skip_deserializing)]
+    #[schemars(skip)]
+    pub user_id: Option<Uuid>,
     root_question_id: Option<Uuid>,
 }
 

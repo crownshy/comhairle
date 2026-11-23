@@ -2,7 +2,9 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { Sparkles, Check, MoreHorizontal } from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Check from '@lucide/svelte/icons/check';
+	import MoreHorizontal from '@lucide/svelte/icons/ellipsis';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { getLanguageName } from '$lib/config/languages';
 	import { notifications } from '$lib/notifications.svelte';

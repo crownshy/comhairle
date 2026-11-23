@@ -1,15 +1,15 @@
-import {
-	SlidersHorizontal,
-	GitBranch,
-	BookOpen,
-	CalendarDays,
-	UsersRound,
-	Bell,
-	Binoculars,
-	NotebookText,
-	ShieldCheck
-} from 'lucide-svelte';
-import type { ComponentType } from 'svelte';
+import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+import GitBranch from '@lucide/svelte/icons/git-branch';
+import BookOpen from '@lucide/svelte/icons/book-open';
+import CalendarDays from '@lucide/svelte/icons/calendar-days';
+import UsersRound from '@lucide/svelte/icons/users-round';
+import Bell from '@lucide/svelte/icons/bell';
+import Binoculars from '@lucide/svelte/icons/binoculars';
+import NotebookText from '@lucide/svelte/icons/notebook-text';
+import ShieldCheck from '@lucide/svelte/icons/shield-check';
+import ChartColumn from '@lucide/svelte/icons/chart-column';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 
 /** The Conversation Stages that hold sections. Launch is a milestone with no sections. */
 export type SectionStage = 'set-up' | 'engage' | 'results';
@@ -20,7 +20,7 @@ export type HandbookTopicRef = { guide: string; topic: string };
 export interface ConversationSection {
 	name: string;
 	path: string;
-	icon: ComponentType;
+	icon: Component<IconProps>;
 	stage: SectionStage;
 	/** One line shown under the section's title in its header. */
 	description: string;
@@ -71,8 +71,7 @@ export const conversationSections: ConversationSection[] = [
 		guide: {
 			section: { guide: 'design-the-engagement-process', topic: 'design-steps' },
 			tabs: {
-				step: { guide: 'design-the-engagement-process', topic: 'configure-a-step' },
-				'step/insights': { guide: 'manage-a-conversation', topic: 'see-insights' }
+				step: { guide: 'design-the-engagement-process', topic: 'configure-a-step' }
 			}
 		}
 	},
@@ -128,6 +127,15 @@ export const conversationSections: ConversationSection[] = [
 		requiresPolis: true,
 		description: 'Review and moderate what participants contribute.',
 		guide: { section: { guide: 'manage-a-conversation', topic: 'moderate' } }
+	},
+	{
+		name: 'Insights',
+		path: 'insights',
+		icon: ChartColumn,
+		stage: 'engage',
+		requiresLive: true,
+		description: 'See the responses and results collected in each step.',
+		guide: { section: { guide: 'manage-a-conversation', topic: 'see-insights' } }
 	},
 	{
 		name: 'Monitor',

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
-	import { CircleHelp } from '@lucide/svelte';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { m } from '$lib/paraglide/messages';
 	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
@@ -34,6 +34,7 @@
 			logoSize="sm"
 			color="text-primary"
 			class="-m-2 shrink-0 p-2"
+			surface="page"
 		/>
 		{#if preview}
 			<span
@@ -43,10 +44,9 @@
 			</span>
 		{/if}
 		<div class="flex min-w-0 flex-1 items-center justify-end gap-3">
-			<!-- Below lg the drawer's sideways tab would cover the step, so it opens from here. -->
 			<button
 				type="button"
-				class={cn(HEADER_PILL_CLASS, 'shrink-0 lg:hidden')}
+				class={cn(HEADER_PILL_CLASS, 'shrink-0')}
 				aria-label={m.support_find_out_more()}
 				onclick={() => (supportDrawer.open = true)}
 			>

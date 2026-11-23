@@ -21,11 +21,11 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Image, Trash2 } from '@lucide/svelte';
+	import Image from '@lucide/svelte/icons/image';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
-	import { addToCache } from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import { GLOSSARY_METADATA_KEY } from '$lib/glossary/parseGlossary';
 	import { translateGlossaryToLocale } from '$lib/glossary/translateGlossary';
 	import { localizedGlossaryFromMetadata } from '$lib/glossary/localizedGlossary';
@@ -33,7 +33,7 @@
 	import { DEFAULT_LOCALE } from '$lib/utils/constants';
 	import { permissions } from '$lib/permissions.svelte';
 	import { Input } from '$lib/components/ui/input';
-	import { Autosave } from '../autosave.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
 	import AccessSettings from './AccessSettings.svelte';
@@ -208,7 +208,10 @@
 			if (glossary.length > 0) {
 				for (const locale of newlyAddedLanguages) {
 					const translation = await tryCatchAsync(() =>
-						translateGlossaryToLocale(glossary, locale, primaryLocale)
+						translateGlossaryToLocale(glossary, locale, primaryLocale, {
+							type: 'conversation',
+							id: conversation.id
+						})
 					);
 					if (translation.err !== null) {
 						notifications.send({
@@ -453,12 +456,8 @@
 						}}
 					/>
 					<MediaUpload
-						clientSide
 						size="sm"
-						oncomplete={(media) => {
-							updateConversationMedia(media, 'image');
-							addToCache(media);
-						}}
+						oncomplete={(media) => void updateConversationMedia(media, 'image')}
 					/>
 				</fieldset>
 				{#if streamedMedia === null}

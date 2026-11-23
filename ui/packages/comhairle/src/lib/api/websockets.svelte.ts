@@ -34,12 +34,27 @@ export class WSConnection {
 
 	private messageHandlers: Set<MessageHandler> = new Set();
 	private typedHandlers: Map<string, Set<TypedMessageHandler<any>>> = new Map();
+	private openHandlers: Set<() => void> = new Set();
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private maxReconnectAttempts = 5;
 	private reconnectDelay = 1000;
 	private pingInterval: ReturnType<typeof setInterval> | null = null;
 
+	get isOpen(): boolean {
+		return this.socket?.readyState === WebSocket.OPEN;
+	}
+
+	/** Explicit (re)connect, e.g. after login. Starts a fresh retry budget */
 	connect() {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout);
+			this.reconnectTimeout = null;
+		}
+		this.reconnectAttempts = 0;
+		this.open();
+	}
+
+	private open() {
 		if (!browser) {
 			console.log('WebSocket only available in browser');
 			return;
@@ -71,6 +86,7 @@ export class WSConnection {
 			this.connectionStatus = 'connected';
 			this.reconnectAttempts = 0;
 			this.startPingInterval();
+			this.openHandlers.forEach((handler) => handler());
 		};
 
 		this.socket.onmessage = (event) => {
@@ -116,6 +132,8 @@ export class WSConnection {
 		}
 		this.stopPingInterval();
 		if (this.socket) {
+			// A deliberate close must not trigger the auto-reconnect in onclose.
+			this.socket.onclose = null;
 			this.socket.close();
 			this.socket = null;
 		}
@@ -133,7 +151,7 @@ export class WSConnection {
 		console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimeout = setTimeout(() => {
-			this.connect();
+			this.open();
 		}, delay);
 	}
 
@@ -162,6 +180,12 @@ export class WSConnection {
 	onMessage(handler: MessageHandler): () => void {
 		this.messageHandlers.add(handler);
 		return () => this.messageHandlers.delete(handler);
+	}
+
+	/** Runs on every successful open, including reconnects. */
+	onOpen(handler: () => void): () => void {
+		this.openHandlers.add(handler);
+		return () => this.openHandlers.delete(handler);
 	}
 
 	// Subscribe to specific message types
@@ -193,8 +217,3 @@ export class WSConnection {
 
 // Singleton instance - available everywhere
 export const ws = new WSConnection();
-
-// Auto-connect in browser
-if (browser) {
-	ws.connect();
-}

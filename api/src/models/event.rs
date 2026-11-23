@@ -7,7 +7,7 @@ use comhairle_macros::{DbJsonBEnum, Translatable};
 use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
@@ -18,11 +18,12 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
+use crate::models::conversation::ConversationIden;
 use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::models::scheduled_email::{
     self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
 };
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
 use crate::models::users::User;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -60,6 +61,16 @@ impl EventAgenda {
             EventAgendaItem::BreakoutRoom(b) => b.max_per_room,
             _ => None,
         })
+    }
+
+    /// Keeps the items up to and including `current_step` and replaces everything after
+    /// it with `upcoming`. Used for live edits during a call, where items that have
+    /// started or finished can't change.
+    pub fn with_upcoming(&self, current_step: usize, upcoming: Vec<EventAgendaItem>) -> Self {
+        let locked_count = (current_step + 1).min(self.0.len());
+        let mut items = self.0[..locked_count].to_vec();
+        items.extend(upcoming);
+        EventAgenda(items)
     }
 }
 
@@ -433,11 +444,31 @@ impl CreateEvent {
         }
 
         if let Some(ref value) = self.custom_event_link {
-            values.push(value.into());
+            values.push(value.trim().into());
         }
 
         values
     }
+}
+
+const MAX_CUSTOM_EVENT_LINK_LENGTH: usize = 2048;
+
+/// A custom link is rendered as a plain `href`, so anything other than an absolute
+/// `https` URL would resolve relative to the event page and break the lobby button.
+/// Keep this in step with `validateUrl` on the frontend, which drops any link it rejects.
+fn validate_custom_event_link(link: &str) -> Result<(), ComhairleError> {
+    let link = link.trim();
+    let is_https_url = link.starts_with("https://")
+        && link.len() <= MAX_CUSTOM_EVENT_LINK_LENGTH
+        && reqwest::Url::parse(link).is_ok();
+
+    if link.is_empty() || is_https_url {
+        return Ok(());
+    }
+
+    Err(ComhairleError::BadRequest(
+        "Custom event link must be a full URL starting with https://".into(),
+    ))
 }
 
 #[instrument(err(Debug), skip(db))]
@@ -446,14 +477,34 @@ pub async fn create(
     conversation_id: &Uuid,
     new_event: &CreateEvent,
 ) -> Result<Event, ComhairleError> {
+    if let Some(link) = &new_event.custom_event_link {
+        validate_custom_event_link(link)?;
+    }
+
     let mut columns = new_event.columns();
     let mut values = new_event.values();
 
     columns.push(EventIden::ConversationId);
     values.push((*conversation_id).into());
 
-    let name = new_translation(db, "en", &new_event.name, TextFormat::Plain).await?;
-    let description = new_translation(db, "en", &new_event.description, TextFormat::Plain).await?;
+    let mut transaction = db.begin().await?;
+    let scope = TranslationScope::Conversation(*conversation_id);
+    let name = new_translation(
+        &mut transaction,
+        scope,
+        "en",
+        &new_event.name,
+        TextFormat::Plain,
+    )
+    .await?;
+    let description = new_translation(
+        &mut transaction,
+        scope,
+        "en",
+        &new_event.description,
+        TextFormat::Plain,
+    )
+    .await?;
 
     columns.push(EventIden::Name);
     values.push(name.id.into());
@@ -478,9 +529,10 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *transaction)
         .await?;
 
+    transaction.commit().await?;
     Ok(event)
 }
 
@@ -516,13 +568,16 @@ impl PartialEvent {
             values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.custom_event_link {
-            if value.trim().is_empty() {
+            validate_custom_event_link(value)?;
+
+            let link = value.trim();
+            if link.is_empty() {
                 values.push((
                     EventIden::CustomEventLink,
                     sea_query::Value::String(None).into(),
                 ));
             } else {
-                values.push((EventIden::CustomEventLink, value.clone().into()));
+                values.push((EventIden::CustomEventLink, link.into()));
             }
         }
         if let Some(value) = &self.default_time_zone {
@@ -760,13 +815,45 @@ pub async fn list(
     let query = Query::select()
         .from(EventIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
-        .and_where(Expr::col(EventIden::ConversationId).eq(*conversation_id))
+        .and_where(Expr::col((EventIden::Table, EventIden::ConversationId)).eq(*conversation_id))
         .to_owned();
 
     // Add current_attendance computed column using subquery
     let query = add_current_attendance(query);
 
     let query = LocalizedEvent::query_to_localisation(query, &locale.unwrap_or("en".into()));
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply_to_localized(query);
+
+    let events = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(events)
+}
+
+/// List all events owned by a user
+#[instrument(err(Debug), skip(db))]
+pub async fn list_owned(
+    db: &PgPool,
+    user_id: Uuid,
+    page_options: PageOptions,
+    filter_options: EventFilterOptions,
+    order_options: EventOrderOptions,
+    locale: &str,
+) -> Result<PaginatedResults<LocalizedEvent>, ComhairleError> {
+    let query = Query::select()
+        .from(EventIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
+        .join(
+            JoinType::InnerJoin,
+            ConversationIden::Table,
+            Expr::col((ConversationIden::Table, ConversationIden::Id))
+                .equals((EventIden::Table, EventIden::ConversationId)),
+        )
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(user_id))
+        .to_owned();
+
+    let query = LocalizedEvent::query_to_localisation(query, locale);
 
     let query = filter_options.apply(query);
     let query = order_options.apply_to_localized(query);
@@ -853,12 +940,103 @@ mod tests {
     use std::error::Error;
 
     use chrono::Duration;
+    use fake::{Fake, Faker};
 
     use super::*;
     use crate::models::event_attendance::{self, CreateEventAttendance};
     use crate::models::model_test_helpers::{
         get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
     };
+    use crate::models::users;
+
+    async fn create_named_event(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        name: &str,
+    ) -> Result<Uuid, Box<dyn Error>> {
+        let new_event = CreateEvent {
+            name: name.to_string(),
+            signup_mode: SignupMode::Invite,
+            ..Default::default()
+        };
+        Ok(create(pool, &conversation_id, &new_event).await?.id)
+    }
+
+    async fn reassign_conversation_owner(
+        pool: &PgPool,
+        conversation_id: Uuid,
+        owner_id: Uuid,
+    ) -> Result<(), Box<dyn Error>> {
+        sqlx::query("UPDATE conversation SET owner_id = $1 WHERE id = $2")
+            .bind(owner_id)
+            .bind(conversation_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
+    #[test]
+    fn custom_event_link_must_be_blank_or_https() {
+        for link in ["", "  ", "https://meet.google.com/abc-defg-hij"] {
+            assert!(validate_custom_event_link(link).is_ok(), "{link} rejected");
+        }
+
+        for link in [
+            "brainstorming-workshop",
+            "meet.google.com/abc",
+            "/conversations/1/events/2/live",
+            "http://meet.google.com/abc",
+            "javascript:alert(1)",
+            "HTTPS://meet.google.com/abc",
+            "https:meet.google.com/abc",
+        ] {
+            assert!(validate_custom_event_link(link).is_err(), "{link} accepted");
+        }
+
+        let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
+        assert!(validate_custom_event_link(&too_long).is_err());
+    }
+
+    fn basic_item(title: &str) -> EventAgendaItem {
+        EventAgendaItem::Basic(BasicEventAgendaItem {
+            title: title.to_string(),
+            description: String::new(),
+            estimated_time: 0,
+        })
+    }
+
+    fn agenda_of(titles: &[&str]) -> EventAgenda {
+        EventAgenda(titles.iter().map(|title| basic_item(title)).collect())
+    }
+
+    #[test]
+    fn with_upcoming_keeps_the_current_and_earlier_items() {
+        let agenda = agenda_of(&["Welcome", "Intro", "Old next", "Old last"]);
+
+        let edited = agenda.with_upcoming(1, vec![basic_item("New next")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Intro", "New next"]));
+    }
+
+    #[test]
+    fn with_upcoming_can_clear_or_append_after_the_last_item() {
+        let agenda = agenda_of(&["Welcome", "Close"]);
+
+        assert_eq!(agenda.with_upcoming(1, vec![]), agenda);
+        assert_eq!(
+            agenda.with_upcoming(1, vec![basic_item("Extra")]),
+            agenda_of(&["Welcome", "Close", "Extra"])
+        );
+    }
+
+    #[test]
+    fn with_upcoming_handles_a_step_past_the_end_of_the_agenda() {
+        let agenda = agenda_of(&["Welcome"]);
+
+        let edited = agenda.with_upcoming(5, vec![basic_item("Added")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Added"]));
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -1148,6 +1326,9 @@ mod tests {
         let _ = create(&pool, &conversation_id, &new_event_3).await?;
         let _ = create(&pool, &conversation_id, &new_event_4).await?;
 
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_event(&pool, other_conversation_id, "other_conversation_event").await?;
+
         let page_options = PageOptions {
             offset: None,
             limit: None,
@@ -1169,6 +1350,18 @@ mod tests {
         .await?;
 
         assert_eq!(results.total, 4, "incorrect number of events");
+        assert_eq!(
+            results.records.len(),
+            4,
+            "incorrect number of event records"
+        );
+        assert!(
+            results
+                .records
+                .iter()
+                .all(|record| record.event.conversation_id == conversation_id),
+            "events from another conversation were included"
+        );
         assert_eq!(
             results.records[2].event.name,
             "test_event_3".to_string(),
@@ -1435,6 +1628,101 @@ mod tests {
             available_results.records[1].current_attendance, 0,
             "incorrect available attendance [1]"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_owned_events_across_conversations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+
+        let conversation_a = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_b = get_random_conversation_id(&app, &mut session).await?;
+        let other_conversation = get_random_conversation_id(&app, &mut session).await?;
+        reassign_conversation_owner(&pool, other_conversation, other_user.id).await?;
+
+        let event_a = create_named_event(&pool, conversation_a, "event_a").await?;
+        let event_b = create_named_event(&pool, conversation_b, "event_b").await?;
+        let other_event = create_named_event(&pool, other_conversation, "other_event").await?;
+
+        let results = list_owned(
+            &pool,
+            user.id,
+            PageOptions::default(),
+            EventFilterOptions::default(),
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        let ids: Vec<Uuid> = results.records.iter().map(|e| e.id).collect();
+        assert_eq!(results.total, 2, "incorrect number of owned events");
+        assert!(ids.contains(&event_a), "missing event from conversation a");
+        assert!(ids.contains(&event_b), "missing event from conversation b");
+        assert!(
+            !ids.contains(&other_event),
+            "included another owner's event"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_filter_owned_events_by_conversation(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
+        let conversation_a = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_b = get_random_conversation_id(&app, &mut session).await?;
+
+        let event_a = create_named_event(&pool, conversation_a, "event_a").await?;
+        create_named_event(&pool, conversation_b, "event_b").await?;
+
+        let results = list_owned(
+            &pool,
+            user.id,
+            PageOptions::default(),
+            EventFilterOptions {
+                conversation_id: Some(conversation_a),
+                ..Default::default()
+            },
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        assert_eq!(results.total, 1, "incorrect number of events");
+        assert_eq!(results.records[0].id, event_a, "incorrect event");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_no_owned_events_for_user_without_conversations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let other_user = users::create_user(&Faker.fake(), &pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_event(&pool, conversation_id, "event").await?;
+
+        let results = list_owned(
+            &pool,
+            other_user.id,
+            PageOptions::default(),
+            EventFilterOptions::default(),
+            EventOrderOptions::default(),
+            "en",
+        )
+        .await?;
+
+        assert_eq!(results.total, 0, "expected no events");
+        assert!(results.records.is_empty(), "expected no records");
 
         Ok(())
     }

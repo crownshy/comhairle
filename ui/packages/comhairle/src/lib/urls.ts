@@ -10,10 +10,6 @@ export function shareable_conversation_url(origin: string, conversation_id: stri
 	return `${origin}${conversation_url(conversation_id)}`;
 }
 
-export function manage_conversation_url(conversation_id: string) {
-	return `/admin/conversations/${conversation_id}/configure`;
-}
-
 export function workflow_url(
 	conversation_id: string,
 	workflow_id: string,
@@ -69,6 +65,13 @@ export function loginRedirectClient(backTo: string, message?: string) {
 	goto(`/auth/login?backTo=${encodeURIComponent(backTo)}`);
 }
 
+export function loginOtpRedirectClient(backTo: string, message?: string) {
+	if (message) {
+		notifications.addFlash({ message, priority: 'INFO' });
+	}
+	goto(`/auth/login-otp/send?backTo=${encodeURIComponent(backTo)}`);
+}
+
 /**
  * Redirect to the login page with a link back to the current context.
  *
@@ -90,6 +93,13 @@ export function signupRedirect(backTo: string, message?: string) {
 		notifications.addFlash({ message, priority: 'INFO' });
 	}
 	goto(`/auth/signup?backTo=${encodeURIComponent(backTo)}`);
+}
+
+export function signupOtpRedirect(backTo: string, message?: string) {
+	if (message) {
+		notifications.addFlash({ message, priority: 'INFO' });
+	}
+	goto(`/auth/signup-otp?backTo=${encodeURIComponent(backTo)}`);
 }
 
 // Redirect to the signup guest page with a link back to the current

@@ -48,7 +48,10 @@ export const load: LayoutLoad = async ({ params, parent, depends }) => {
 		let stats: WorkflowStats = {
 			signupStats: [],
 			stepStats: [],
-			totalUsers: 0
+			totalUsers: 0,
+			activeUsers: 0,
+			finishedUsers: 0,
+			totalActiveSeconds: 0
 		};
 		let workflowSteps: WorkflowStepsListResponse = [];
 

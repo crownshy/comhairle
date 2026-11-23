@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -5,7 +6,10 @@ use chrono::{DateTime, Utc};
 use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{Cond, Expr, Order, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{
+    Alias, Asterisk, Cond, Expr, Func, FunctionCall, JoinType, Keyword, Order,
+    PostgresQueryBuilder, Query, SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -14,8 +18,9 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use super::event::EventIden;
+use super::user_activity::UserActivityIden;
 use super::user_participation::{self, UserParticipation, UserParticipationIden};
-use super::user_progress::{self, UserProgressIden};
+use super::user_progress::{self, ProgressStatus, UserProgressIden};
 use super::users::User;
 use super::workflow_step::{self, WorkflowStepIden};
 use super::{SqlxResultExt, user_conversation_preferences};
@@ -197,21 +202,9 @@ pub async fn register_user(
         .await?;
     }
 
-    // Check to see if the user already has preferences for this
-    // conversastion
     if let Some(conversation_id) = workflow.conversation_id {
-        let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
-            db,
-            &user.id,
-            &conversation_id,
-        )
-        .await;
-
-        // If they dont, create some
-        if user_preferences.is_err() {
-            user_conversation_preferences::create_with_defaults(db, &user.id, &conversation_id)
-                .await?;
-        }
+        user_conversation_preferences::create_defaults_if_missing(db, &user.id, &conversation_id)
+            .await?;
     }
 
     Ok(user_participation)
@@ -344,6 +337,9 @@ pub async fn list(
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowStats {
     pub total_users: i32,
+    pub active_users: i32,
+    pub finished_users: i32,
+    pub total_active_seconds: i64,
     pub step_stats: Vec<WorkflowStepStats>,
     pub signup_stats: Vec<DailySignupStats>,
 }
@@ -354,21 +350,44 @@ pub struct WorkflowStepStats {
     id: Uuid,
     pub completed: i32,
     pub started: i32,
+    /// Active time for participants with done progress, including return visits.
+    pub median_active_seconds: Option<f64>,
+    pub max_active_seconds: Option<i64>,
 }
 
-/// Calculate stastistics for the workflow
+#[derive(FromRow)]
+struct WorkflowActivity {
+    user_id: Uuid,
+    workflow_step_id: Uuid,
+    active_seconds: i32,
+    activity_changed_at: DateTime<Utc>,
+    is_active: bool,
+    ended_at: Option<DateTime<Utc>>,
+    status: Option<ProgressStatus>,
+}
+
+/// Calculate statistics from progress and tracked active time, including open visits.
 pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, ComhairleError> {
+    let as_integer = |count: FunctionCall| SimpleExpr::from(count).cast_as(Alias::new("integer"));
+    let status_count = |status: ProgressStatus| {
+        as_integer(Func::count(
+            Expr::case(
+                Expr::col((UserProgressIden::Table, UserProgressIden::Status)).eq(status),
+                1,
+            )
+            .finally(Keyword::Null),
+        ))
+    };
     let (sql, values) = Query::select()
         .from(WorkflowStepIden::Table)
         .column((WorkflowStepIden::Table, WorkflowStepIden::Id))
-        .expr(Expr::cust(
-            "COUNT(CASE WHEN user_progress.status = 'done' THEN 1 END)::INT as completed",
-        ))
-        .expr(Expr::cust(
-            "COUNT(CASE WHEN user_progress.status = 'in_progress' THEN 1 END)::INT as started",
-        ))
+        .expr_as(status_count(ProgressStatus::Done), Alias::new("completed"))
+        .expr_as(
+            status_count(ProgressStatus::InProgress),
+            Alias::new("started"),
+        )
         .join(
-            sea_query::JoinType::LeftJoin,
+            JoinType::LeftJoin,
             UserProgressIden::Table,
             Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
                 .equals((WorkflowStepIden::Table, WorkflowStepIden::Id)),
@@ -377,31 +396,158 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
             Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(workflow_id),
         )
         .group_by_col((WorkflowStepIden::Table, WorkflowStepIden::Id))
-        .group_by_col(WorkflowStepIden::StepOrder)
+        .group_by_col((WorkflowStepIden::Table, WorkflowStepIden::StepOrder))
         .order_by(
             (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
             Order::Asc,
         )
-        .to_owned()
         .build_sqlx(PostgresQueryBuilder);
+    let rows: Vec<(Uuid, i32, i32)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
 
-    let step_stats = sqlx::query_as_with::<_, WorkflowStepStats, _>(&sql, values)
-        .fetch_all(db)
-        .await?;
-
+    let unfinished_steps = Query::select()
+        .expr(Expr::val(1))
+        .from(WorkflowStepIden::Table)
+        .join(
+            JoinType::LeftJoin,
+            UserProgressIden::Table,
+            Cond::all()
+                .add(
+                    Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                        .equals((WorkflowStepIden::Table, WorkflowStepIden::Id)),
+                )
+                .add(
+                    Expr::col((UserProgressIden::Table, UserProgressIden::UserId))
+                        .equals((UserParticipationIden::Table, UserParticipationIden::UserId)),
+                )
+                .add(
+                    Expr::col((UserProgressIden::Table, UserProgressIden::Status))
+                        .eq(ProgressStatus::Done),
+                ),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(workflow_id),
+        )
+        .and_where(Expr::col((UserProgressIden::Table, UserProgressIden::Id)).is_null())
+        .to_owned();
     let (sql, values) = Query::select()
         .from(UserParticipationIden::Table)
-        .expr(Expr::cust("COUNT(*)::INT as count"))
+        .expr_as(
+            as_integer(Func::count(Expr::col(Asterisk))),
+            Alias::new("total"),
+        )
+        .expr_as(
+            as_integer(Func::count(
+                Expr::case(Expr::exists(unfinished_steps).not(), 1).finally(Keyword::Null),
+            )),
+            Alias::new("finished"),
+        )
         .and_where(Expr::col(UserParticipationIden::WorkflowId).eq(workflow_id))
-        .to_owned()
         .build_sqlx(PostgresQueryBuilder);
+    let (total_users, finished_users): (i32, i32) =
+        sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let finished_users = if rows.is_empty() { 0 } else { finished_users };
 
-    let total_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
+    let (sql, values) = Query::select()
+        .from(UserActivityIden::Table)
+        .columns([
+            (UserActivityIden::Table, UserActivityIden::UserId),
+            (UserActivityIden::Table, UserActivityIden::WorkflowStepId),
+            (UserActivityIden::Table, UserActivityIden::ActiveSeconds),
+            (UserActivityIden::Table, UserActivityIden::ActivityChangedAt),
+            (UserActivityIden::Table, UserActivityIden::IsActive),
+            (UserActivityIden::Table, UserActivityIden::EndedAt),
+        ])
+        .column((UserProgressIden::Table, UserProgressIden::Status))
+        .join(
+            JoinType::InnerJoin,
+            WorkflowStepIden::Table,
+            Expr::col((UserActivityIden::Table, UserActivityIden::WorkflowStepId))
+                .equals((WorkflowStepIden::Table, WorkflowStepIden::Id)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            UserParticipationIden::Table,
+            Cond::all()
+                .add(
+                    Expr::col((UserParticipationIden::Table, UserParticipationIden::UserId))
+                        .equals((UserActivityIden::Table, UserActivityIden::UserId)),
+                )
+                .add(
+                    Expr::col((
+                        UserParticipationIden::Table,
+                        UserParticipationIden::WorkflowId,
+                    ))
+                    .equals((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)),
+                ),
+        )
+        .join(
+            JoinType::LeftJoin,
+            UserProgressIden::Table,
+            Cond::all()
+                .add(
+                    Expr::col((UserProgressIden::Table, UserProgressIden::UserId))
+                        .equals((UserActivityIden::Table, UserActivityIden::UserId)),
+                )
+                .add(
+                    Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                        .equals((UserActivityIden::Table, UserActivityIden::WorkflowStepId)),
+                ),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(workflow_id),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+    let activities: Vec<WorkflowActivity> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+    let now = Utc::now();
+    let mut active_users = HashSet::new();
+    let mut total_active_seconds = 0;
+    let mut completed_times: HashMap<Uuid, Vec<i64>> = HashMap::new();
+    for activity in activities {
+        let is_active = activity.is_active && activity.ended_at.is_none();
+        let current_seconds = if is_active {
+            active_users.insert(activity.user_id);
+            (now - activity.activity_changed_at).num_seconds().max(0)
+        } else {
+            0
+        };
+        let active_seconds = i64::from(activity.active_seconds) + current_seconds;
+        total_active_seconds += active_seconds;
+        if activity.status == Some(ProgressStatus::Done) {
+            completed_times
+                .entry(activity.workflow_step_id)
+                .or_default()
+                .push(active_seconds);
+        }
+    }
+    let step_stats = rows
+        .into_iter()
+        .map(|(id, completed, started)| {
+            let times = completed_times.entry(id).or_default();
+            times.sort_unstable();
+            let median_active_seconds = if times.is_empty() {
+                None
+            } else {
+                Some((times[(times.len() - 1) / 2] as f64 + times[times.len() / 2] as f64) / 2.0)
+            };
+            WorkflowStepStats {
+                id,
+                completed,
+                started,
+                median_active_seconds,
+                max_active_seconds: times.last().copied(),
+            }
+        })
+        .collect();
     let signup_stats = get_workflow_signup_stats(db, workflow_id).await?;
 
     Ok(WorkflowStats {
         step_stats,
         total_users,
+        active_users: i32::try_from(active_users.len()).map_err(|error| {
+            ComhairleError::BadRequest(format!("Too many active users: {error}"))
+        })?,
+        finished_users,
+        total_active_seconds,
         signup_stats,
     })
 }

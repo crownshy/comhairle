@@ -16,9 +16,10 @@
 	import { key } from '$lib/utils/invalidationKey';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
-	import { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { LocalizedConversationDto, LocalizedEventDto } from '@crownshy/api-client/api';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { newEmailTemplateConfigTour } from './tour';
+	import { isConversationEmail, isEventEmail } from '$lib/email-template-configs';
 
 	useTour(() => newEmailTemplateConfigTour);
 
@@ -28,9 +29,11 @@
 	};
 
 	let { data } = $props();
-	const { schemas, conversations, emailConfigs } = data;
+	const { schemas, conversations, events, emailConfigs } = data;
 
 	let selectedSchema = $state(schemas[0]);
+
+	/** Scoped events */
 	let filteredConversations = $derived(
 		conversations.filter(
 			(conversation) =>
@@ -38,6 +41,15 @@
 		)
 	);
 	let selectedConversation = $state<LocalizedConversationDto | null>(null);
+	const isConversationTemplate = $derived(isConversationEmail(selectedSchema.email_type));
+
+	/** Scoped events */
+	let filteredEvents = $derived(
+		events.filter((event) => !emailConfigs.find((config) => config.eventId === event.id))
+	);
+	let selectedEvent = $state<LocalizedEventDto | null>(null);
+	const isEventTemplate = $derived(isEventEmail(selectedSchema.email_type));
+
 	let formState = $derived.by(() => {
 		const output: FormState = {
 			slots: {},
@@ -68,6 +80,10 @@
 		selectedConversation = conversations.find((c) => c.id === value) ?? null;
 	}
 
+	function handleSelectEvent(value: string) {
+		selectedEvent = events.find((e) => e.id === value) ?? null;
+	}
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 
@@ -91,8 +107,16 @@
 				},
 				...(formState.subject && { subject: formState.subject }),
 				...(selectedConversation &&
-					selectedSchema.email_type === 'conversation_invite' && {
-						conversation_id: selectedConversation.id
+					isConversationTemplate && {
+						scope: { type: 'conversation', id: selectedConversation.id }
+					}),
+				...(selectedEvent &&
+					isEventTemplate && {
+						scope: { type: 'event', id: selectedEvent.id }
+					}),
+				...(!selectedEvent &&
+					!selectedConversation && {
+						scope: { type: 'owner' }
 					})
 			});
 
@@ -190,8 +214,8 @@
 				</Select.Content>
 			</Select.Root>
 		</div>
-		{#if selectedSchema.email_type === 'conversation_invite' && filteredConversations.length > 0}
-			<div class="flex flex-col gap-2">
+		{#if isConversationTemplate && filteredConversations.length > 0}
+			<div class="flex flex-col items-end gap-2">
 				<h2 class="text-xl font-semibold">Scoped Conversation</h2>
 				<Select.Root
 					type="single"
@@ -207,6 +231,27 @@
 						{#each filteredConversations as conversation (conversation.id)}
 							<Select.Item value={conversation.id}>
 								{conversation.title}
+							</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		{:else if isEventTemplate && filteredEvents.length > 0}
+			<div class="flex flex-col items-end gap-2">
+				<h2 class="text-xl font-semibold">Scoped Event</h2>
+				<Select.Root
+					type="single"
+					value={selectedEvent?.id}
+					onValueChange={handleSelectEvent}
+				>
+					<Select.Trigger class="w-fit"
+						>{selectedEvent?.name ?? 'All events (fallback)'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="">All events (fallback)</Select.Item>
+						{#each filteredEvents as event (event.id)}
+							<Select.Item value={event.id}>
+								{event.name}
 							</Select.Item>
 						{/each}
 					</Select.Content>

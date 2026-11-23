@@ -11,7 +11,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
-	import { ArrowLeft, BookOpenText, PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import BookOpenText from '@lucide/svelte/icons/book-open-text';
+	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import { Button } from '$lib/components/ui/button';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import SidebarResizeHandle from '$lib/components/SidebarResizeHandle.svelte';
@@ -26,7 +29,7 @@
 	import WorkspaceSection from './WorkspaceSection.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import type { WorkspaceGroup } from './workspaceLinks';
-	import { ROW_HOVER } from './sidebarRows';
+	import { MENU_BUTTON_HOVER, ROW_HOVER } from './sidebarRows';
 
 	type Props = {
 		/** Set while you're inside a conversation: the sidebar shows it instead of the workspace. */
@@ -51,7 +54,8 @@
 	}
 </script>
 
-<SideBar.Root collapsible="icon" variant="floating">
+<!-- No gap on the right, so a white page such as the report editor meets the sidebar. -->
+<SideBar.Root collapsible="icon" variant="floating" class="pe-0">
 	<SideBar.Header
 		class="flex flex-col gap-2 pt-5 pr-3 pb-3 pl-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3"
 	>
@@ -62,7 +66,7 @@
 					href={conversationsHref}
 					title="Back to conversations"
 					class={cn(
-						'text-sidebar-foreground/80 hover:text-sidebar-foreground -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-base group-data-[collapsible=icon]:hidden',
+						'text-sidebar-foreground/80 hover:text-sidebar-foreground -ml-2 flex h-8 items-center gap-2 rounded-lg px-2 text-sm group-data-[collapsible=icon]:hidden',
 						ROW_HOVER
 					)}
 				>
@@ -100,7 +104,7 @@
 		</div>
 		{#if title}
 			<h1
-				class="text-sidebar-foreground line-clamp-2 text-lg leading-7 font-semibold group-data-[collapsible=icon]:hidden"
+				class="text-sidebar-foreground line-clamp-2 text-base leading-6 font-semibold group-data-[collapsible=icon]:hidden"
 				{title}
 			>
 				{title}
@@ -128,7 +132,10 @@
 		{#if !open}
 			<SideBar.Menu>
 				<SideBar.MenuItem>
-					<SideBar.MenuButton tooltipContent="Handbook" class="h-10 text-base">
+					<SideBar.MenuButton
+						tooltipContent="Handbook"
+						class={cn('h-9 text-sm', MENU_BUTTON_HOVER)}
+					>
 						{#snippet child({ props })}
 							<a {...props} href={resolve('/admin/info/welcome')}>
 								<BookOpenText />

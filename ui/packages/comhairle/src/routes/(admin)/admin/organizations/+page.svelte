@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { permissions } from '$lib/permissions.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';

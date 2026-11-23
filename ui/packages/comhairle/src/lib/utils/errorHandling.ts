@@ -1,7 +1,7 @@
 export type ErrorType = string | object;
-type Ok<K extends string, T> = Record<K, T> & { err: null };
-type Err<K extends string, E extends ErrorType> = Record<K, null> & { err: E };
-export type Result<K extends string, T, E extends ErrorType> = Ok<K, T> | Err<K, E>;
+type Ok<T> = { ok: T; err: null };
+type Err<E extends ErrorType> = { ok: null; err: E };
+export type Result<T, E extends ErrorType> = Ok<T> | Err<E>;
 
 function Err(error: ErrorType): void {
 	throw new Error(error.toString());
@@ -13,7 +13,7 @@ function Ok<T>(result: T): T {
 
 export async function tryCatchAsync<T, E extends ErrorType>(
 	fn: (ok: typeof Ok, err: typeof Err) => Promise<T>
-): Promise<Result<'ok', T, E>> {
+): Promise<Result<T, E>> {
 	try {
 		const result = await fn(Ok, Err);
 		return { ok: result, err: null };
@@ -59,7 +59,7 @@ export async function tryFetch(
 	endpoint: string | URL | Request,
 	params: RequestInit | undefined = undefined,
 	fetchRef: typeof fetch = fetch
-): Promise<Result<'ok', Response, FetchErr>> {
+): Promise<Result<Response, FetchErr>> {
 	const response = await tryCatchAsync(() =>
 		fetchRef(endpoint, { ...params, credentials: 'include' })
 	);

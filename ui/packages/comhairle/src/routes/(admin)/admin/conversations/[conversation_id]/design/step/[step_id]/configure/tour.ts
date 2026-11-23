@@ -19,14 +19,7 @@ export const stepConfigureTour: Tour = {
 			element: '[data-tour="step-data-protocol-field"]',
 			title: 'Data protocol',
 			description:
-				"Explains to participants how their answers in this step are used. Leave blank to use the tool's default wording.",
-			side: 'top'
-		},
-		{
-			element: '[data-tour="step-switches"]',
-			title: 'Required and revisitable',
-			description:
-				'Required stops participants skipping it. Revisitable lets them come back to it while still working through the conversation.',
+				"Explains to participants how their answers in this step are used. It starts as the tool's default, so edit it to write your own or leave it as is.",
 			side: 'top'
 		},
 		{

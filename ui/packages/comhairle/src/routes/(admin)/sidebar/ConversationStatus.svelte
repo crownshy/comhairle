@@ -5,7 +5,9 @@
 	import { cn } from '$lib/utils';
 	import { shareable_conversation_url } from '$lib/urls';
 	import { copyToClipboard } from '$lib/utils/copyToClipboard.svelte';
-	import { ArrowUpRight, Check, Copy } from 'lucide-svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Check from '@lucide/svelte/icons/check';
+	import Copy from '@lucide/svelte/icons/copy';
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import {
 		CONVERSATION_STATUS_LABELS,
@@ -37,8 +39,8 @@
 	}
 </script>
 
-<div class="flex h-9 items-center justify-between gap-3 pr-4 group-data-[collapsible=icon]:hidden">
-	<span class="text-sidebar-foreground/80 inline-flex items-center gap-2 text-base">
+<div class="flex h-8 items-center justify-between gap-3 pr-4 group-data-[collapsible=icon]:hidden">
+	<span class="text-sidebar-foreground/80 inline-flex items-center gap-2 text-sm">
 		<span class="size-2 shrink-0 rounded-full {STATUS_DOT_CLASS[status]}" aria-hidden="true"
 		></span>
 		{CONVERSATION_STATUS_LABELS[status]}
@@ -51,7 +53,7 @@
 			})}
 			target="_blank"
 			variant="secondary"
-			class={cn(PILL_CLASS, 'h-9 px-4 text-base')}
+			class={cn(PILL_CLASS, 'h-8 px-3 text-sm')}
 		>
 			Preview
 			<ArrowUpRight class="size-4" />
@@ -60,7 +62,7 @@
 			<Button
 				variant="secondary"
 				size="icon"
-				class={cn(PILL_CLASS, 'size-9')}
+				class={cn(PILL_CLASS, 'size-8')}
 				title={copyLabel}
 				onclick={copyLink}
 			>

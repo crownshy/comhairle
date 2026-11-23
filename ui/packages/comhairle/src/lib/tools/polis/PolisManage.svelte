@@ -33,6 +33,7 @@
 	const {
 		required_votes: requiredVotes,
 		show_remaining_statements: showRemaining = true,
+		show_onboarding: showOnboarding = false,
 		topic = '',
 		description = '',
 		strict_moderation: strictModeration = false,
@@ -183,6 +184,24 @@
 				disabled={!canEdit}
 				checked={showRemaining}
 				onCheckedChange={(checked) => saveField('show_remaining_statements', checked)}
+			/>
+		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="showOnboarding" class="text-sm font-medium">
+					Guide first-time voters
+				</Label>
+				<span class="text-muted-foreground text-xs">
+					Walk new participants through how voting works, with two practice statements and
+					a look at the opinion groups, before they start voting.
+				</span>
+			</div>
+			<Switch
+				id="showOnboarding"
+				disabled={!canEdit}
+				checked={showOnboarding}
+				onCheckedChange={(checked) => saveField('show_onboarding', checked)}
 			/>
 		</div>
 

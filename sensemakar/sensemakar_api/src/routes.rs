@@ -3,11 +3,13 @@ use std::sync::Arc;
 use axum::{Json, extract::State};
 use rig_core::DynModel;
 use rig_core::operation::Completion;
+use sensemakar::conversation_analysis::ConversationAnalyzer;
 use sensemakar::statement_theme_assigner::StatementThemeAssigner;
 use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
 use sensemakar_types::{
-    Statement, Theme, ThemeAssignmentResult, WikiPollData, WikiPollReportResult,
+    Statement, Theme, ThemeAssignmentResult, Transcript, WikiPollData, WikiPollReportResult,
+    conversation_analysis::ConversationAnalysis,
 };
 use serde::Deserialize;
 
@@ -124,6 +126,31 @@ pub async fn assign_themes(
 
     let result = assigner
         .run_with_model(request.statements, model.as_ref().clone())
+        .await?;
+
+    Ok(Json(result))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AnalyzeConversationRequest {
+    pub transcript: Transcript,
+    #[serde(default)]
+    pub context: Option<String>,
+    #[serde(default)]
+    pub additional_instructions: Option<String>,
+}
+
+pub async fn analyze_conversation(
+    State(model): State<AppState>,
+    Json(request): Json<AnalyzeConversationRequest>,
+) -> Result<Json<ConversationAnalysis>, ApiError> {
+    let analyzer = ConversationAnalyzer::builder()
+        .maybe_context(request.context)
+        .maybe_additional_instructions(request.additional_instructions)
+        .build();
+
+    let result = analyzer
+        .run_with_model(&request.transcript, model.as_ref().clone())
         .await?;
 
     Ok(Json(result))

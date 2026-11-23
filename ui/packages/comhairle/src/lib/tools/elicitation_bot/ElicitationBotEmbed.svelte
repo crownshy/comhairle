@@ -3,7 +3,7 @@
 	import ElicitationBotChat from './ElicitationBotChat.svelte';
 	import { AgentClient, parseSessionHistory } from '$lib/api/agentClient.svelte';
 	import type { ElicitationMessage, ExtractedClaim } from './types';
-	import { Loader2 } from 'lucide-svelte';
+	import Loader2 from '@lucide/svelte/icons/loader-circle';
 	import { loadClaims, saveClaimModifications, type ClaimModification } from './claimStorage';
 
 	type Props = {

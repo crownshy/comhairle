@@ -5,6 +5,7 @@ use language_tags::LanguageTag;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+pub mod conversation_analysis;
 pub mod thinking_space;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -109,6 +110,28 @@ impl From<Vec<Theme>> for ThemeList {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[schemars(
+    description = "A single canonical theme produced by merging one or more candidate themes that describe the same topic"
+)]
+pub struct ThemeMergeGroup {
+    /// A descriptive name for the merged theme
+    pub name: String,
+    /// A short description of what the merged theme captures
+    pub description: String,
+    /// The ids of every candidate theme folded into this group. Every
+    /// candidate id given in the input must appear in exactly one group.
+    pub merged_ids: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[schemars(
+    description = "A deduplicated set of canonical themes, each mapping back to the candidate theme ids it was merged from"
+)]
+pub struct ThemeMergeResult {
+    pub groups: Vec<ThemeMergeGroup>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 /// Represents the assignment of a statement to a theme  
 pub struct ThemeAssignment {
     // The id of the statement
@@ -201,17 +224,17 @@ impl StatementList {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Transcript {
     pub id: String,
     pub parts: Vec<Utterance>,
     pub started_at: Timestamp,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Utterance {
-    speaker_id: String,
-    text: String,
-    started_offset: u32,
-    ended_offset: u32,
+    pub speaker_id: String,
+    pub text: String,
+    pub started_offset: u32,
+    pub ended_offset: u32,
 }

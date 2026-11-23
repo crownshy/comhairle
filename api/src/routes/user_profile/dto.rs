@@ -31,9 +31,4 @@ impl From<UserProfile> for UserProfileDto {
 #[serde(rename_all = "camelCase")]
 pub struct UpsertUserProfileRequest {
     pub consented: Option<bool>,
-    pub ethnicity: Option<String>,
-    pub age: Option<i32>,
-    pub gender: Option<String>,
-    pub zipcode: Option<String>,
-    pub political_party: Option<String>,
 }

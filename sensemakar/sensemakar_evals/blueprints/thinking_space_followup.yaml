@@ -1,0 +1,16 @@
+task: thinking_space_followup
+description: >
+  Generates follow-up questions for a Thinking Space interview, given the
+  base question and the participant's answer so far
+  (sensemakar::thinking_space::FollowUpQuestionGenerator).
+cases:
+  - id: social-prescribing-followup
+    fixture: ../fixtures/thinking_space/followup_question_chain.json
+    should:
+      - "Generates exactly 5 follow-up questions"
+      - "At least one follow-up asks the participant to be more specific about which resources they mean"
+      - "Every follow-up question is phrased at roughly a 9-11 year old reading level - short sentences, everyday words"
+    should_not:
+      - "Repeats the base question verbatim as a follow-up"
+      - "Asks a leading or loaded question that assumes a particular answer"
+    weight: 1.0

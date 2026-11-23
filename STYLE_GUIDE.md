@@ -174,7 +174,10 @@ Before hand-rolling UI or a helper, **check what already exists**: grep
 - Search inputs with an icon → `$lib/components/SearchBar.svelte`. It uses a native
   search input and the `pile` utility. Pass an accessible name (`aria-label` or
   `aria-labelledby`); keep filtering and debounce logic in the caller.
-- Icons → `lucide-svelte`. Don't inline bespoke SVGs for common glyphs.
+- Icons → `@lucide/svelte`, one import per icon (`import Check from '@lucide/svelte/icons/check'`).
+  Importing from the package root makes the build compile every icon, which pushed the
+  frontend image build past its memory limit. Type an icon prop as `Component<IconProps>`.
+  Don't inline bespoke SVGs for common glyphs.
 - Never hand-roll what a proven library already does: charts → LayerCake / layerchart /
   `@carbon/charts-svelte`; rich text → TipTap / Carta; QR → `svelte-qrcode`;
   drag-and-drop → the existing dnd deps. Add/use a dep before writing bespoke code.
@@ -317,8 +320,9 @@ If you copy a block a second time, stop and extract it.
 - **Tailwind v4 utilities, inline.** No custom classes in `<style>` blocks: if you need
   CSS, it's a utility. (Complex keyframe/`@container` work is the rare exception and must
   be justified in a comment.)
-- **Never smaller than `text-base` for content.** `text-sm` only for small labels;
-  nothing below `text-sm`, ever. This is enforced on desktop.
+- **Never smaller than `text-base` for content.** `text-sm` and `text-xs` are for small
+  labels, metadata, and navigation that packs many rows into a narrow space, like the
+  admin sidebar.
 - Use the **flat shadcn design tokens** (`bg-card`, `text-muted-foreground`, …). When
   translating from Figma, map its doubled token names to the flat token in markup.
 

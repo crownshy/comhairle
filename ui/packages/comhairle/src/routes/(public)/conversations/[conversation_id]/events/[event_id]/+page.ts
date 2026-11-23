@@ -1,6 +1,7 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client/api';
+import { apiErrorStatus, tryCatchAsync } from '$lib/utils/errorHandling';
 import { key } from '$lib/utils/invalidationKey';
 
 export const load: PageLoad = async ({ parent, params, url, depends }) => {
@@ -12,24 +13,23 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 		redirect(302, `/auth/login-otp/send?backTo=${encodeURIComponent(url.pathname)}`);
 	}
 
-	try {
-		const [event, attendancesResult] = await Promise.all([
+	const loaded = await tryCatchAsync(() =>
+		Promise.all([
 			api.GetEvent({ params: { conversation_id, event_id } }),
 			api.ListEventAttendances({
 				params: { conversation_id, event_id },
 				queries: { limit: 100 }
 			})
-		]);
+		])
+	);
 
-		return {
-			conversationId: conversation_id,
-			event: event as LocalizedEventDto,
-			attendances: attendancesResult.records as EventAttendanceDto[],
-			totalAttendances: attendancesResult.total as number,
-			user
-		};
-	} catch (e) {
-		console.error('Failed to load event:', e);
+	if (loaded.err !== null) {
+		const status = apiErrorStatus(loaded.err) ?? 500;
+		// A malformed id comes back as 400, and it can't match an event either.
+		if (status !== 400 && status !== 404) {
+			error(status, 'Could not load this event. Please try again.');
+		}
+
 		return {
 			conversationId: conversation_id,
 			event: null,
@@ -38,4 +38,13 @@ export const load: PageLoad = async ({ parent, params, url, depends }) => {
 			user
 		};
 	}
+
+	const [event, attendancesResult] = loaded.ok;
+	return {
+		conversationId: conversation_id,
+		event: event as LocalizedEventDto,
+		attendances: attendancesResult.records as EventAttendanceDto[],
+		totalAttendances: attendancesResult.total as number,
+		user
+	};
 };

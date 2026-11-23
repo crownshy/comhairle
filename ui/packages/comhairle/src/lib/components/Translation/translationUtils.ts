@@ -13,6 +13,11 @@ import type {
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
+export type TextContentScope =
+	| { type: 'system' }
+	| { type: 'conversation'; id: string }
+	| { type: 'organization'; id: string };
+
 /** Mirror type of the backend JsonFieldWithTranslations with optional `translations`
  * field to allow creating new translatable fields in nested JSON, where only
  * the `localized` text is initialized and translations are created before saving
@@ -160,54 +165,26 @@ export async function aiTranslate(
 ): Promise<{ content: string; requiresValidation: boolean }> {
 	const isRichText = isTiptapJson(sourceContent);
 
-	// For rich text, we need to:
-	// 1. Extract plain text for translation
-	// 2. Create a temporary text content for the plain text
-	// 3. Translate it
-	// 4. Map the translation back to the TipTap structure
-
 	if (isRichText) {
 		const plainText = extractTextFromTiptap(sourceContent);
-
-		const tempTextContent = await apiClient.CreateTextContent({
-			primary_locale: primaryLocale,
-			format: 'plain',
-			content: plainText
-		});
-
-		try {
-			await saveTranslation(tempTextContent.id, targetLocale, '', {
-				aiGenerated: true,
-				requiresValidation: true
-			});
-
-			const result = await apiClient.AutomaticallyGenerateTranslation(undefined, {
+		const result = await apiClient.TranslateTextContentSource(
+			{
+				source_content: plainText,
+				source_locale: primaryLocale
+			},
+			{
 				params: {
-					text_content_id: tempTextContent.id,
+					text_content_id: textContentId,
 					locale: targetLocale
 				}
-			});
-
-			const translatedContent = translateTiptapContent(sourceContent, result.content);
-
-			await saveTranslation(textContentId, targetLocale, translatedContent, {
-				aiGenerated: true,
-				requiresValidation: true
-			});
-
-			return {
-				content: translatedContent,
-				requiresValidation: true
-			};
-		} finally {
-			try {
-				await apiClient.DeleteTextContent(undefined, {
-					params: { text_content_id: tempTextContent.id }
-				});
-			} catch (e) {
-				console.warn('Failed to delete temporary text content:', e);
 			}
-		}
+		);
+		const translatedContent = translateTiptapContent(sourceContent, result.content);
+		await saveTranslation(textContentId, targetLocale, translatedContent, {
+			aiGenerated: true,
+			requiresValidation: true
+		});
+		return { content: translatedContent, requiresValidation: true };
 	} else {
 		// Plain text: use direct translation
 		await saveTranslation(textContentId, targetLocale, '', {
@@ -249,40 +226,18 @@ export async function markOtherTranslationsAsDraft(
 export async function aiTranslateContent(
 	sourceContent: string,
 	targetLocale: string,
+	scope: TextContentScope,
 	primaryLocale: string = 'en'
 ): Promise<string> {
 	const isRichText = isTiptapJson(sourceContent);
 	const plainText = isRichText ? extractTextFromTiptap(sourceContent) : sourceContent;
-
-	const tempTextContent = await apiClient.CreateTextContent({
-		primary_locale: primaryLocale,
-		format: 'plain',
-		content: plainText
+	const result = await apiClient.TranslateText({
+		scope,
+		source_content: plainText,
+		source_locale: primaryLocale,
+		target_locale: targetLocale
 	});
-
-	try {
-		await saveTranslation(tempTextContent.id, targetLocale, '', {
-			aiGenerated: true,
-			requiresValidation: true
-		});
-
-		const result = await apiClient.AutomaticallyGenerateTranslation(undefined, {
-			params: {
-				text_content_id: tempTextContent.id,
-				locale: targetLocale
-			}
-		});
-
-		return isRichText ? translateTiptapContent(sourceContent, result.content) : result.content;
-	} finally {
-		try {
-			await apiClient.DeleteTextContent(undefined, {
-				params: { text_content_id: tempTextContent.id }
-			});
-		} catch (e) {
-			console.warn('Failed to delete temporary text content:', e);
-		}
-	}
+	return isRichText ? translateTiptapContent(sourceContent, result.content) : result.content;
 }
 
 export async function autoTranslateNewLanguage(
@@ -353,12 +308,13 @@ export async function autoTranslateNewLanguage(
 export async function traverseTranslatableJsonAndCreateTranslations(
 	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
 	value: any,
-	primaryLocale: string
+	primaryLocale: string,
+	scope: TextContentScope
 	/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
 ): Promise<any> {
 	if (Array.isArray(value)) {
 		return Promise.all(
-			value.map((v) => traverseTranslatableJsonAndCreateTranslations(v, primaryLocale))
+			value.map((v) => traverseTranslatableJsonAndCreateTranslations(v, primaryLocale, scope))
 		);
 	}
 
@@ -368,7 +324,8 @@ export async function traverseTranslatableJsonAndCreateTranslations(
 			const textContentRes = await apiClient.CreateTextContent({
 				content: value.localized,
 				format: 'plain',
-				primary_locale: primaryLocale
+				primary_locale: primaryLocale,
+				scope
 			});
 
 			return textContentRes.id;
@@ -377,7 +334,11 @@ export async function traverseTranslatableJsonAndCreateTranslations(
 		/* eslint-disable-next-line  @typescript-eslint/no-explicit-any */
 		const fields: Record<string, any> = {};
 		for (const [key, val] of Object.entries(value)) {
-			fields[key] = await traverseTranslatableJsonAndCreateTranslations(val, primaryLocale);
+			fields[key] = await traverseTranslatableJsonAndCreateTranslations(
+				val,
+				primaryLocale,
+				scope
+			);
 		}
 		return fields;
 	}

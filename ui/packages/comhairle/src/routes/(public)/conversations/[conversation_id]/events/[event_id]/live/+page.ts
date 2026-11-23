@@ -19,7 +19,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 		]);
 		event = eventRes;
 		attendances = attendancesResult.records as EventAttendanceDto[];
-	} catch (e) {
+	} catch {
 		redirect(302, `/conversations/${conversation_id}/events/${event_id}`);
 	}
 

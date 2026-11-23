@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { FileAudio, Trash2, Plus, Download, RefreshCw } from 'lucide-svelte';
+	import FileAudio from '@lucide/svelte/icons/file-audio';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Download from '@lucide/svelte/icons/download';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
@@ -560,6 +564,7 @@
 						</div>
 						<Button
 							variant="ghost"
+							title="Delete recording entry"
 							size="sm"
 							onclick={() => removeRow(row.key)}
 							disabled={isUploading || rows.length === 1}

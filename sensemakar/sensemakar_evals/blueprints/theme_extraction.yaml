@@ -1,0 +1,15 @@
+task: theme_extraction
+description: >
+  Extracts recurring themes from a batch of free-text citizen statements
+  (sensemakar::theme_extraction::ThemeExtractor).
+cases:
+  - id: transport-grievances
+    fixture: ../fixtures/theme_extraction/transport.json
+    should:
+      - "Produces a theme that captures bus/tram reliability complaints"
+      - "Groups the bike-storage complaint into a theme distinct from the transport-reliability one"
+      - "Every theme has a name and description that is understandable without re-reading the raw statements"
+    should_not:
+      - "Invents a theme not supported by any statement in the fixture"
+      - "Produces two or more themes that describe the same underlying issue"
+    weight: 1.0

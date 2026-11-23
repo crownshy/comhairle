@@ -6,7 +6,9 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import ChecklistItem from '../ChecklistItem.svelte';
 	import ConsequencesAlert from '../ConsequencesAlert.svelte';
-	import { CircleCheck, CircleX, Lock } from 'lucide-svelte';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import CircleX from '@lucide/svelte/icons/circle-x';
+	import Lock from '@lucide/svelte/icons/lock';
 
 	let { data } = $props();
 	let { conversation } = $derived(data);

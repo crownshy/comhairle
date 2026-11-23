@@ -11,20 +11,27 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::translations::TextContentId;
+use crate::models::translations::{TextContentId, TranslationScope};
 use crate::tools::thinking_space::{
     ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
 };
 
+pub mod demographics;
 pub mod elicitation_bot;
 pub mod heyform;
 pub mod id;
 pub mod learn;
 pub mod polis;
 pub mod prioritization;
+pub mod public_report_data;
 pub mod stories;
 pub mod thinking_space;
 
+use demographics::{
+    DemographicFormTool, DemographicFormToolConfig, DemographicFormToolSetup,
+    DemographicQuestionTool, DemographicQuestionToolConfig, DemographicQuestionToolSetup,
+    DemographicReport,
+};
 use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
@@ -47,10 +54,17 @@ pub trait ToolImpl: Send + Sync + 'static {
     /// Tool-specific report structure
     type Report: Serialize + DeserializeOwned + JsonSchema + Send + Sync + 'static;
 
+    /// What a tool needs to recreate itself on import. Holds the content an admin built
+    /// (e.g. survey questions) rather than references to remote resources, so an
+    /// import creates new resources instead of sharing the original's.
+    type ExportImport: Clone + Serialize + DeserializeOwned + JsonSchema + Send + Sync + 'static;
+
     /// Create and configure a new tool instance
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Self::Config, ComhairleError>;
 
@@ -97,8 +111,17 @@ pub trait ToolImpl: Send + Sync + 'static {
         Ok(())
     }
 
+    /// Build the portable form of this tool for export. May read from the remote
+    /// service, but must not create anything; new resources are created on import.
+    async fn export_tool(config: &Self::Config) -> Result<Self::ExportImport, ComhairleError>;
+
+    /// Build new config an associated resources from export form of this tool.
+    async fn import_tool(
+        config: &Self::ExportImport,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError>;
+
     /// Sanitize config by removing sensitive data
-    #[expect(dead_code, reason = "For future use")]
     fn sanitize(config: Self::Config) -> Self::Config;
 }
 
@@ -123,6 +146,8 @@ pub enum ToolConfig {
     Prioritization(PrioritizationToolConfig),
     #[translatable]
     ThinkingSpace(ThinkingSpaceToolConfig),
+    DemographicQuestion(DemographicQuestionToolConfig),
+    DemographicForm(DemographicFormToolConfig),
 }
 
 impl ToolConfig {
@@ -150,6 +175,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::sync_data(config, state).await
             }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::sync_data(config, state).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::sync_data(config, state).await
+            }
         }
     }
 
@@ -176,6 +207,12 @@ impl ToolConfig {
             )),
             ToolConfig::ThinkingSpace(config) => Ok(ToolConfig::ThinkingSpace(
                 thinking_space::ThinkingSpaceTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::DemographicQuestion(config) => Ok(ToolConfig::DemographicQuestion(
+                DemographicQuestionTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::DemographicForm(config) => Ok(ToolConfig::DemographicForm(
+                DemographicFormTool::clone_tool(config, state).await?,
             )),
         }
     }
@@ -208,6 +245,12 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::delete(config, state, workflow_step_id).await
             }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::delete(config, state, workflow_step_id).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::delete(config, state, workflow_step_id).await
+            }
         }
     }
 
@@ -234,6 +277,44 @@ impl ToolConfig {
             ToolConfig::ThinkingSpace(config) => {
                 thinking_space::ThinkingSpaceTool::register_workers(config, state).await
             }
+            ToolConfig::DemographicQuestion(config) => {
+                DemographicQuestionTool::register_workers(config, state).await
+            }
+            ToolConfig::DemographicForm(config) => {
+                DemographicFormTool::register_workers(config, state).await
+            }
+        }
+    }
+
+    pub async fn export_tool(&self) -> Result<ToolExIm, ComhairleError> {
+        match self {
+            ToolConfig::Polis(config) => Ok(ToolExIm::Polis(
+                polis::PolisTool::export_tool(config).await?,
+            )),
+            ToolConfig::Learn(config) => Ok(ToolExIm::Learn(
+                learn::LearnTool::export_tool(config).await?,
+            )),
+            ToolConfig::HeyForm(config) => Ok(ToolExIm::HeyForm(
+                heyform::HeyFormTool::export_tool(config).await?,
+            )),
+            ToolConfig::Stories(config) => Ok(ToolExIm::Stories(
+                stories::StoriesTool::export_tool(config).await?,
+            )),
+            ToolConfig::ElicitationBot(config) => Ok(ToolExIm::ElicitationBot(
+                elicitation_bot::ElicitationBotTool::export_tool(config).await?,
+            )),
+            ToolConfig::Prioritization(config) => Ok(ToolExIm::Prioritization(
+                prioritization::PrioritizationTool::export_tool(config).await?,
+            )),
+            ToolConfig::ThinkingSpace(config) => Ok(ToolExIm::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::export_tool(config).await?,
+            )),
+            ToolConfig::DemographicQuestion(config) => Ok(ToolExIm::DemographicQuestion(
+                demographics::DemographicQuestionTool::export_tool(config).await?,
+            )),
+            ToolConfig::DemographicForm(config) => Ok(ToolExIm::DemographicForm(
+                demographics::DemographicFormTool::export_tool(config).await?,
+            )),
         }
     }
 }
@@ -248,6 +329,8 @@ pub enum ToolSetup {
     ElicitationBot(ElicitationBotToolSetup),
     Prioritization(PrioritizationToolSetup),
     ThinkingSpace(ThinkingSpaceToolSetup),
+    DemographicQuestion(DemographicQuestionToolSetup),
+    DemographicForm(DemographicFormToolSetup),
 }
 
 impl ToolSetup {
@@ -255,29 +338,37 @@ impl ToolSetup {
     pub async fn setup(
         &self,
         state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<ToolConfig, ComhairleError> {
         match self {
             ToolSetup::Polis(setup) => Ok(ToolConfig::Polis(
-                polis::PolisTool::setup(setup, state, locale).await?,
+                polis::PolisTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Learn(setup) => Ok(ToolConfig::Learn(
-                learn::LearnTool::setup(setup, state, locale).await?,
+                learn::LearnTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::HeyForm(setup) => Ok(ToolConfig::HeyForm(
-                heyform::HeyFormTool::setup(setup, state, locale).await?,
+                heyform::HeyFormTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Stories(setup) => Ok(ToolConfig::Stories(
-                stories::StoriesTool::setup(setup, state, locale).await?,
+                stories::StoriesTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
-                elicitation_bot::ElicitationBotTool::setup(setup, state, locale).await?,
+                elicitation_bot::ElicitationBotTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
-                prioritization::PrioritizationTool::setup(setup, state, locale).await?,
+                prioritization::PrioritizationTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
-                thinking_space::ThinkingSpaceTool::setup(setup, state, locale).await?,
+                thinking_space::ThinkingSpaceTool::setup(setup, state, db, scope, locale).await?,
+            )),
+            ToolSetup::DemographicQuestion(setup) => Ok(ToolConfig::DemographicQuestion(
+                DemographicQuestionTool::setup(setup, state, db, scope, locale).await?,
+            )),
+            ToolSetup::DemographicForm(setup) => Ok(ToolConfig::DemographicForm(
+                DemographicFormTool::setup(setup, state, db, scope, locale).await?,
             )),
         }
     }
@@ -293,6 +384,8 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
         .merge(elicitation_bot::ElicitationBotTool::routes())
         .merge(prioritization::PrioritizationTool::routes())
         .merge(thinking_space::ThinkingSpaceTool::routes())
+        .merge(DemographicQuestionTool::routes())
+        .merge(DemographicFormTool::routes())
 }
 
 #[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -304,4 +397,69 @@ pub enum ReportConfig {
     ElicitationBot(ElicitationBotReport),
     Prioritization(PrioritizationReport),
     ThinkingSpace(ThinkingSpaceReport),
+    DemographicQuestion(DemographicReport),
+    DemographicForm(DemographicReport),
+}
+
+/// Exported data for any tool, with one variant per tool's `ExportImport` type.
+/// Tagged by `type` like `ToolConfig`, so an import can tell which tool to recreate.
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[serde(rename_all = "lowercase", tag = "type")]
+pub enum ToolExIm {
+    Polis(<polis::PolisTool as ToolImpl>::ExportImport),
+    HeyForm(<heyform::HeyFormTool as ToolImpl>::ExportImport),
+    Learn(<learn::LearnTool as ToolImpl>::ExportImport),
+    Stories(<stories::StoriesTool as ToolImpl>::ExportImport),
+    ElicitationBot(<elicitation_bot::ElicitationBotTool as ToolImpl>::ExportImport),
+    Prioritization(<prioritization::PrioritizationTool as ToolImpl>::ExportImport),
+    ThinkingSpace(<thinking_space::ThinkingSpaceTool as ToolImpl>::ExportImport),
+    DemographicQuestion(<demographics::DemographicQuestionTool as ToolImpl>::ExportImport),
+    DemographicForm(<demographics::DemographicFormTool as ToolImpl>::ExportImport),
+}
+
+impl ToolExIm {
+    pub async fn import_tool(
+        &self,
+        state: &Arc<ComhairleState>,
+    ) -> Result<ToolConfig, ComhairleError> {
+        match self {
+            ToolExIm::Polis(export) => polis::PolisTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Polis),
+            ToolExIm::Learn(export) => learn::LearnTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Learn),
+            ToolExIm::HeyForm(export) => heyform::HeyFormTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::HeyForm),
+            ToolExIm::Stories(export) => stories::StoriesTool::import_tool(export, state)
+                .await
+                .map(ToolConfig::Stories),
+            ToolExIm::ElicitationBot(export) => {
+                elicitation_bot::ElicitationBotTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::ElicitationBot)
+            }
+            ToolExIm::Prioritization(export) => {
+                prioritization::PrioritizationTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::Prioritization)
+            }
+            ToolExIm::ThinkingSpace(export) => {
+                thinking_space::ThinkingSpaceTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::ThinkingSpace)
+            }
+            ToolExIm::DemographicQuestion(export) => {
+                demographics::DemographicQuestionTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicQuestion)
+            }
+            ToolExIm::DemographicForm(export) => {
+                demographics::DemographicFormTool::import_tool(export, state)
+                    .await
+                    .map(ToolConfig::DemographicForm)
+            }
+        }
+    }
 }

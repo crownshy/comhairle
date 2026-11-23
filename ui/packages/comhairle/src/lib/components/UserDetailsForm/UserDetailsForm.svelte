@@ -10,7 +10,6 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userDetailsSchema } from './schema';
 	import type { User } from '@crownshy/api-client/api';
-	import { onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { goto } from '$app/navigation';
 
@@ -20,7 +19,6 @@
 		user: User | null;
 	} = $props();
 
-	let loading = $state(false);
 	let saving = $state(false);
 	let showSuccessDialog = $state(false);
 
@@ -70,7 +68,7 @@
 				return;
 			}
 
-			const updatedUser = await apiClient.UpdateUserDetails(updateData);
+			await apiClient.UpdateUserDetails(updateData);
 
 			// Clear validation errors first, then password fields
 			$errors = {};

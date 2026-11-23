@@ -6,7 +6,7 @@
 	import ConversationLinkCard from '../ConversationLinkCard.svelte';
 	import ChecklistItem from '../ChecklistItem.svelte';
 	import ConsequencesAlert from '../ConsequencesAlert.svelte';
-	import { Rocket } from 'lucide-svelte';
+	import Rocket from '@lucide/svelte/icons/rocket';
 
 	let { data } = $props();
 	let { conversation } = $derived(data);

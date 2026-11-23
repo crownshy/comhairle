@@ -61,7 +61,7 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// Autosave doesn't reload the page, so the sidebar heading only shows the new title after
 	// the reload above.
 	await expect(
-		page.getByRole('heading', { name: Title.currentValue(), exact: true, level: 1 })
+		page.getByRole('heading', { name: Title.value(), exact: true, level: 1 })
 	).toBeVisible();
 
 	// Image stuff

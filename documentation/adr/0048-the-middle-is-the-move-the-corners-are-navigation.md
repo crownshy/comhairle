@@ -3,6 +3,7 @@
 **Status:** accepted
 **Date:** 2026-09-01
 **Refines:** part 4 of [ADR-0047](0047-one-pager-innermost-first-navigation.md)
+**Amended:** 2026-11-19, a quiet link may sit between the corners (#1890, see the end)
 
 ## Context
 
@@ -48,3 +49,19 @@ control that is not a move in the row a participant scans for the way forward.
   action in each, and the shape says so.
 - `StepPager` knows nothing but back and forward. Anything a later screen wants in the bar
   is a different bar, not an extra slot on this one.
+
+## Amendment (a quiet link between the corners)
+
+ADR-0050 left a link from the step bar to the step's Data protocol as the next step, and #1890
+asks for it. Participants look at the bar while they are deciding whether to go on, which is
+when "how is what I put in here used" matters, and the header already holds Find out more and
+the step menu.
+
+So the bar may hold one quiet link between the corners. It is an underlined text link in the
+muted colour, never a button, and it opens something about the step without moving the
+participant. Back and forward stay in their corners and stay the only moves. The full-width
+middle button from part 1 still means the main way forward, and the link never shares a bar
+with it.
+
+`StepPager` takes it as an `aside` snippet and centres it, so the pager still knows nothing
+but back and forward. Today the only aside is the Data protocol link.

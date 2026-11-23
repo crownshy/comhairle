@@ -3,11 +3,12 @@ import { translateGlossaryToLocale } from './translateGlossary';
 
 // A fake translator that upper-cases and tags the target locale, so assertions are simple.
 const fakeTranslate = (text: string, target: string) => Promise.resolve(`${text} [${target}]`);
+const scope = { type: 'conversation', id: 'conversation-id' } as const;
 
 describe('translateGlossaryToLocale', () => {
 	it('fills missing target terms and tooltip from the primary locale', async () => {
 		const glossary = [{ text: { en: ['bus', 'coach'] }, tooltip: { en: 'A vehicle' } }];
-		const result = await translateGlossaryToLocale(glossary, 'es', 'en', fakeTranslate);
+		const result = await translateGlossaryToLocale(glossary, 'es', 'en', scope, fakeTranslate);
 		expect(result).toEqual([
 			{
 				text: { en: ['bus', 'coach'], es: ['bus', 'coach [es]'] },
@@ -24,7 +25,7 @@ describe('translateGlossaryToLocale', () => {
 			}
 		];
 		const translate = vi.fn(fakeTranslate);
-		const result = await translateGlossaryToLocale(glossary, 'es', 'en', translate);
+		const result = await translateGlossaryToLocale(glossary, 'es', 'en', scope, translate);
 		expect(result).toEqual(glossary);
 		expect(translate).not.toHaveBeenCalled();
 	});
@@ -32,14 +33,16 @@ describe('translateGlossaryToLocale', () => {
 	it('returns the glossary unchanged when target is the primary locale', async () => {
 		const glossary = [{ text: { en: ['bus'] }, tooltip: { en: 'A vehicle' } }];
 		const translate = vi.fn(fakeTranslate);
-		expect(await translateGlossaryToLocale(glossary, 'en', 'en', translate)).toBe(glossary);
+		expect(await translateGlossaryToLocale(glossary, 'en', 'en', scope, translate)).toBe(
+			glossary
+		);
 		expect(translate).not.toHaveBeenCalled();
 	});
 
 	it('leaves an entry unchanged when its translation throws', async () => {
 		const glossary = [{ text: { en: ['bus'] }, tooltip: { en: 'A vehicle' } }];
 		const failing = () => Promise.reject(new Error('service down'));
-		const result = await translateGlossaryToLocale(glossary, 'es', 'en', failing);
+		const result = await translateGlossaryToLocale(glossary, 'es', 'en', scope, failing);
 		expect(result).toEqual([{ text: { en: ['bus'] }, tooltip: { en: 'A vehicle' } }]);
 	});
 });

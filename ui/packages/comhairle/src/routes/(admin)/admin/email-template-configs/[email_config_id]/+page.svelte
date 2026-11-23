@@ -13,12 +13,13 @@
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { useDebounce } from 'runed';
-	import { LoaderCircle } from 'lucide-svelte';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { key } from '$lib/utils/invalidationKey';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { emailTemplateConfigTour } from './tour';
+	import { isConversationEmail, isEventEmail } from '$lib/email-template-configs';
 
 	useTour(() => emailTemplateConfigTour);
 
@@ -136,19 +137,25 @@
 		}
 	}, 300);
 
+	const isConversationTemplate = $derived(isConversationEmail(emailConfig.emailType));
+	const isEventTemplate = $derived(isEventEmail(emailConfig.emailType));
+
 	const headerTitle = () => {
 		let title = snakeToStartCase(emailConfig.emailType);
 
 		if (
-			emailConfig.emailType === 'conversation_invite' &&
-			emailConfig.conversationId &&
-			emailConfig.conversationTitle
+			(isConversationTemplate && !emailConfig.conversationId) ||
+			(isEventTemplate && !emailConfig.eventId)
 		) {
+			title = title.concat(' (Fallback)');
+		}
+
+		if (isConversationTemplate && emailConfig.conversationId && emailConfig.conversationTitle) {
 			title = title.concat(` (${emailConfig.conversationTitle})`);
 		}
 
-		if (emailConfig.emailType === 'conversation_invite' && !emailConfig.conversationId) {
-			title = title.concat(' (Fallback)');
+		if (isEventTemplate && emailConfig.eventId && emailConfig.eventTitle) {
+			title = title.concat(` (${emailConfig.eventTitle})`);
 		}
 
 		return title;

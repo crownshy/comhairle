@@ -1,5 +1,6 @@
 import { ws } from '$lib/api/websockets.svelte';
 import type { EventAgendaItem } from '@crownshy/api-client/api';
+import { Second } from '$lib/utils/units';
 
 export type VideoCallStatus = 'Waiting' | 'InProgress' | 'Ended';
 
@@ -11,6 +12,8 @@ export interface VideoCallParticipant {
 
 export interface BreakoutRoomAssignments {
 	participants: string[];
+	/** The real Jitsi JID for this room, once a client has reported one. */
+	room_jid: string | null;
 }
 
 export interface BreakoutRoomAssistanceRequest {
@@ -40,12 +43,28 @@ export interface BroadcastMessage {
 	message: string;
 }
 
+/** How a host's live agenda edit ended. `step_moved` means the call moved on while they edited. */
+export type AgendaEditOutcome = 'saved' | 'step_moved' | 'save_failed' | 'not_host';
+
+type AgendaUpdateResult = {
+	edit_id: string;
+	outcome: AgendaEditOutcome;
+	agenda: EventAgendaItem[] | null;
+};
+
+type PendingAgendaEdit = { editId: string; settle: (outcome: AgendaEditOutcome) => void };
+
+const AGENDA_EDIT_TIMEOUT_MS = 10 * Second;
+
 export class VideoCallService {
 	private _currentCallState = $state<VideoCallState | null>(null);
 	private _lastBroadcastMessage = $state<string | null>(null);
 	/** Latest agenda pushed over WS (overrides the SSR-loaded agenda when set). */
 	private _agenda = $state<EventAgendaItem[] | null>(null);
+	private pendingAgendaEdit: PendingAgendaEdit | null = null;
 	private isListening = false;
+	private joinedEventId: string | null = null;
+	private videoPresence: { displayName: string | null } | null = null;
 
 	constructor() {
 		this.setupListeners();
@@ -75,6 +94,7 @@ export class VideoCallService {
 
 	/** User IDs that have actually joined the Jitsi video (excludes lobby-only users). */
 	get inVideoParticipantIds(): Set<string> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a fresh copy per read, never mutated
 		return new Set(this._currentCallState?.in_video_participants ?? []);
 	}
 
@@ -114,7 +134,30 @@ export class VideoCallService {
 				this.handleBroadcastMessage(payload.data as BroadcastMessage);
 			} else if (payload.event === 'video_call:agenda_updated') {
 				this.handleAgendaUpdate(payload.data as EventAgendaItem[]);
+			} else if (payload.event === 'video_call:agenda_update_result') {
+				this.handleAgendaUpdateResult(payload.data as AgendaUpdateResult);
 			}
+		});
+
+		ws.onOpen(() => this.resendPresence());
+	}
+
+	private resendPresence() {
+		if (!this.joinedEventId) return;
+		this.sendUserJoined(this.joinedEventId);
+		if (this.videoPresence) {
+			this.sendVideoJoined(this.joinedEventId, this.videoPresence.displayName);
+		}
+	}
+
+	private sendUserJoined(eventId: string) {
+		ws.sendCustom('video_call:user_joined', { event_id: eventId });
+	}
+
+	private sendVideoJoined(eventId: string, displayName: string | null) {
+		ws.sendCustom('video_call:video_joined', {
+			event_id: eventId,
+			display_name: displayName ?? null
 		});
 	}
 
@@ -130,31 +173,46 @@ export class VideoCallService {
 		this._agenda = agenda;
 	}
 
+	// Another host's save also broadcasts the agenda, so only this reply, matched by edit id,
+	// says how this host's own edit ended.
+	private handleAgendaUpdateResult(result: AgendaUpdateResult) {
+		if (result.edit_id !== this.pendingAgendaEdit?.editId) return;
+		if (result.agenda) this._agenda = result.agenda;
+		this.settleAgendaEdit(result.outcome);
+	}
+
+	private settleAgendaEdit(outcome: AgendaEditOutcome) {
+		const pending = this.pendingAgendaEdit;
+		this.pendingAgendaEdit = null;
+		pending?.settle(outcome);
+	}
+
 	joinCall(eventId: string) {
-		ws.sendCustom('video_call:user_joined', {
-			event_id: eventId
-		});
+		this.joinedEventId = eventId;
+		if (ws.isOpen) this.sendUserJoined(eventId);
 	}
 
 	leaveCall(eventId: string) {
 		ws.sendCustom('video_call:user_left', {
 			event_id: eventId
 		});
+		this.joinedEventId = null;
+		this.videoPresence = null;
 		this._currentCallState = null;
 		this._agenda = null;
+		this.settleAgendaEdit('save_failed');
 	}
 
 	/** Report that this client has actually joined the Jitsi video (rename-proof presence),
 	 *  along with the Jitsi display name it chose. Re-send on rename to update the name. */
 	reportVideoJoined(eventId: string, displayName?: string) {
-		ws.sendCustom('video_call:video_joined', {
-			event_id: eventId,
-			display_name: displayName ?? null
-		});
+		this.videoPresence = { displayName: displayName ?? null };
+		if (ws.isOpen) this.sendVideoJoined(eventId, this.videoPresence.displayName);
 	}
 
 	/** Report that this client has left the Jitsi video. */
 	reportVideoLeft(eventId: string) {
+		this.videoPresence = null;
 		ws.sendCustom('video_call:video_left', {
 			event_id: eventId
 		});
@@ -183,6 +241,44 @@ export class VideoCallService {
 		ws.sendCustom('video_call:set_agenda_item', {
 			event_id: eventId,
 			agenda_item: agendaItem
+		});
+	}
+
+	/**
+	 * Replace the agenda items after `currentStep`. Moderator/facilitator only. The server
+	 * refuses the edit if the call has moved past `currentStep`, so a host can't rewrite an
+	 * item that has already started.
+	 *
+	 * Resolves when the server answers this edit, or with `save_failed` if nothing arrives
+	 * in time.
+	 */
+	updateUpcomingAgenda(
+		eventId: string,
+		currentStep: number,
+		upcoming: EventAgendaItem[]
+	): Promise<AgendaEditOutcome> {
+		if (!ws.isOpen) return Promise.resolve('save_failed');
+		this.settleAgendaEdit('save_failed');
+
+		return new Promise((resolve) => {
+			const editId = crypto.randomUUID();
+			const timeout = setTimeout(
+				() => this.settleAgendaEdit('save_failed'),
+				AGENDA_EDIT_TIMEOUT_MS
+			);
+			this.pendingAgendaEdit = {
+				editId,
+				settle: (outcome) => {
+					clearTimeout(timeout);
+					resolve(outcome);
+				}
+			};
+			ws.sendCustom('video_call:update_upcoming_agenda', {
+				event_id: eventId,
+				edit_id: editId,
+				current_step: currentStep,
+				upcoming
+			});
 		});
 	}
 
@@ -229,6 +325,20 @@ export class VideoCallService {
 	endBreakoutSession(eventId: string) {
 		ws.sendCustom('video_call:end_breakout_session', {
 			event_id: eventId
+		});
+	}
+
+	/**
+	 * Report a breakout room's real Jitsi JID, the first time this client observes one
+	 * (Jitsi only creates the underlying room once someone actually joins it). Any
+	 * participant's client can be first to see it; the backend only acts on the first
+	 * report for a given room, so duplicate reports from other clients are harmless.
+	 */
+	reportBreakoutRoomLive(eventId: string, roomIndex: number, roomJid: string) {
+		ws.sendCustom('video_call:breakout_room_live', {
+			event_id: eventId,
+			room_index: roomIndex,
+			room_jid: roomJid
 		});
 	}
 
@@ -293,6 +403,7 @@ export class VideoCallService {
 
 	getBreakoutSessionEndTime(): Date | null {
 		if (!this._currentCallState?.breakout_session) return null;
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a fresh copy per read, never mutated
 		return new Date(this._currentCallState.breakout_session.ends);
 	}
 

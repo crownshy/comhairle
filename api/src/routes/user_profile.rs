@@ -55,11 +55,6 @@ pub async fn upsert_profile(
             let create_profile = CreateUserProfile {
                 user_id: user.id,
                 consented: request.consented.unwrap_or(false),
-                ethnicity: request.ethnicity,
-                age: request.age,
-                gender: request.gender,
-                zipcode: request.zipcode,
-                political_party: request.political_party,
             };
             models::user_profile::create(&state.db, &create_profile).await?
         }
@@ -112,11 +107,7 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
 
         let profile_data = json!({
-            "consented": true,
-            "ethnicity": "Asian",
-            "age": 28,
-            "gender": "Female",
-            "zipcode": "12345"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&profile_data)?;
@@ -137,11 +128,7 @@ mod tests {
 
         // Create a profile first
         let profile_data = json!({
-            "consented": true,
-            "ethnicity": "Hispanic",
-            "age": 30,
-            "gender": "Male",
-            "zipcode": "67890"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&profile_data)?;
@@ -164,11 +151,7 @@ mod tests {
 
         // Create a profile first
         let profile_data = json!({
-            "consented": false,
-            "ethnicity": "White",
-            "age": 25,
-            "gender": "Male",
-            "zipcode": "11111"
+            "consented": false
         });
 
         let body = serde_json::to_vec(&profile_data)?;
@@ -177,11 +160,7 @@ mod tests {
 
         // Update the profile
         let updated_data = json!({
-            "consented": true,
-            "ethnicity": "Black",
-            "age": 35,
-            "gender": "Non-binary",
-            "zipcode": "54321"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&updated_data)?;
@@ -207,11 +186,7 @@ mod tests {
 
         // Create a profile for user 1
         let profile_data = json!({
-            "consented": true,
-            "ethnicity": "Asian",
-            "age": 28,
-            "gender": "Female",
-            "zipcode": "12345"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&profile_data)?;
@@ -239,11 +214,7 @@ mod tests {
 
         // Create profile for user 2
         let profile_data2 = json!({
-            "consented": true,
-            "ethnicity": "Hispanic",
-            "age": 30,
-            "gender": "Male",
-            "zipcode": "67890"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&profile_data2)?;
@@ -285,11 +256,7 @@ mod tests {
 
         // Try to create/update profile without authentication
         let profile_data = json!({
-            "consented": true,
-            "ethnicity": "Asian",
-            "age": 28,
-            "gender": "Female",
-            "zipcode": "12345"
+            "consented": true
         });
 
         let body = serde_json::to_vec(&profile_data)?;

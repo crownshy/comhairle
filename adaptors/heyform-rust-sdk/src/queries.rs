@@ -92,6 +92,12 @@ mutation updateFormTheme($input: UpdateFormThemeInput!) {
 }
 "#;
 
+pub const UPDATE_FORM_LOGICS_MUTATION: &str = r#"
+mutation updateFormLogics($input: UpdateFormLogicsInput!) {
+  updateFormLogics(input: $input)
+}
+"#;
+
 pub const CREATE_FORM_HIDDEN_FIELD_MUTATION: &str = r#"
 mutation createFormHiddenField($input: CreateHiddenFieldInput!) {
   createFormHiddenField(input: $input)
@@ -133,6 +139,7 @@ query formDetail($input: FormDetailInput!) {
       hide
       frozen
     }
+    logics
     themeSettings {
       theme
     }

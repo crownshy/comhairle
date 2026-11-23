@@ -1,7 +1,9 @@
+import type { SectionBlockMeta } from '../embeds';
+
 /**
  * The allow-list of Polis report components a facilitator can embed into the report
  * (see ADR-0012 and the "Embeddable section block" glossary entry). Section-level and
- * self-contained only — not the sub-primitives they compose from, and not the whole
+ * self-contained only, not the sub-primitives they compose from, and not the whole
  * `PolisInsights` page.
  */
 export type PolisEmbeddableComponentType =
@@ -9,15 +11,10 @@ export type PolisEmbeddableComponentType =
 	| 'polis-area-consensus'
 	| 'polis-area-disagreement'
 	| 'polis-consensus-continuum'
-	| 'polis-opinion-groups';
+	| 'polis-opinion-groups'
+	| 'polis-themes';
 
-export interface EmbeddableComponentMeta {
-	type: PolisEmbeddableComponentType;
-	label: string;
-	description: string;
-}
-
-export const POLIS_EMBEDDABLE_COMPONENTS: EmbeddableComponentMeta[] = [
+export const POLIS_EMBEDDABLE_COMPONENTS: SectionBlockMeta<PolisEmbeddableComponentType>[] = [
 	{
 		type: 'polis-key-stats',
 		label: 'Key stats',
@@ -42,5 +39,10 @@ export const POLIS_EMBEDDABLE_COMPONENTS: EmbeddableComponentMeta[] = [
 		type: 'polis-opinion-groups',
 		label: 'Opinion groups',
 		description: 'The emerging groups and their representative statements.'
+	},
+	{
+		type: 'polis-themes',
+		label: 'Themes',
+		description: 'Themes the sensemaker found, with the statements under each.'
 	}
 ];

@@ -5,17 +5,15 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import {
-		ThumbsUp,
-		ThumbsDown,
-		CheckCircle2,
-		MessageSquare,
-		MessageSquarePlus,
-		AlertTriangle,
-		ShieldCheck,
-		ArrowLeft,
-		Languages
-	} from 'lucide-svelte';
+	import ThumbsUp from '@lucide/svelte/icons/thumbs-up';
+	import ThumbsDown from '@lucide/svelte/icons/thumbs-down';
+	import CheckCircle2 from '@lucide/svelte/icons/circle-check';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import MessageSquarePlus from '@lucide/svelte/icons/message-square-plus';
+	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Languages from '@lucide/svelte/icons/languages';
 	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import {
@@ -70,6 +68,7 @@
 		onSequenceChange?: OnSequenceChange;
 		topic?: string | null;
 		strictModeration?: boolean | null;
+		showOnboarding?: boolean;
 	};
 
 	let {
@@ -83,7 +82,8 @@
 		onDone,
 		onSequenceChange,
 		topic,
-		strictModeration
+		strictModeration,
+		showOnboarding = false
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -104,9 +104,8 @@
 	// First-timer onboarding (ADR-0062): one instruction or one vote on screen at a time.
 	const onboardingScope = `${user_id}-${voteScopeKey}`;
 	const initialData = getVoteData(user_id, voteScopeKey);
-	let stage = $state<Stage>(
-		initialData.totalVotes > 0 || hasSeenOnboarding(onboardingScope) ? 'done' : 'deciding'
-	);
+	const isFirstTimer = initialData.totalVotes === 0 && !hasSeenOnboarding(onboardingScope);
+	let stage = $state<Stage>(showOnboarding && isFirstTimer ? 'deciding' : 'done');
 	let practicePick = $state<PracticePick>({ seed: undefined, participant: undefined });
 	let seedVote = $state<Vote | undefined>(undefined);
 	let participantVote = $state<Vote | undefined>(undefined);
@@ -1074,7 +1073,7 @@
 							disabled={disabled || !polisReady}
 							onclick={() => doVote('pass')}
 						>
-							{m.polis_neutral()}
+							{m.polis_pass_unsure()}
 						</Button>
 					</div>
 				{/if}

@@ -4,7 +4,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
+	import { Switch } from '$lib/components/ui/switch';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import QuestionField from './QuestionField.svelte';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type {
@@ -30,6 +33,7 @@
 		open: boolean;
 		question?: DraftQuestion | null;
 		store: PrioritizationStore;
+		conversationId: string;
 		toolConfig: ToolConfig<DraftTranslatableJsonField>;
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
@@ -42,6 +46,7 @@
 		open,
 		question = null,
 		store,
+		conversationId,
 		toolConfig,
 		target = 'proposal',
 		onOpenChange,
@@ -74,7 +79,8 @@
 	function emptyDraft(): DraftFields {
 		return {
 			text: newTranslatableField(),
-			type: { kind: 'likert', categories: defaultLikertCategories.map((c) => ({ ...c })) }
+			type: { kind: 'likert', categories: defaultLikertCategories.map((c) => ({ ...c })) },
+			required: false
 		};
 	}
 
@@ -176,7 +182,11 @@
 		if (open) {
 			if (question) {
 				editingId = question.id;
-				draft = { text: question.text, type: cloneType(question.type) };
+				draft = {
+					text: question.text,
+					type: cloneType(question.type),
+					required: question.required
+				};
 			} else {
 				editingId = undefined;
 				draft = emptyDraft();
@@ -247,14 +257,18 @@
 		try {
 			// Create translations for any new translatable fields in draft
 			const questionWithNewlyCreatedTranslations =
-				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale);
+				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale, {
+					type: 'conversation',
+					id: conversationId
+				});
 
 			const existing =
 				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];
 			const id = editingId ?? crypto.randomUUID();
 			const next: DraftQuestion = {
 				id,
-				...structuredClone(questionWithNewlyCreatedTranslations)
+				...structuredClone(questionWithNewlyCreatedTranslations),
+				required: draft.type.kind === 'text' && draft.required
 			};
 			const updated =
 				editingId !== undefined
@@ -337,7 +351,17 @@
 				</Select.Root>
 			</div>
 
-			{#if draft.type.kind === 'likert'}
+			{#if draft.type.kind === 'text'}
+				<div class="flex items-center justify-between gap-4 rounded-md border p-3">
+					<div>
+						<Label for="q-required" class="font-medium">Required</Label>
+						<p class="text-muted-foreground text-sm">
+							Participants must write an answer before they can submit.
+						</p>
+					</div>
+					<Switch id="q-required" bind:checked={draft.required} />
+				</div>
+			{:else if draft.type.kind === 'likert'}
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<Label>Options</Label>

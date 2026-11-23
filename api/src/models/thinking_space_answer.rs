@@ -175,6 +175,10 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Co
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceAnswerFilterOptions {
+    // Server-set only — handlers must scope this to the authenticated user.
+    // Hidden from the public schema/query string so callers can't spoof it.
+    #[serde(skip_deserializing)]
+    #[schemars(skip)]
     pub user_id: Option<Uuid>,
     pub status: Option<AnswerStatus>,
 }

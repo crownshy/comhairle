@@ -53,7 +53,7 @@ test('Configure/Moderation-Policy page', async ({ page }) => {
 
 	await testWithRefresh(page, async () => {
 		await expect(reasons).toHaveCount(DEFAULT_REASON_COUNT);
-		await expect(reasons.last()).not.toHaveValue(NewReason.currentValue());
+		await expect(reasons.last()).not.toHaveValue(NewReason.value());
 	});
 
 	await addReason.click();

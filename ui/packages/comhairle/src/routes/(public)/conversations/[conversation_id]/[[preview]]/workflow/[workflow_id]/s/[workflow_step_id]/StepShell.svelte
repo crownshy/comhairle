@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { PAGER_BAR_SURFACE_CLASS } from '$lib/components/pager/pager';
 	import { cn } from '$lib/utils';
 	import { STEP_SCROLL_ATTRIBUTE } from '$lib/utils/stepScroll';
 
@@ -19,10 +20,12 @@
 	let scrollPadding = $derived(bar ? barHeight + BAR_GAP_PX : 0);
 </script>
 
-<!-- minmax(0,1fr) stops a wide header row pushing the grid past the viewport. -->
+<!-- minmax(0,1fr) stops a wide header row pushing the grid past the viewport. overflow-clip,
+	not hidden: a hidden box can still be scrolled by focus or scrollIntoView, which slides
+	the header and pager off screen. Only the inner scroll should ever move. -->
 <div
 	class={cn(
-		'relative grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] overflow-hidden',
+		'relative grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_1fr] overflow-clip',
 		className
 	)}
 >
@@ -43,7 +46,7 @@
 		<!-- data-spotlight-keep keeps the pager usable while a tool's spotlight dims the page. -->
 		<div
 			data-spotlight-keep
-			class="bg-background/70 border-border/40 absolute inset-x-0 bottom-0 z-10 border-t backdrop-blur-lg"
+			class={cn(PAGER_BAR_SURFACE_CLASS, 'absolute inset-x-0 bottom-0 z-10')}
 			bind:clientHeight={barHeight}
 		>
 			{@render bar()}

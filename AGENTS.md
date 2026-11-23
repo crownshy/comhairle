@@ -65,6 +65,23 @@ The short list. Full rationale for each is in [STYLE_GUIDE.md](STYLE_GUIDE.md).
 - Before finishing: `pnpm test:unit` and `pnpm check` pass; no `: any` where a real type
   fits; no stray `console.*`.
 
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `crownshy/comhairle`, written in the short "In short / Done when" format.
+See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+`needs-triage`, `needs-info`, `ready-for-dev`, `wontfix`, plus `needs product decision`
+and `scoping`. See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single context: `CONTEXT.md` and `documentation/adr/`. See
+[docs/agents/domain.md](docs/agents/domain.md).
+
 ## Keeping these docs current
 
 When the same review feedback comes up a **second** time, add it to

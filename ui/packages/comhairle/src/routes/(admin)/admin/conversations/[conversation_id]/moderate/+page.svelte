@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronRight, MessagesSquare } from 'lucide-svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MessagesSquare from '@lucide/svelte/icons/messages-square';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { moderateTour } from './tour';
 

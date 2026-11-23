@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { ArrowRight, Clock, Play, Timer, Users, X } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Play from '@lucide/svelte/icons/play';
+	import Timer from '@lucide/svelte/icons/timer';
+	import Users from '@lucide/svelte/icons/users';
+	import X from '@lucide/svelte/icons/x';
 	import { GUIDE_NAV, TOOL_GUIDES } from '$lib/tool_guides';
 	import { TEMPLATE_STEP_TOOLS, TOOL_OVERVIEW } from '$lib/tool_overview';
 	import { conversationTemplates } from '$lib/conversation_templates';

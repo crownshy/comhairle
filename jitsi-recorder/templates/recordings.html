@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Recordings — Jitsi Recorder{% endblock %}
+
+{% block head %}
+<style>
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; border-bottom: 2px solid #ccc; padding: 0.5rem 0.75rem; }
+  td { border-bottom: 1px solid #eee; padding: 0.5rem 0.75rem; }
+  .empty { text-align: center; color: #888; }
+  .status { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+  .status-recording { background: #fef3c7; color: #92400e; }
+  .status-uploading  { background: #dbeafe; color: #1e40af; }
+  .status-completed  { background: #d1fae5; color: #065f46; }
+  .status-failed     { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<table>
+  <thead>
+    <tr>
+      <th>Session ID</th>
+      <th>Room</th>
+      <th>Status</th>
+      <th>Started</th>
+      <th>Ended</th>
+      <th>Duration</th>
+      <th>S3 URL</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if rows.is_empty() %}
+    <tr><td colspan="7" class="empty">No recordings yet.</td></tr>
+    {% else %}
+    {% for row in rows %}
+    <tr>
+      <td><code>{{ row.session_id }}</code></td>
+      <td>{{ row.room_name }}</td>
+      <td><span class="status status-{{ row.status }}">{{ row.status }}</span></td>
+      <td>{{ row.started_at }}</td>
+      <td>{{ row.ended_at }}</td>
+      <td>{{ row.duration }}</td>
+      <td>{% if let Some(url) = row.s3_url.as_deref() %}<a href="{{ url }}">{{ url }}</a>{% else %}-{% endif %}</td>
+    </tr>
+    {% endfor %}
+    {% endif %}
+  </tbody>
+</table>
+{% endblock %}

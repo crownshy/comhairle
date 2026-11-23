@@ -8,6 +8,7 @@
 	import * as Prioritization from '$lib/tools/prioritization';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { stepSetupTour } from './tour';
+	import DemographicStepSetup from './DemographicStepSetup.svelte';
 
 	let { data } = $props();
 
@@ -83,5 +84,18 @@
 {#if step && toolConfig?.type === Prioritization.TOOL_NAME}
 	{#key step.id}
 		<Prioritization.ManageUI {conversation} workflowId={step.workflowId} workflowStep={step} />
+	{/key}
+{/if}
+
+{#if step && (toolConfig?.type === 'demographicquestion' || toolConfig?.type === 'demographicform')}
+	{#key step.id}
+		<DemographicStepSetup
+			{toolConfig}
+			conversationId={conversation.id}
+			organizationId={conversation.organizationId}
+			workflowId={step.workflowId}
+			workflowStepId={step.id}
+			isLive={conversation.isLive}
+		/>
 	{/key}
 {/if}

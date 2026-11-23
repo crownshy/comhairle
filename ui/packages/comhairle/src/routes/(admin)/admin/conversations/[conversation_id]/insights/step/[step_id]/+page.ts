@@ -1,0 +1,56 @@
+import { error, redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
+import type { PageLoad } from './$types';
+import { thinkingSpaceInsightsLoader } from '$lib/reports/thinking-space/insights-loader';
+import { polisInsightsLoader } from '$lib/reports/polis/insights-loader';
+import { prioritizationInsightsLoader } from '$lib/reports/prioritization/insights-loader';
+import { surveyInsightsLoader } from '$lib/reports/survey/insights-loader';
+import { hasInsights } from '$lib/reports/insightsTools';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { HttpStatus } from '$lib/utils/constants';
+import { key } from '$lib/utils/invalidationKey';
+
+export const load: PageLoad = async (event) => {
+	const { api, conversation, workflowSteps } = await event.parent();
+	const { step_id, conversation_id } = event.params;
+
+	// TODO: change to tool-agnostic
+	event.depends(key('admin/polis/statements'));
+	event.depends(key('admin/polis/report'));
+	event.depends(key('admin/polis/summary'));
+	event.depends(key('admin/polis/theme-collection'));
+
+	const step = workflowSteps.find((s) => s.id === step_id);
+	const toolConfig = step && (conversation.isLive ? step.toolConfig : step.previewToolConfig);
+	if (!step || !hasInsights(toolConfig?.type)) {
+		redirect(
+			HttpStatus.TemporaryRedirect,
+			resolve('/(admin)/admin/conversations/[conversation_id]/insights', { conversation_id })
+		);
+	}
+
+	const response = await tryCatchAsync(async () => {
+		switch (toolConfig?.type) {
+			case 'polis':
+				return await polisInsightsLoader(api, {
+					conversationId: conversation_id,
+					workflowId: step.workflowId,
+					workflowStepId: step_id
+				});
+			case 'prioritization':
+				return await prioritizationInsightsLoader(api, step_id);
+			case 'thinkingspace':
+				return await thinkingSpaceInsightsLoader(api, step_id);
+			case 'heyform':
+				return await surveyInsightsLoader(api, step_id);
+			default:
+				throw Error('This step has no Insights');
+		}
+	});
+
+	if (response.err !== null) {
+		error(HttpStatus.BadGateway, `Could not load Insights for ${step.name}.`);
+	}
+
+	return { step, toolConfig, ...response.ok };
+};

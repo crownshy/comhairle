@@ -15,7 +15,6 @@ import type {
 	QuestionResponse,
 	QuestionType,
 	ToolConfig,
-	DraftTranslatableJsonField,
 	WorkflowStepInput
 } from './types';
 
@@ -56,12 +55,13 @@ function normaliseQuestionType<TText>(raw: unknown): QuestionType<TText> {
 }
 
 function normaliseQuestion<TText>(raw: unknown): Question<TText> {
-	const r = (raw ?? {}) as { id?: string; text: TText; type?: unknown };
+	const r = (raw ?? {}) as { id?: string; text: TText; type?: unknown; required?: boolean };
 	if (!r.id) throw new Error('Question loaded from backend is missing an id.');
 	return {
 		id: r.id,
 		text: r.text,
-		type: normaliseQuestionType(r.type)
+		type: normaliseQuestionType(r.type),
+		required: r.required ?? false
 	};
 }
 
@@ -90,7 +90,8 @@ function denormaliseQuestion<TText>(q: Question<TText>): ApiQuestion {
 	return {
 		id: q.id,
 		text: q.text,
-		type: denormaliseQuestionType(q.type) as ApiQuestion['type']
+		type: denormaliseQuestionType(q.type) as ApiQuestion['type'],
+		required: q.required
 	};
 }
 

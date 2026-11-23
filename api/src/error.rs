@@ -63,6 +63,12 @@ pub enum ComhairleError {
     #[error("Email content type error: {0}")]
     EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
 
+    #[error("Invalid header: {0}")]
+    InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
+
+    #[error("HTTP error: {0}")]
+    Http(#[from] axum::http::Error),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -87,11 +93,31 @@ pub enum ComhairleError {
     #[error("No categorization service configured")]
     NoCategorizationServiceConfigured,
 
+    #[error("No jitsi recorder configured")]
+    NoJitsiRecorderConfigured,
+
+    #[error("Jitsi recorder error: {0}")]
+    JitsiRecorderError(String),
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
+    /// A cached load for public report data failed, where the original error is shared
+    /// between the requests that waited on it and can't be handed back as is.
+    #[error("Report data unavailable: {0}")]
+    ReportDataUnavailable(String),
+
     #[error("Ragflow error: {0}")]
     RagflowError(#[from] RagflowError),
+
+    #[error("No sensemaker model configured")]
+    NoSensemakerModelConfigured,
+
+    #[error("Sensemaker model config error: {0}")]
+    SensemakarConfigError(String),
+
+    #[error("Thinking space generation error: {0}")]
+    ThinkingSpaceGenerationError(#[from] sensemakar::thinking_space::ThinkingSpaceError),
 
     #[error("Multipart form parse error: {0}")]
     MultipartParseForm(#[from] MultipartError),
@@ -326,6 +352,9 @@ pub enum ComhairleError {
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
 
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
@@ -402,6 +431,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
+            ComhairleError::InviteExpired => StatusCode::GONE,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
@@ -424,12 +454,14 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserIsNotConversationOwner
             | ComhairleError::UserNotAuthorized
             | ComhairleError::ParticipantSealed
+            | ComhairleError::EventInvalidSignupMode
             | ComhairleError::CannotRevokeLastSuperAdmin
             | ComhairleError::AuthWebhookSignatureError(_) => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            ComhairleError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             ComhairleError::PolisError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::WikiPollServiceError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::TranslationError(ref err) => Into::<StatusCode>::into(err),
@@ -438,6 +470,12 @@ impl IntoResponse for ComhairleError {
             ComhairleError::WorkerError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::HeyFormError(ref err) => Into::<StatusCode>::into(err),
             ComhairleError::RagflowError(ref err) => Into::<StatusCode>::into(err),
+            // Only the participant's answers being too sparse to summarize
+            // gets a distinct status; any other inner variant (template
+            // errors, model/extractor failures) stays a 500 below.
+            ComhairleError::ThinkingSpaceGenerationError(
+                sensemakar::thinking_space::ThinkingSpaceError::InsufficientAnswers,
+            ) => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

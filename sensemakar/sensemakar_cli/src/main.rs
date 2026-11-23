@@ -1,5 +1,6 @@
 mod statement_data_loader;
 mod theme_data_loader;
+mod transcript_data_loader;
 mod wiki_poll_data_loader;
 
 use std::path::PathBuf;
@@ -10,6 +11,8 @@ use language_tags::LanguageTag;
 use rig_core::DynModel;
 use rig_core::operation::Completion;
 use rig_core::providers::ollama::OllamaConfig;
+use sensemakar::conversation_analysis::ConversationAnalyzer;
+use sensemakar::model_config::{self, ModelConfig};
 use sensemakar::statement_theme_assigner::StatementThemeAssigner;
 use sensemakar::theme_extraction::ThemeExtractor;
 use sensemakar::wikipoll_describer::WikiPollGroupDescriber;
@@ -52,29 +55,62 @@ struct Cli {
     command: Command,
 }
 
+/// Which completion backend `ModelArgs` talks to.
+#[derive(Clone, Copy, Default, ValueEnum)]
+enum Provider {
+    /// A local (or remote) Ollama server.
+    #[default]
+    Ollama,
+    /// Any OpenAI-shaped chat-completions endpoint authenticated with a
+    /// static bearer key - e.g. a Bedrock gateway that speaks that wire
+    /// format, the same provider production's `sensemaker_model` config
+    /// uses.
+    OpenaiCompatible,
+}
+
 /// Flags shared by every subcommand for talking to the completion model.
 #[derive(Args)]
 struct ModelArgs {
-    /// Ollama model name to use.
+    /// Which completion backend to use.
+    #[arg(long, value_enum, default_value_t = Provider::Ollama)]
+    provider: Provider,
+
+    /// Model name to use.
     #[arg(long, default_value = "qwen3-long")]
     model: String,
 
-    /// Base URL of the Ollama server.
+    /// Base URL of the model server.
     #[arg(long, default_value = "http://localhost:11434")]
     base_url: String,
 
-    /// API key for the Ollama server, if required.
+    /// API key for the model server, if required.
     #[arg(long)]
     api_key: Option<String>,
 }
 
 impl ModelArgs {
     fn build_model(&self) -> Result<DynModel<Completion>> {
-        let mut config = OllamaConfig::new().with_base_url(&self.base_url);
-        if let Some(api_key) = &self.api_key {
-            config = config.with_api_key(api_key.clone());
+        match self.provider {
+            Provider::Ollama => {
+                let mut config = OllamaConfig::new().with_base_url(&self.base_url);
+                if let Some(api_key) = &self.api_key {
+                    config = config.with_api_key(api_key.clone());
+                }
+                Ok(config.client().completion(&self.model).erase())
+            }
+            Provider::OpenaiCompatible => {
+                let api_key = self
+                    .api_key
+                    .clone()
+                    .context("--api-key is required for the openai-compatible provider")?;
+                let cfg = ModelConfig::OpenAiCompatible {
+                    base_url: self.base_url.clone(),
+                    api_key,
+                    model: self.model.clone(),
+                };
+                Ok(model_config::build_model(&cfg))
+            }
         }
-        Ok(config.client().completion(&self.model).erase())
     }
 }
 
@@ -181,11 +217,43 @@ enum Command {
         #[arg(long)]
         additional_instructions: Option<String>,
 
+        /// Assign statements in batches of this size, re-sending whatever a
+        /// batch's call didn't return an assignment for. Defaults to running
+        /// all statements in a single pass.
+        #[arg(long)]
+        batch_size: Option<usize>,
+
         /// BCP-47 language tag to use for CSV rows without a 'lang' column.
         #[arg(long, default_value = "en")]
         lang: String,
 
         /// Where to write the resulting JSON theme assignments. Defaults to stdout.
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        #[command(flatten)]
+        model_args: ModelArgs,
+    },
+
+    /// Analyze a speaker-attributed conversation transcript for a summary,
+    /// tension points, disagreements, and pivotal moments where a speaker
+    /// changed their mind.
+    AnalyzeConversation {
+        /// Path to the input transcript file (.csv or .json). CSV expects
+        /// `speaker_id` and `text` columns in spoken order; JSON expects a
+        /// full `Transcript`.
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Optional free-text context to prime the model with.
+        #[arg(long)]
+        context: Option<String>,
+
+        /// Optional additional instructions for the model.
+        #[arg(long)]
+        additional_instructions: Option<String>,
+
+        /// Where to write the resulting JSON analysis. Defaults to stdout.
         #[arg(short, long)]
         output: Option<PathBuf>,
 
@@ -293,6 +361,7 @@ async fn main() -> Result<()> {
         Command::AssignThemes {
             input,
             format,
+            batch_size,
             themes,
             context,
             additional_instructions,
@@ -317,10 +386,40 @@ async fn main() -> Result<()> {
                 .themes(themes.into())
                 .build();
 
-            let result = assigner
-                .run_with_model(statements, completion_model)
+            let result = match batch_size {
+                Some(batch_size) => {
+                    assigner
+                        .run_in_batches_with_model(statements, completion_model, batch_size)
+                        .await
+                }
+                None => assigner.run_with_model(statements, completion_model).await,
+            }
+            .context("failed to assign themes")?;
+
+            write_output(&result, output)
+        }
+
+        Command::AnalyzeConversation {
+            input,
+            context,
+            additional_instructions,
+            output,
+            model_args,
+        } => {
+            let transcript = transcript_data_loader::load_transcript(&input)?;
+            println!("loaded {} utterances", transcript.parts.len());
+
+            let completion_model = model_args.build_model()?;
+
+            let analyzer = ConversationAnalyzer::builder()
+                .maybe_context(context)
+                .maybe_additional_instructions(additional_instructions)
+                .build();
+
+            let result = analyzer
+                .run_with_model(&transcript, completion_model)
                 .await
-                .context("failed to assign themes")?;
+                .context("failed to analyze conversation")?;
 
             write_output(&result, output)
         }

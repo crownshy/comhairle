@@ -1,7 +1,10 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { BreakoutRoomDisplay } from './types';
-	import { MoveUpRight, Megaphone, CircleStop } from 'lucide-svelte';
+	import MoveUpRight from '@lucide/svelte/icons/move-up-right';
+	import Megaphone from '@lucide/svelte/icons/megaphone';
+	import CircleStop from '@lucide/svelte/icons/circle-stop';
+	import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
 
 	interface Props {
 		rooms: BreakoutRoomDisplay[];
@@ -14,6 +17,8 @@
 		onUpdateTime: (minutes: number) => void;
 		onEndSession: () => void;
 		onBroadcastMessage: () => void;
+		/** Opens the dialog for moving people between the open rooms. */
+		onEditRooms: () => void;
 	}
 
 	let {
@@ -25,7 +30,8 @@
 		onEnterRoom,
 		onUpdateTime,
 		onEndSession,
-		onBroadcastMessage
+		onBroadcastMessage,
+		onEditRooms
 	}: Props = $props();
 
 	const avatarColors = [
@@ -122,6 +128,10 @@
 
 	<!-- Footer controls -->
 	<div class="flex flex-col gap-1.5 p-5">
+		<Button variant="outline" class="h-10 w-full text-sm font-medium" onclick={onEditRooms}>
+			<ArrowLeftRight class="h-4 w-4" />
+			Move people
+		</Button>
 		<Button
 			variant="primaryDark"
 			class="h-10 w-full text-sm font-medium"

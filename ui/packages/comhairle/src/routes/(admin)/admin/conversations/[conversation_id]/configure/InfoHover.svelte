@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as HoverCard from '$lib/components/ui/hover-card';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Info, Image } from '@lucide/svelte';
+	import Info from '@lucide/svelte/icons/info';
+	import Image from '@lucide/svelte/icons/image';
 
 	interface Props {
 		info: string;

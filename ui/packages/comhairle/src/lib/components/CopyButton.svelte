@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import Icon from '@iconify/svelte';
-	import { Check } from '@lucide/svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import type { Snippet } from 'svelte';
 	import { copy } from 'svelte-copy';
 

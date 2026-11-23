@@ -8,7 +8,6 @@ use axum::http::StatusCode;
 use comhairle_macros::TranslatableJson;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -22,13 +21,17 @@ use crate::models::proposal_response::{
 use crate::models::proposal_section::{
     self, LocalizedProposalSection, ProposalSection, ProposalSectionWithTranslations,
 };
-use crate::models::translations::{BuildTextTranslation, TextContentId, TextFormat};
+use crate::models::translations::{
+    BuildTextTranslation, TextContentId, TextFormat, TranslationScope,
+};
 use crate::models::{user_progress, workflow_step};
 use crate::routes::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::routes::translations::LocaleExtractor;
 use crate::schema_helpers::{example_localized_text, example_uuid};
 use crate::tools::{ToolConfig, ToolConfigSanitize, ToolImpl};
 use crate::{ComhairleError, ComhairleState};
+
+mod public_report;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
 pub struct PrioritizationToolConfig {
@@ -59,6 +62,8 @@ pub struct Question {
     pub text: TextContentId,
     #[translatable]
     pub r#type: QuestionType,
+    #[serde(default)]
+    pub required: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone, TranslatableJson)]
@@ -111,16 +116,21 @@ pub struct SetupQuestion {
 impl SetupQuestion {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Question, ComhairleError> {
         Ok(Question {
             id: Uuid::new_v4(),
             text: self
                 .text
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
-            r#type: self.r#type.build_with_translations(db, locale).await?,
+            r#type: self
+                .r#type
+                .build_with_translations(db, scope, locale)
+                .await?,
+            required: false,
         })
     }
 }
@@ -144,7 +154,8 @@ pub enum SetupQuestionType {
 impl SetupQuestionType {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<QuestionType, ComhairleError> {
         Ok(match self {
@@ -152,7 +163,7 @@ impl SetupQuestionType {
             SetupQuestionType::LikertScale { categories } => {
                 let mut built = Vec::with_capacity(categories.len());
                 for category in categories {
-                    built.push(category.build_with_translations(db, locale).await?);
+                    built.push(category.build_with_translations(db, scope, locale).await?);
                 }
                 QuestionType::LikertScale { categories: built }
             }
@@ -167,10 +178,10 @@ impl SetupQuestionType {
                 min_value,
                 max_value,
                 min_label: min_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .build_text_translation(db, scope, locale, TextFormat::Plain)
                     .await?,
                 max_label: max_label
-                    .build_text_translation(db, locale, TextFormat::Plain)
+                    .build_text_translation(db, scope, locale, TextFormat::Plain)
                     .await?,
             },
         })
@@ -186,14 +197,15 @@ pub struct SetupCategory {
 impl SetupCategory {
     async fn build_with_translations(
         self,
-        db: &PgPool,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Category, ComhairleError> {
         Ok(Category {
             value: self.value,
             label: self
                 .label
-                .build_text_translation(db, locale, TextFormat::Plain)
+                .build_text_translation(db, scope, locale, TextFormat::Plain)
                 .await?,
         })
     }
@@ -218,6 +230,9 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
+pub struct PrioritizationExIm;
+
 #[derive(PartialEq, Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationReport;
 
@@ -228,13 +243,16 @@ impl ToolImpl for PrioritizationTool {
     type Config = PrioritizationToolConfig;
     type Setup = PrioritizationToolSetup;
     type Report = PrioritizationReport;
+    type ExportImport = PrioritizationExIm;
 
     async fn setup(
         setup: &Self::Setup,
-        state: &Arc<ComhairleState>,
+        _state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
-        prioritization_setup(&state.db, setup, locale).await
+        prioritization_setup(db, setup, scope, locale).await
     }
 
     async fn clone_tool(
@@ -248,8 +266,24 @@ impl ToolImpl for PrioritizationTool {
         config.sanitize()
     }
 
+    async fn export_tool(_config: &Self::Config) -> Result<Self::ExportImport, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
+    async fn import_tool(
+        _config: &Self::ExportImport,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        Err(ComhairleError::NotImplemented(
+            "Not implemented for this tool".to_string(),
+        ))
+    }
+
     fn routes() -> ApiRouter<Arc<ComhairleState>> {
         ApiRouter::new()
+            .merge(public_report::routes())
             .api_route(
                 "/prioritization/proposals",
                 post_with(create_proposal, |op| {
@@ -355,13 +389,14 @@ Create a response for prioritization tool proposal
 }
 
 async fn prioritization_setup(
-    db: &PgPool,
+    db: &mut sqlx::PgConnection,
     setup_config: &PrioritizationToolSetup,
+    scope: TranslationScope,
     locale: &str,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
     let mut questions = Vec::with_capacity(setup_config.questions.len());
     for question in setup_config.questions.clone() {
-        questions.push(question.build_with_translations(db, locale).await?);
+        questions.push(question.build_with_translations(db, scope, locale).await?);
     }
 
     let alignment_question_id = questions.first().map(|q| q.id);
@@ -698,13 +733,18 @@ async fn create_proposal_response(
 #[instrument(err(Debug), skip(state))]
 async fn list_proposal_responses(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     Path(proposal_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<ProposalResponseDto>>), ComhairleError> {
+    // A participant may only ever see their own response to a proposal —
+    // admins get every response via the separate RequiredAdminUser-gated
+    // insights endpoint, which passes user_id: None deliberately.
     let responses = proposal_response::list(
         &state.db,
         &proposal_id,
-        ProposalResponseFilterOptions,
+        ProposalResponseFilterOptions {
+            user_id: Some(user.id),
+        },
         ProposalResponseOrderOptions,
     )
     .await?
@@ -770,7 +810,7 @@ async fn get_prioritization_insights(
         let proposal_responses = proposal_response::list(
             &state.db,
             &proposal.id,
-            ProposalResponseFilterOptions,
+            ProposalResponseFilterOptions::default(),
             ProposalResponseOrderOptions,
         )
         .await?;
@@ -825,7 +865,7 @@ mod tests {
     };
     use crate::models::proposal_response::Response;
     use crate::routes::workflow_steps::dto::WorkflowStepDto;
-    use crate::test_helpers::prioritization_tool_config;
+    use crate::test_helpers::{UserSession, prioritization_tool_config};
     use crate::tools::ToolConfig;
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -1028,22 +1068,12 @@ mod tests {
             .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
             .await?;
 
-        let (proposal_a, _) = proposal::create(
+        let (proposal, _) = proposal::create(
             &pool,
             &workflow_step.id,
             &CreateProposal {
-                title: "Proposal A".to_string(),
-                sections: vec!["Proposal A".to_string()],
-            },
-            "en",
-        )
-        .await?;
-        let (proposal_b, _) = proposal::create(
-            &pool,
-            &workflow_step.id,
-            &CreateProposal {
-                title: "Proposal B".to_string(),
-                sections: vec!["Proposal B".to_string()],
+                title: "A proposal".to_string(),
+                sections: vec!["A proposal".to_string()],
             },
             "en",
         )
@@ -1083,77 +1113,63 @@ mod tests {
             ],
         };
 
-        // Two distinct users each respond to both proposals, so each proposal
-        // ends up with two responses. Same-user re-posts now upsert (single row
-        // per (proposal, user)) so duplicate users would collapse.
-        session.signup_guest(&app).await?;
-        session
+        // Two distinct participants respond to the same proposal. Each must
+        // only ever see their own response when listing — not the other's.
+        let mut user_a = UserSession::new_guest();
+        user_a.signup_guest(&app).await?;
+        user_a
             .post(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
                 json!(create_response_a).to_string().into(),
             )
             .await?;
-        session
+
+        let mut user_b = UserSession::new_guest();
+        user_b.signup_guest(&app).await?;
+        user_b
             .post(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
                 json!(create_response_b).to_string().into(),
             )
             .await?;
 
-        session.signup_guest(&app).await?;
-        session
-            .post(
-                &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
-                json!(create_response_a).to_string().into(),
-            )
-            .await?;
-        session
-            .post(
-                &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
-                json!(create_response_b).to_string().into(),
-            )
-            .await?;
-
-        let (_, value, _) = session
+        let (_, value, _) = user_a
             .get(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
             )
             .await?;
-        let proposal_a_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        let user_a_view: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        assert_eq!(
+            user_a_view.len(),
+            1,
+            "user A should only see their own response"
+        );
+        assert_eq!(
+            user_a_view[0].user_id,
+            user_a.id.expect("user A should have an id after signup"),
+            "user A's response should be their own"
+        );
 
-        let (_, value, _) = session
+        let (_, value, _) = user_b
             .get(
                 &app,
-                &format!(
-                    "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
-                ),
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
             )
             .await?;
-        let proposal_b_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
-
-        assert_eq!(proposal_a_responses.len(), 2, "incorrect a total");
-        assert_eq!(proposal_b_responses.len(), 2, "incorrect b total");
+        let user_b_view: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+        assert_eq!(
+            user_b_view.len(),
+            1,
+            "user B should only see their own response"
+        );
+        assert_eq!(
+            user_b_view[0].user_id,
+            user_b.id.expect("user B should have an id after signup"),
+            "user B's response should be their own"
+        );
 
         Ok(())
     }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import X from '@lucide/svelte/icons/x';
 	import { cn } from '$lib/utils.js';
 
 	export type Option = {

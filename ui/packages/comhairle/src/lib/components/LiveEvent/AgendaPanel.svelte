@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Check } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import type { AgendaItem } from './types';
 
 	interface Props {
@@ -11,6 +12,8 @@
 		onSetCurrent?: (index: number) => void;
 		onNext?: () => void;
 		onEndMeeting?: () => void;
+		/** Shown to hosts only. Opens the editor for the items after the current one. */
+		onEditAgenda?: () => void;
 	}
 
 	let {
@@ -20,7 +23,8 @@
 		readOnly = false,
 		onSetCurrent,
 		onNext,
-		onEndMeeting
+		onEndMeeting,
+		onEditAgenda
 	}: Props = $props();
 
 	let interactive = $derived(isModerator && !readOnly);
@@ -56,9 +60,13 @@
 	</div>
 
 	<!-- Footer (fixed at bottom) -->
-	{#if interactive}
-		<div class="shrink-0 border-t p-4">
-			{#if isLastItem}
+	{#if isModerator}
+		<div class="flex shrink-0 flex-col gap-2 border-t p-4">
+			{#if readOnly}
+				<p class="text-muted-foreground text-center text-xs leading-relaxed">
+					End the breakout session to continue with the agenda.
+				</p>
+			{:else if isLastItem}
 				<Button
 					variant="destructive"
 					class="h-10 w-full text-sm font-medium"
@@ -76,12 +84,16 @@
 					Next
 				</Button>
 			{/if}
-		</div>
-	{:else if isModerator && readOnly}
-		<div class="shrink-0 border-t p-4">
-			<p class="text-muted-foreground text-center text-xs leading-relaxed">
-				End the breakout session to continue with the agenda.
-			</p>
+			{#if onEditAgenda}
+				<Button
+					variant="outline"
+					class="h-10 w-full text-sm font-medium"
+					onclick={onEditAgenda}
+				>
+					<Pencil class="h-4 w-4" />
+					Edit agenda
+				</Button>
+			{/if}
 		</div>
 	{/if}
 </div>

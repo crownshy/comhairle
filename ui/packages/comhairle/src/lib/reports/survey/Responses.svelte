@@ -3,7 +3,8 @@ Component to show the raw responses to long text questions
 -->
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { ChevronDown, ChevronUp } from 'lucide-svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 
 	const LIMIT = 10;
 
