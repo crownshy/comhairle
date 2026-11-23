@@ -1526,6 +1526,7 @@ async fn trigger_main_room_recording(
         Some(&recorder_config.main_muc_domain),
         "Main room",
         false,
+        None,
     )
     .await
 }
@@ -1546,6 +1547,11 @@ async fn trigger_breakout_room_recording(
             "breakout room jid {room_jid} is not a full JID"
         ))
     })?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(crate::error::ComhairleError::NoVideoMeetingId)?;
+    let recorder_config = state.required_jitsi_recorder_config()?;
+    let main_room_jid = format!("{video_meeting_id}@{}", recorder_config.main_muc_domain);
 
     crate::jitsi_recorder::trigger_recording(
         state,
@@ -1555,6 +1561,7 @@ async fn trigger_breakout_room_recording(
         Some(muc_domain),
         &format!("Breakout room #{}", room_index + 1),
         true,
+        Some(&main_room_jid),
     )
     .await
 }

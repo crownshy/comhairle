@@ -21,6 +21,8 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
+mod xmpp_admin;
+
 // ============================================================================
 // Data Structures
 // ============================================================================
@@ -100,6 +102,23 @@ struct StartRecordingRequest {
     /// (hidden.meet.jitsi) instead of the real focus component (auth.meet.jitsi).
     #[serde(default)]
     focus_jid: Option<String>,
+    /// The recorder account's own auth domain (e.g. "hidden.meet.jitsi"), used as
+    /// gst-meet's --xmpp-domain instead of the deployment's default "meet.jitsi"
+    /// when xmpp_username/xmpp_password are set - that account isn't registered on
+    /// "meet.jitsi" (which is token-auth only anyway), so SASL PLAIN there fails.
+    #[serde(default)]
+    xmpp_auth_domain: Option<String>,
+    /// Full JID of the breakout room's main room (e.g. "abc123@muc.meet.jitsi").
+    /// Required alongside xmpp_username/xmpp_password: before joining, the
+    /// recorder grants itself "member" affiliation on this room, since
+    /// mod_muc_breakout_rooms.lua proxies a breakout room's affiliation lookups
+    /// straight to the main room's affiliation table, and jicofo won't send a
+    /// Jingle invite to an occupant with affiliation "none" - being a Prosody
+    /// admin is only enough to get past the join check, not to get real media
+    /// (confirmed live: without this, the join succeeds but recording captures
+    /// no audio because jicofo never invites the bot into the Jingle session).
+    #[serde(default)]
+    main_room_jid: Option<String>,
 }
 
 fn default_nickname() -> String {
@@ -445,6 +464,8 @@ struct XmppPasswordAuth<'a> {
     username: &'a str,
     password: &'a str,
     focus_jid: &'a str,
+    /// Overrides --xmpp-domain (see `StartRecordingRequest::xmpp_auth_domain`).
+    auth_domain: &'a str,
 }
 
 async fn start_gst_meet_process(
@@ -474,7 +495,12 @@ async fn start_gst_meet_process(
     cmd.arg("--web-socket-url")
         .arg(&config.jitsi_websocket_url)
         .arg("--xmpp-domain")
-        .arg(&config.xmpp_domain)
+        .arg(
+            password_auth
+                .as_ref()
+                .map(|auth| auth.auth_domain)
+                .unwrap_or(&config.xmpp_domain),
+        )
         .arg("--muc-domain")
         .arg(muc_domain.unwrap_or(&config.muc_domain))
         .arg("--room-name")
@@ -685,7 +711,7 @@ async fn start_recording_for_room(
     muc_domain: Option<String>,
     nickname: String,
     jwt_token: Option<String>,
-    password_auth: Option<(String, String, String)>,
+    password_auth: Option<(String, String, String, String, String)>,
     s3_bucket: Option<String>,
     s3_path: Option<String>,
     webhook_url: String,
@@ -729,6 +755,20 @@ async fn start_recording_for_room(
         .await
         .context("Failed to save session")?;
 
+    if let Some((username, password, _, auth_domain, main_room_jid)) = &password_auth {
+        xmpp_admin::grant_muc_affiliation(
+            &state.config.jitsi_websocket_url,
+            auth_domain,
+            username,
+            password,
+            main_room_jid,
+            &format!("{username}@{auth_domain}"),
+            "member",
+        )
+        .await
+        .context("Failed to grant breakout recorder MUC affiliation")?;
+    }
+
     let child = start_gst_meet_process(
         &state.config,
         &room_name,
@@ -738,10 +778,11 @@ async fn start_recording_for_room(
         jwt_token.as_deref(),
         password_auth
             .as_ref()
-            .map(|(username, password, focus_jid)| XmppPasswordAuth {
+            .map(|(username, password, focus_jid, auth_domain, _)| XmppPasswordAuth {
                 username,
                 password,
                 focus_jid,
+                auth_domain,
             }),
     )
     .await
@@ -766,13 +807,19 @@ async fn start_recording(
     State(state): State<AppState>,
     Json(req): Json<StartRecordingRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let password_auth = match (req.xmpp_username, req.xmpp_password, req.focus_jid) {
-        (Some(u), Some(p), Some(f)) => Some((u, p, f)),
-        (None, None, None) => None,
+    let password_auth = match (
+        req.xmpp_username,
+        req.xmpp_password,
+        req.focus_jid,
+        req.xmpp_auth_domain,
+        req.main_room_jid,
+    ) {
+        (Some(u), Some(p), Some(f), Some(d), Some(m)) => Some((u, p, f, d, m)),
+        (None, None, None, None, None) => None,
         _ => {
             return Err((
                 StatusCode::BAD_REQUEST,
-                "xmpp_username, xmpp_password and focus_jid must all be set together".to_string(),
+                "xmpp_username, xmpp_password, focus_jid, xmpp_auth_domain and main_room_jid must all be set together".to_string(),
             ));
         }
     };
