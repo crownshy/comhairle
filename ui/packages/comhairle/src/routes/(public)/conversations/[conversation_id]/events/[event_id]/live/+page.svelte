@@ -32,7 +32,8 @@
 	import MeetingLeftScreen from '$lib/components/LiveEvent/MeetingLeftScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
 	import PanelTabs from '$lib/components/LiveEvent/PanelTabs.svelte';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import BreakoutQuestionCard from '$lib/components/LiveEvent/BreakoutQuestionCard.svelte';
+	import { fadeScrollEdges } from '$lib/components/LiveEvent/fadeScrollEdges';
 	import type {
 		AgendaItem,
 		RoomContext,
@@ -990,30 +991,13 @@
 					<div
 						class="flex min-h-0 flex-col gap-5 overflow-y-auto px-4 pb-5"
 						transition:slide={{ duration: 280, easing: cubicOut }}
+						{@attach fadeScrollEdges}
 					>
 						{#if currentAgendaItem?.breakoutQuestion}
-							<div
-								class="bg-background flex shrink-0 flex-col items-center gap-4 rounded-2xl px-5 py-5"
-							>
-								<div class="flex flex-col items-center gap-2">
-									<span class="text-primary text-xs font-medium uppercase">
-										{m.live_event_question()}
-									</span>
-									<p
-										class="text-foreground text-center text-lg leading-tight font-semibold break-words"
-									>
-										{currentAgendaItem.breakoutQuestion}
-									</p>
-								</div>
-								{#if currentAgendaItem.breakoutDescription}
-									<div class="bg-border h-px w-full"></div>
-									<div class="text-muted-foreground w-full text-base">
-										<ContentRenderer
-											content={currentAgendaItem.breakoutDescription}
-										/>
-									</div>
-								{/if}
-							</div>
+							<BreakoutQuestionCard
+								question={currentAgendaItem.breakoutQuestion}
+								description={currentAgendaItem.breakoutDescription}
+							/>
 						{/if}
 
 						{#if isModerator}
