@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::Arc;
+use tokio::io::AsyncBufReadExt;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
@@ -85,6 +86,20 @@ struct StartRecordingRequest {
     /// Optional JWT token for Jitsi authentication. If not provided, uses anonymous auth.
     #[serde(default)]
     jwt_token: Option<String>,
+    /// Password-authenticated XMPP login, used instead of jwt_token for breakout-room
+    /// joins (mod_muc_breakout_rooms.lua rejects anonymous/JWT sessions that didn't
+    /// already join the main room first; the recorder's admin-listed recorder@hidden
+    /// account is exempt from that check). xmpp_username/xmpp_password/focus_jid must
+    /// all be set together, and take priority over jwt_token when present.
+    #[serde(default)]
+    xmpp_username: Option<String>,
+    #[serde(default)]
+    xmpp_password: Option<String>,
+    /// Overrides gst-meet's default focus-jid (focus@auth.<xmpp-domain>), which would
+    /// otherwise wrongly resolve against the recorder account's own auth domain
+    /// (hidden.meet.jitsi) instead of the real focus component (auth.meet.jitsi).
+    #[serde(default)]
+    focus_jid: Option<String>,
 }
 
 fn default_nickname() -> String {
@@ -424,6 +439,14 @@ async fn send_webhook(
 // Recording Management
 // ============================================================================
 
+/// Password-authenticated XMPP login for gst-meet, used instead of a JWT for
+/// breakout-room joins - see `StartRecordingRequest::xmpp_username` for why.
+struct XmppPasswordAuth<'a> {
+    username: &'a str,
+    password: &'a str,
+    focus_jid: &'a str,
+}
+
 async fn start_gst_meet_process(
     config: &Config,
     room_name: &str,
@@ -431,6 +454,7 @@ async fn start_gst_meet_process(
     nickname: &str,
     output_file: &str,
     jwt_token: Option<&str>,
+    password_auth: Option<XmppPasswordAuth<'_>>,
 ) -> Result<tokio::process::Child> {
     // Opus in an Ogg container, not WAV - comhairle-api's transcription
     // pipeline already maps AudioFormat::Ogg to AWS Transcribe's OGG_OPUS
@@ -460,22 +484,48 @@ async fn start_gst_meet_process(
         .arg("--recv-pipeline")
         .arg(&recv_pipeline);
 
-    if let Some(token) = jwt_token {
+    if let Some(auth) = password_auth {
+        cmd.arg("--xmpp-username")
+            .arg(auth.username)
+            .arg("--xmpp-password")
+            .arg(auth.password)
+            .arg("--focus-jid")
+            .arg(auth.focus_jid);
+    } else if let Some(token) = jwt_token {
         cmd.arg("--xmpp-jwt").arg(token);
     }
 
-    // stdout/stderr are never read anywhere in this process. With Stdio::piped()
-    // (and --verbose, now dropped) gst-meet fills the kernel pipe buffer and
-    // blocks on its next write - freezing the whole process, XMPP pings
-    // included, until the server kicks it for inactivity ~60-70s later. This
-    // was silently killing every recording a short way in.
-    let child = cmd
+    // stdout is never read anywhere in this process. With Stdio::piped() (and
+    // --verbose, now dropped) gst-meet fills the kernel pipe buffer and blocks
+    // on its next write - freezing the whole process, XMPP pings included,
+    // until the server kicks it for inactivity ~60-70s later. This was
+    // silently killing every recording a short way in. stderr is low-volume
+    // (errors only) and is drained continuously below, so piping it doesn't
+    // reintroduce that deadlock.
+    let mut child = cmd
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .context("Failed to spawn gst-meet process")?;
 
     info!("gst-meet process started with PID: {:?}", child.id());
+
+    if let Some(stderr) = child.stderr.take() {
+        let room_name = room_name.to_string();
+        tokio::spawn(async move {
+            let mut lines = tokio::io::BufReader::new(stderr).lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => warn!("gst-meet[{}]: {}", room_name, line),
+                    Ok(None) => break,
+                    Err(e) => {
+                        error!("gst-meet[{}]: error reading stderr: {}", room_name, e);
+                        break;
+                    }
+                }
+            }
+        });
+    }
 
     Ok(child)
 }
@@ -635,6 +685,7 @@ async fn start_recording_for_room(
     muc_domain: Option<String>,
     nickname: String,
     jwt_token: Option<String>,
+    password_auth: Option<(String, String, String)>,
     s3_bucket: Option<String>,
     s3_path: Option<String>,
     webhook_url: String,
@@ -685,6 +736,13 @@ async fn start_recording_for_room(
         &nickname,
         &local_file_path,
         jwt_token.as_deref(),
+        password_auth
+            .as_ref()
+            .map(|(username, password, focus_jid)| XmppPasswordAuth {
+                username,
+                password,
+                focus_jid,
+            }),
     )
     .await
     .context("Failed to start recording")?;
@@ -708,12 +766,24 @@ async fn start_recording(
     State(state): State<AppState>,
     Json(req): Json<StartRecordingRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let password_auth = match (req.xmpp_username, req.xmpp_password, req.focus_jid) {
+        (Some(u), Some(p), Some(f)) => Some((u, p, f)),
+        (None, None, None) => None,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "xmpp_username, xmpp_password and focus_jid must all be set together".to_string(),
+            ));
+        }
+    };
+
     let session = start_recording_for_room(
         &state,
         req.room_name,
         req.muc_domain,
         req.nickname,
         req.jwt_token,
+        password_auth,
         req.s3_bucket,
         req.s3_path,
         req.webhook_url,
@@ -794,6 +864,7 @@ async fn room_created_webhook(
         None,
         nickname,
         jwt_token,
+        None,
         Some(state.config.default_s3_bucket.clone()),
         Some(s3_path),
         state.config.default_webhook_url.clone(),

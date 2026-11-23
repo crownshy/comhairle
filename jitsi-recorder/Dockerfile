@@ -3,7 +3,9 @@
 FROM rustlang/rust:nightly-bookworm AS gst-meet-builder
 
 # Install GStreamer development libraries and dependencies
-RUN apt-get update && apt-get install -y \
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries && \
+    echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80-retries && \
+    apt-get update && apt-get install -y --no-install-recommends \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
     libgstreamer-plugins-bad1.0-dev \
@@ -113,7 +115,7 @@ RUN cargo build --release --bin gst-meet
 FROM rustlang/rust:nightly-bookworm AS recorder-builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -133,7 +135,7 @@ RUN cargo build --release
 FROM debian:bookworm-slim
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gstreamer1.0-plugins-base \
     gstreamer1.0-plugins-good \
     gstreamer1.0-plugins-bad \
@@ -145,6 +147,7 @@ RUN apt-get update && apt-get install -y \
     libsrtp2-1 \
     libssl3 \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
