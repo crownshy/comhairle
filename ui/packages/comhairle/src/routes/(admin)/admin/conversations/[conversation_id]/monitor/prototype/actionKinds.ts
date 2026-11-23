@@ -1,4 +1,10 @@
-import { BellRing, Flag, Mail, QrCode, Rocket, Users, type Icon } from 'lucide-svelte';
+import BellRing from '@lucide/svelte/icons/bell-ring';
+import Flag from '@lucide/svelte/icons/flag';
+import Mail from '@lucide/svelte/icons/mail';
+import QrCode from '@lucide/svelte/icons/qr-code';
+import Rocket from '@lucide/svelte/icons/rocket';
+import Users from '@lucide/svelte/icons/users';
+import { type Icon } from '@lucide/svelte';
 import type { ActivityKind } from './sampleMonitorData';
 
 /**

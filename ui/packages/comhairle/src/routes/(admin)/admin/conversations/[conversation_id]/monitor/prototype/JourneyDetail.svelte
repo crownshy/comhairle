@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { ChevronLeft, ChevronRight, Frown, Smile } from 'lucide-svelte';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Frown from '@lucide/svelte/icons/frown';
+	import Smile from '@lucide/svelte/icons/smile';
 	import { cn } from '$lib/utils';
 	import { addMinutes, isFinished, segmentClass } from './journeyStyles';
 	import type { ParticipantJourney, StepProgress, JourneyStepVisit } from './sampleMonitorData';

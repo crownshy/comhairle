@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { cn } from '$lib/utils';
-	import { Frown, Smile } from 'lucide-svelte';
+	import Frown from '@lucide/svelte/icons/frown';
+	import Smile from '@lucide/svelte/icons/smile';
 	import JourneyDetail from './JourneyDetail.svelte';
 	import { segmentClass } from './journeyStyles';
 	import type { ParticipantJourney, StepProgress } from './sampleMonitorData';

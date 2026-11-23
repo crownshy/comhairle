@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Download } from 'lucide-svelte';
+	import Download from '@lucide/svelte/icons/download';
 	import { cn } from '$lib/utils';
 
 	type DataExport = {

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ArrowDown, ArrowRight } from 'lucide-svelte';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { cn } from '$lib/utils';
 
 	type Props = {

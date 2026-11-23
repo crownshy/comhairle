@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import * as Popover from '$lib/components/ui/popover';
-	import { Info } from 'lucide-svelte';
+	import Info from '@lucide/svelte/icons/info';
 	import { cn } from '$lib/utils';
 
 	type Stat = {
