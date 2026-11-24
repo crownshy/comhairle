@@ -270,7 +270,7 @@
 				variant="ghost"
 				disabled={controlsDisabled || row.is_seed}
 				onclick={onSplit}
-				title={quiet ? 'Split or reword' : undefined}
+				title={quiet ? 'Edit' : undefined}
 				aria-hidden={row.is_seed}
 				tabindex={row.is_seed ? -1 : undefined}
 				class={cn(
@@ -280,7 +280,7 @@
 				)}
 			>
 				<Pencil class="size-5" />
-				<span class={labelClass}>Split or reword</span>
+				<span class={labelClass}>Edit</span>
 			</Button>
 			{#if showsRejected}
 				{@render acceptButton()}

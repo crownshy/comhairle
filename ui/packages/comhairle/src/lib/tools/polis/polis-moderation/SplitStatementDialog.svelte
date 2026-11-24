@@ -158,7 +158,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Content class="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-2xl">
 		<Dialog.Header>
-			<Dialog.Title>Split or reword statement</Dialog.Title>
+			<Dialog.Title>Edit statement</Dialog.Title>
 			<Dialog.Description class="text-base">
 				Participants vote on your version. The original stays in the moderation report.
 			</Dialog.Description>
