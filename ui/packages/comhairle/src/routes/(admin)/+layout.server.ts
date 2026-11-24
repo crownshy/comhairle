@@ -3,7 +3,7 @@ import { parseWidthCookie, WIDTH_COOKIE_NAME } from '$lib/components/sidebarWidt
 import { error, redirect } from '@sveltejs/kit';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { canAccessAdminPortal, hasSuperAdminRole } from '$lib/utils/permissions';
-import { adminReturnPath } from './adminAccess';
+import { adminLandingPath, adminReturnPath } from './adminAccess';
 import { HttpStatus } from '$lib/utils/constants';
 
 /**
@@ -26,6 +26,7 @@ export const load: LayoutServerLoad = async ({ cookies, parent, locals, request,
 
 	return {
 		sidebarWidth: parseWidthCookie(cookies.get(WIDTH_COOKIE_NAME)),
-		isSuperAdmin: hasSuperAdminRole(roles.ok)
+		isSuperAdmin: hasSuperAdminRole(roles.ok),
+		landingPath: adminLandingPath(roles.ok)
 	};
 };

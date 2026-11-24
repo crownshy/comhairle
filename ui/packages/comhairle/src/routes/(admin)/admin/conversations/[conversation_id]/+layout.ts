@@ -1,5 +1,7 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
+import { resolve } from '$app/paths';
+import { HttpStatus } from '$lib/utils/constants';
 import type {
 	ConversationWithTranslations,
 	MediaDto,
@@ -110,6 +112,8 @@ export const load: LayoutLoad = async ({ params, parent, depends, url, untrack }
 			message: 'Problem loading conversation assets',
 			priority: 'WARNING'
 		});
-		redirect(302, '/admin');
+		// Not `/admin`: for someone who moderates one conversation it sends them straight back
+		// here, so a failing fetch would loop.
+		redirect(HttpStatus.Found, resolve('/(admin)/admin/conversations'));
 	}
 };

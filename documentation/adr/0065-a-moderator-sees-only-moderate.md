@@ -17,12 +17,11 @@ one task in the full sidebar (#1224, #1926).
 **1. Hide by role on the existing routes.** We don't build a separate stripped route. A user
 who can moderate but cannot edit (`conversation_moderate` without `conversation_update`) gets
 the moderation surface: the sidebar shows a single Moderate link, with no stage around it,
-and nothing else. Moderate stays
-open for them before launch and before a Polis step exists, so their sidebar is never empty
-or locked. Everyone who can edit sees exactly what they saw before.
+and nothing else. Moderate stays open for them before launch and before a Polis step exists,
+so their sidebar is never empty or locked. Everyone who can edit sees exactly what they saw before.
 
 **2. Other sections redirect to Moderate.** The conversation layout load sends a moderator who
-opens any other section, or the conversation cards' Configure link, to `/moderate`. The check
+opens any other section by URL to `/moderate`. The check
 reads the pathname untracked, so moving between sections doesn't rerun the layout load.
 Client-side links to other sections don't exist on this surface, so a typed URL is the only
 way in, and that is a full load.
@@ -31,17 +30,22 @@ way in, and that is a full load.
 URL work only for someone already granted the role on the Team page. Opening the link without
 the role gets the same refusal as any other admin URL.
 
-**4. The decision is made from actions, not role names.** The frontend already knows the
-user's actions on a conversation (`conversationActions`). A role that later gains Moderate
-without Update (or a group granting it) gets the same surface with no change here.
+**4. Inside a conversation, the decision is made from actions, not role names.** The
+conversation layout already knows the user's actions on it (`conversationActions`), so the
+sidebar and the redirect read those. A role that later gains Moderate without Update (or a
+group granting it) gets the same surface with no change here. Outside a conversation, the
+workspace sidebar, the login landing and the conversation cards only have `GetUserRoles`, so
+they read role names (decision 5). They act only when every role is `moderator`, which can't
+carry edit rights, so they never send someone who can edit to the moderation surface.
 
 **5. Someone who only moderates gets a moderation-only workspace.** When every role a user
 holds (from `GetUserRoles`) is a conversation `moderator` role, the workspace sidebar shows
 Conversations and nothing else, and `/admin`, where login lands, sends them to Moderate if
-they moderate one conversation, or to the conversations list if they moderate several. A
-conversation card opens Moderate on any conversation where `moderator` is their only role.
+they moderate one conversation, or to the conversations list if they moderate several. Their
+conversation cards open Moderate.
 One other role anywhere (site, organisation, or another conversation role) keeps the full
-workspace, while each conversation still gets the surface that matches the user's role on it.
+workspace and the usual card links, while each conversation still gets the surface that
+matches the user's actions on it, through the redirect in decision 2.
 
 ## Considered options
 
@@ -57,6 +61,9 @@ workspace, while each conversation still gets the surface that matches the user'
   surfaces are later slices of #1224.
 - There is no moderation home across conversations yet. A moderator of several picks one
   from the conversations list, and the card opens Moderate.
+- If the conversation layout fails to load, it sends the user to the conversations list, not
+  `/admin`. For someone who moderates one conversation `/admin` leads straight back to it, so
+  a failing fetch would loop.
 - Conversation ownership isn't a role, so it doesn't show in `GetUserRoles`. Someone who owns
   a conversation and moderates another, with no other role, would get the moderation-only
   workspace. Creating a conversation needs a system role, so this only hits older accounts.

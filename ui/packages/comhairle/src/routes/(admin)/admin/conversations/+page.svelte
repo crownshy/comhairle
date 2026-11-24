@@ -11,7 +11,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
-	import { moderatorOnlyConversationIds } from '$lib/utils/permissions';
+	import { isModeratorOnly, moderatorOnlyConversationIds } from '$lib/utils/permissions';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
@@ -25,7 +25,11 @@
 
 	let { data }: PageProps = $props();
 
-	let moderatorOnlyIds = $derived(new Set(moderatorOnlyConversationIds(data.userRoles)));
+	// Only for someone who does nothing but moderate. Anyone with another role may also have
+	// edit rights through it, so their card opens as usual and the conversation layout decides.
+	let moderatorOnlyIds = $derived(
+		new Set(isModeratorOnly(data.userRoles) ? moderatorOnlyConversationIds(data.userRoles) : [])
+	);
 	let total = $derived(data.conversations.total);
 	let searchTerm = $derived(data.search.trim());
 	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
