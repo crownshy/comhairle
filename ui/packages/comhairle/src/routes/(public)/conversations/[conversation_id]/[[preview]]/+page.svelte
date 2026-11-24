@@ -6,21 +6,23 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto, invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
-	import ConversationIntro from '$lib/components/ConversationIntro.svelte';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey.js';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
 	import { pendingWork } from '$lib/stores/pendingWork.svelte';
+	import { resolve } from '$app/paths';
+	import { ChevronLeft, MessageSquareText } from '@lucide/svelte';
+	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
+	import Conversation from '$lib/interfaces/Conversation';
 
 	let { data } = $props();
-	let conversation = $derived(data.conversation);
-	let workflows = $derived(data.workflows);
-	let participation = $derived(data.participation);
-	let preview = $derived(data.preview);
-	let user = $derived(data.user);
+	let { conversation, workflows, participation, preview, user } = $derived(data);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
+	let statusLabel = $derived(
+		conversation.isComplete ? m.conversation_status_ended() : m.conversation_status_open()
+	);
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
@@ -283,168 +285,239 @@
 				<Button href="/conversations">{m.conversation_closed_link()}</Button>
 			</div>
 		{:else}
-			<ConversationIntro {conversation}>
-				{#if user}
-					{#if participation}
-						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
-							>{conversation.callToAction || m.jump_back_in()}</Button
-						>
-					{:else}
-						<Button
-							class="mt-5 w-full md:w-fit"
-							onclick={handleJoin}
-							disabled={isSubmitting}
-						>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
-							{/if}
-							{conversation.callToAction || m.join_the_conversation()}
-						</Button>
-					{/if}
-				{:else if joinsAnonymously}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={handleJoin}
-						disabled={isSubmitting}
+			<!-- Top band on white: back link, status, title and a short description, then a white bar
+	with the join controls that sits across the join with the full-width image below.
+	Organiser, time needed and closing date belong in the bar too, once the API has them. -->
+			<div class="bg-background">
+				<div
+					class="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-6 md:px-8 md:pt-10"
+				>
+					<a
+						href={resolve('/')}
+						class="text-muted-foreground hover:text-foreground -ml-1 flex w-fit items-center gap-1 text-base font-medium"
 					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						{conversation.callToAction || m.join_the_conversation()}
-					</Button>
-				{:else if emailStep === 'email'}
-					<form
-						class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-						onsubmit={(e) => {
-							e.preventDefault();
-							submitEmail();
-						}}
-					>
-						<Input
-							type="email"
-							placeholder={m.enter_your_email()}
-							bind:value={emailValue}
-							required
-							disabled={isSubmitting}
-						/>
-						{#if emailError}
-							<p class="text-destructive text-sm">{emailError}</p>
-						{/if}
-						<Button type="submit" disabled={isSubmitting}>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
-							{/if}
-							{m.continue_button()}
-						</Button>
-					</form>
-				{:else if emailStep === 'code'}
-					<form
-						class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-						onsubmit={(e) => {
-							e.preventDefault();
-							submitCode();
-						}}
-					>
-						<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
-						<p class="text-muted-foreground max-w-prose text-base">
-							{m.otp_sent_to_email({ email: emailValue })}
-						</p>
-						<Input
-							placeholder={m.otp_placeholder()}
-							bind:value={codeValue}
-							autocomplete="one-time-code"
-							required
-							disabled={isSubmitting}
-						/>
-						{#if emailError}
-							<p class="text-destructive text-sm">{emailError}</p>
-						{:else if codeResent}
-							<p class="text-base">{m.otp_resent()}</p>
-						{/if}
-						<Button type="submit" disabled={isSubmitting}>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
-							{/if}
-							{m.verify_code()}
-						</Button>
-						<p class="text-muted-foreground text-base">
-							{m.resend_otp()}
-							<button
-								type="button"
-								class="text-primary underline"
-								onclick={resendCode}
-								disabled={isSubmitting}
-							>
-								{m.send_again()}
-							</button>
-						</p>
-						<button
-							type="button"
-							class="text-primary self-start text-base underline"
-							onclick={changeEmail}
-							disabled={isSubmitting}
+						<ChevronLeft class="size-5" />
+						{m.conversations_all_heading()}
+					</a>
+					<div class="flex flex-col items-start gap-4 md:px-6">
+						<h1
+							class="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl"
 						>
-							{m.use_a_different_email()}
-						</button>
-					</form>
-				{:else if guestStep === 'choice'}
-					<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">
-						<Button onclick={handleNewGuestJoin} disabled={isSubmitting}>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
-							{/if}
-							{m.start_as_new_guest()}
-						</Button>
-						<Button
-							variant="outline"
-							onclick={openGuestCodeStep}
-							disabled={isSubmitting}
-						>
-							{m.have_a_guest_code()}
-						</Button>
+							{conversation.title}
+						</h1>
+						{#if conversation.shortDescription}
+							<p class="line-clamp-3 max-w-3xl text-lg">
+								{conversation.shortDescription}
+							</p>
+						{/if}
 					</div>
-				{:else if guestStep === 'code'}
-					<form
-						class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-						onsubmit={(e) => {
-							e.preventDefault();
-							submitGuestCode();
-						}}
+
+					<!-- Pulled down over the image. -->
+					<div
+						class="bg-card ring-border/60 relative z-10 -mb-24 flex flex-col gap-4 rounded-3xl p-5 shadow-lg ring-1 sm:-mb-20 md:flex-row md:items-center md:justify-between md:gap-6 md:p-6"
 					>
-						<Input
-							placeholder={m.anonymous_id()}
-							bind:value={guestCodeValue}
-							required
-							disabled={isSubmitting}
-						/>
-						{#if guestError}
-							<p class="text-destructive text-sm">{guestError}</p>
-						{/if}
-						<Button type="submit" disabled={isSubmitting}>
-							{#if isSubmitting}
-								<Spinner class="mr-2 size-4" />
+						<div
+							class="flex items-baseline justify-between gap-4 md:flex-col md:justify-start md:gap-1 md:pl-2"
+						>
+							<span class="text-muted-foreground text-base">
+								{m.conversation_status_heading()}
+							</span>
+							<ConversationStatusBadge
+								status={Conversation.getStatus(conversation)}
+								label={statusLabel}
+								class="text-lg font-semibold"
+							/>
+						</div>
+						<!-- The join controls bring their own top margin from the old layout; cancel it here. -->
+						<div class="flex flex-col gap-2 *:mt-0 md:items-end">
+							{#if user}
+								{#if participation}
+									<Button
+										class="mt-5 w-full md:w-fit"
+										variant="primaryDark"
+										href={returnPath}
+									>
+										{conversation.callToAction || m.jump_back_in()}
+									</Button>
+								{:else}
+									<Button
+										class="mt-5 w-full md:w-fit"
+										onclick={handleJoin}
+										disabled={isSubmitting}
+									>
+										{#if isSubmitting}
+											<Spinner class="mr-2 size-4" />
+										{/if}
+										{conversation.callToAction || m.join_the_conversation()}
+									</Button>
+								{/if}
+							{:else if joinsAnonymously}
+								<Button
+									class="mt-5 w-full md:w-fit"
+									onclick={handleJoin}
+									disabled={isSubmitting}
+								>
+									{#if isSubmitting}
+										<Spinner class="mr-2 size-4" />
+									{/if}
+									{conversation.callToAction || m.join_the_conversation()}
+								</Button>
+							{:else if emailStep === 'email'}
+								<form
+									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
+									onsubmit={(e) => {
+										e.preventDefault();
+										submitEmail();
+									}}
+								>
+									<Input
+										type="email"
+										placeholder={m.enter_your_email()}
+										bind:value={emailValue}
+										required
+										disabled={isSubmitting}
+									/>
+									{#if emailError}
+										<p class="text-destructive text-sm">{emailError}</p>
+									{/if}
+									<Button type="submit" disabled={isSubmitting}>
+										{#if isSubmitting}
+											<Spinner class="mr-2 size-4" />
+										{/if}
+										{m.continue_button()}
+									</Button>
+								</form>
+							{:else if emailStep === 'code'}
+								<form
+									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
+									onsubmit={(e) => {
+										e.preventDefault();
+										submitCode();
+									}}
+								>
+									<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
+									<p class="text-muted-foreground max-w-prose text-base">
+										{m.otp_sent_to_email({ email: emailValue })}
+									</p>
+									<Input
+										placeholder={m.otp_placeholder()}
+										bind:value={codeValue}
+										autocomplete="one-time-code"
+										required
+										disabled={isSubmitting}
+									/>
+									{#if emailError}
+										<p class="text-destructive text-sm">{emailError}</p>
+									{:else if codeResent}
+										<p class="text-base">{m.otp_resent()}</p>
+									{/if}
+									<Button type="submit" disabled={isSubmitting}>
+										{#if isSubmitting}
+											<Spinner class="mr-2 size-4" />
+										{/if}
+										{m.verify_code()}
+									</Button>
+									<p class="text-muted-foreground text-base">
+										{m.resend_otp()}
+										<button
+											type="button"
+											class="text-primary underline"
+											onclick={resendCode}
+											disabled={isSubmitting}
+										>
+											{m.send_again()}
+										</button>
+									</p>
+									<button
+										type="button"
+										class="text-primary self-start text-base underline"
+										onclick={changeEmail}
+										disabled={isSubmitting}
+									>
+										{m.use_a_different_email()}
+									</button>
+								</form>
+							{:else if guestStep === 'choice'}
+								<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">
+									<Button onclick={handleNewGuestJoin} disabled={isSubmitting}>
+										{#if isSubmitting}
+											<Spinner class="mr-2 size-4" />
+										{/if}
+										{m.start_as_new_guest()}
+									</Button>
+									<Button
+										variant="outline"
+										onclick={openGuestCodeStep}
+										disabled={isSubmitting}
+									>
+										{m.have_a_guest_code()}
+									</Button>
+								</div>
+							{:else if guestStep === 'code'}
+								<form
+									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
+									onsubmit={(e) => {
+										e.preventDefault();
+										submitGuestCode();
+									}}
+								>
+									<Input
+										placeholder={m.anonymous_id()}
+										bind:value={guestCodeValue}
+										required
+										disabled={isSubmitting}
+									/>
+									{#if guestError}
+										<p class="text-destructive text-sm">{guestError}</p>
+									{/if}
+									<Button type="submit" disabled={isSubmitting}>
+										{#if isSubmitting}
+											<Spinner class="mr-2 size-4" />
+										{/if}
+										{m.continue_with_guest_code()}
+									</Button>
+								</form>
+							{:else}
+								<Button
+									class="mt-5 w-full md:w-fit"
+									onclick={openEmailStep}
+									disabled={isSubmitting}
+								>
+									{m.continue_with_email()}
+								</Button>
+								<Button
+									class="mt-5 w-full md:w-fit"
+									variant="outline"
+									onclick={openGuestChoice}
+									disabled={isSubmitting}
+								>
+									{m.join_as_guest()}
+								</Button>
 							{/if}
-							{m.continue_with_guest_code()}
-						</Button>
-					</form>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="bg-primary/10 relative h-72 w-full overflow-hidden sm:h-96 lg:h-128">
+				{#if conversation.imageUrl}
+					<img
+						src={conversation.imageUrl}
+						alt="Heading image for conversation {conversation.title}"
+						class="absolute inset-0 size-full object-cover"
+					/>
 				{:else}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={openEmailStep}
-						disabled={isSubmitting}
-					>
-						{m.continue_with_email()}
-					</Button>
-					<Button
-						class="mt-5 w-full md:w-fit"
-						variant="outline"
-						onclick={openGuestChoice}
-						disabled={isSubmitting}
-					>
-						{m.join_as_guest()}
-					</Button>
+					<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-20" />
 				{/if}
-			</ConversationIntro>
+			</div>
+
+			{#if conversation.description}
+				<div class="mx-auto w-full max-w-3xl px-4 pt-10 md:px-0 md:pt-14">
+					<p class="text-foreground text-lg whitespace-pre-line">
+						{conversation.description}
+					</p>
+				</div>
+			{/if}
 
 			<PrivacyPolicyDialog
 				{conversation}
