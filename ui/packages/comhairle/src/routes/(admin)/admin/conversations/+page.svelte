@@ -12,7 +12,6 @@
 	import { permissions } from '$lib/permissions.svelte';
 	import { isModeratorOnly, moderatorOnlyConversationIds } from '$lib/utils/permissions';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
-	import StatusFilterChips from './StatusFilterChips.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { conversationsListTour } from './tour';
 	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
@@ -21,6 +20,9 @@
 	import { m } from '$lib/paraglide/messages';
 	import { scrollBehavior } from '$lib/utils/reducedMotion';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import FilterBadges from '$lib/components/FilterBadges.svelte';
+	import AdminConversation from './AdminConversation';
+	import { capitalise } from '$lib/utils/casingUtils';
 
 	useTour(() => conversationsListTour);
 
@@ -66,10 +68,19 @@
 		{console.error(data.conversations.err)}
 		<ErrorMessage>Could not load conversations, please try again</ErrorMessage>
 	{:else}
-		<div class="@container flex w-full flex-col gap-11">
-			<div class="flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between">
+		<div class="@container flex w-full flex-col">
+			<div
+				class="mb-11 flex flex-col gap-4 @4xl:flex-row @4xl:items-center @4xl:justify-between"
+			>
 				<div data-tour="status-filters">
-					<StatusFilterChips />
+					<FilterBadges
+						param="filter"
+						options={AdminConversation.filters.map((filter) => [
+							filter,
+							capitalise(filter)
+						])}
+						label="Filter conversations"
+					/>
 				</div>
 				<div class="flex items-center gap-3">
 					<SearchBar
@@ -88,7 +99,7 @@
 				</div>
 			</div>
 			{#if data.conversations.ok.total > 0}
-				<p class="text-muted-foreground text-base" aria-live="polite">
+				<p class="text-muted-foreground mb-3 text-base" aria-live="polite">
 					{data.conversations.ok.total} conversation(s) found
 				</p>
 			{/if}
