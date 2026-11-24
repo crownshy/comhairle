@@ -39,7 +39,8 @@
 		/** Stored translations, keyed by aux row id. */
 		translationsByStatement: Record<string, PolisStatementTranslation[]>;
 		onTranslationChange: (translation: PolisStatementTranslation) => void;
-		onSplit: (row: PolisStatementAux) => void;
+		/** Without it the rows have no Edit action. */
+		onSplit?: (row: PolisStatementAux) => void;
 		onUndoSplit: (row: PolisStatementAux) => void;
 		/** Shown in place of the rows when there are none to show. */
 		empty: Snippet;
@@ -189,7 +190,7 @@
 					{onTranslationChange}
 					onToggle={(checked, range) => onToggleSelect(row.id, checked, range)}
 					onModerate={(status, reason) => onModerate(row, status, reason)}
-					onSplit={() => onSplit(row)}
+					onSplit={onSplit ? () => onSplit(row) : undefined}
 					onUndoSplit={() => onUndoSplit(row)}
 				/>
 			{/each}

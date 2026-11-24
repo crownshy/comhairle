@@ -143,8 +143,10 @@ pub async fn send_wiki_poll_moderation_notify_emails(
         });
 
         if pending_count > 0 {
+            // `from=email` opens the moderation rules on arrival. It must match FROM_PARAM and
+            // FROM_EMAIL in the UI's polis-moderation/moderationGuidance.ts.
             let moderation_url = format!(
-                "{}/admin/conversations/{}/moderate/step/{}",
+                "{}/admin/conversations/{}/moderate/step/{}?from=email",
                 state.config.domain, req.conversation.id, step.id
             );
             steps_with_pending.push((step, pending_count, moderation_url));

@@ -11,6 +11,13 @@ export const stepModerationTour: Tour = {
 			side: 'bottom'
 		},
 		{
+			element: '[data-tour="moderation-guidance"]',
+			title: 'Moderation rules',
+			description:
+				'What to do, what never to do, and your reasons for rejecting. It opens on your first visit and stays one click away.',
+			side: 'bottom'
+		},
+		{
 			element: '[data-tour="moderation-filters"]',
 			title: 'Work through the queue',
 			description:
@@ -19,9 +26,9 @@ export const stepModerationTour: Tour = {
 		},
 		{
 			element: '[data-tour="moderation-statements"]',
-			title: 'Accept, reject or split',
+			title: 'Accept, edit or reject',
 			description:
-				'Accept a statement to publish it as written, split or reword it if it makes more than one point, or reject it with a reason. To undo a decision, use Move back to waiting in the statement’s more menu.',
+				'Accept a statement to publish it as written, edit it to split out more than one point, or reject it with a reason. To undo a decision, use Move back to waiting in the statement’s more menu.',
 			side: 'top'
 		}
 	]

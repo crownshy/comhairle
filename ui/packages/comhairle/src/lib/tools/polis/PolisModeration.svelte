@@ -13,6 +13,7 @@
 	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
+	import ModerationRules from './polis-moderation/ModerationRules.svelte';
 	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
 	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
@@ -491,6 +492,9 @@
 				</Tabs.List>
 			</div>
 		</Tabs.Root>
+		{#if canModerate}
+			<ModerationRules {rejectReasons} {defaultRejectReasons} />
+		{/if}
 		<div class="relative w-full md:ml-auto md:w-72">
 			<Search
 				class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"

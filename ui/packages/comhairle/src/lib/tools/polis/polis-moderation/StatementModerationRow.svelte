@@ -49,8 +49,8 @@
 		/** `range` is true when shift was held, requesting a range select. */
 		onToggle: (checked: boolean, range: boolean) => void;
 		onModerate: (status: ModerationStatus, reason?: string) => void;
-		/** Open the split/reword dialog for this row. */
-		onSplit: () => void;
+		/** Open the split/reword dialog for this row. Without it the Edit action is hidden. */
+		onSplit?: () => void;
 		/** Ask to undo the split that replaced this row. */
 		onUndoSplit: () => void;
 	};
@@ -265,23 +265,25 @@
 			{#if !showsAccepted && !showsRejected}
 				{@render acceptButton()}
 			{/if}
-			<!-- Seeds can't be split, but keep the slot so every row's actions line up. -->
-			<Button
-				variant="ghost"
-				disabled={controlsDisabled || row.is_seed}
-				onclick={onSplit}
-				title={quiet ? 'Edit' : undefined}
-				aria-hidden={row.is_seed}
-				tabindex={row.is_seed ? -1 : undefined}
-				class={cn(
-					ACTION_SIZE,
-					'text-muted-foreground hover:text-foreground',
-					row.is_seed && 'invisible'
-				)}
-			>
-				<Pencil class="size-5" />
-				<span class={labelClass}>Edit</span>
-			</Button>
+			{#if onSplit}
+				<!-- Seeds can't be split, but keep the slot so every row's actions line up. -->
+				<Button
+					variant="ghost"
+					disabled={controlsDisabled || row.is_seed}
+					onclick={onSplit}
+					title={quiet ? 'Edit' : undefined}
+					aria-hidden={row.is_seed}
+					tabindex={row.is_seed ? -1 : undefined}
+					class={cn(
+						ACTION_SIZE,
+						'text-muted-foreground hover:text-foreground',
+						row.is_seed && 'invisible'
+					)}
+				>
+					<Pencil class="size-5" />
+					<span class={labelClass}>Edit</span>
+				</Button>
+			{/if}
 			{#if showsRejected}
 				{@render acceptButton()}
 			{:else}
