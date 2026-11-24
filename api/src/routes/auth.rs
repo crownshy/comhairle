@@ -264,7 +264,7 @@ where
     exp: usize,
     id: String,
     #[serde(flatten)]
-    details: T,
+    pub details: T,
 }
 
 /// Generate JWT

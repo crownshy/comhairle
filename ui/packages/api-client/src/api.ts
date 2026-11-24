@@ -3645,6 +3645,7 @@ export const EventWithTranslations = z
     customEventLink: z.union([z.string(), z.null()]).optional(),
     defaultTimeZone: z.string(),
     description: z.string(),
+    emailLinkLogin: z.boolean(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
     id: z.string().uuid(),
@@ -3671,6 +3672,7 @@ export const PartialEvent = z
     custom_event_link: z.union([z.string(), z.null()]),
     default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
+    email_link_login: z.union([z.boolean(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     format: z.union([EventFormat, z.null()]),
     location: z.union([EventLocation, z.null()]),
@@ -3686,6 +3688,8 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const EventAccessRequest = z.object({ token: z.string() }).passthrough();
+export type EventAccessRequest = z.infer<typeof EventAccessRequest>;
 export const BreakoutSeatDto = z
   .object({
     inviteId: z.union([z.string(), z.null()]).optional(),
@@ -4726,6 +4730,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  EventAccessRequest,
   BreakoutSeatDto,
   BreakoutRoomDto,
   BreakoutPlanDto,
@@ -5489,6 +5494,21 @@ curl -X POST \
     description: `Delete an event`,
     requestFormat: "json",
     response: EventDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/access",
+    alias: "AccessEvent",
+    description: `Exchanges the access token from an event email link for a session. The token is reusable until it expires and only works while the user is registered for the event`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
   },
   {
     method: "get",

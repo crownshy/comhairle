@@ -2,23 +2,32 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, patch_with, post_with, put_with};
+use axum::Extension;
 use axum::extract::{Json, Path, Query, State};
 use axum::http::StatusCode;
+use axum_extra::extract::cookie::CookieJar;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tower::util::option_layer;
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::middleware::rate_limit::RateLimitLayers;
+use crate::middleware::request_logging::{ClientIp, ClientUserAgent};
 use crate::models::event::{
     self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations, PartialEvent,
 };
-use crate::models::event_attendance;
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::routes::auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin};
+use crate::models::{event_attendance, users};
+use crate::routes::auth::{
+    RequiredAdminUser, RequiredUser, create_session_cookie, decode_jwt, generate_jwt,
+    is_user_admin, issue_refresh_token,
+};
 use crate::routes::events::dto::{EventDto, LocalizedEventDto};
 use crate::routes::translations::LocaleExtractor;
+use crate::routes::user::dto::UserDto;
 
 pub mod breakout;
 pub mod dto;
@@ -234,17 +243,97 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-pub fn router() -> ApiRouter<Arc<ComhairleState>> {
+/// Claims in the access token on event email links. The token only grants
+/// access to this event, for this user, until it expires.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EventAccessClaims {
+    pub user_id: Uuid,
+    pub event_id: Uuid,
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+struct EventAccessRequest {
+    /// Access token taken from an event email link.
+    token: String,
+}
+
+/// Logs a registered attendee in from the link in an event email.
+///
+/// Confirmation and reminder emails each carry a signed token for one user and
+/// one event. Unlike single-use OTP links, these tokens can be reused until they
+/// expire, so a link in any email the attendee received still gets them in.
+/// The user must still be registered for the event when the link is used.
+#[instrument(err(Debug), skip(state))]
+async fn access(
+    State(state): State<Arc<ComhairleState>>,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    jar: CookieJar,
+    Json(payload): Json<EventAccessRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let invalid = || ComhairleError::InvalidEventAccessToken;
+    let not_found_as_invalid = |e| match e {
+        ComhairleError::ResourceNotFound(_) | ComhairleError::NoUserFoundForId(_) => invalid(),
+        other => other,
+    };
+
+    let token_data = decode_jwt::<EventAccessClaims>(&payload.token, &state.config.jwt_secret)
+        .map_err(|_| invalid())?;
+    let EventAccessClaims {
+        user_id,
+        event_id: token_event_id,
+    } = token_data.claims.details;
+
+    if event_id != token_event_id {
+        return Err(invalid());
+    }
+
+    let event = event::get_by_id(&state.db, &event_id)
+        .await
+        .map_err(not_found_as_invalid)?;
+
+    if !event.email_link_login {
+        return Err(invalid());
+    }
+
+    event_attendance::get_by_event_and_user(&state.db, &event_id, &user_id)
+        .await
+        .map_err(not_found_as_invalid)?;
+
+    let user = users::get_user_by_id(&user_id, &state.db).await?;
+
+    let session_cookie = create_session_cookie(&user, &state)?;
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
+
+    Ok((jar, (StatusCode::OK, Json(user.into()))))
+}
+
+pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
+    let auth_limit = option_layer(rate_limiters.map(|limiters| limiters.auth_rate_limiter()));
+
     ApiRouter::new()
-        .api_route("/", get_with(list, |op| {
-            op.id("ListEvents")
-                .tag("Events")
-                .summary("List of events for a conversation")
-                .description("Paginated list of events for a conversation with optional filtering and ordering")
-                .security_requirement("JWT")
-                .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
-        }))
-        .api_route("/{event_id}", 
+        .api_route(
+            "/",
+            get_with(list, |op| {
+                op.id("ListEvents")
+                    .tag("Events")
+                    .summary("List of events for a conversation")
+                    .description(
+                        "Paginated list of events for a conversation with optional \
+                    filtering and ordering",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<PaginatedResults<LocalizedEventDto>>>()
+            }),
+        )
+        .api_route(
+            "/{event_id}",
             get_with(get, |op| {
                 op.id("GetEvent")
                     .tag("Events")
@@ -252,9 +341,10 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Event an event by id")
                     .security_requirement("JWT")
                     .response::<200, Json<EventResponse>>()
-
-        }))
-        .api_route("/", 
+            }),
+        )
+        .api_route(
+            "/",
             post_with(create, |op| {
                 op.id("CreateEvent")
                     .tag("Events")
@@ -262,9 +352,10 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Create a new event")
                     .security_requirement("JWT")
                     .response::<201, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}", 
+            }),
+        )
+        .api_route(
+            "/{event_id}",
             put_with(update, |op| {
                 op.id("UpdateEvent")
                     .tag("Events")
@@ -272,9 +363,10 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Update an event")
                     .security_requirement("JWT")
                     .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}/metadata",
+            }),
+        )
+        .api_route(
+            "/{event_id}/metadata",
             get_with(get_event_metadata, |op| {
                 op.id("GetEventMetadata")
                     .tag("Events")
@@ -282,21 +374,24 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Get event metadata")
                     .security_requirement("JWT")
                     .response::<200, Json<Option<serde_json::Value>>>()
-
-        }))
-        .api_route("/{event_id}/metadata",
+            }),
+        )
+        .api_route(
+            "/{event_id}/metadata",
             patch_with(patch_event_metadata, |op| {
                 op.id("PatchEventMetadata")
                     .tag("Events")
                     .summary("Shallow-merge event metadata")
                     .description(
-                        "Merge a JSON object into event.metadata at the top level using jsonb concatenation",
+                        "Merge a JSON object into event.metadata at the top level \
+                            using jsonb concatenation",
                     )
                     .security_requirement("JWT")
                     .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}", 
+            }),
+        )
+        .api_route(
+            "/{event_id}",
             delete_with(delete, |op| {
                 op.id("DeleteEvent")
                     .tag("Events")
@@ -304,9 +399,10 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Delete an event")
                     .security_requirement("JWT")
                     .response::<200, Json<EventDto>>()
-
-        }))
-        .api_route("/{event_id}/auth",
+            }),
+        )
+        .api_route(
+            "/{event_id}/auth",
             get_with(get_jwt, |op| {
                 op.id("GetEventJWT")
                     .tag("Events")
@@ -314,47 +410,170 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .description("Get a auth JWT for an event")
                     .security_requirement("JWT")
                     .response::<200, Json<JwtResponse>>()
-
-        }))
-        .api_route("/{event_id}/breakout",
+            }),
+        )
+        .api_route(
+            "/{event_id}/access",
+            post_with(access, |op| {
+                op.id("AccessEvent")
+                    .tag("Events")
+                    .summary("Log a registered attendee in from an event email link")
+                    .description(
+                        "Exchanges the access token from an event email link for a session. \
+                            The token is reusable until it expires and only works while the user \
+                            is registered for the event",
+                    )
+                    .response::<200, Json<UserDto>>()
+            })
+            .layer(auth_limit),
+        )
+        .api_route(
+            "/{event_id}/breakout",
             get_with(breakout::get_plan, |op| {
                 op.id("GetEventBreakoutPlan")
                     .tag("Events")
                     .summary("Get the pre-assigned breakout plan for an event")
                     .security_requirement("JWT")
                     .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
-        .api_route("/{event_id}/breakout",
+            }),
+        )
+        .api_route(
+            "/{event_id}/breakout",
             put_with(breakout::save_plan, |op| {
                 op.id("SaveEventBreakoutPlan")
                     .tag("Events")
                     .summary("Save an edited pre-assigned breakout plan")
                     .security_requirement("JWT")
                     .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
-        .api_route("/{event_id}/breakout/seed",
+            }),
+        )
+        .api_route(
+            "/{event_id}/breakout/seed",
             post_with(breakout::seed_plan, |op| {
                 op.id("SeedEventBreakoutPlan")
                     .tag("Events")
                     .summary("Randomly seed the breakout plan from attendees and invites")
                     .security_requirement("JWT")
                     .response::<200, Json<breakout::BreakoutPlanDto>>()
-        }))
+            }),
+        )
 }
 
 #[cfg(test)]
 mod tests {
     use std::error::Error;
 
+    use axum::http::HeaderValue;
     use chrono::Utc;
     use serde_json::json;
     use sqlx::PgPool;
 
     use super::*;
     use crate::models::event::SignupMode;
+    use crate::models::event_attendance::CreateEventAttendance;
     use crate::models::model_test_helpers::{
-        get_random_conversation_id, setup_default_app_and_session,
+        get_random_conversation_id, setup_app_and_session_with_state, setup_default_app_and_session,
     };
+    use crate::models::users::{self, User};
+    use crate::routes::auth::OtpSignupRequest;
+    use crate::test_helpers::{UserSession, test_state};
+
+    struct RegisteredAttendee {
+        app: crate::App,
+        state: Arc<ComhairleState>,
+        admin: UserSession,
+        conversation_id: Uuid,
+        event_id: Uuid,
+        user: User,
+    }
+
+    async fn setup_registered_attendee(
+        pool: &PgPool,
+    ) -> Result<RegisteredAttendee, Box<dyn Error>> {
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let (app, mut admin) = setup_app_and_session_with_state(state.clone()).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut admin).await?;
+        let (_, response, _) = admin
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let user = register_otp_user(pool, "attendee@test.com", event.id).await?;
+
+        Ok(RegisteredAttendee {
+            app,
+            state,
+            admin,
+            conversation_id,
+            event_id: event.id,
+            user,
+        })
+    }
+
+    async fn register_otp_user(
+        pool: &PgPool,
+        email: &str,
+        event_id: Uuid,
+    ) -> Result<User, Box<dyn Error>> {
+        let user = users::create_otp_user(
+            &OtpSignupRequest {
+                email: email.to_string(),
+                username: None,
+            },
+            pool,
+        )
+        .await?;
+
+        event_attendance::create(
+            pool,
+            &CreateEventAttendance {
+                user_id: user.id,
+                event_id,
+                role: "participant".to_string(),
+            },
+        )
+        .await?;
+
+        Ok(user)
+    }
+
+    fn access_token(
+        secret: &str,
+        user: &User,
+        event_id: Uuid,
+        duration: chrono::Duration,
+    ) -> Result<String, ComhairleError> {
+        generate_jwt()
+            .user(user)
+            .secret(secret)
+            .custom_claims(EventAccessClaims {
+                user_id: user.id,
+                event_id,
+            })
+            .duration(duration)
+            .call()
+    }
+
+    async fn redeem_access_token(
+        app: &crate::App,
+        conversation_id: Uuid,
+        event_id: Uuid,
+        token: &str,
+    ) -> Result<(StatusCode, serde_json::Value, Vec<HeaderValue>), Box<dyn Error>> {
+        UserSession::new_guest()
+            .post(
+                app,
+                &format!("/conversation/{conversation_id}/events/{event_id}/access"),
+                json!({ "token": token }).to_string().into(),
+            )
+            .await
+    }
+
+    fn sets_session_cookie(cookies: &[HeaderValue]) -> bool {
+        cookies
+            .iter()
+            .any(|cookie| cookie.to_str().unwrap_or_default().contains("auth-token"))
+    }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -715,6 +934,204 @@ mod tests {
             "incorrect error message"
         );
 
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_token_logs_registered_attendee_in(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let fixture = setup_registered_attendee(&pool).await?;
+        let token = access_token(
+            &fixture.state.config.jwt_secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+
+        let (status, body, cookies) = redeem_access_token(
+            &fixture.app,
+            fixture.conversation_id,
+            fixture.event_id,
+            &token,
+        )
+        .await?;
+
+        assert_eq!(status, StatusCode::OK, "body: {body}");
+        assert!(sets_session_cookie(&cookies), "missing auth-token cookie");
+        let user: UserDto = serde_json::from_value(body)?;
+        assert_eq!(user.id, fixture.user.id, "logged in as the wrong user");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_token_can_be_reused(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let fixture = setup_registered_attendee(&pool).await?;
+        let token = access_token(
+            &fixture.state.config.jwt_secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+
+        for attempt in 1..=2 {
+            let (status, body, cookies) = redeem_access_token(
+                &fixture.app,
+                fixture.conversation_id,
+                fixture.event_id,
+                &token,
+            )
+            .await?;
+            assert_eq!(status, StatusCode::OK, "attempt {attempt}: {body}");
+            assert!(
+                sets_session_cookie(&cookies),
+                "attempt {attempt}: missing cookie"
+            );
+        }
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_tokens_from_separate_emails_all_work(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let fixture = setup_registered_attendee(&pool).await?;
+        let secret = &fixture.state.config.jwt_secret;
+        let confirmation = access_token(
+            secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+        let reminder = access_token(
+            secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(2),
+        )?;
+
+        for token in [&reminder, &confirmation] {
+            let (status, body, _) = redeem_access_token(
+                &fixture.app,
+                fixture.conversation_id,
+                fixture.event_id,
+                token,
+            )
+            .await?;
+            assert_eq!(status, StatusCode::OK, "body: {body}");
+        }
+
+        Ok(())
+    }
+
+    fn assert_rejected(status: StatusCode, body: &serde_json::Value, cookies: &[HeaderValue]) {
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "expected 401, got {status}"
+        );
+        assert_eq!(
+            body["err"],
+            ComhairleError::InvalidEventAccessToken.to_string(),
+            "rejections should share one error message"
+        );
+        assert!(
+            !sets_session_cookie(cookies),
+            "rejection must not set a session"
+        );
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_token_for_another_event_is_rejected(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut fixture = setup_registered_attendee(&pool).await?;
+        let (_, response, _) = fixture
+            .admin
+            .create_random_event(&fixture.app, &fixture.conversation_id.to_string())
+            .await?;
+        let other_event: EventDto = serde_json::from_value(response)?;
+        let token = access_token(
+            &fixture.state.config.jwt_secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+
+        let (status, body, cookies) = redeem_access_token(
+            &fixture.app,
+            fixture.conversation_id,
+            other_event.id,
+            &token,
+        )
+        .await?;
+
+        assert_rejected(status, &body, &cookies);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_token_for_unregistered_user_is_rejected(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let fixture = setup_registered_attendee(&pool).await?;
+        let stranger = users::create_otp_user(
+            &OtpSignupRequest {
+                email: "stranger@test.com".to_string(),
+                username: None,
+            },
+            &pool,
+        )
+        .await?;
+        let token = access_token(
+            &fixture.state.config.jwt_secret,
+            &stranger,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+
+        let (status, body, cookies) = redeem_access_token(
+            &fixture.app,
+            fixture.conversation_id,
+            fixture.event_id,
+            &token,
+        )
+        .await?;
+
+        assert_rejected(status, &body, &cookies);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn access_token_is_rejected_when_email_link_login_disabled(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let fixture = setup_registered_attendee(&pool).await?;
+        event::update(
+            &pool,
+            &fixture.event_id,
+            &PartialEvent {
+                email_link_login: Some(false),
+                ..Default::default()
+            },
+        )
+        .await?;
+        let token = access_token(
+            &fixture.state.config.jwt_secret,
+            &fixture.user,
+            fixture.event_id,
+            chrono::Duration::hours(1),
+        )?;
+
+        let (status, body, cookies) = redeem_access_token(
+            &fixture.app,
+            fixture.conversation_id,
+            fixture.event_id,
+            &token,
+        )
+        .await?;
+
+        assert_rejected(status, &body, &cookies);
         Ok(())
     }
 }
