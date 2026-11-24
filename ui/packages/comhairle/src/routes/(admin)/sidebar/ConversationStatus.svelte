@@ -31,6 +31,19 @@
 
 	const PILL_CLASS = 'bg-primary/20 text-sidebar-foreground hover:bg-primary/30 rounded-full';
 
+	const OPEN_LINK_LABELS: Record<ConversationStatus, string> = {
+		draft: 'Preview',
+		live: 'View live',
+		completed: 'View'
+	};
+
+	let openLinkHref = $derived(
+		resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+			conversation_id: conversation.id,
+			preview: status === 'draft' ? 'preview' : undefined
+		})
+	);
+
 	const clipboard = copyToClipboard();
 	let copyLabel = $derived(clipboard.copied ? 'Copied' : 'Copy conversation link');
 
@@ -47,15 +60,12 @@
 	</span>
 	<div class="flex items-center gap-2">
 		<Button
-			href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
-				conversation_id: conversation.id,
-				preview: 'preview'
-			})}
+			href={openLinkHref}
 			target="_blank"
 			variant="secondary"
 			class={cn(PILL_CLASS, 'h-8 px-3 text-sm')}
 		>
-			Preview
+			{OPEN_LINK_LABELS[status]}
 			<ArrowUpRight class="size-4" />
 		</Button>
 		{#if status === 'live'}
