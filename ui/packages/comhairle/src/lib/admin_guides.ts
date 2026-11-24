@@ -891,7 +891,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							}
 						},
 						{
-							title: 'Split or reword',
+							title: 'Edit a statement',
 							when: 'The statement is unclear, or makes more than one point so participants can’t agree or disagree with it in one vote.',
 							how: [
 								'Click **Edit** :split: on the statement’s row.',
@@ -902,7 +902,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.',
 							image: {
 								src: splitStatementImage,
-								alt: 'The Split or reword statement dialog. The original statement, "The park needs more benches near the playground and the bins should be emptied more often.", is split into two replacement statements, one about benches and one about bins, with Add another statement, Cancel and Split statement buttons.',
+								alt: 'The Edit statement dialog. The original statement, "The park needs more benches near the playground and the bins should be emptied more often.", is split into two replacement statements, one about benches and one about bins, with Add another statement, Cancel and Split statement buttons.',
 								caption:
 									'Splitting a statement that makes two proposals into two separate statements.'
 							}
