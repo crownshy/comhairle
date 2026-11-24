@@ -62,13 +62,15 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
-		<Button
-			icon={X}
-			title="Remove filter"
-			aria-label="Remove filter"
-			class="rounded-lg"
-			variant="secondary"
-			onclick={() => QueryParams.remove<ConversationsParams>('filter').update()}
-		/>
+		{#if selected}
+			<Button
+				icon={X}
+				title="Remove filter"
+				aria-label="Remove filter"
+				class="rounded-lg"
+				variant="secondary"
+				onclick={() => QueryParams.remove<ConversationsParams>('filter').update()}
+			/>
+		{/if}
 	</div>
 {/if}
