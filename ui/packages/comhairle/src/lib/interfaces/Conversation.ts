@@ -1,5 +1,4 @@
 import type { ApiClient, LocalizedConversationDto } from '@crownshy/api-client/api';
-import type { BadgeVariant } from '$lib/components/ui/badge';
 
 export const statuses = ['live', 'draft', 'completed'] as const;
 export type Status = (typeof statuses)[number];
@@ -7,12 +6,6 @@ export type Status = (typeof statuses)[number];
 export type Queries = NonNullable<
 	NonNullable<Parameters<ApiClient['ListConversations']>[0]>['queries']
 >;
-
-export const CONVERSATION_STATUS_BADGE_VARIANTS: Record<ConversationStatus, BadgeVariant> = {
-	live: 'default',
-	draft: 'draft',
-	completed: 'secondary'
-};
 
 // A finished conversation usually keeps `isLive`, so completed wins over live.
 // The function and the API filters below must agree on that rule.
