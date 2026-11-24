@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isLinkActive, workspaceGroups } from './workspaceLinks';
 
-const labels = (roles: { isSiteAdmin: boolean; isSuperAdmin: boolean }) =>
+const labels = (roles: Parameters<typeof workspaceGroups>[0]) =>
 	workspaceGroups(roles).map((group) => [group.label, group.links.map(({ label }) => label)]);
 
 describe('workspaceGroups', () => {
@@ -22,6 +22,12 @@ describe('workspaceGroups', () => {
 				]
 			],
 			['Administration', ['Organisations', 'Regions', 'System roles']]
+		]);
+	});
+
+	it('shows a moderator-only user Conversations and nothing else', () => {
+		expect(labels({ isSiteAdmin: false, isSuperAdmin: false, isModeratorOnly: true })).toEqual([
+			[undefined, ['Conversations']]
 		]);
 	});
 });

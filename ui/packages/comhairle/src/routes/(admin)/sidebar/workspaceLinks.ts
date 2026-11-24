@@ -22,9 +22,13 @@ export type WorkspaceGroup = {
 	links: WorkspaceLink[];
 };
 
-type WorkspaceRoles = { isSiteAdmin: boolean; isSuperAdmin: boolean };
+type WorkspaceRoles = { isSiteAdmin: boolean; isSuperAdmin: boolean; isModeratorOnly?: boolean };
 
-export function workspaceGroups({ isSiteAdmin, isSuperAdmin }: WorkspaceRoles): WorkspaceGroup[] {
+export function workspaceGroups({
+	isSiteAdmin,
+	isSuperAdmin,
+	isModeratorOnly = false
+}: WorkspaceRoles): WorkspaceGroup[] {
 	const groups: WorkspaceGroup[] = [
 		{
 			links: [
@@ -36,6 +40,7 @@ export function workspaceGroups({ isSiteAdmin, isSuperAdmin }: WorkspaceRoles): 
 			]
 		}
 	];
+	if (isModeratorOnly) return groups;
 
 	if (isSiteAdmin) {
 		groups.push({

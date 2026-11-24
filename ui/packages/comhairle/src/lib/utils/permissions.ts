@@ -30,6 +30,35 @@ export function hasSiteAdminRole(roles: readonly UserRoles[] | null | undefined)
 	);
 }
 
+const CONVERSATION_MODERATOR_ROLE = 'moderator';
+
+/**
+ * The conversations where the user's only role is `moderator`, read from `GetUserRoles`. On
+ * these they get the moderation surface (ADR-0065).
+ */
+export function moderatorOnlyConversationIds(
+	roles: readonly UserRoles[] | null | undefined
+): string[] {
+	return (roles ?? []).flatMap((role) =>
+		typeof role.resource === 'object' &&
+		'Conversation' in role.resource &&
+		role.roles.length > 0 &&
+		role.roles.every((name) => name === CONVERSATION_MODERATOR_ROLE)
+			? [role.resource.Conversation]
+			: []
+	);
+}
+
+/**
+ * True when every role the user holds is a conversation `moderator` role. They get the
+ * moderation-only workspace and land on Moderate after login (ADR-0065). One other role
+ * anywhere (site, organisation, or another conversation role) gives the full workspace.
+ */
+export function isModeratorOnly(roles: readonly UserRoles[] | null | undefined): boolean {
+	if (!roles?.length) return false;
+	return moderatorOnlyConversationIds(roles).length === roles.length;
+}
+
 type ResourceActions = {
 	conversation: ConversationAction;
 	organization: OrganizationAction;
