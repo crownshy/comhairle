@@ -16,7 +16,8 @@ one task in the full sidebar (#1224, #1926).
 
 **1. Hide by role on the existing routes.** We don't build a separate stripped route. A user
 who can moderate but cannot edit (`conversation_moderate` without `conversation_update`) gets
-the moderation surface: the sidebar shows Engage > Moderate and nothing else. Moderate stays
+the moderation surface: the sidebar shows a single Moderate link, with no stage around it,
+and nothing else. Moderate stays
 open for them before launch and before a Polis step exists, so their sidebar is never empty
 or locked. Everyone who can edit sees exactly what they saw before.
 
