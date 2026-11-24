@@ -41,7 +41,7 @@
 		},
 		split: {
 			icon: Pencil,
-			label: 'Split or reword (pencil)',
+			label: 'Edit (pencil)',
 			tone: 'text-muted-foreground bg-muted rounded-full',
 			stroke: 2.5
 		},

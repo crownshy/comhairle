@@ -859,7 +859,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 						{
 							name: 'Row actions',
 							description:
-								'Each statement has **Accept** :accept:, **Split or reword** :split: and **Reject** :reject:. On an accepted or rejected statement, the :more: menu holds **Move back to waiting**. A statement with translations shows a **Translations** link under its text.'
+								'Each statement has **Accept** :accept:, **Edit** :split: and **Reject** :reject:. On an accepted or rejected statement, the :more: menu holds **Move back to waiting**. A statement with translations shows a **Translations** link under its text.'
 						}
 					]
 				},
@@ -894,7 +894,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							title: 'Split or reword',
 							when: 'The statement is unclear, or makes more than one point so participants can’t agree or disagree with it in one vote.',
 							how: [
-								'Click **Split or reword** :split: on the statement’s row.',
+								'Click **Edit** :split: on the statement’s row.',
 								'Under **What needs fixing?**, choose **Reword it** if it makes one point but the wording gets in the way, or **Split it** if it makes more than one point.',
 								'Each box starts with the participant’s words. Change only what stops people voting, and keep their words and tone. For a split, cut each box down to one point, and click **+ Add another point** if there are more.',
 								'The dialog shows your changes against what the participant wrote. Click **Replace statement**. If something isn’t ready, the dialog says what to fix next to the button.'
