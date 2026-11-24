@@ -11,6 +11,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { permissions } from '$lib/permissions.svelte';
+	import { moderatorOnlyConversationIds } from '$lib/utils/permissions';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import { conversationCountLabel, conversationNoun, isPageTurn } from './conversationFilters';
 	import type { PageProps } from './$types';
@@ -24,6 +25,7 @@
 
 	let { data }: PageProps = $props();
 
+	let moderatorOnlyIds = $derived(new Set(moderatorOnlyConversationIds(data.userRoles)));
 	let total = $derived(data.conversations.total);
 	let searchTerm = $derived(data.search.trim());
 	let countLabel = $derived(conversationCountLabel(total, data.filter, searchTerm));
@@ -98,7 +100,10 @@
 						<Button
 							variant="primaryDark"
 							class="relative z-10 rounded-full"
-							href={conversationLandingUrl(conversation)}
+							href={conversationLandingUrl(
+								conversation,
+								moderatorOnlyIds.has(conversation.id) ? 'moderation' : 'full'
+							)}
 						>
 							Open conversation <ArrowRight class="size-4" />
 						</Button>

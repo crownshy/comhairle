@@ -2,6 +2,7 @@ import { resolve } from '$app/paths';
 import type { ConversationDto } from '@crownshy/api-client/api';
 import { conversationSections } from '$lib/config/conversation-steps';
 import { conversationStatus, type ConversationStatus } from './conversationStatus';
+import { MODERATION_SECTIONS, type ConversationSurface } from './conversationSurface';
 
 export type LandingConversation = Pick<ConversationDto, 'id' | 'isLive' | 'isComplete'>;
 
@@ -13,12 +14,20 @@ const LANDING_SECTION_PATH: Record<ConversationStatus, string> = {
 	completed: 'report'
 };
 
-/** Where opening a conversation from the admin takes you, picked from its status. */
-export function conversationLandingUrl(conversation: LandingConversation): string {
+/**
+ * Where opening a conversation from the admin takes you: picked from its status, or Moderate
+ * for someone on the moderation surface.
+ */
+export function conversationLandingUrl(
+	conversation: LandingConversation,
+	surface: ConversationSurface = 'full'
+): string {
 	const base = resolve('/(admin)/admin/conversations/[conversation_id]', {
 		conversation_id: conversation.id
 	});
-	return `${base}/${landingSectionPath(conversation)}`;
+	const section =
+		surface === 'moderation' ? MODERATION_SECTIONS[0] : landingSectionPath(conversation);
+	return `${base}/${section}`;
 }
 
 // A completed conversation that never went live would land on a section locked until

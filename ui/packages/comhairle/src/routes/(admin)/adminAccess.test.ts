@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UserRoles } from '@crownshy/api-client/api';
-import { adminReturnPath } from './adminAccess';
+import { adminLandingPath, adminReturnPath } from './adminAccess';
 import { canAccessAdminPortal } from '$lib/utils/permissions';
 
 describe('admin portal access', () => {
@@ -42,5 +42,27 @@ describe('admin portal access', () => {
 		'https://example.com//another.example'
 	])('uses the home page for unsafe or missing referrers: %s', (referer) => {
 		expect(adminReturnPath(referer, new URL('https://example.com/admin'))).toBe('/');
+	});
+});
+
+describe('adminLandingPath', () => {
+	const moderates = (id: string): UserRoles => ({
+		resource: { Conversation: id },
+		roles: ['moderator']
+	});
+
+	it('sends someone who only moderates one conversation to its Moderate page', () => {
+		expect(adminLandingPath([moderates('c1')])).toBe('/admin/conversations/c1/moderate');
+	});
+
+	it('sends someone who moderates several conversations to the list', () => {
+		expect(adminLandingPath([moderates('c1'), moderates('c2')])).toBe('/admin/conversations');
+	});
+
+	it('sends anyone with another role to the list', () => {
+		expect(adminLandingPath([moderates('c1'), { resource: 'Site', roles: ['Admin'] }])).toBe(
+			'/admin/conversations'
+		);
+		expect(adminLandingPath(null)).toBe('/admin/conversations');
 	});
 });

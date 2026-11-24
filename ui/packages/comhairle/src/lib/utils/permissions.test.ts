@@ -5,7 +5,9 @@ import {
 	createPermissions,
 	hasSiteAdminRole,
 	hasSuperAdminRole,
+	isModeratorOnly,
 	loadUserActions,
+	moderatorOnlyConversationIds,
 	SYSTEM_RESOURCE_ID
 } from './permissions';
 
@@ -131,5 +133,43 @@ describe('permissions', () => {
 		expect(await loadUserActions(api, 'system')).toBeNull();
 		api.GetUserActions.mockResolvedValue(editor);
 		expect(await loadUserActions(api, 'system')).toBeNull();
+	});
+});
+
+describe('moderator-only roles', () => {
+	const moderates = (id: string) => ({ resource: { Conversation: id }, roles: ['moderator'] });
+
+	it('lists the conversations where moderator is the only role', () => {
+		expect(
+			moderatorOnlyConversationIds([
+				moderates('c1'),
+				{ resource: { Conversation: 'c2' }, roles: ['admin'] },
+				{ resource: { Conversation: 'c3' }, roles: ['moderator', 'content_editor'] },
+				moderates('c4')
+			])
+		).toEqual(['c1', 'c4']);
+		expect(moderatorOnlyConversationIds(undefined)).toEqual([]);
+	});
+
+	it('is moderator-only when every role is a conversation moderator role', () => {
+		expect(isModeratorOnly([moderates('c1')])).toBe(true);
+		expect(isModeratorOnly([moderates('c1'), moderates('c2')])).toBe(true);
+	});
+
+	it('is not moderator-only with any other role anywhere', () => {
+		expect(isModeratorOnly([moderates('c1'), { resource: 'Site', roles: ['Admin'] }])).toBe(
+			false
+		);
+		expect(
+			isModeratorOnly([
+				moderates('c1'),
+				{ resource: { Organization: 'o1' }, roles: ['member'] }
+			])
+		).toBe(false);
+		expect(
+			isModeratorOnly([{ resource: { Conversation: 'c1' }, roles: ['moderator', 'admin'] }])
+		).toBe(false);
+		expect(isModeratorOnly([])).toBe(false);
+		expect(isModeratorOnly(undefined)).toBe(false);
 	});
 });

@@ -27,4 +27,13 @@ describe('conversationLandingUrl', () => {
 			`${BASE}/configure`
 		);
 	});
+
+	it('opens Moderate for a moderator, whatever the status', () => {
+		expect(
+			conversationLandingUrl({ id: 'c1', isLive: true, isComplete: false }, 'moderation')
+		).toBe(`${BASE}/moderate`);
+		expect(
+			conversationLandingUrl({ id: 'c1', isLive: false, isComplete: false }, 'moderation')
+		).toBe(`${BASE}/moderate`);
+	});
 });

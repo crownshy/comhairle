@@ -182,7 +182,7 @@ A User with read-only access to a Conversation. Observer access does not confer 
 A User who can edit a Conversation's content in every locale, its tool configuration, and Workflow design, but cannot launch or delete it. Content editing includes translation; moderation and data export are separate capabilities.
 
 **Conversation Moderator**:
-A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design.
+A User who can access a Conversation's tool moderation surfaces and perform moderation tasks without editing its configuration or Workflow design. A Moderator who can't edit sees only **Moderate** in the conversation's admin; every other section redirects there. Someone whose only roles are Moderator roles also gets a workspace sidebar with only Conversations and lands on Moderate after login (ADR-0065).
 
 **Text content**:
 A piece of translatable text with a primary locale and a shared identity across all its locale versions.

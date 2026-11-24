@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AdminSidebar, { type OpenConversation } from './sidebar/AdminSidebar.svelte';
 	import { workspaceGroups } from './sidebar/workspaceLinks';
-	import { hasSiteAdminRole, hasSuperAdminRole } from '$lib/utils/permissions';
+	import { hasSiteAdminRole, hasSuperAdminRole, isModeratorOnly } from '$lib/utils/permissions';
 	import type {
 		ConversationWithTranslations,
 		WorkflowStepsListResponse
@@ -39,7 +39,8 @@
 	let groups = $derived(
 		workspaceGroups({
 			isSiteAdmin: hasSiteAdminRole(data.userRoles),
-			isSuperAdmin: hasSuperAdminRole(data.userRoles)
+			isSuperAdmin: hasSuperAdminRole(data.userRoles),
+			isModeratorOnly: isModeratorOnly(data.userRoles)
 		})
 	);
 
