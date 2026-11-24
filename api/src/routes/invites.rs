@@ -21,7 +21,7 @@ use crate::models::invites::{
 };
 use crate::models::users::{User, get_or_create_user_by_email};
 use crate::models::{self, breakout_plan, conversation, event, workflow};
-use crate::routes::auth::create_session_cookie;
+use crate::routes::auth::{create_session_cookie, issue_refresh_token};
 use crate::routes::event_attendances::notify_registered_participant;
 use crate::routes::invites::dto::InviteDto;
 
@@ -370,13 +370,19 @@ async fn auto_register_event_attendance(
 
     let invite = invite.accept(&state.db, &user).await?;
 
-    let cookie = create_session_cookie(&user, &state)?;
+    let session_cookie = create_session_cookie(&user, &state)?;
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     if newly_registered {
         notify_registered_participant(&state, &conversation, &event, &user, email).await?;
     }
 
-    Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
+    Ok((jar, (StatusCode::OK, Json(invite.into()))))
 }
 
 pub fn router(rate_limiters: Option<&RateLimitLayers>) -> ApiRouter<Arc<ComhairleState>> {
