@@ -85,11 +85,14 @@
 				<div class="flex items-center gap-3">
 					<SearchBar
 						data-tour="conversation-search"
+						value={QueryParams.get<ConversationsParams>('search') as string | undefined}
 						oninput={useDebounce((e) => {
 							QueryParams.set<ConversationsParams>(
 								'search',
-								e.currentTarget.value
-							).update();
+								(e.target as HTMLInputElement).value
+							)
+								.set('page', '1')
+								.update();
 						})}
 						placeholder={m.conversations_search()}
 						aria-label="Search conversations"
