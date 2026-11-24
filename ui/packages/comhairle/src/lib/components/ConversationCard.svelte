@@ -65,7 +65,7 @@
 			</div>
 
 			<div class="flex min-w-0 grow flex-col items-start gap-1.5">
-				<ConversationStatusBadge {status} />
+				<ConversationStatusBadge {status} floating />
 				<svelte:element
 					this={_for === 'admin' ? 'h2' : 'h3'}
 					class="text-foreground line-clamp-2 text-base leading-snug font-semibold sm:text-lg"
@@ -111,10 +111,7 @@
 						class="text-primary/30 absolute inset-0 m-auto size-16 rounded-xl"
 					/>
 				{/if}
-				<ConversationStatusBadge
-					{status}
-					class="absolute top-3 left-3 border-transparent shadow-md backdrop-blur"
-				/>
+				<ConversationStatusBadge {status} floating />
 			</div>
 
 			<svelte:element

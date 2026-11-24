@@ -15,7 +15,7 @@
 	import BookOpenText from '@lucide/svelte/icons/book-open-text';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import SidebarResizeHandle from '$lib/components/SidebarResizeHandle.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -24,12 +24,18 @@
 	import { EXPAND_WIDTH } from '$lib/components/sidebarWidth.js';
 	import { conversationTitle } from '$lib/components/Translation/translationUtils';
 	import { cn } from '$lib/utils';
-	import ConversationStatus from './ConversationStatus.svelte';
+	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
 	import ConversationSection from './ConversationSection.svelte';
 	import WorkspaceSection from './WorkspaceSection.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import type { WorkspaceGroup } from './workspaceLinks';
 	import { MENU_BUTTON_HOVER, ROW_HOVER } from './sidebarRows';
+	import Conversation, { type ConversationStatus } from '$lib/interfaces/Conversation';
+	import { ArrowUpRight } from '@lucide/svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { page } from '$app/state';
+	import { shareable_conversation_url } from '$lib/urls';
 
 	type Props = {
 		/** Set while you're inside a conversation: the sidebar shows it instead of the workspace. */
@@ -51,6 +57,17 @@
 		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
 		sidebar.setOpen(true);
 		sidebarWidth.persist();
+	}
+
+	function LABEL_FROM_STATUS(status: ConversationStatus): string {
+		switch (status) {
+			case 'live':
+				return 'View live';
+			case 'draft':
+				return 'Preview';
+			case 'completed':
+				return 'View';
+		}
 	}
 </script>
 
@@ -116,7 +133,35 @@
 		class="flex flex-col gap-6 overflow-x-hidden overflow-y-auto pt-2 pl-4 [scrollbar-color:color-mix(in_oklab,var(--sidebar-foreground)_25%,transparent)_transparent] [scrollbar-width:thin] group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:pt-2"
 	>
 		{#if open}
-			<ConversationStatus conversation={open.conversation} />
+			{@const status = Conversation.getStatus(open.conversation)}
+			<div
+				class="flex h-8 items-center justify-between gap-3 pr-4 group-data-[collapsible=icon]:hidden"
+			>
+				<ConversationStatusBadge {status} />
+				<div class="flex items-center gap-2">
+					<Badge
+						href={resolve('/(public)/conversations/[conversation_id]/[[preview]]', {
+							conversation_id: open.conversation.id,
+							preview: status === 'draft' ? 'preview' : undefined
+						})}
+						target="_blank"
+						variant="outline"
+						class={cn(buttonVariants.variants.variant.outline, 'py-2')}
+					>
+						{LABEL_FROM_STATUS(status)}
+						<ArrowUpRight class="size-4" />
+					</Badge>
+					{#if status === 'live'}
+						<CopyButton
+							copyText={shareable_conversation_url(
+								page.url.origin,
+								open.conversation.id
+							)}
+						/>
+					{/if}
+				</div>
+			</div>
+
 			<ConversationSection
 				conversation={open.conversation}
 				stepCount={open.stepCount}

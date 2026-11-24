@@ -32,10 +32,6 @@
 			{m.conversations_all_heading()}
 		</a>
 		<div class="flex flex-col items-start gap-4 md:px-6">
-			<ConversationStatusBadge
-				status={Conversation.getStatus(conversation)}
-				label={statusLabel}
-			/>
 			<h1
 				class="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl"
 			>
@@ -56,7 +52,11 @@
 				<span class="text-muted-foreground text-base"
 					>{m.conversation_status_heading()}</span
 				>
-				<span class="text-lg font-semibold">{statusLabel}</span>
+				<ConversationStatusBadge
+					status={Conversation.getStatus(conversation)}
+					label={statusLabel}
+					class="text-lg font-semibold"
+				/>
 			</div>
 			<!-- The join controls bring their own top margin from the old layout; cancel it here. -->
 			<div class="flex flex-col gap-2 *:mt-0 md:items-end">
@@ -68,7 +68,11 @@
 
 <div class="bg-primary/10 relative h-72 w-full overflow-hidden sm:h-96 lg:h-128">
 	{#if conversation.imageUrl}
-		<img src={conversation.imageUrl} alt="" class="absolute inset-0 size-full object-cover" />
+		<img
+			src={conversation.imageUrl}
+			alt="Heading image for conversation {conversation.title}"
+			class="absolute inset-0 size-full object-cover"
+		/>
 	{:else}
 		<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-20" />
 	{/if}
