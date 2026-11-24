@@ -9,7 +9,6 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import ErrorMessage from '../ErrorMessage.svelte';
 
 	type Props = {
 		onconfirm: (media: MediaDto) => void;
@@ -91,11 +90,7 @@
 				{#await dataRequest}
 					<Spinner />
 				{:then data}
-					{#if data.err !== null}
-						<ErrorMessage>{data.err}</ErrorMessage>
-					{:else}
-						<MediaLibrary media={data.ok} mode="single-select" bind:selected />
-					{/if}
+					<MediaLibrary media={data} mode="single-select" bind:selected />
 				{/await}
 			{/if}
 		</Dialog.Content>
