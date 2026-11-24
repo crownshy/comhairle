@@ -4,8 +4,8 @@
 	import { resolve } from '$app/paths';
 	import { ChevronLeft, MessageSquareText } from '@lucide/svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
-	import { conversationStatus } from '$lib/utils/conversationStatus';
 	import { m } from '$lib/paraglide/messages';
+	import Conversation from '$lib/interfaces/Conversation';
 
 	type Props = {
 		conversation: LocalizedConversationDto;
@@ -14,7 +14,6 @@
 	};
 	let { conversation, children }: Props = $props();
 
-	const status = $derived(conversationStatus(conversation));
 	const statusLabel = $derived(
 		conversation.isComplete ? m.conversation_status_ended() : m.conversation_status_open()
 	);
@@ -33,7 +32,10 @@
 			{m.conversations_all_heading()}
 		</a>
 		<div class="flex flex-col items-start gap-4 md:px-6">
-			<ConversationStatusBadge {status} label={statusLabel} />
+			<ConversationStatusBadge
+				status={Conversation.getStatus(conversation)}
+				label={statusLabel}
+			/>
 			<h1
 				class="text-3xl leading-tight font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl"
 			>

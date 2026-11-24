@@ -6,11 +6,11 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
-	import { conversationStatus } from '$lib/utils/conversationStatus';
 	import { ChevronRight, MessageSquareText } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import { resolve } from '$app/paths';
+	import Conversation from '$lib/interfaces/Conversation';
 
 	type Props = {
 		conversation: LocalizedConversationDto;
@@ -23,7 +23,7 @@
 
 	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
 
-	let status = $derived(conversationStatus(conversation));
+	let status = $derived(Conversation.getStatus(conversation));
 	let href = $derived.by(() => {
 		if (_for === 'admin') {
 			return conversationLandingUrl(conversation);

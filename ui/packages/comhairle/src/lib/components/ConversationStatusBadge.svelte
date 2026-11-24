@@ -1,9 +1,7 @@
 <script lang="ts">
+	import type { ConversationStatus } from '$lib/interfaces/Conversation';
 	import { cn } from '$lib/utils';
-	import {
-		CONVERSATION_STATUS_LABELS,
-		type ConversationStatus
-	} from '$lib/utils/conversationStatus';
+	import { capitalise } from '$lib/utils/casingUtils';
 
 	type Props = { status: ConversationStatus; label?: string; class?: string };
 	let { status, label, class: className = '' }: Props = $props();
@@ -25,5 +23,5 @@
 	)}
 >
 	<span class={cn('size-2.5 rounded-full', DOT[status])} aria-hidden="true"></span>
-	{label ?? CONVERSATION_STATUS_LABELS[status]}
+	{label ?? capitalise(status)}
 </span>
