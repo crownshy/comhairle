@@ -28,7 +28,10 @@
 				<li>
 					<button
 						type="button"
-						onclick={() => QueryParams.set(param, isActive ? '' : value).update()}
+						onclick={() =>
+							QueryParams.set(param, isActive ? '' : value)
+								.set('page', '1')
+								.update()}
 						aria-current={isActive ? 'page' : undefined}
 					>
 						<Badge variant={isActive ? 'primary' : 'outline'}>
