@@ -2,7 +2,6 @@
 	import { tick, untrack, onMount } from 'svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
 	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import Check from '@lucide/svelte/icons/check';
@@ -13,8 +12,7 @@
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
-	import { cn } from '$lib/utils';
-	import { MAX_ANSWER_WORDS } from './wordLimit';
+	import AnswerField from './AnswerField.svelte';
 	import LiveRegion from '$lib/components/LiveRegion.svelte';
 	import { scrollBehavior } from '$lib/utils/reducedMotion';
 
@@ -69,7 +67,6 @@
 	let continueEl = $state<HTMLElement | null>(null);
 	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
-	let overWordLimit = $derived(flow.draftWordCount > MAX_ANSWER_WORDS);
 
 	async function scrollToFocus() {
 		await tick();
@@ -201,28 +198,14 @@
 
 				{#if !flow.currentState.rootSubmitted}
 					<section class="space-y-3">
-						<Textarea
+						<AnswerField
 							bind:ref={rootTextareaEl}
-							aria-labelledby="thinking-space-root-question"
+							labelledBy="thinking-space-root-question"
 							value={flow.currentState.rootAnswer}
-							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
-							placeholder={m.thinking_space_write_thoughts()}
-							rows={4}
-							class="text-base"
+							submitting={flow.submitting}
+							onInput={(value) => flow.updateRootAnswerDraft(value)}
+							onSubmit={() => flow.submitRootAnswer()}
 						/>
-						<div class="flex justify-between">
-							<span class={cn(overWordLimit && 'text-destructive')}>
-								{flow.draftWordCount}
-								/
-								{MAX_ANSWER_WORDS}
-							</span>
-							<Button
-								onclick={() => flow.submitRootAnswer()}
-								disabled={!flow.currentState.rootAnswer.trim() || flow.submitting}
-							>
-								{flow.submitting ? `${m.saving()}…` : m.continue_()}
-							</Button>
-						</div>
 					</section>
 				{:else}
 					<section class="border-primary/20 bg-primary/5 rounded-xl border p-4">
@@ -476,29 +459,14 @@
 						>
 							{flow.currentState.currentPick}
 						</p>
-						<Textarea
+						<AnswerField
 							bind:ref={followUpTextareaEl}
-							aria-labelledby="thinking-space-follow-up-pick"
+							labelledBy="thinking-space-follow-up-pick"
 							value={flow.currentState.currentPickAnswer}
-							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
-							placeholder={m.thinking_space_write_thoughts()}
-							rows={4}
-							class="text-base"
+							submitting={flow.submitting}
+							onInput={(value) => flow.updateFollowUpDraft(value)}
+							onSubmit={() => flow.submitFollowUp()}
 						/>
-						<div class="flex justify-between">
-							<span class={cn(overWordLimit && 'text-destructive')}>
-								{flow.draftWordCount}
-								/
-								{MAX_ANSWER_WORDS}
-							</span>
-							<Button
-								onclick={() => flow.submitFollowUp()}
-								disabled={!flow.currentState.currentPickAnswer.trim() ||
-									flow.submitting}
-							>
-								{flow.submitting ? `${m.saving()}…` : m.continue_()}
-							</Button>
-						</div>
 					</section>
 				{/if}
 
