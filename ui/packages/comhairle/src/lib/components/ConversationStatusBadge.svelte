@@ -3,25 +3,35 @@
 	import { cn } from '$lib/utils';
 	import { capitalise } from '$lib/utils/casingUtils';
 
-	type Props = { status: ConversationStatus; label?: string; class?: string };
-	let { status, label, class: className = '' }: Props = $props();
-
-	// FIX: Consolidate with ConversationStatus.svelte
-	// One colour per status, shown as a dot so the meaning doesn't rely on colour alone.
-	const DOT: Record<ConversationStatus, string> = {
-		live: 'bg-green-600',
-		draft: 'bg-muted-foreground',
-		completed: 'bg-primary'
+	type Props = {
+		status: ConversationStatus;
+		label?: string;
+		floating?: boolean;
+		class?: string;
 	};
+
+	let { status, label, floating, class: classes }: Props = $props();
+
+	function DOT_STYLES(status: ConversationStatus): string {
+		switch (status) {
+			case 'live':
+				return 'bg-emerald-400';
+			case 'draft':
+				return 'bg-orange-400';
+			case 'completed':
+				return 'bg-sidebar-foreground/40';
+		}
+	}
 </script>
 
-<!-- The one status style used on every card and row, on the image or on a plain background. -->
 <span
 	class={cn(
-		'bg-background/90 text-foreground flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold',
-		className
+		floating &&
+			'bg-background/90 absolute top-2 left-2 rounded-full border-transparent px-2 py-1 shadow-md backdrop-blur',
+		'text-foreground/90 flex items-center gap-x-2 text-sm',
+		classes
 	)}
 >
-	<span class={cn('size-2.5 rounded-full', DOT[status])} aria-hidden="true"></span>
+	<span class={cn('size-2 shrink-0 rounded-full', DOT_STYLES(status))} aria-hidden="true"></span>
 	{label ?? capitalise(status)}
 </span>

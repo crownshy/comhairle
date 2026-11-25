@@ -1,13 +1,14 @@
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import Icon from '@iconify/svelte';
-	import Check from '@lucide/svelte/icons/check';
+	import { cn } from '$lib/utils';
+	import { Check, Copy } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { copy } from 'svelte-copy';
+	import { buttonVariants } from './ui/button';
 
 	type Props = {
 		copyText: string;
-		children: Snippet;
+		children?: Snippet;
 	};
 	let { copyText, children }: Props = $props();
 
@@ -25,18 +26,21 @@
 
 <Tooltip.Provider>
 	<Tooltip.Root>
-		<Tooltip.Trigger class="w-full">
+		<Tooltip.Trigger>
 			<button
 				use:copy={{ text: copyText, onCopy: showCopied }}
-				class="flex w-full cursor-pointer flex-row items-center justify-center gap-x-2 outline-hidden"
+				class={cn(
+					buttonVariants.variants.variant.outline,
+					'flex items-center gap-x-1 rounded-full p-2'
+				)}
 				aria-label={copied ? 'Copied' : 'Copy'}
 			>
-				{@render children()}
+				{@render children?.()}
 				{#if copied}
-					<Check class="text-primary size-4 shrink-0" />
-					<span class="text-primary text-sm font-semibold">Copied</span>
+					<Check class="size-4 shrink-0" />
+					<span class="text-xs font-semibold">Copied</span>
 				{:else}
-					<Icon icon="solar:copy-bold" class="shrink-0" />
+					<Copy class="size-4" />
 				{/if}
 			</button>
 		</Tooltip.Trigger>
