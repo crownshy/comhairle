@@ -22,6 +22,7 @@
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
 	import { cn } from '$lib/utils';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
 
 	type Props = {
 		topic: string;
@@ -486,22 +487,26 @@
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
 				{#snippet saveStatus()}
-					{#if saveStateById[round.id] === 'saving'}
-						<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
-							<LoaderCircle aria-hidden="true" class="size-3 animate-spin" />
-							{m.saving()}
-						</span>
-					{:else if saveStateById[round.id] === 'saved'}
-						<span class="inline-flex items-center gap-1 text-xs text-green-600">
-							<Check aria-hidden="true" class="size-3" />
-							{m.saved()}
-						</span>
-					{:else if saveStateById[round.id] === 'error'}
-						<span class="text-destructive inline-flex items-center gap-1 text-xs">
-							<TriangleAlert aria-hidden="true" class="size-3" />
-							{m.not_saved()}
-						</span>
-					{/if}
+					<LiveRegion kind="status" class="inline-flex">
+						{#if saveStateById[round.id] === 'saving'}
+							<span
+								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<LoaderCircle aria-hidden="true" class="size-3 animate-spin" />
+								{m.saving()}
+							</span>
+						{:else if saveStateById[round.id] === 'saved'}
+							<span class="inline-flex items-center gap-1 text-xs text-green-600">
+								<Check aria-hidden="true" class="size-3" />
+								{m.saved()}
+							</span>
+						{:else if saveStateById[round.id] === 'error'}
+							<span class="text-destructive inline-flex items-center gap-1 text-xs">
+								<TriangleAlert aria-hidden="true" class="size-3" />
+								{m.not_saved()}
+							</span>
+						{/if}
+					</LiveRegion>
 				{/snippet}
 				<!-- Lock the previous round while the next one generates: once
 				generation starts this round is about to freeze, so editing it
@@ -563,11 +568,13 @@
 
 		{#if showFirstGenError}
 			<div class="space-y-3">
-				<p class="text-muted-foreground text-center text-sm">
-					{insufficientAnswers
-						? m.thinking_space_summary_insufficient_failure()
-						: m.thinking_space_summary_gen_failure()}
-				</p>
+				<LiveRegion kind="alert">
+					<p class="text-muted-foreground text-center text-base">
+						{insufficientAnswers
+							? m.thinking_space_summary_insufficient_failure()
+							: m.thinking_space_summary_gen_failure()}
+					</p>
+				</LiveRegion>
 				<p class="text-muted-foreground text-center text-sm">
 					{m.thinking_space_summary_continue_without()}
 				</p>
@@ -600,11 +607,13 @@
 			{#if showRetryInline}
 				<div class="border-border flex flex-col gap-3 rounded-lg border px-4 py-3">
 					<div class="flex items-center justify-between gap-3">
-						<p class="text-muted-foreground text-sm">
-							{insufficientAnswers
-								? m.thinking_space_summary_insufficient_failure()
-								: m.thinking_space_summary_gen_round_failure()}
-						</p>
+						<LiveRegion kind="alert">
+							<p class="text-muted-foreground text-base">
+								{insufficientAnswers
+									? m.thinking_space_summary_insufficient_failure()
+									: m.thinking_space_summary_gen_round_failure()}
+							</p>
+						</LiveRegion>
 						{#if insufficientAnswers}
 							<Button
 								variant="outline"

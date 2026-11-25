@@ -9,6 +9,6 @@
 	let { children, size = 'md' }: Props = $props();
 </script>
 
-<span class="text-destructive font-semibold text-{size}" aria-live="polite">
+<span class="text-destructive font-semibold text-{size}" role="alert">
 	{@render children()}
 </span>
