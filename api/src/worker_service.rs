@@ -6,6 +6,7 @@ pub mod process_theme_extraction;
 pub mod process_video_call_transcriptions;
 pub mod process_wiki_poll_summary;
 pub mod scheduled_emails;
+pub mod sync_region_area_pipelines;
 pub mod wiki_poll_moderation_notify;
 
 use std::future::Future;
@@ -38,6 +39,9 @@ use crate::worker_service::process_wiki_poll_summary::wiki_poll_summary_handler;
 use crate::worker_service::scheduled_emails::{
     ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
     send_scheduled_email,
+};
+use crate::worker_service::sync_region_area_pipelines::{
+    RegionAreaPipelineTick, sync_due_region_area_pipelines,
 };
 use crate::worker_service::wiki_poll_moderation_notify::{
     SendWikiPollModerationNotifyJob, WikiPollModerationNotifyRequest,
@@ -168,6 +172,7 @@ pub struct WorkerStorage {
     pub theme_extraction: RedisStorage<ThemeExtractionJob>,
     pub wiki_poll_moderation_notify: RedisStorage<WikiPollModerationNotifyRequest>,
     pub send_wiki_poll_moderation_notify: RedisStorage<SendWikiPollModerationNotifyJob>,
+    pub region_area_pipelines: RedisStorage<RegionAreaPipelineTick>,
 }
 
 pub async fn init_worker_service(
@@ -198,6 +203,8 @@ pub async fn init_worker_service(
         apalis_redis::Config::default().set_namespace("worker_service_wiki_poll_moderation_notify");
     let send_wiki_poll_moderation_notify_config = apalis_redis::Config::default()
         .set_namespace("worker_service_send_wiki_poll_moderation_notify");
+    let region_area_pipelines_config =
+        apalis_redis::Config::default().set_namespace("worker_service_region_area_pipelines");
 
     let documents_storage =
         RedisStorage::new_with_config(redis_connection.clone(), documents_config);
@@ -217,6 +224,8 @@ pub async fn init_worker_service(
         redis_connection.clone(),
         send_wiki_poll_moderation_notify_config,
     );
+    let region_area_pipelines_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), region_area_pipelines_config);
 
     let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(documents_storage.clone())),
@@ -244,6 +253,7 @@ pub async fn init_worker_service(
             theme_extraction: theme_extraction_storage,
             wiki_poll_moderation_notify: wiki_poll_moderation_notify_storage,
             send_wiki_poll_moderation_notify: send_wiki_poll_moderation_notify_storage,
+            region_area_pipelines: region_area_pipelines_storage,
         },
     ))
 }
@@ -338,6 +348,21 @@ pub fn init_monitor(
                 .backend(storage.send_wiki_poll_moderation_notify.clone())
                 .build_fn(send_wiki_poll_moderation_notify_emails);
 
+        #[allow(
+            clippy::expect_used,
+            reason = "hardcoded cron expression, validated on every startup"
+        )]
+        let region_area_pipelines_schedule = Schedule::from_str("0 * * * * *")
+            .expect("Unable to create cron schedule for Region Area Pipelines");
+        let region_area_pipelines_backend = CronStream::new(region_area_pipelines_schedule)
+            .pipe_to_storage(storage.region_area_pipelines.clone());
+        let region_area_pipelines_worker = WorkerBuilder::new("region_area_pipelines_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(region_area_pipelines_backend)
+            .build_fn(sync_due_region_area_pipelines);
+
         monitor = monitor
             .register(process_documents_worker)
             .register(process_transcriptions_worker)
@@ -346,7 +371,8 @@ pub fn init_monitor(
             .register(wiki_poll_summary_worker)
             .register(theme_extraction_worker)
             .register(wiki_poll_moderation_notify_worker)
-            .register(send_wiki_poll_moderation_notify_worker);
+            .register(send_wiki_poll_moderation_notify_worker)
+            .register(region_area_pipelines_worker);
 
         Some(monitor.run())
     } else {

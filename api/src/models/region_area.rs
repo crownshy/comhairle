@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::extension::postgres::PgExpr;
-use sea_query::{Cond, Expr, OnConflict, PostgresQueryBuilder, Query, ReturningClause, enum_def};
+use sea_query::{
+    Alias, Cond, Expr, Func, NullOrdering, OnConflict, Order, PostgresQueryBuilder, Query,
+    ReturningClause, SelectStatement, SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -213,11 +216,32 @@ const DEFAULT_COLUMNS: [RegionAreaIden; 11] = [
     RegionAreaIden::UpdatedAt,
 ];
 
-/// Every scalar column plus the boundary as GeoJSON, for hand written queries.
-const SELECT_COLUMNS_SQL: &str = "id, zip_prefix, name, tags,
-            area_sqm, bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
-            ST_AsGeoJSON(area_geometry, 15)::jsonb AS area_geometry,
-            created_at, updated_at";
+fn postgis(name: &'static str, arguments: impl IntoIterator<Item = SimpleExpr>) -> SimpleExpr {
+    Func::cust(Alias::new(name)).args(arguments).into()
+}
+
+fn geometry_as_geojson() -> SimpleExpr {
+    postgis(
+        "st_asgeojson",
+        [
+            Expr::col((RegionAreaIden::Table, RegionAreaIden::AreaGeometry)).into(),
+            Expr::val(15).into(),
+        ],
+    )
+    .cast_as(Alias::new("jsonb"))
+}
+
+/// Every column with the boundary as GeoJSON, in the standard display order.
+fn select_with_geometry() -> SelectStatement {
+    Query::select()
+        .columns(DEFAULT_COLUMNS.map(|column| (RegionAreaIden::Table, column)))
+        .expr_as(geometry_as_geojson(), RegionAreaIden::AreaGeometry)
+        .from(RegionAreaIden::Table)
+        .order_by_with_nulls(RegionAreaIden::Name, Order::Asc, NullOrdering::Last)
+        .order_by_with_nulls(RegionAreaIden::ZipPrefix, Order::Asc, NullOrdering::Last)
+        .order_by(RegionAreaIden::Id, Order::Asc)
+        .to_owned()
+}
 
 fn returning_columns() -> ReturningClause {
     Query::returning().exprs(
@@ -304,15 +328,13 @@ pub async fn create_many(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
-    let area = sqlx::query_as::<_, RegionArea>(&format!(
-        "SELECT {SELECT_COLUMNS_SQL}
-         FROM region_area
-         WHERE id = $1"
-    ))
-    .bind(id)
-    .fetch_one(db)
-    .await
-    .resolve_db_err("Region Area")?;
+    let (sql, values) = select_with_geometry()
+        .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
+        .build_sqlx(PostgresQueryBuilder);
+    let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Region Area")?;
 
     Ok(area)
 }
@@ -486,16 +508,31 @@ pub async fn intersecting(
     location: &AreaLocation,
 ) -> Result<Vec<RegionArea>, ComhairleError> {
     location.validate()?;
-    let areas = sqlx::query_as::<_, RegionArea>(&format!(
-        "SELECT {SELECT_COLUMNS_SQL}
-         FROM region_area
-         WHERE ST_Intersects(area_geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326))
-         ORDER BY name NULLS LAST, zip_prefix NULLS LAST, id"
-    ))
-    .bind(location.longitude)
-    .bind(location.latitude)
-    .fetch_all(db)
-    .await?;
+    let point = postgis(
+        "st_setsrid",
+        [
+            postgis(
+                "st_makepoint",
+                [
+                    Expr::val(location.longitude).into(),
+                    Expr::val(location.latitude).into(),
+                ],
+            ),
+            Expr::val(4326).into(),
+        ],
+    );
+    let (sql, values) = select_with_geometry()
+        .and_where(postgis(
+            "st_intersects",
+            [
+                Expr::col((RegionAreaIden::Table, RegionAreaIden::AreaGeometry)).into(),
+                point,
+            ],
+        ))
+        .build_sqlx(PostgresQueryBuilder);
+    let areas = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
     Ok(areas)
 }
 
@@ -675,6 +712,14 @@ mod tests {
         )
         .await?;
         create(&pool, CreateRegionArea::default()).await?;
+        let fetched = get_by_id(&pool, &outer.id).await?;
+        assert_eq!(
+            fetched
+                .area_geometry
+                .as_ref()
+                .and_then(|geometry| geometry.get("type")),
+            Some(&json!("MultiPolygon"))
+        );
         assert!(
             list(&pool)
                 .await?

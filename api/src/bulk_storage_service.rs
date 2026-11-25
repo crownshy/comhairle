@@ -75,6 +75,13 @@ pub trait BulkStorageService: Send + Sync {
     /// Returns the file contents as a byte vector.
     async fn get_file(&self, path: &str) -> Result<Vec<u8>, BulkStorageError>;
 
+    /// Retrieves a file without buffering more than `max_bytes`.
+    async fn get_file_limited(
+        &self,
+        path: &str,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>, BulkStorageError>;
+
     /// Deletes a file from the storage service.
     ///
     /// # Arguments
@@ -161,6 +168,15 @@ impl MockBulkStorageService {
         storage
             .expect_get_file()
             .returning(|_| Box::pin(async move { Ok(vec![0u8; 100]) }));
+
+        storage.expect_get_file_limited().returning(|_, max_bytes| {
+            Box::pin(async move {
+                if max_bytes < 100 {
+                    return Err(BulkStorageError::FileTooLarge(max_bytes));
+                }
+                Ok(vec![0u8; 100])
+            })
+        });
 
         storage
             .expect_delete_file()

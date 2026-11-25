@@ -297,6 +297,10 @@ pub async fn build_router_and_spec(
         .nest("/organizations", routes::organizations::router())
         .nest("/regions", routes::regions::router())
         .nest("/region_areas", routes::region_areas::router())
+        .nest(
+            "/region_area_pipelines",
+            routes::region_area_pipelines::router(),
+        )
         .nest("/media", routes::media::router())
         .nest("/jobs", routes::jobs::router())
         .nest("/services", routes::services::router())
