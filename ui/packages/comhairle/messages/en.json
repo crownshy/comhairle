@@ -60,6 +60,7 @@
 	"pager_label": "Back and next",
 	"step_complete_title": "Step completed",
 	"step_complete_proceed": "Proceed",
+	"breakout_wrap_up_announcement": "The breakout session ends in under a minute. Start wrapping up.",
 	"prioritization_review_or_continue": "Review your answers if you'd like to make any changes, or press Next to continue.",
 	"prioritization_review_my_answers": "Review my answers",
 	"prioritization_review_hint": "Tap a proposal to review or adjust your answers. Changes are saved when you press Next.",
@@ -739,5 +740,18 @@
 	"live_event_broadcast_message": "Broadcast message",
 	"live_event_end_now": "End now",
 	"live_event_end_breakout": "End breakout session",
-	"live_event_dismiss": "Dismiss"
+	"live_event_dismiss": "Dismiss",
+	"live_event_ended_title": "Thank you for participating!",
+	"live_event_ended_body": "The meeting {title} has ended.",
+	"live_event_ended_next_title": "What happens next?",
+	"live_event_ended_next_summary": "A summary and any transcripts will be available shortly.",
+	"live_event_ended_next_follow_up": "You may receive follow-up materials from the facilitator.",
+	"live_event_ended_next_updates": "Check the conversation page for updates and next steps.",
+	"live_event_reset_call": "Reset call",
+	"live_event_left_title": "You left the meeting",
+	"live_event_left_body": "{title} is still going. You can rejoin until it ends.",
+	"live_event_rejoin": "Rejoin",
+	"jitsi_meeting_iframe_title": "Video meeting",
+	"events_view_event": "View event",
+	"events_all_events": "All events"
 }

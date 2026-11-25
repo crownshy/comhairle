@@ -1,7 +1,8 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { resolve } from '$app/paths';
+	import { buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { formatDateShort, formatTime } from '$lib/utils';
+	import { cn, formatDateShort, formatTime } from '$lib/utils';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import Users from '@lucide/svelte/icons/users';
 	import type { PageProps } from './$types';
@@ -46,24 +47,32 @@
 		<div class="flex w-full flex-col gap-6">
 			{#each events as event (event.id)}
 				{@const status = eventStatus(event.startTime, event.endTime)}
-				<a
-					href="/conversations/{conversationId}/events/{event.id}"
-					class="bg-card border-border hover:border-primary/40 relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 shadow-sm transition-colors"
+				<article
+					class="bg-card border-border hover:border-primary/40 has-[a:focus-visible]:ring-ring/50 relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 shadow-sm transition-colors has-[a:focus-visible]:ring-[3px]"
 				>
-					<!-- Action button (top-right) -->
-					<div class="absolute top-6 right-6">
-						<Button
-							variant="outline"
-							size="sm"
-							href="/conversations/{conversationId}/events/{event.id}"
-						>
-							View event
-						</Button>
-					</div>
+					<span
+						class={cn(
+							buttonVariants({ variant: 'outline', size: 'sm' }),
+							'absolute top-6 right-6'
+						)}
+						aria-hidden="true"
+					>
+						{m.events_view_event()}
+					</span>
 
-					<!-- Title + badge -->
 					<div class="flex items-center gap-2 pr-28">
-						<h2 class="text-2xl leading-7 font-semibold">{event.name}</h2>
+						<h2 class="text-2xl leading-7 font-semibold">
+							<!-- The after: overlay stretches this link over the whole card. -->
+							<a
+								href={resolve(
+									'/(public)/conversations/[conversation_id]/events/[event_id]',
+									{ conversation_id: conversationId, event_id: event.id }
+								)}
+								class="after:absolute after:inset-0 focus-visible:outline-none"
+							>
+								{event.name}
+							</a>
+						</h2>
 						{#if status === 'live'}
 							<Badge
 								variant="outline"
@@ -85,14 +94,12 @@
 						{/if}
 					</div>
 
-					<!-- Description -->
 					{#if event.description}
 						<p class="text-muted-foreground text-base leading-6 font-medium">
 							{event.description}
 						</p>
 					{/if}
 
-					<!-- Info rows -->
 					<div class="flex flex-col gap-2">
 						<div class="flex items-center gap-2 text-sm">
 							<CalendarDays class="text-foreground h-4 w-4 shrink-0" />
@@ -111,13 +118,15 @@
 							>
 						</div>
 					</div>
-				</a>
+				</article>
 			{/each}
 		</div>
 	{/if}
 
 	<a
-		href="/conversations/{conversationId}"
+		href={resolve('/(public)/conversations/[conversation_id]', {
+			conversation_id: conversationId
+		})}
 		class="text-muted-foreground hover:text-foreground text-sm"
 	>
 		← {m.events_back_to_conversation()}

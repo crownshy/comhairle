@@ -10,6 +10,7 @@
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
 	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { JitsiRoom } from './jitsiRoom.svelte';
 	import { MeetingAttendance } from './meetingAttendance.svelte';
 	import type {
@@ -30,6 +31,7 @@
 	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
 	import MeetingLeftScreen from '$lib/components/LiveEvent/MeetingLeftScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
+	import PanelTabs from '$lib/components/LiveEvent/PanelTabs.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type {
 		AgendaItem,
@@ -770,7 +772,11 @@
 				></div>
 			</div>
 			<div class="flex flex-col items-center gap-3">
-				<h2 class="text-foreground text-2xl font-semibold">
+				<h2
+					tabindex="-1"
+					{@attach focusOnScreenChange}
+					class="text-foreground text-2xl font-semibold outline-none"
+				>
 					{event?.name ?? m.live_event_title_fallback()}
 				</h2>
 				<p class="text-muted-foreground text-base">{m.live_event_connecting()}</p>
@@ -813,7 +819,11 @@
 					<div
 						class="flex items-center justify-between gap-3 md:flex-wrap md:justify-start md:gap-4"
 					>
-						<span class="text-sidebar-foreground text-lg font-medium md:text-xl">
+						<span
+							tabindex="-1"
+							{@attach focusOnScreenChange}
+							class="text-sidebar-foreground text-lg font-medium outline-none md:text-xl"
+						>
 							{event?.name ?? 'Event'}
 						</span>
 						<div class="flex items-center gap-1.5">
@@ -1048,38 +1058,20 @@
 						transition:slide={{ duration: 280, easing: cubicOut }}
 					>
 						<!-- Tabs only shown while breakout session is active -->
-						{#if isBreakoutActive}
-							<div class="shrink-0 px-4 pt-1 pb-3">
-								<div class="flex items-center gap-1 rounded-2xl">
-									<button
-										type="button"
-										class="h-9 flex-1 rounded-xl px-3 text-sm transition-all {activePanel ===
-										'agenda'
-											? 'bg-background text-foreground font-semibold shadow-sm'
-											: 'text-muted-foreground font-semibold'}"
-										onclick={() => (activePanel = 'agenda')}
-									>
-										Agenda
-									</button>
-									<button
-										type="button"
-										class="h-9 flex-1 rounded-xl px-3 text-sm transition-all {activePanel ===
-										'breakoutRooms'
-											? 'bg-background text-foreground font-semibold shadow-sm'
-											: 'text-muted-foreground font-semibold'}"
-										onclick={() => (activePanel = 'breakoutRooms')}
-									>
-										Breakout Session
-									</button>
-								</div>
-							</div>
-						{/if}
-
-						{#if isBreakoutActive && activePanel === 'breakoutRooms'}
-							{@render facilitatorBreakoutPanel()}
-						{:else}
-							{@render facilitatorAgendaPanel()}
-						{/if}
+						<PanelTabs
+							activeTab={activePanel}
+							showTabs={isBreakoutActive}
+							onTabChange={(tab) => (activePanel = tab)}
+							listClass="mx-4 mt-1 mb-3 w-auto shrink-0 gap-1 rounded-2xl bg-transparent p-0"
+							triggerClass="h-9 text-sm"
+							contentClass="flex min-h-0 flex-col"
+						>
+							{#if isBreakoutActive && activePanel === 'breakoutRooms'}
+								{@render facilitatorBreakoutPanel()}
+							{:else}
+								{@render facilitatorAgendaPanel()}
+							{/if}
+						</PanelTabs>
 					</div>
 				{/if}
 			</div>

@@ -46,6 +46,11 @@
 					>{timeLeftFormatted}</span
 				>
 			</span>
+			<!-- The countdown above ticks every second, so screen readers hear the wrap-up from
+			     this once instead. -->
+			<p class="sr-only" role="status">
+				{isWrappingUp ? m.breakout_wrap_up_announcement() : ''}
+			</p>
 		</div>
 	</div>
 
