@@ -166,14 +166,17 @@
 									{/if}
 								</p>
 							</div>
-							<ChevronRight class="text-muted-foreground size-4 shrink-0" />
+							<ChevronRight
+								aria-hidden="true"
+								class="text-muted-foreground size-4 shrink-0"
+							/>
 						</button>
 					{/each}
 				</div>
 
 				<div class="border-border flex justify-end border-t pt-6">
 					<Button size="lg" onclick={() => flow.finishExtension()}>
-						<Check class="size-4" />
+						<Check aria-hidden="true" class="size-4" />
 						{m.thinking_space_finish()}
 					</Button>
 				</div>
@@ -236,7 +239,7 @@
 						<p
 							class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 						>
-							<CornerDownRight class="size-3.5" />
+							<CornerDownRight aria-hidden="true" class="size-3.5" />
 							{m.follow_up()}
 							{followUpIndex + 1}
 						</p>
@@ -279,7 +282,7 @@
 									class="h-12 w-full text-base"
 									onclick={() => flow.continueNow()}
 								>
-									<Check class="size-4" />
+									<Check aria-hidden="true" class="size-4" />
 									{flow.isLastQuestion ? m.finish() : m.move_on()}
 								</Button>
 								<p
@@ -303,7 +306,7 @@
 							class="h-12 w-full text-base"
 							onclick={() => flow.continueNow()}
 						>
-							<Check class="size-4" />
+							<Check aria-hidden="true" class="size-4" />
 							{flow.isLastQuestion ? m.finish() : m.move_on()}
 						</Button>
 					</section>
@@ -323,7 +326,7 @@
 									size="sm"
 									onclick={() => flow.doneWithRoot()}
 								>
-									<Check class="size-3.5" />
+									<Check aria-hidden="true" class="size-3.5" />
 									{m.thinking_space_question_done()}
 								</Button>
 							</div>
@@ -342,7 +345,7 @@
 									size="sm"
 									onclick={() => flow.retryPicker()}
 								>
-									<RotateCcw class="size-3.5" />
+									<RotateCcw aria-hidden="true" class="size-3.5" />
 									{m.try_again()}
 								</Button>
 								{#if inExtensionChain}
@@ -409,7 +412,7 @@
 									class="shrink-0"
 									onclick={() => flow.pickRandom()}
 								>
-									<Shuffle class="size-3.5" />
+									<Shuffle aria-hidden="true" class="size-3.5" />
 									{m.thinking_space_pick_for_me()}
 								</Button>
 							</div>
@@ -431,7 +434,7 @@
 										size="sm"
 										onclick={() => flow.doneWithRoot()}
 									>
-										<Check class="size-3.5" />
+										<Check aria-hidden="true" class="size-3.5" />
 										{m.thinking_space_question_done()}
 									</Button>
 								</div>
@@ -447,7 +450,7 @@
 							<p
 								class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 							>
-								<CornerDownRight class="size-3.5" />
+								<CornerDownRight aria-hidden="true" class="size-3.5" />
 								{m.follow_up()}
 								{flow.followUpsDone + 1}
 							</p>
@@ -457,7 +460,7 @@
 								class="text-muted-foreground -my-1"
 								onclick={() => flow.backToPicker()}
 							>
-								<ChevronLeft class="size-3.5" />
+								<ChevronLeft aria-hidden="true" class="size-3.5" />
 								{m.thinking_space_pick_different()}
 							</Button>
 						</div>

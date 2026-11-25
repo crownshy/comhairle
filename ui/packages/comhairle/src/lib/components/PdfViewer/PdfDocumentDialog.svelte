@@ -69,7 +69,7 @@
 					size="sm"
 					aria-label="Download"
 				>
-					<DownloadIcon class="size-4" />
+					<DownloadIcon aria-hidden="true" class="size-4" />
 					<span class="hidden sm:inline">Download</span>
 				</Button>
 			{/if}

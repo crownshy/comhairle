@@ -223,7 +223,7 @@
 
 {#if !loaded}
 	<div class="flex h-96 items-center justify-center">
-		<Loader2 class="text-primary size-6 animate-spin" />
+		<Loader2 aria-hidden="true" class="text-primary size-6 animate-spin" />
 		<span class="text-muted-foreground ml-2 text-sm">Loading…</span>
 	</div>
 {:else if configIncomplete}
@@ -242,7 +242,10 @@
 		</p>
 		<div class="mt-4 flex justify-center">
 			<Button variant="outline" size="sm" onclick={handleRetryLoad} disabled={retryingLoad}>
-				<RotateCcw class="size-3.5 {retryingLoad ? 'animate-spin' : ''}" />
+				<RotateCcw
+					aria-hidden="true"
+					class="size-3.5 {retryingLoad ? 'animate-spin' : ''}"
+				/>
 				{m.try_again()}
 			</Button>
 		</div>

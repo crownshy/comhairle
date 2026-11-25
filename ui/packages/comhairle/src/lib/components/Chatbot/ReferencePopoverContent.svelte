@@ -73,7 +73,7 @@
 			onclick={() => onOpenSource?.(chunk)}
 			class="text-chat-primary hover:text-chat-primary-dark mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 		>
-			<FileText class="h-3 w-3" />
+			<FileText aria-hidden="true" class="h-3 w-3" />
 			Open in document
 		</button>
 	{:else if isTruncatable}
@@ -83,10 +83,10 @@
 			class="text-chat-primary hover:text-chat-primary-dark mt-2 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 		>
 			{#if isExpanded}
-				<ChevronUp class="h-3 w-3" />
+				<ChevronUp aria-hidden="true" class="h-3 w-3" />
 				See less
 			{:else}
-				<ChevronDown class="h-3 w-3" />
+				<ChevronDown aria-hidden="true" class="h-3 w-3" />
 				See more
 			{/if}
 		</button>
