@@ -485,6 +485,8 @@
 	"step_not_found": "Cha deach an còmhradh a lorg",
 	"step_one_minute": "(1 mhionaid)",
 	"step_x_of_y": "Ceum {current} de {total}",
+	"step_menu_completed": "Deiseil",
+	"step_menu_locked": "Glaiste",
 	"step_chrome_conversation_home": "Air ais gu duilleag a' chòmhraidh",
 	"conversation_preview_badge": "Ro-shealladh",
 	"theme_light_mode": "Modh soilleir",

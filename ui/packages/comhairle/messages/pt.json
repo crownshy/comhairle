@@ -485,6 +485,8 @@
 	"step_not_found": "Não foi possível encontrar a conversa",
 	"step_one_minute": "(1 minuto)",
 	"step_x_of_y": "Etapa {current} de {total}",
+	"step_menu_completed": "Concluído",
+	"step_menu_locked": "Bloqueado",
 	"step_chrome_conversation_home": "Voltar à página da conversa",
 	"conversation_preview_badge": "Pré-visualização",
 	"theme_light_mode": "Modo claro",

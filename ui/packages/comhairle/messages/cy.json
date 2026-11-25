@@ -485,6 +485,8 @@
 	"step_not_found": "Methu dod o hyd i'r sgwrs",
 	"step_one_minute": "(1 munud)",
 	"step_x_of_y": "Cam {current} o {total}",
+	"step_menu_completed": "Wedi'i gwblhau",
+	"step_menu_locked": "Wedi'i gloi",
 	"step_chrome_conversation_home": "Yn ôl i dudalen y sgwrs",
 	"conversation_preview_badge": "Rhagolwg",
 	"theme_light_mode": "Modd golau",

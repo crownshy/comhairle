@@ -485,6 +485,8 @@
 	"step_not_found": "Conversation introuvable",
 	"step_one_minute": "(1 minute)",
 	"step_x_of_y": "Étape {current} sur {total}",
+	"step_menu_completed": "Terminé",
+	"step_menu_locked": "Verrouillé",
 	"step_chrome_conversation_home": "Retour à la page de la conversation",
 	"conversation_preview_badge": "Aperçu",
 	"theme_light_mode": "Mode clair",
