@@ -738,5 +738,15 @@
 	"live_event_broadcast_message": "Broadcast message",
 	"live_event_end_now": "End now",
 	"live_event_end_breakout": "End breakout session",
-	"live_event_dismiss": "Dismiss"
+	"live_event_dismiss": "Dismiss",
+	"live_event_ended_title": "Thank you for participating!",
+	"live_event_ended_body": "The meeting {title} has ended.",
+	"live_event_ended_next_title": "What happens next?",
+	"live_event_ended_next_summary": "A summary and any transcripts will be available shortly.",
+	"live_event_ended_next_follow_up": "You may receive follow-up materials from the facilitator.",
+	"live_event_ended_next_updates": "Check the conversation page for updates and next steps.",
+	"live_event_reset_call": "Reset call",
+	"live_event_left_title": "You left the meeting",
+	"live_event_left_body": "{title} is still going. You can rejoin until it ends.",
+	"live_event_rejoin": "Rejoin"
 }
