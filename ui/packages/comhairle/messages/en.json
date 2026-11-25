@@ -60,6 +60,8 @@
 	"step_one_minute": "(1 minute)",
 	"step_menu_about_heading": "About this conversation",
 	"step_x_of_y": "Step {current} of {total}",
+	"step_menu_completed": "Completed",
+	"step_menu_locked": "Locked",
 	"step_chrome_conversation_home": "Back to the conversation page",
 	"conversation_preview_badge": "Preview",
 	"theme_light_mode": "Light mode",

@@ -126,7 +126,7 @@
 		>
 			{#if style.done}
 				<!-- `text-current` opts out of the menu item's blanket muted colour for icons. -->
-				<Check class="size-3.5 text-current" strokeWidth={3} />
+				<Check class="size-3.5 text-current" strokeWidth={3} aria-hidden="true" />
 			{:else}
 				{position}
 			{/if}
@@ -134,14 +134,18 @@
 		<span class={cn('min-w-0 truncate text-base font-medium', style.name)}>
 			{step.name}
 		</span>
+		{#if style.done}
+			<span class="sr-only">{m.step_menu_completed()}</span>
+		{/if}
 		{#if style.locked}
-			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" />
+			<span class="sr-only">{m.step_menu_locked()}</span>
+			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" aria-hidden="true" />
 		{/if}
 	</span>
 {/snippet}
 
 {#snippet languageRowInner()}
-	<Languages class="text-muted-foreground size-5 shrink-0" />
+	<Languages class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	<span>{m.language()}</span>
 	<span class="text-muted-foreground ml-auto flex items-center gap-2">
 		{#if pendingLocale}
@@ -152,17 +156,17 @@
 {/snippet}
 
 {#snippet faqRowInner()}
-	<CircleHelp class="text-muted-foreground size-5 shrink-0" />
+	<CircleHelp class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	{m.faq()}
 {/snippet}
 
 {#snippet privacyRowInner()}
-	<ShieldCheck class="text-muted-foreground size-5 shrink-0" />
+	<ShieldCheck class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	{m.privacy_policy()}
 {/snippet}
 
 {#snippet themeRowInner()}
-	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" />
+	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" aria-hidden="true" />
 	{themeLabel}
 {/snippet}
 
@@ -245,6 +249,7 @@
 								'text-muted-foreground size-5 shrink-0 transition-transform',
 								languageListOpen && 'rotate-90'
 							)}
+							aria-hidden="true"
 						/>
 					</button>
 					{#if languageListOpen}
@@ -261,7 +266,10 @@
 									{#if locale === pendingLocale}
 										<Spinner class="text-primary ml-auto size-5 shrink-0" />
 									{:else if locale === shownLocale}
-										<Check class="text-primary ml-auto size-5 shrink-0" />
+										<Check
+											class="text-primary ml-auto size-5 shrink-0"
+											aria-hidden="true"
+										/>
 									{/if}
 								</button>
 							{/each}

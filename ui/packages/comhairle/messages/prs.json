@@ -527,6 +527,8 @@
 	"step_not_found": "گفتگو پیدا نشد",
 	"step_one_minute": "(۱ دقیقه)",
 	"step_x_of_y": "مرحله {current} از {total}",
+	"step_menu_completed": "تکمیل شده",
+	"step_menu_locked": "قفل شده",
 	"step_chrome_conversation_home": "برگشت به صفحه گفتگو",
 	"conversation_preview_badge": "پیش‌نمایش",
 	"theme_light_mode": "حالت روشن",
