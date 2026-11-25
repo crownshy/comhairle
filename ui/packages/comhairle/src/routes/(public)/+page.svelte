@@ -15,6 +15,7 @@
 	import Conversation from '$lib/interfaces/Conversation';
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import HomeEmptyState from './HomeEmptyState.svelte';
+	import PageHero from '$lib/components/PageHero.svelte';
 
 	let { data } = $props();
 
@@ -56,75 +57,59 @@
 	<title>Comhairle</title>
 </svelte:head>
 
-<!-- The hero is pulled up by the NavBar's height so its gradient runs behind the see-through
-	bar, and its top padding adds that height back. -->
 <div class="flex flex-col gap-14 pb-24 md:gap-20">
-	<!-- A light gradient from each theme's accent colour, with two see-through white shapes for
-		texture. Text is dark, so it reads at WCAG AA on the lightest and darkest parts. -->
-	<section
-		class="home-hero text-foreground relative isolate -mt-[5.5rem] overflow-hidden rounded-b-[2rem] md:rounded-b-[3rem]"
-	>
-		<div aria-hidden="true" class="home-hero-shape home-hero-shape-a"></div>
-		<div aria-hidden="true" class="home-hero-shape home-hero-shape-b"></div>
-		<div
-			class="mx-auto w-full max-w-[1300px] px-4 pt-[9.5rem] pb-16 md:px-8 md:pt-[12.5rem] md:pb-28"
-		>
-			<div class="mx-auto flex w-full max-w-6xl flex-col items-start gap-8">
-				<div class="flex max-w-3xl flex-col gap-4">
-					{#if data.isCommunity}
-						<h1
-							class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
-						>
-							{m.welcome_to_the()}
+	<PageHero>
+		<div class="flex max-w-3xl flex-col gap-4">
+			{#if data.isCommunity}
+				<h1
+					class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
+				>
+					{m.welcome_to_the()}
 
-							<Tooltip.Provider delayDuration={0}>
-								<Tooltip.Root>
-									<Tooltip.Trigger
-										class="inline-flex cursor-default items-baseline gap-2"
-										onclick={(e) => e.preventDefault()}
-									>
-										Comhairle<Info
-											class="text-foreground inline size-5 self-center"
-										/>
-									</Tooltip.Trigger>
-									<Tooltip.Content side="top" class="text-base">
-										{m.comhairle_meaning()}
-									</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
+					<Tooltip.Provider delayDuration={0}>
+						<Tooltip.Root>
+							<Tooltip.Trigger
+								class="inline-flex cursor-default items-baseline gap-2"
+								onclick={(e) => e.preventDefault()}
+							>
+								Comhairle<Info class="text-foreground inline size-5 self-center" />
+							</Tooltip.Trigger>
+							<Tooltip.Content side="top" class="text-base">
+								{m.comhairle_meaning()}
+							</Tooltip.Content>
+						</Tooltip.Root>
+					</Tooltip.Provider>
 
-							{m.community_server()}
-						</h1>
+					{m.community_server()}
+				</h1>
 
-						{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
-							<p class="text-lg text-pretty sm:text-xl">
-								{description}
-							</p>
-						{/each}
-					{:else}
-						<h1
-							class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
-						>
-							{m.home_hero_title()}
-						</h1>
-						<p class="text-lg text-pretty sm:text-xl">
-							{m.home_hero_subtitle()}
-						</p>
-					{/if}
-				</div>
-				{#if !isEmpty}
-					<Button
-						href="#conversations"
-						onclick={scrollToList}
-						class="h-12 w-full gap-2 rounded-full px-6 text-base font-semibold sm:w-auto"
-					>
-						{m.explore_conversations()}
-						<ArrowDown class="size-5" />
-					</Button>
-				{/if}
-			</div>
+				{#each [m.community_server_description_1(), m.community_server_description_2()] as description (description)}
+					<p class="text-lg text-pretty sm:text-xl">
+						{description}
+					</p>
+				{/each}
+			{:else}
+				<h1
+					class="scroll-m-20 text-[1.75rem] leading-tight font-bold text-balance sm:text-4xl lg:text-[2.625rem]"
+				>
+					{m.home_hero_title()}
+				</h1>
+				<p class="text-lg text-pretty sm:text-xl">
+					{m.home_hero_subtitle()}
+				</p>
+			{/if}
 		</div>
-	</section>
+		{#if !isEmpty}
+			<Button
+				href="#conversations"
+				onclick={scrollToList}
+				class="h-12 w-full gap-2 rounded-full px-6 text-base font-semibold sm:w-auto"
+			>
+				{m.explore_conversations()}
+				<ArrowDown class="size-5" />
+			</Button>
+		{/if}
+	</PageHero>
 
 	<div class="mx-auto w-full max-w-[1300px] px-4 md:px-8">
 		<div class="mx-auto w-full max-w-6xl">
@@ -158,8 +143,9 @@
 					<div class="flex flex-col gap-4">
 						<div class="max-w-2xl">
 							<SearchBar
-								placeholder={m.conversations_search()}
+								placeholder={m.home_search_placeholder()}
 								aria-label={m.conversations_search()}
+								iconClass="ml-5 size-5"
 								value={search as string}
 								oninput={useDebounce((event) => {
 									QueryParams.set<ConversationsParams>(
@@ -169,7 +155,7 @@
 										.set<ConversationsParams>('page', 0)
 										.update();
 								}, 300)}
-								class="bg-card border-border h-14 rounded-full pl-12 text-base shadow-none md:text-base"
+								class="bg-card border-border h-14 rounded-full pl-13 text-base shadow-none md:text-base"
 							/>
 						</div>
 						<FilterBadges
@@ -233,28 +219,3 @@
 		</div>
 	</div>
 </div>
-
-<style>
-	.home-hero {
-		background: linear-gradient(
-			to bottom,
-			color-mix(in oklab, var(--sidebar-primary) 8%, var(--background)),
-			color-mix(in oklab, var(--sidebar-primary) 50%, var(--background))
-		);
-	}
-	/* Two big see-through planes on the right, overlapping like light through a window. */
-	.home-hero-shape {
-		position: absolute;
-		z-index: -1;
-		inset: 0;
-		pointer-events: none;
-	}
-	.home-hero-shape-a {
-		background: rgb(255 255 255 / 0.3);
-		clip-path: polygon(100% 25%, 100% 100%, 30% 100%);
-	}
-	.home-hero-shape-b {
-		background: rgb(255 255 255 / 0.2);
-		clip-path: polygon(72% 0%, 100% 0%, 100% 100%, 60% 100%);
-	}
-</style>

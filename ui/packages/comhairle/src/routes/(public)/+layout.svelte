@@ -21,6 +21,12 @@
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
 	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 	const isHomePage = $derived(page.route.id === '/(public)');
+	// These pages open with the light gradient hero, which runs edge to edge behind the NavBar.
+	const hasHero = $derived(
+		isHomePage ||
+			page.route.id === '/(public)/about' ||
+			(page.route.id?.startsWith('/(public)/rights') ?? false)
+	);
 	// The conversation's own page runs edge to edge, like home, with the image across the screen.
 	const isConversationPage = $derived(
 		page.route.id === '/(public)/conversations/[conversation_id]/[[preview]]'
@@ -49,7 +55,7 @@
 
 	const mainClass = $derived.by(() => {
 		if (isRoomDisplay) return undefined;
-		if (isAuthPage || isReportPage || isHomePage || isConversationPage) return 'grow';
+		if (isAuthPage || isReportPage || hasHero || isConversationPage) return 'grow';
 		if (isLivePage) return 'w-full grow';
 		return 'mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20';
 	});
@@ -64,7 +70,7 @@
 <div
 	class={cn(
 		'bg-background flex w-full flex-col',
-		(isHomePage || isConversationPage) &&
+		(hasHero || isConversationPage) &&
 			'bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))]',
 		viewportHeightClass
 	)}
@@ -76,7 +82,7 @@
 		{m.skip_to_content()}
 	</a>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
-		<NavBar user={data.user} {isAdmin} overHero={isHomePage} />
+		<NavBar user={data.user} {isAdmin} overHero={hasHero} />
 	{/if}
 	{#if isStepPage}
 		<!-- The step page puts the main landmark on its own scroll, so its header and pager stay outside it. -->

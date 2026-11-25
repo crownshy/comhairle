@@ -83,17 +83,17 @@
 
 <svelte:window bind:scrollY />
 
-<!-- Over the light hero the bar's text colour (primary-foreground) becomes the page's dark
+<!-- The bar stays at the top as the page scrolls, slightly see-through once it does.
+	Over the light hero the bar's text colour (primary-foreground) becomes the page's dark
 	text, and the Sign up pill turns dark, so everything in it reads on the light gradient. -->
 <nav
 	aria-label={m.nav_main_label()}
 	class={cn(
-		'text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6',
-		overHero && 'sticky top-0 z-30 transition-[background-color,box-shadow] duration-300',
+		'text-muted-foreground sticky top-0 z-30 flex w-full flex-col items-center justify-center py-6 transition-[background-color,box-shadow] duration-300',
 		light
 			? 'bg-transparent [--nav-pill-text:var(--background)] [--primary-foreground:var(--foreground)]'
 			: 'shadow-md',
-		!light && (overHero ? 'bg-primary/90 backdrop-blur-xl backdrop-saturate-150' : 'bg-primary')
+		!light && (scrolled ? 'bg-primary/90 backdrop-blur-xl backdrop-saturate-150' : 'bg-primary')
 	)}
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
@@ -111,9 +111,13 @@
 					href={link.href}
 					variant="nav"
 					aria-current={isCurrentLink(link.href) ? 'page' : undefined}
-					class="h-10 px-4 text-base font-medium shadow-none {isCurrentLink(link.href)
-						? 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary'
-						: ''}">{link.name}</Button
+					class={cn(
+						'h-10 px-4 text-base font-medium shadow-none',
+						isCurrentLink(link.href) &&
+							(light
+								? 'bg-foreground/10'
+								: 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary')
+					)}>{link.name}</Button
 				>
 			{/each}
 			<LocaleSwitcher

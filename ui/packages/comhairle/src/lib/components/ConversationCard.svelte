@@ -115,7 +115,7 @@
 				<ConversationStatusBadge
 					{status}
 					label={statusLabel}
-					class="absolute top-4 left-4 border-transparent shadow-md backdrop-blur"
+					class="absolute top-4 left-4 border-transparent py-1.5 text-base shadow-md backdrop-blur"
 				/>
 			</div>
 
