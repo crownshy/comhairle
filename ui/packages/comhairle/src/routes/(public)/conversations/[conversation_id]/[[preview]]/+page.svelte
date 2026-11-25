@@ -1,24 +1,26 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { m } from '$lib/paraglide/messages';
-	import { notifications } from '$lib/notifications.svelte.js';
+	import { notifications } from '$lib/notifications.svelte';
 	import { goto, invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
-	import { key } from '$lib/utils/invalidationKey.js';
+	import { key } from '$lib/utils/invalidationKey';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
-	import type { ApiError } from '@crownshy/api-client/api';
+	import { type ApiError } from '@crownshy/api-client/api';
 	import { pendingWork } from '$lib/stores/pendingWork.svelte';
 	import { resolve } from '$app/paths';
 	import { ChevronLeft, MessageSquareText } from '@lucide/svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
 	import Conversation from '$lib/interfaces/Conversation';
+	import { Form, Input, Submit, type OnSubmit } from '$lib/components/EasyForm';
+	import { LoadingButton } from '$lib/components/ui/button';
+	import { type ApiResponse } from '$lib/types';
 
 	let { data } = $props();
 	let { conversation, workflows, participation, preview, user } = $derived(data);
+
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 	let statusLabel = $derived(
 		conversation.isComplete ? m.conversation_status_ended() : m.conversation_status_open()
@@ -29,13 +31,20 @@
 
 	let emailStep = $state<'closed' | 'email' | 'code'>('closed');
 	let emailValue = $state('');
-	let codeValue = $state('');
-	let emailError = $state<string | null>(null);
+
 	let codeResent = $state(false);
 
 	let guestStep = $state<'closed' | 'choice' | 'code'>('closed');
-	let guestCodeValue = $state('');
-	let guestError = $state<string | null>(null);
+
+	function handleNotification(status: number, message: string) {
+		notifications.addFlash({
+			message:
+				status === HttpStatus.TooManyRequests
+					? 'Too many attempts, please wait a moment and try again'
+					: message,
+			priority: 'ERROR'
+		});
+	}
 
 	function handleJoin() {
 		if (isSubmitting) return;
@@ -105,158 +114,137 @@
 		await goto(firstWorkflowPath, { invalidate: [key('user'), key('public/conversation')] });
 	}
 
-	function openGuestChoice() {
-		guestStep = 'choice';
-		guestError = null;
-	}
-
-	function openGuestCodeStep() {
-		guestStep = 'code';
-		guestError = null;
-	}
-
-	function handleNewGuestJoin() {
+	async function doNewGuestJoin() {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		doNewGuestJoin();
-	}
 
-	async function doNewGuestJoin() {
-		const result = await tryCatchAsync<unknown, ApiError>(() =>
-			apiClient.SignupGuestUser(undefined, {})
-		);
+		const result = await tryCatchAsync(() => apiClient.SignupGuestUser(undefined, {}));
+
+		isSubmitting = false;
 		if (result.err !== null) {
 			notifications.send({
 				message: 'Failed to join as a guest, try again later',
 				priority: 'ERROR'
 			});
-			isSubmitting = false;
 			return;
 		}
+
 		await invalidate(key('user'));
-		isSubmitting = false;
 		guestStep = 'closed';
 		handleJoin();
 	}
 
-	async function submitGuestCode() {
-		if (!guestCodeValue || isSubmitting) return;
+	const submitGuestCode: OnSubmit = async (formData) => {
+		if (isSubmitting) return;
 		isSubmitting = true;
-		guestError = null;
 
-		const result = await tryCatchAsync<unknown, ApiError>(() =>
-			apiClient.LoginGuestUser({ guest_code: guestCodeValue })
+		const guestCode = formData.get('guest-code') as string | null;
+		if (!guestCode) {
+			return;
+		}
+
+		const result = await tryCatchAsync(() =>
+			apiClient.LoginGuestUser({ guest_code: guestCode })
 		);
 
+		isSubmitting = false;
 		if (result.err !== null) {
-			guestError = 'Invalid guest ID';
-			isSubmitting = false;
+			notifications.addFlash({
+				message: 'Invalid guest ID',
+				priority: 'ERROR'
+			});
 			return;
 		}
 
 		await invalidate(key('user'));
-		isSubmitting = false;
 		guestStep = 'closed';
 		joinOrReturn();
-	}
+	};
 
-	function openEmailStep() {
-		emailStep = 'email';
-		emailError = null;
-	}
-
-	async function submitEmail() {
-		if (!emailValue || isSubmitting) return;
+	const submitEmail: OnSubmit = async (formData) => {
+		if (isSubmitting) return;
 		isSubmitting = true;
-		emailError = null;
 
-		const createOtp = await tryCatchAsync<void, ApiError>(() =>
-			apiClient.CreateOtp({ email: emailValue })
-		);
-
-		if (createOtp.err !== null) {
-			if (createOtp.err.status === HttpStatus.NotFound) {
-				const signup = await tryCatchAsync<unknown, ApiError>(() =>
-					apiClient.SignupOtp({ email: emailValue })
-				);
-				if (signup.err !== null) {
-					emailError =
-						signup.err.status === HttpStatus.TooManyRequests
-							? 'Too many attempts, please wait a moment and try again'
-							: 'Failed to sign up with this email';
-					isSubmitting = false;
-					return;
-				}
-				await invalidate(key('user'));
-				isSubmitting = false;
-				emailStep = 'closed';
-				handleJoin();
-				return;
-			}
-
-			emailError =
-				createOtp.err.status === HttpStatus.TooManyRequests
-					? 'Too many attempts, please wait a moment and try again'
-					: 'Failed to send one-time-passcode';
-			isSubmitting = false;
+		const email = formData.get('email') as string | null;
+		if (!email) {
 			return;
 		}
 
-		isSubmitting = false;
-		emailStep = 'code';
-	}
+		const createOtp = await tryCatchAsync<ApiResponse<'CreateOtp'>, ApiError>(() =>
+			apiClient.CreateOtp({ email })
+		);
 
-	async function resendCode() {
+		if (createOtp.ok !== null) {
+			isSubmitting = false;
+			emailValue = email;
+			emailStep = 'code';
+			return;
+		}
+
+		if (createOtp.err.status === HttpStatus.NotFound) {
+			const signup = await tryCatchAsync<ApiResponse<'SignupOtp'>, ApiError>(() =>
+				apiClient.SignupOtp({ email })
+			);
+			isSubmitting = false;
+			if (signup.err !== null) {
+				handleNotification(signup.err.status, 'Failed to sign up with this email');
+				return;
+			}
+			await invalidate(key('user'));
+			emailStep = 'closed';
+			handleJoin();
+			return;
+		}
+
+		handleNotification(createOtp.err.status, 'Failed to send one-time-passcode');
+		isSubmitting = false;
+	};
+
+	const resendCode: OnSubmit = async (formData) => {
 		if (isSubmitting) return;
 		isSubmitting = true;
-		emailError = null;
 		codeResent = false;
 
-		const result = await tryCatchAsync<void, ApiError>(() =>
-			apiClient.CreateOtp({ email: emailValue })
+		const email = formData.get('email') as string | null;
+		if (!email) {
+			return;
+		}
+
+		const result = await tryCatchAsync<ApiResponse<'CreateOtp'>, ApiError>(() =>
+			apiClient.CreateOtp({ email })
 		);
 
 		isSubmitting = false;
 		if (result.err !== null) {
-			emailError =
-				result.err.status === HttpStatus.TooManyRequests
-					? 'Too many attempts, please wait a moment and try again'
-					: 'Failed to send one-time-passcode';
+			handleNotification(result.err.status, 'Failed to send one-time-passcode');
 			return;
 		}
 		codeResent = true;
-	}
+	};
 
-	function changeEmail() {
-		codeValue = '';
-		emailError = null;
-		codeResent = false;
-		emailStep = 'email';
-	}
-
-	async function submitCode() {
-		if (!codeValue || isSubmitting) return;
+	const submitCode: OnSubmit = async (formData) => {
+		if (isSubmitting) return;
 		isSubmitting = true;
-		emailError = null;
 
-		const result = await tryCatchAsync<unknown, ApiError>(() =>
-			apiClient.LoginOtpUser({ email: emailValue, code: codeValue })
+		const otp = formData.get('otp') as string | null;
+		if (!emailValue || !otp) {
+			return;
+		}
+
+		const result = await tryCatchAsync<ApiResponse<'LoginOtpUser'>, ApiError>(() =>
+			apiClient.LoginOtpUser({ email: emailValue, code: otp })
 		);
 
+		isSubmitting = false;
 		if (result.err !== null) {
-			emailError =
-				result.err.status === HttpStatus.TooManyRequests
-					? 'Too many attempts, please wait a moment and try again'
-					: 'Invalid or expired code';
-			isSubmitting = false;
+			handleNotification(result.err.status, 'Invalid or expired code');
 			return;
 		}
 
 		await invalidate(key('user'));
-		isSubmitting = false;
 		emailStep = 'closed';
 		joinOrReturn();
-	}
+	};
 
 	async function registerUser() {
 		await apiClient.RegisterUserForConversationWorkflow(undefined, {
@@ -340,147 +328,114 @@
 										{conversation.callToAction || m.jump_back_in()}
 									</Button>
 								{:else}
-									<Button
+									<LoadingButton
 										class="mt-5 w-full md:w-fit"
 										onclick={handleJoin}
-										disabled={isSubmitting}
+										loading={isSubmitting}
 									>
-										{#if isSubmitting}
-											<Spinner class="mr-2 size-4" />
-										{/if}
 										{conversation.callToAction || m.join_the_conversation()}
-									</Button>
+									</LoadingButton>
 								{/if}
 							{:else if joinsAnonymously}
-								<Button
+								<LoadingButton
 									class="mt-5 w-full md:w-fit"
 									onclick={handleJoin}
-									disabled={isSubmitting}
+									loading={isSubmitting}
 								>
-									{#if isSubmitting}
-										<Spinner class="mr-2 size-4" />
-									{/if}
 									{conversation.callToAction || m.join_the_conversation()}
-								</Button>
+								</LoadingButton>
 							{:else if emailStep === 'email'}
-								<form
+								<Form
 									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-									onsubmit={(e) => {
-										e.preventDefault();
-										submitEmail();
-									}}
+									onsubmit={submitEmail}
 								>
 									<Input
+										required
+										name="email"
 										type="email"
 										placeholder={m.enter_your_email()}
-										bind:value={emailValue}
-										required
 										disabled={isSubmitting}
 									/>
-									{#if emailError}
-										<p class="text-destructive text-sm">{emailError}</p>
-									{/if}
-									<Button type="submit" disabled={isSubmitting}>
-										{#if isSubmitting}
-											<Spinner class="mr-2 size-4" />
-										{/if}
-										{m.continue_button()}
-									</Button>
-								</form>
+									<Submit text={m.continue_button()} {isSubmitting} />
+								</Form>
 							{:else if emailStep === 'code'}
-								<form
-									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-									onsubmit={(e) => {
-										e.preventDefault();
-										submitCode();
-									}}
-								>
-									<h2 class="text-lg font-semibold">{m.check_your_email()}</h2>
-									<p class="text-muted-foreground max-w-prose text-base">
-										{m.otp_sent_to_email({ email: emailValue })}
-									</p>
-									<Input
-										placeholder={m.otp_placeholder()}
-										bind:value={codeValue}
-										autocomplete="one-time-code"
-										required
-										disabled={isSubmitting}
-									/>
-									{#if emailError}
-										<p class="text-destructive text-sm">{emailError}</p>
-									{:else if codeResent}
-										<p class="text-base">{m.otp_resent()}</p>
-									{/if}
-									<Button type="submit" disabled={isSubmitting}>
-										{#if isSubmitting}
-											<Spinner class="mr-2 size-4" />
+								<Form id="resend-code-form" onsubmit={resendCode}>
+									<Form
+										id="submit-code-form"
+										class="mt-5 flex w-full flex-col gap-2 md:w-fit"
+										onsubmit={submitCode}
+									>
+										<h2 class="text-lg font-semibold">
+											{m.check_your_email()}
+										</h2>
+										<p class="text-muted-foreground max-w-prose text-base">
+											{m.otp_sent_to_email({ email: emailValue })}
+										</p>
+										<Input
+											required
+											name="otp"
+											placeholder={m.otp_placeholder()}
+											disabled={isSubmitting}
+										/>
+										{#if codeResent}
+											<p class="text-base">{m.otp_resent()}</p>
 										{/if}
-										{m.verify_code()}
-									</Button>
-									<p class="text-muted-foreground text-base">
-										{m.resend_otp()}
-										<button
-											type="button"
-											class="text-primary underline"
-											onclick={resendCode}
+										<Submit
+											text={m.verify_code()}
+											{isSubmitting}
+											form="submit-code-form"
+										/>
+										<p class="text-muted-foreground text-base">
+											{m.resend_otp()}
+											<Submit
+												variant="link"
+												form="resend-code-form"
+												disabled={isSubmitting}
+												text={m.send_again()}
+											/>
+										</p>
+										<Button
+											variant="link"
+											onclick={() => {
+												codeResent = false;
+												emailStep = 'email';
+											}}
 											disabled={isSubmitting}
 										>
-											{m.send_again()}
-										</button>
-									</p>
-									<button
-										type="button"
-										class="text-primary self-start text-base underline"
-										onclick={changeEmail}
-										disabled={isSubmitting}
-									>
-										{m.use_a_different_email()}
-									</button>
-								</form>
+											{m.use_a_different_email()}
+										</Button>
+									</Form>
+								</Form>
 							{:else if guestStep === 'choice'}
 								<div class="mt-5 flex w-full flex-col gap-2 md:w-fit">
-									<Button onclick={handleNewGuestJoin} disabled={isSubmitting}>
-										{#if isSubmitting}
-											<Spinner class="mr-2 size-4" />
-										{/if}
+									<LoadingButton loading={isSubmitting} onclick={doNewGuestJoin}>
 										{m.start_as_new_guest()}
-									</Button>
+									</LoadingButton>
 									<Button
 										variant="outline"
-										onclick={openGuestCodeStep}
+										onclick={() => void (guestStep = 'code')}
 										disabled={isSubmitting}
 									>
 										{m.have_a_guest_code()}
 									</Button>
 								</div>
 							{:else if guestStep === 'code'}
-								<form
+								<Form
 									class="mt-5 flex w-full flex-col gap-2 md:w-fit"
-									onsubmit={(e) => {
-										e.preventDefault();
-										submitGuestCode();
-									}}
+									onsubmit={submitGuestCode}
 								>
 									<Input
-										placeholder={m.anonymous_id()}
-										bind:value={guestCodeValue}
 										required
+										name="guest-code"
+										placeholder={m.anonymous_id()}
 										disabled={isSubmitting}
 									/>
-									{#if guestError}
-										<p class="text-destructive text-sm">{guestError}</p>
-									{/if}
-									<Button type="submit" disabled={isSubmitting}>
-										{#if isSubmitting}
-											<Spinner class="mr-2 size-4" />
-										{/if}
-										{m.continue_with_guest_code()}
-									</Button>
-								</form>
+									<Submit text={m.continue_with_guest_code()} {isSubmitting} />
+								</Form>
 							{:else}
 								<Button
 									class="mt-5 w-full md:w-fit"
-									onclick={openEmailStep}
+									onclick={() => void (emailStep = 'email')}
 									disabled={isSubmitting}
 								>
 									{m.continue_with_email()}
@@ -488,7 +443,7 @@
 								<Button
 									class="mt-5 w-full md:w-fit"
 									variant="outline"
-									onclick={openGuestChoice}
+									onclick={() => void (guestStep = 'choice')}
 									disabled={isSubmitting}
 								>
 									{m.join_as_guest()}
