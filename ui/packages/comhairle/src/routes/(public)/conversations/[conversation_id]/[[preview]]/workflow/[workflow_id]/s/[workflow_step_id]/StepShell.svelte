@@ -3,6 +3,8 @@
 	import { PAGER_BAR_SURFACE_CLASS } from '$lib/components/pager/pager';
 	import { cn } from '$lib/utils';
 	import { STEP_SCROLL_ATTRIBUTE } from '$lib/utils/stepScroll';
+	import { MAIN_CONTENT_ID } from '$lib/utils/mainContent';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		header: Snippet;
@@ -33,23 +35,29 @@
 
 	<!-- The reserve sits on an inner wrapper because WebKit leaves a scroller's own bottom
 		padding out of its scroll height. -->
-	<div {...{ [STEP_SCROLL_ATTRIBUTE]: '' }} class="flex min-h-0 w-full flex-col overflow-y-auto">
+	<main
+		id={MAIN_CONTENT_ID}
+		tabindex="-1"
+		{...{ [STEP_SCROLL_ATTRIBUTE]: '' }}
+		class="flex min-h-0 w-full flex-col overflow-y-auto outline-none"
+	>
 		<div
 			class="flex min-h-full w-full shrink-0 flex-col"
 			style:padding-bottom="{scrollPadding}px"
 		>
 			{@render content()}
 		</div>
-	</div>
+	</main>
 
 	{#if bar}
 		<!-- data-spotlight-keep keeps the pager usable while a tool's spotlight dims the page. -->
-		<div
+		<nav
 			data-spotlight-keep
+			aria-label={m.pager_label()}
 			class={cn(PAGER_BAR_SURFACE_CLASS, 'absolute inset-x-0 bottom-0 z-10')}
 			bind:clientHeight={barHeight}
 		>
 			{@render bar()}
-		</div>
+		</nav>
 	{/if}
 </div>

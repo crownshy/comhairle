@@ -23,7 +23,7 @@
 </script>
 
 <div class={cn(STEP_COLUMN_CLASS, 'flex flex-col items-center pt-3 pb-2')}>
-	<p class="text-foreground text-center text-xl leading-6 font-semibold md:text-2xl">
+	<h1 class="text-foreground text-center text-xl leading-6 font-semibold md:text-2xl">
 		{title}
 		{#if estimatedMinutes}
 			<span class="text-foreground text-base font-medium md:text-lg md:font-semibold">
@@ -32,7 +32,7 @@
 					: m.step_minutes({ count: estimatedMinutes })}
 			</span>
 		{/if}
-	</p>
+	</h1>
 
 	{#if description}
 		<div class="prose-p:text-base prose-li:text-base mx-auto max-w-3xl text-center text-base">

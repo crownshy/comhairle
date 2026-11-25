@@ -16,7 +16,7 @@
 <!-- The participant step pager's buttons and bar (ADR-0047, ADR-0048), as links so browser
 	Back steps back a page (ADR-0058). -->
 <div class={cn(PAGER_BAR_SURFACE_CLASS, 'sticky bottom-0 z-10')}>
-	<nav class={cn(REPORT_COLUMN_CLASS, PAGER_ROW_CLASS)}>
+	<nav aria-label={m.pager_label()} class={cn(REPORT_COLUMN_CLASS, PAGER_ROW_CLASS)}>
 		<PagerButton direction="back" label={m.pager_back()} href={backHref} />
 		<PagerButton direction="forward" label={m.next()} href={nextHref} />
 	</nav>

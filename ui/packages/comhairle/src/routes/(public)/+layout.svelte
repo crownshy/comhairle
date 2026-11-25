@@ -6,6 +6,8 @@
 	import { setSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
 	import { cn } from '$lib/utils';
 	import { canAccessAdminPortal } from '$lib/utils/permissions';
+	import { MAIN_CONTENT_ID } from '$lib/utils/mainContent';
+	import { m } from '$lib/paraglide/messages';
 
 	let { children, data }: LayoutProps = $props();
 	setSupportDrawer();
@@ -45,6 +47,13 @@
 		return 'min-h-screen';
 	});
 
+	const mainClass = $derived.by(() => {
+		if (isRoomDisplay) return undefined;
+		if (isAuthPage || isReportPage || isHomePage || isConversationPage) return 'grow';
+		if (isLivePage) return 'w-full grow';
+		return 'mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20';
+	});
+
 	let isAdmin = $derived(canAccessAdminPortal(data.userRoles));
 </script>
 
@@ -60,27 +69,24 @@
 		viewportHeightClass
 	)}
 >
+	<a
+		href="#{MAIN_CONTENT_ID}"
+		class="bg-background text-foreground ring-ring sr-only z-50 rounded-md px-4 py-2 text-base font-medium shadow-md ring-2 focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
+	>
+		{m.skip_to_content()}
+	</a>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	{#if isRoomDisplay}
-		{@render children()}
-	{:else if isAuthPage || isReportPage || isHomePage || isConversationPage}
-		<div class="grow">
-			{@render children()}
-		</div>
-	{:else if isLivePage}
-		<div class="w-full grow">
-			{@render children()}
-		</div>
-	{:else if isStepPage}
+	{#if isStepPage}
+		<!-- The step page puts the main landmark on its own scroll, so its header and pager stay outside it. -->
 		<div class="flex min-h-0 w-full grow flex-col">
 			{@render children()}
 		</div>
 	{:else}
-		<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
+		<main id={MAIN_CONTENT_ID} tabindex="-1" class={cn('outline-none', mainClass)}>
 			{@render children()}
-		</div>
+		</main>
 	{/if}
 	<!-- The report pages by its own pager, so a footer would only sit under it. -->
 	{#if !isEmbed && !isLivePage && !isRoomDisplay && !isStepPage && !isReportPage}

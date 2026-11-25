@@ -33,8 +33,8 @@
 {/snippet}
 
 <section class="my-10 grid grid-cols-[auto_1fr]">
-	<nav class="mr-12">
-		<span class="text-base font-semibold">Settings</span>
+	<nav class="mr-12" aria-labelledby="settings-nav-title">
+		<span id="settings-nav-title" class="text-base font-semibold">Settings</span>
 		<ul class="mt-5">
 			{@render MenuItem(UserRound, 'Your profile', 'profile')}
 			{@render MenuItem(BellRing, 'Notifications', 'notifications')}
