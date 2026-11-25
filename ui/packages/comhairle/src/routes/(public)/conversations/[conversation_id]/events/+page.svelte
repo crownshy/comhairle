@@ -5,6 +5,7 @@
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import Users from '@lucide/svelte/icons/users';
 	import type { PageProps } from './$types';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: PageProps = $props();
 
@@ -22,22 +23,24 @@
 </script>
 
 <svelte:head>
-	<title>Events</title>
+	<title>{m.events_title()}</title>
 </svelte:head>
 
 <div class="mx-auto flex max-w-[700px] flex-col items-center gap-6 py-8">
 	<div class="w-full">
 		<div class="flex items-center gap-3">
-			<h1 class="text-3xl font-semibold">Events</h1>
+			<h1 class="text-3xl font-semibold">{m.events_title()}</h1>
 		</div>
 		<p class="text-muted-foreground mt-2 text-base font-medium">
-			{events.length} event{events.length !== 1 ? 's' : ''} scheduled for this conversation.
+			{events.length === 1
+				? m.events_count_one({ count: events.length })
+				: m.events_count_other({ count: events.length })}
 		</p>
 	</div>
 
 	{#if events.length === 0}
 		<div class="border-border w-full rounded-3xl border border-dashed p-12 text-center">
-			<p class="text-muted-foreground">No events scheduled for this conversation yet.</p>
+			<p class="text-muted-foreground">{m.events_none()}</p>
 		</div>
 	{:else}
 		<div class="flex w-full flex-col gap-6">
@@ -69,12 +72,16 @@
 								<span
 									class="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
 								></span>
-								Live
+								{m.event_status_live()}
 							</Badge>
 						{:else if status === 'past'}
-							<Badge variant="secondary" class="shrink-0">Past</Badge>
+							<Badge variant="secondary" class="shrink-0"
+								>{m.event_status_past()}</Badge
+							>
 						{:else}
-							<Badge variant="outline" class="bg-primary/10 shrink-0">Upcoming</Badge>
+							<Badge variant="outline" class="bg-primary/10 shrink-0"
+								>{m.event_status_upcoming()}</Badge
+							>
 						{/if}
 					</div>
 
@@ -96,7 +103,7 @@
 						</div>
 						<div class="flex items-center gap-2 text-sm">
 							<Users class="text-foreground h-4 w-4 shrink-0" />
-							<span class="font-medium">Current attendees</span>
+							<span class="font-medium">{m.events_current_attendees()}</span>
 							<span class="text-muted-foreground line-clamp-1"
 								>{event.currentAttendance}{event.capacity
 									? ` / ${event.capacity}`
@@ -113,6 +120,6 @@
 		href="/conversations/{conversationId}"
 		class="text-muted-foreground hover:text-foreground text-sm"
 	>
-		← Back to conversation
+		← {m.events_back_to_conversation()}
 	</a>
 </div>

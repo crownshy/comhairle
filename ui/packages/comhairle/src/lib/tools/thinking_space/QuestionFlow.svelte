@@ -16,6 +16,7 @@
 	import { cn } from '$lib/utils';
 	import { MAX_ANSWER_WORDS } from './wordLimit';
 	import LiveRegion from '$lib/components/LiveRegion.svelte';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 
 	type Props = {
 		workflowStepId: string;
@@ -73,9 +74,9 @@
 	async function scrollToFocus() {
 		await tick();
 		if (flow.minReached && flow.currentState.phase !== 'answering') {
-			continueEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			continueEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
 		} else {
-			bottomEl?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+			bottomEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'end' });
 		}
 	}
 
@@ -141,7 +142,7 @@
 					<h2 class="text-foreground text-2xl leading-snug font-semibold">
 						{m.thinking_space_explore_further()}
 					</h2>
-					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">
+					<p class="text-muted-foreground mt-2 text-base leading-relaxed">
 						{m.thinking_space_add_more()}
 					</p>
 				</header>
@@ -155,7 +156,7 @@
 							class="border-border bg-card hover:border-primary hover:bg-primary/5 flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
 						>
 							<div class="min-w-0">
-								<p class="text-foreground text-sm leading-snug font-medium">
+								<p class="text-foreground text-base leading-snug font-medium">
 									{q.text || '(unnamed question)'}
 								</p>
 								<p class="text-muted-foreground mt-1 text-xs">
@@ -228,7 +229,7 @@
 						<p class="text-primary mb-1 text-xs font-semibold tracking-wide uppercase">
 							{m.thinking_space_you_answered()}
 						</p>
-						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+						<p class="text-foreground text-base leading-relaxed whitespace-pre-wrap">
 							{flow.currentState.rootAnswer}
 						</p>
 					</section>
@@ -248,7 +249,9 @@
 							{followUp.question}
 						</p>
 						<div class="border-primary/20 bg-primary/5 rounded-lg border p-3">
-							<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+							<p
+								class="text-foreground text-base leading-relaxed whitespace-pre-wrap"
+							>
 								{followUp.answer}
 							</p>
 						</div>
@@ -272,7 +275,7 @@
 									{m.thinking_space_continue()}
 								</Button>
 								<p
-									class="text-muted-foreground text-center text-xs leading-relaxed"
+									class="text-muted-foreground text-center text-base leading-relaxed"
 								>
 									{m.thinking_space_keep_going()}
 								</p>
@@ -287,7 +290,7 @@
 									{flow.isLastQuestion ? m.finish() : m.move_on()}
 								</Button>
 								<p
-									class="text-muted-foreground text-center text-xs leading-relaxed"
+									class="text-muted-foreground text-center text-base leading-relaxed"
 								>
 									{flow.isLastQuestion
 										? m.thinking_space_happy_finish()
@@ -369,7 +372,7 @@
 						<section class="border-border space-y-3 border-t pt-6">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<p class="text-foreground text-sm font-semibold">
+									<p class="text-foreground text-base font-semibold">
 										{inExtensionChain
 											? m.thinking_space_pick_deeper()
 											: flow.minReached
@@ -377,7 +380,7 @@
 												: m.thinking_space_pick_follow_up()}
 									</p>
 									{#if inExtensionChain}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{m.or()}
 											<button
 												type="button"
@@ -389,14 +392,14 @@
 											.
 										</p>
 									{:else if !flow.minReached}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{flow.followUpsRemaining}
 											{flow.followUpsRemaining === 1
 												? m.thinking_space_follow_to_go()
 												: m.thinking_space_follows_to_go()}
 										</p>
 									{:else}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{m.or()}
 											<button
 												type="button"
@@ -424,7 +427,7 @@
 									<button
 										type="button"
 										onclick={() => flow.pickFollowUp(followUpQuestion)}
-										class="border-primary/20 bg-primary/5 hover:border-primary hover:bg-primary/10 w-full rounded-lg border px-4 py-3 text-left text-sm leading-relaxed transition-colors"
+										class="border-primary/20 bg-primary/5 hover:border-primary hover:bg-primary/10 w-full rounded-lg border px-4 py-3 text-left text-base leading-relaxed transition-colors"
 									>
 										{followUpQuestion}
 									</button>

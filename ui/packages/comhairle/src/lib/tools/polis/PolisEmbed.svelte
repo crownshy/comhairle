@@ -5,6 +5,7 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import ThumbsUp from '@lucide/svelte/icons/thumbs-up';
 	import ThumbsDown from '@lucide/svelte/icons/thumbs-down';
 	import CheckCircle2 from '@lucide/svelte/icons/circle-check';
@@ -1029,7 +1030,11 @@
 									'rounded-2xl border p-3 transition-colors sm:p-6',
 									source.cardClass
 								)}
-								in:fly={{ y: 20, duration: 500, easing: cubicOut }}
+								in:fly={{
+									y: 20,
+									duration: prefersReducedMotion.current ? 0 : 500,
+									easing: cubicOut
+								}}
 							>
 								<StatementSourceLabel {source} />
 								<p
@@ -1041,7 +1046,7 @@
 									<button
 										type="button"
 										onclick={() => (showOriginal = !showOriginal)}
-										class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+										class="text-muted-foreground hover:text-foreground mt-3 inline-flex min-h-6 items-center gap-1.5 text-sm font-medium transition-colors"
 										aria-expanded={showOriginal}
 									>
 										<Languages aria-hidden="true" class="h-4 w-4" />

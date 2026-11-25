@@ -1,4 +1,6 @@
-import * as CookieConsent from 'vanilla-cookieconsent';
+import type { CookieConsentConfig } from 'vanilla-cookieconsent';
+import { m } from '$lib/paraglide/messages';
+import { getLocale } from '$lib/paraglide/runtime';
 
 const MODAL_SELECTORS = {
 	consentModal: '#cc-main .cm',
@@ -24,7 +26,8 @@ function focusModalWhenVisible(selector: string, triesLeft = FOCUS_MAX_TRIES) {
 	modal.focus();
 }
 
-const config: CookieConsent.CookieConsentConfig = {
+// Built on demand so the banner text follows the locale at the moment it opens.
+const buildCookieConsentConfig = (): CookieConsentConfig => ({
 	autoShow: true,
 	disablePageInteraction: true,
 	categories: {
@@ -32,33 +35,6 @@ const config: CookieConsent.CookieConsentConfig = {
 			enabled: true,
 			readOnly: true
 		}
-		// analytics: {
-		// 	// autoClear: {
-		// 	// 	cookies: [
-		// 	// 		{
-		// 	// 			name: /^_ga/ // regex: match all cookies starting with '_ga'
-		// 	// 		},
-		// 	// 		{
-		// 	// 			name: '_gid' // string: exact cookie name
-		// 	// 		}
-		// 	// 	]
-		// 	// },
-
-		// 	// // https://cookieconsent.orestbida.com/reference/configuration-reference.html#category-services
-		// 	// services: {
-		// 	// 	ga: {
-		// 	// 		label: 'Google Analytics',
-		// 	// 		onAccept: () => {},
-		// 	// 		onReject: () => {}
-		// 	// 	},
-		// 	// 	another: {
-		// 	// 		label: 'Another service',
-		// 	// 		onAccept: () => {},
-		// 	// 		onReject: () => {}
-		// 	// 	}
-		// 	// }
-		// },
-		// ads: {}
 	},
 
 	onModalShow: ({ modalName }) => {
@@ -80,83 +56,46 @@ const config: CookieConsent.CookieConsentConfig = {
 	},
 
 	language: {
-		default: 'en',
+		default: getLocale(),
 		translations: {
-			en: {
+			[getLocale()]: {
 				consentModal: {
-					title: 'We use cookies',
-					description:
-						'To make this website function, we use a few cookies to do things like log you in, keep track of your language preference etc.',
-					acceptAllBtn: 'Accept all',
-					acceptNecessaryBtn: 'Reject all',
-					showPreferencesBtn: 'Manage Individual preferences',
-					// closeIconLabel: 'Reject all and close modal',
+					title: m.cookie_consent_title(),
+					description: m.cookie_consent_description(),
+					acceptAllBtn: m.cookie_accept_all(),
+					acceptNecessaryBtn: m.cookie_reject_all(),
+					showPreferencesBtn: m.cookie_manage_preferences(),
 					footer: `
-							<a href="/rights/tos" target="_blank">Terms of Service</a>
-							<a href="/rights/privacy" target="_blank">Privacy Policy</a>
+							<a href="/rights/tos" target="_blank">${m.cookie_terms_of_service()}</a>
+							<a href="/rights/privacy" target="_blank">${m.cookie_privacy_policy()}</a>
 					`
 				},
 				preferencesModal: {
-					title: 'Manage cookie preferences',
-					acceptAllBtn: 'Accept all',
-					acceptNecessaryBtn: 'Reject all',
-					savePreferencesBtn: 'Accept current selection',
-					closeIconLabel: 'Close modal',
-					serviceCounterLabel: 'Service|Services',
+					title: m.cookie_preferences_title(),
+					acceptAllBtn: m.cookie_accept_all(),
+					acceptNecessaryBtn: m.cookie_reject_all(),
+					savePreferencesBtn: m.cookie_save_selection(),
+					closeIconLabel: m.cookie_close_modal(),
+					serviceCounterLabel: m.cookie_service_counter(),
 					sections: [
 						{
-							title: 'Your Privacy Choices',
-							description: `In this panel you can express some preferences related to the processing of your personal information. You may review and change expressed choices at any time by resurfacing this panel via the provided link. To deny your consent to the specific processing activities described below, switch the toggles to off or use the “Reject all” button and confirm you want to save your choices.`
+							title: m.cookie_privacy_choices_title(),
+							description: m.cookie_privacy_choices_description()
 						},
 						{
-							title: 'Strictly Necessary',
-							description:
-								'These cookies are essential for the proper functioning of the website and cannot be disabled.',
-
-							//this field will generate a toggle linked to the 'necessary' category
+							title: m.cookie_necessary_title(),
+							description: m.cookie_necessary_description(),
 							linkedCategory: 'necessary'
 						},
-						// {
-						// 	title: 'Performance and Analytics',
-						// 	description:
-						// 		'These cookies collect information about how you use our website. All of the data is anonymized and cannot be used to identify you.',
-						// 	linkedCategory: 'analytics',
-						// 	cookieTable: {
-						// 		caption: 'Cookie table',
-						// 		headers: {
-						// 			name: 'Cookie',
-						// 			domain: 'Domain',
-						// 			desc: 'Description'
-						// 		},
-						// 		body: [
-						// 			{
-						// 				name: '_ga',
-						// 				domain: 'yourdomain.com',
-						// 				desc: 'Description 1'
-						// 			},
-						// 			{
-						// 				name: '_gid',
-						// 				domain: 'yourdomain.com',
-						// 				desc: 'Description 2'
-						// 			}
-						// 		]
-						// 	}
-						// },
-						// {
-						// 	title: 'Targeting and Advertising',
-						// 	description:
-						// 		'These cookies are used to make advertising messages more relevant to you and your interests. The intention is to display ads that are relevant and engaging for the individual user and thereby more valuable for publishers and third party advertisers.',
-						// 	linkedCategory: 'ads'
-						// },
 						{
-							title: 'More information',
-							description: `For any queries in relation to my policy on cookies and your choices, please <a href="/rights/cookies">visit here</a>`
+							title: m.cookie_more_info_title(),
+							description: `${m.cookie_more_info_description()} <a href="/rights/cookies">${m.cookie_more_info_link()}</a>`
 						}
 					]
 				}
 			}
 		}
 	}
-};
+});
 
-export default config;
+export default buildCookieConsentConfig;

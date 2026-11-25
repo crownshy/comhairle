@@ -115,7 +115,7 @@
 			/>
 		</article>
 	{:else}
-		<h1>Sorry this page is currently not available in this language</h1>
+		<p class="text-base">{m.learn_not_available_in_language()}</p>
 	{/if}
 
 	{#if tutorAvailable && conversation}

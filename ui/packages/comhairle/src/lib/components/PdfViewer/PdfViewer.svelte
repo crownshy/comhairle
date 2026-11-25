@@ -13,6 +13,7 @@
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import { firstHighlightTop, type PdfHighlight } from './highlights';
 	import { HttpStatus } from '$lib/utils/constants';
+	import { m } from '$lib/paraglide/messages';
 
 	pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 		'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -54,8 +55,8 @@
 	const DEFAULT_ZOOM: Zoom = 'fit-width';
 
 	const ZOOM_PRESETS = [
-		{ value: 'fit-width', label: 'Fit width' },
-		{ value: 'fit-page', label: 'Fit page' },
+		{ value: 'fit-width', label: m.pdf_fit_width() },
+		{ value: 'fit-page', label: m.pdf_fit_page() },
 		{ value: '0.5', label: '50%' },
 		{ value: '0.75', label: '75%' },
 		{ value: '1', label: '100%' },
@@ -120,9 +121,9 @@
 	const zoomValue = $derived(String(zoom));
 	const zoomLabel = $derived(
 		zoom === 'fit-width'
-			? 'Fit width'
+			? m.pdf_fit_width()
 			: zoom === 'fit-page'
-				? 'Fit page'
+				? m.pdf_fit_page()
 				: `${Math.round(renderedScale * 100)}%`
 	);
 
@@ -465,21 +466,22 @@
 				variant="outline"
 				size="sm"
 				class="max-sm:hidden"
-				aria-label="Previous page"
-				title="Previous page"
+				aria-label={m.pdf_previous_page()}
+				title={m.pdf_previous_page()}
 				disabled={!canPrev || !revealed}
 				onclick={() => goToPage(currentPage - 1)}
 			>
 				<ChevronLeftIcon aria-hidden="true" class="size-4" />
 			</Button>
-			<span class="text-foreground text-sm font-medium">Page {currentPage} of {numPages}</span
+			<span class="text-foreground text-sm font-medium"
+				>{m.page_x_of_y({ x: currentPage, y: numPages })}</span
 			>
 			<Button
 				variant="outline"
 				size="sm"
 				class="max-sm:hidden"
-				aria-label="Next page"
-				title="Next page"
+				aria-label={m.pdf_next_page()}
+				title={m.pdf_next_page()}
 				disabled={!canNext || !revealed}
 				onclick={() => goToPage(currentPage + 1)}
 			>
@@ -491,15 +493,19 @@
 			<Button
 				variant="outline"
 				size="sm"
-				aria-label="Zoom out"
-				title="Zoom out"
+				aria-label={m.pdf_zoom_out()}
+				title={m.pdf_zoom_out()}
 				disabled={!revealed || renderedScale <= MIN_ZOOM}
 				onclick={zoomOut}
 			>
 				<MinusIcon aria-hidden="true" class="size-4" />
 			</Button>
 			<Select.Root type="single" value={zoomValue} onValueChange={setZoom}>
-				<Select.Trigger size="sm" class="min-w-26 justify-between" aria-label="Zoom level">
+				<Select.Trigger
+					size="sm"
+					class="min-w-26 justify-between"
+					aria-label={m.pdf_zoom_level()}
+				>
 					{zoomLabel}
 				</Select.Trigger>
 				<Select.Content>
@@ -511,8 +517,8 @@
 			<Button
 				variant="outline"
 				size="sm"
-				aria-label="Zoom in"
-				title="Zoom in"
+				aria-label={m.pdf_zoom_in()}
+				title={m.pdf_zoom_in()}
 				disabled={!revealed || renderedScale >= MAX_ZOOM}
 				onclick={zoomIn}
 			>
@@ -527,7 +533,7 @@
 				class="border-border bg-background flex w-45 shrink-0 flex-col gap-2 overflow-y-auto border-r p-3 max-sm:order-2 max-sm:w-full max-sm:flex-row max-sm:items-center max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-t max-sm:border-r-0 max-sm:px-3 max-sm:py-2.5"
 			>
 				<span class="text-muted-foreground px-1 text-sm font-medium max-sm:hidden"
-					>Pages</span
+					>{m.pdf_pages()}</span
 				>
 				<div class="flex flex-col gap-3 max-sm:flex-row max-sm:gap-2.5">
 					{#each pages as page, i (page.pageNumber)}
@@ -537,7 +543,7 @@
 								'group flex shrink-0 cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0',
 								currentPage === i + 1 ? 'text-foreground' : 'text-muted-foreground'
 							)}
-							aria-label={`Go to page ${i + 1}`}
+							aria-label={m.pdf_go_to_page({ page: i + 1 })}
 							aria-current={currentPage === i + 1 ? 'page' : undefined}
 							bind:this={thumbButtons[i]}
 							onclick={() => goToPage(i + 1)}
@@ -567,12 +573,10 @@
 		>
 			{#if sourceUnavailable}
 				<p class="text-muted-foreground m-auto max-w-prose p-8 text-center text-base">
-					This source is no longer available. The learning materials have been updated
-					since this answer was written, so the passage it cited no longer exists. Ask
-					your question again to get an answer with up-to-date sources.
+					{m.pdf_source_unavailable()}
 				</p>
 			{:else if error}
-				<p class="text-destructive m-auto p-8 text-sm">Failed to load PDF: {error}</p>
+				<p class="text-destructive m-auto p-8 text-sm">{m.pdf_load_failed({ error })}</p>
 			{:else}
 				<!-- Pages mount and render while still hidden behind the overlay below, so
 				the auto-jump lands before the reader ever sees them. -->
@@ -607,7 +611,7 @@
 				aria-live="polite"
 			>
 				<Spinner class="text-muted-foreground size-5" />
-				<span class="text-muted-foreground text-sm">Loading document…</span>
+				<span class="text-muted-foreground text-sm">{m.pdf_loading()}</span>
 			</div>
 		{/if}
 	</div>
