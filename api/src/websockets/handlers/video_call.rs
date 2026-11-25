@@ -221,13 +221,16 @@ impl VideoCallState {
             .collect()
     }
 
-    /// Who stays in plenary after a host saves rooms. Someone already kept there stays even
-    /// while offline, so they come back to the main call rather than an empty room.
+    /// Who stays in plenary after a host saves rooms. Someone offline who is already placed,
+    /// in plenary or in a room, can still be moved there, so they come back to the main call
+    /// when they reconnect.
     fn plenary_after_assignment(&self, requested: &[Uuid]) -> HashSet<Uuid> {
         requested
             .iter()
             .filter(|id| {
-                self.participants.contains_key(id) || self.plenary_participants.contains(id)
+                self.participants.contains_key(id)
+                    || self.plenary_participants.contains(id)
+                    || self.has_a_breakout_room(id)
             })
             .copied()
             .collect()
@@ -1859,6 +1862,19 @@ mod tests {
         let plenary = call.plenary_after_assignment(&[online, offline, stranger]);
 
         assert_eq!(plenary, HashSet::from([online, offline]));
+    }
+
+    #[test]
+    fn someone_offline_moved_from_a_room_to_plenary_stays_in_plenary_on_rejoin() {
+        let (host, offline) = (Uuid::new_v4(), Uuid::new_v4());
+        let mut call = call_with(&[(host, "host")], vec![vec![offline]]);
+
+        call.plenary_participants = call.plenary_after_assignment(&[offline]);
+        call.breakout_rooms = call.rooms_from_layout(&[vec![]]);
+        call.place_in_breakout_room(offline);
+
+        assert!(call.plenary_participants.contains(&offline));
+        assert_eq!(room_of(&call, offline), None);
     }
 
     #[test]
