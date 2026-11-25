@@ -50,7 +50,7 @@
 	<title>{m.report_final_report()} | {conversation.title}</title>
 </svelte:head>
 
-<main class="bg-background flex min-h-svh flex-col">
+<div class="bg-background flex min-h-svh flex-col">
 	{#if currentPage && cardNumber}
 		<ReportHeader
 			title={conversation.title}
@@ -82,4 +82,4 @@
 			readMoreHref={pages.length > 0 ? cardHref(page.url, 1) : undefined}
 		/>
 	{/if}
-</main>
+</div>

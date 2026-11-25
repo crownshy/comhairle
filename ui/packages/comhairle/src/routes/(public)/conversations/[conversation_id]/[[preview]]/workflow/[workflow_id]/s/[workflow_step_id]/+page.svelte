@@ -36,6 +36,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { MAIN_CONTENT_ID } from '$lib/utils/mainContent';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { workflowService } from '$lib/services/workflow.svelte';
 	import { ws } from '$lib/api/websockets.svelte';
@@ -499,5 +500,7 @@
 		{/snippet}
 	</StepShell>
 {:else}
-	<h1>{m.step_not_found()}</h1>
+	<main id={MAIN_CONTENT_ID} tabindex="-1" class="outline-none">
+		<h1>{m.step_not_found()}</h1>
+	</main>
 {/if}

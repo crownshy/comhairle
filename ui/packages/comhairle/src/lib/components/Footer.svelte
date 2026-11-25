@@ -26,7 +26,10 @@
 					class="flex flex-col items-center gap-6 md:flex-1 md:flex-row md:justify-between"
 				>
 					<ComhairleLogo color="text-sidebar-foreground" />
-					<nav class="flex flex-wrap items-center justify-center gap-8">
+					<nav
+						aria-label={m.nav_footer_label()}
+						class="flex flex-wrap items-center justify-center gap-8"
+					>
 						{#each navLinks as link (link.href)}
 							<a
 								href={link.href}

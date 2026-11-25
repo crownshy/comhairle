@@ -67,6 +67,7 @@
 </script>
 
 <nav
+	aria-label={m.nav_main_label()}
 	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6 shadow-md"
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
@@ -165,7 +166,7 @@
 							{/if}
 
 							<!-- Navigation links -->
-							<nav class="flex flex-col gap-0.5">
+							<nav aria-label={m.nav_menu_label()} class="flex flex-col gap-0.5">
 								{#each links as link, i (link.href)}
 									{@const Icon = linkIcons[i]}
 									<Button

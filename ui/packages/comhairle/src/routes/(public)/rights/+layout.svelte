@@ -26,7 +26,10 @@
 	</h1>
 
 	<div class="flex flex-col gap-10 md:flex-row md:items-start md:gap-20">
-		<nav class="flex w-full flex-col items-start gap-2 md:w-auto md:shrink-0">
+		<nav
+			aria-label={m.your_rights()}
+			class="flex w-full flex-col items-start gap-2 md:w-auto md:shrink-0"
+		>
 			{#each sections as section (section.href)}
 				<Button
 					variant="ghost"

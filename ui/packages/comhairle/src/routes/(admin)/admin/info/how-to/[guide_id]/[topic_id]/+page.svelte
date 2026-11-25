@@ -72,7 +72,7 @@
 	<title>{topic.title} - Comhairle Handbook</title>
 </svelte:head>
 
-<main
+<div
 	class="grid w-full max-w-6xl min-w-0 gap-8 rounded-xl p-6 md:p-10 lg:grid-cols-[minmax(0,48rem)_16rem] lg:items-start lg:gap-10"
 >
 	<article class="max-w-3xl min-w-0">
@@ -298,4 +298,4 @@
 			</a>
 		</aside>
 	{/if}
-</main>
+</div>
