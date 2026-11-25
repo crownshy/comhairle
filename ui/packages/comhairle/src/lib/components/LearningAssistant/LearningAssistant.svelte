@@ -12,6 +12,7 @@
 	import { highlightsFromPositions } from '$lib/components/PdfViewer/highlights';
 	import { getPreviewKind } from '$lib/utils/previewKind';
 	import LearningAssistantSkeleton from './LearningAssistantSkeleton.svelte';
+	import { answerAnnouncement } from './answerAnnouncement';
 
 	type QA = {
 		id: string;
@@ -46,6 +47,7 @@
 	let activeChunk = $state<ReferenceChunk | null>(null);
 	let viewerOpen = $state(false);
 	let initStartedFor = $state<string | null>(null);
+	let askedThisVisit = $state(false);
 	/** Manual overrides for collapsed state, keyed by QA id. Unset → use default. */
 	let expandedOverrides = $state<Record<string, boolean>>({});
 
@@ -131,11 +133,13 @@
 		loading || isStreaming || initializing || (!!chatError && pageQAs.length === 0)
 	);
 
+	let announcement = $derived(answerAnnouncement(pageQAs[0], askedThisVisit, m.finding_answer()));
+
 	async function handleAsk() {
 		const question = inputVal.trim();
 		if (!question || !session || inputDisabled) return;
 		inputVal = '';
-		focused = false;
+		askedThisVisit = true;
 
 		const contextual = pageTitle ? `[Reading "${pageTitle}"] ${question}` : question;
 		await session.send(question, contextual);
@@ -143,6 +147,7 @@
 
 	async function retryLast() {
 		if (!session || isStreaming) return;
+		askedThisVisit = true;
 		await session.retryLast();
 	}
 
@@ -207,15 +212,16 @@
 			<!-- The uppercase label is hidden in the sidebar: the drawer tab already titles it,
 			     so repeating it here reads as a doubled heading. -->
 			{#if variant === 'inline'}
-				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
+				<p class="text-primary mb-2 text-sm font-semibold tracking-wide uppercase">
 					{m.learning_assistant()}
 				</p>
 			{/if}
-			<div class="text-foreground mb-3 space-y-2 text-sm leading-relaxed">
+			<div class="text-foreground mb-3 space-y-2 text-base leading-relaxed">
 				<p>{m.learning_assistant_summary()}</p>
 				<p>{m.learning_assistant_description()}</p>
 				<p>{m.learning_assistant_privacy_notice()}</p>
 			</div>
+			<p class="sr-only" role="status" aria-live="polite">{announcement}</p>
 			<div
 				class="bg-primary/10 rounded-lg p-4 {variant === 'sidebar'
 					? 'min-h-0 flex-1 overflow-y-auto'
@@ -224,7 +230,8 @@
 				<!-- Init error: shown when there's no usable session yet -->
 				{#if chatError && pageQAs.length === 0 && !initializing}
 					<div
-						class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm"
+						role="alert"
+						class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-base"
 					>
 						<AlertTriangle
 							aria-hidden="true"
@@ -287,13 +294,14 @@
 										}
 									}}
 									placeholder={m.learning_assistant_input_placeholder()}
-									disabled={inputDisabled}
-									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
+									readonly={inputDisabled}
+									aria-disabled={inputDisabled}
+									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none aria-disabled:cursor-not-allowed"
 								/>
 								{#if inputVal.trim()}
 									<button
 										type="button"
-										class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+										class="text-primary shrink-0 bg-transparent p-0 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-50"
 										disabled={inputDisabled}
 										onclick={handleAsk}
 									>
@@ -322,12 +330,12 @@
 									<div class="min-w-0 flex-1">
 										<div class="mb-1 flex items-center gap-2">
 											<p
-												class="text-primary text-[11px] font-semibold tracking-wide uppercase"
+												class="text-primary text-sm font-semibold tracking-wide uppercase"
 											>
 												{m.you_asked()}
 											</p>
 											{#if ts}
-												<span class="text-muted-foreground text-[11px]"
+												<span class="text-muted-foreground text-sm"
 													>· {ts}</span
 												>
 											{/if}
@@ -350,10 +358,11 @@
 
 								{#if open}
 									<div class="border-border/60 rounded-xl px-4 pt-3 pb-4">
-										<div class="text-foreground/90 text-[15px] leading-relaxed">
+										<div class="text-foreground/90 text-base leading-relaxed">
 											{#if qa.error && !qa.answer}
 												<div
-													class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm"
+													role={isNewest ? 'alert' : undefined}
+													class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-base"
 												>
 													<AlertTriangle
 														aria-hidden="true"
@@ -404,7 +413,8 @@
 														class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
 														style="animation-delay: 0.3s"
 													></span>
-													<span class="text-muted-foreground ml-2 text-xs"
+													<span
+														class="text-muted-foreground ml-2 text-base"
 														>{m.finding_answer()}</span
 													>
 												</span>
@@ -416,7 +426,7 @@
 											{#if docs.length > 0}
 												<div class="mt-3">
 													<p
-														class="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase"
+														class="text-muted-foreground mb-1.5 text-sm font-semibold tracking-wide uppercase"
 													>
 														{m.sources()}
 													</p>
@@ -449,7 +459,7 @@
 			</div>
 		{:else}
 			<p
-				class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-center text-xs"
+				class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-center text-base"
 			>
 				{m.learning_assistant_enable_statement()}
 			</p>
