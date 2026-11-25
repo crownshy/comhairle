@@ -9,20 +9,21 @@ A throwaway design prototype on mock data. Open `/home-lab` and use the floating
 - Logged in: `/home-lab?user=1`
 - No conversations: `/home-lab?data=empty`
 - 15 conversations: `/home-lab?data=many`
+- Any conversation page with a test banner image: add `&img=cutout` (or `wide-portrait`, `landscape`, `group`, `tall`), or use the panel's Conversation page image row
 - Another organisation: `/home-lab?org=scot-gov` or `/home-lab?org=waves`
 
 ## Which idea each part tests
 
-| Idea                                     | Where                                                                                                                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. Home and list combined                | `+page.svelte`, a single page from hero to the full list                                                                                                     |
-| 2. Mobile first                          | Built at 375px first, then `sm:`/`md:`/`lg:`                                                                                                                 |
-| 3. Organisation branding                 | Theme-colour `LabTopBar` and visitor `Pitch` block, `FeaturedHero` gradient in the org colour, the real theme per organisation                               |
-| 4. Empty, 100s, featured                 | `EmptyState`, chips (Popular, Latest, status) + `Pager`, `FeaturedHero`                                                                                      |
-| 5. Big Take part in the first screen     | Button on each `FeaturedHero` slide, conversation page button + sticky bar                                                                                   |
-| 6. Less reading on the conversation page | `c/[id]`: title and short description, an info bar (run by, time needed, closing) with a big Take part button over a full-width image; quotes and FAQs below |
-| 7. Logged in vs logged out               | Welcome plus `PersonalStrip` (continue, report ready) at the top; no "Picked for you" until there is a way to recommend                                      |
-| 8. Participant opinions as hooks         | `OpinionHook` on the conversation page only, to keep the home list light                                                                                     |
+| Idea                                     | Where                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Home and list combined                | `+page.svelte`, a single page from hero to the full list                                                                                                                  |
+| 2. Mobile first                          | Built at 375px first, then `sm:`/`md:`/`lg:`                                                                                                                              |
+| 3. Organisation branding                 | Theme-colour `LabTopBar` and visitor `Pitch` block, `FeaturedHero` gradient in the org colour, the real theme per organisation                                            |
+| 4. Empty, 100s, featured                 | `EmptyState`, chips (Popular, Latest, status) + `Pager`, `FeaturedHero`                                                                                                   |
+| 5. Big Take part in the first screen     | Button on each `FeaturedHero` slide, conversation page button + sticky bar                                                                                                |
+| 6. Less reading on the conversation page | `c/[id]`: status with people joined and closing, title, a three-line description and Take part, then a rounded image across the white to grey join; quotes and FAQs below |
+| 7. Logged in vs logged out               | Welcome plus `PersonalStrip` (continue, report ready) at the top; no "Picked for you" until there is a way to recommend                                                   |
+| 8. Participant opinions as hooks         | `OpinionHook` on the conversation page only, to keep the home list light                                                                                                  |
 
 ## Reused from staging
 

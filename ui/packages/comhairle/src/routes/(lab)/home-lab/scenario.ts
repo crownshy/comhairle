@@ -1,6 +1,6 @@
-// The test scenario lives in the URL (?user=1&data=empty&org=waves), so any
+// The test scenario lives in the URL (?user=1&data=empty&org=waves&img=group), so any
 // scenario can be shared as a link and survives a reload.
-import type { Dataset } from './mockData';
+import { BANNER_IMAGES, type Dataset } from './mockData';
 import type { ThemeName } from '$lib/types/theme';
 
 export type Organisation = {
@@ -35,9 +35,15 @@ export const DATASETS: { value: Dataset; label: string }[] = [
 	{ value: 'many', label: '15' }
 ];
 
-export type Scenario = { loggedIn: boolean; dataset: Dataset; org: Organisation };
+export type Scenario = {
+	loggedIn: boolean;
+	dataset: Dataset;
+	org: Organisation;
+	/** Swaps the conversation page banner. Null keeps each conversation's own image. */
+	bannerImage: (typeof BANNER_IMAGES)[number] | null;
+};
 
-const SCENARIO_KEYS = ['user', 'data', 'org'];
+const SCENARIO_KEYS = ['user', 'data', 'org', 'img'];
 
 export function readScenario(url: URL): Scenario {
 	const data = url.searchParams.get('data');
@@ -45,11 +51,18 @@ export function readScenario(url: URL): Scenario {
 	return {
 		loggedIn: url.searchParams.get('user') === '1',
 		dataset,
-		org: ORGANISATIONS.find((o) => o.id === url.searchParams.get('org')) ?? ORGANISATIONS[0]
+		org: ORGANISATIONS.find((o) => o.id === url.searchParams.get('org')) ?? ORGANISATIONS[0],
+		bannerImage: BANNER_IMAGES.find((i) => i.id === url.searchParams.get('img')) ?? null
 	};
 }
 
-type ScenarioPatch = { loggedIn?: boolean; dataset?: Dataset; orgId?: string };
+/** imageId: null goes back to each conversation's own image. */
+type ScenarioPatch = {
+	loggedIn?: boolean;
+	dataset?: Dataset;
+	orgId?: string;
+	imageId?: string | null;
+};
 
 /** Only the scenario part of the query string, with some values changed. */
 export function scenarioQuery(url: URL, patch: ScenarioPatch = {}): string {
@@ -59,6 +72,8 @@ export function scenarioQuery(url: URL, patch: ScenarioPatch = {}): string {
 	const dataset = patch.dataset ?? current.dataset;
 	if (dataset !== 'normal') params.set('data', dataset);
 	params.set('org', patch.orgId ?? current.org.id);
+	const imageId = patch.imageId === undefined ? current.bannerImage?.id : patch.imageId;
+	if (imageId) params.set('img', imageId);
 	return `?${params}`;
 }
 

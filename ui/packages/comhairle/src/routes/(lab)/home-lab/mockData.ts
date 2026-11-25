@@ -9,6 +9,11 @@ import librariesImage from './media/libraries.jpg';
 import schoolStreetsImage from './media/school-streets.jpg';
 import canalImage from './media/canal.jpg';
 import tramHousingImage from './media/tram-housing.jpg';
+// Real banner images with awkward shapes, for the scenario panel's Image row. Not for production.
+import testCutoutImage from './media/test-cutout.webp';
+import testWidePortraitImage from './media/test-wide-portrait.jpg';
+import testLandscapeImage from './media/test-landscape.jpg';
+import testGroupImage from './media/test-group.jpg';
 
 // Image imports are typed loosely in this repo; they are URLs at runtime.
 const seattle = seattleImage as string;
@@ -296,6 +301,15 @@ const GENERATED = Array.from({ length: 15 - SEEDS.length }, (_, i) => {
 		quotes: []
 	});
 });
+
+/** Images the scenario panel can swap into the conversation page banner. */
+export const BANNER_IMAGES: { id: string; label: string; url: string }[] = [
+	{ id: 'cutout', label: 'Cut-out, space above', url: testCutoutImage as string },
+	{ id: 'wide-portrait', label: 'Wide portrait', url: testWidePortraitImage as string },
+	{ id: 'landscape', label: 'Landscape, half sky', url: testLandscapeImage as string },
+	{ id: 'group', label: 'Group of people', url: testGroupImage as string },
+	{ id: 'tall', label: 'Tall (2:3)', url: canal }
+];
 
 export type Dataset = 'normal' | 'empty' | 'many';
 

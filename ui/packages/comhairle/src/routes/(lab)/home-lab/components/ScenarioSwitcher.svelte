@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { FlaskConical } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { BANNER_IMAGES } from '../mockData';
 	import { DATASETS, ORGANISATIONS, readScenario, scenarioQuery } from '../scenario';
 
 	const scenario = $derived(readScenario(page.url));
@@ -52,6 +53,19 @@
 				{#each ORGANISATIONS as org (org.id)}
 					<a href={hrefWith({ orgId: org.id })} class={chip(scenario.org.id === org.id)}
 						>{org.label}</a
+					>
+				{/each}
+			</div>
+		</fieldset>
+		<fieldset class="flex flex-col gap-2">
+			<legend class="text-muted-foreground pb-2 text-base">Conversation page image</legend>
+			<div class="flex max-w-md flex-wrap gap-2">
+				<a href={hrefWith({ imageId: null })} class={chip(!scenario.bannerImage)}>Its own</a
+				>
+				{#each BANNER_IMAGES as image (image.id)}
+					<a
+						href={hrefWith({ imageId: image.id })}
+						class={chip(scenario.bannerImage?.id === image.id)}>{image.label}</a
 					>
 				{/each}
 			</div>
