@@ -33,6 +33,7 @@ describe('Media interface', () => {
 	it.each(['image/png', 'video/mp4', 'audio/mpeg'] as const)(
 		'uploads %s with the headers required by the presigned request',
 		async (contentType) => {
+			// Size is 5 because content is the string "media" which is 5 characters
 			const file = new File(['media'], 'upload', { type: contentType });
 			const response: UploadMediaResponseDto = {
 				presignedUploadUrl: 'https://storage.example.com/upload',
@@ -43,7 +44,7 @@ describe('Media interface', () => {
 					filename: file.name,
 					name: 'Uploaded media',
 					alt: 'Description',
-					size: 12_000_000,
+					size: 5,
 					contentType,
 					storageKey: 'upload',
 					storeName: 'media',
@@ -79,6 +80,7 @@ describe('Media interface', () => {
 				filename: file.name,
 				name: response.media.name,
 				alt: response.media.alt,
+				size: 5,
 				contentType
 			});
 			expect(request.open).toHaveBeenCalledWith('PUT', response.presignedUploadUrl, true);

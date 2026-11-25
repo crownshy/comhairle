@@ -260,7 +260,7 @@ mod tests {
             content_type: content_type.to_string(),
             name: name.to_string(),
             alt: alt.to_string(),
-            size: size,
+            size,
         };
 
         let (_, value, _) = session

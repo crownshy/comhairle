@@ -2275,6 +2275,7 @@ mod tests {
             content_type: String::from("image/jpeg"),
             name: String::from("test-name"),
             alt: String::from("test-alt"),
+            size: 12_000_000,
         };
 
         let (_, value, _) = session
