@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import CheckCircle from '@lucide/svelte/icons/circle-check-big';
 
 	interface Props {
@@ -21,7 +22,11 @@
 
 		<!-- Heading -->
 		<div class="flex flex-col items-center gap-4">
-			<h1 class="text-foreground text-4xl leading-10 font-bold">
+			<h1
+				tabindex="-1"
+				{@attach focusOnScreenChange}
+				class="text-foreground text-4xl leading-10 font-bold outline-none"
+			>
 				Thank you for participating!
 			</h1>
 			<p class="text-muted-foreground text-lg leading-7">

@@ -38,6 +38,19 @@
 
 	let forwardLabel = $derived(forwardMode === 'skip' ? m.pager_skip() : (nextLabel ?? m.next()));
 	let explainBlocked = $derived(!canGoForward && !loading && blockedReason !== undefined);
+
+	// Blocking swaps the forward button for a popover trigger. If the participant was on it,
+	// put them on the new one rather than dropping them at the top of the page.
+	let forwardSlot = $state<HTMLElement | null>(null);
+	let forwardHadFocus = false;
+	$effect.pre(() => {
+		void explainBlocked;
+		forwardHadFocus = forwardSlot?.contains(document.activeElement) ?? false;
+	});
+	$effect(() => {
+		void explainBlocked;
+		if (forwardHadFocus) forwardSlot?.querySelector('button')?.focus();
+	});
 </script>
 
 <!-- Back and forward are the only moves (ADR-0048). The forward button is labelled so it reads
@@ -55,24 +68,26 @@
 		onclick={onBack}
 	/>
 
-	{#if explainBlocked}
-		<!-- aria-disabled rather than disabled, so the press still reaches the popover. -->
-		<Popover.Root>
-			<Popover.Trigger class={cn(PAGER_BUTTON_CLASS, 'ms-auto')} aria-disabled="true">
-				<span class="text-base font-medium">{forwardLabel}</span>
-				<ChevronRight class="size-6 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
-			</Popover.Trigger>
-			<Popover.Content side="top" align="end" class="w-auto max-w-72 text-base">
-				{blockedReason}
-			</Popover.Content>
-		</Popover.Root>
-	{:else}
-		<PagerButton
-			direction="forward"
-			label={forwardLabel}
-			disabled={!canGoForward}
-			{loading}
-			onclick={onForward}
-		/>
-	{/if}
+	<div bind:this={forwardSlot} class="ms-auto flex">
+		{#if explainBlocked}
+			<!-- aria-disabled rather than disabled, so the press still reaches the popover. -->
+			<Popover.Root>
+				<Popover.Trigger class={cn(PAGER_BUTTON_CLASS, 'ms-auto')} aria-disabled="true">
+					<span class="text-base font-medium">{forwardLabel}</span>
+					<ChevronRight class="size-6 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
+				</Popover.Trigger>
+				<Popover.Content side="top" align="end" class="w-auto max-w-72 text-base">
+					{blockedReason}
+				</Popover.Content>
+			</Popover.Root>
+		{:else}
+			<PagerButton
+				direction="forward"
+				label={forwardLabel}
+				disabled={!canGoForward}
+				{loading}
+				onclick={onForward}
+			/>
+		{/if}
+	</div>
 </div>

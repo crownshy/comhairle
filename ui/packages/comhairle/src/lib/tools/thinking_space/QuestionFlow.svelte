@@ -14,6 +14,7 @@
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { cn } from '$lib/utils';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { MAX_ANSWER_WORDS } from './wordLimit';
 	import LiveRegion from '$lib/components/LiveRegion.svelte';
 	import { scrollBehavior } from '$lib/utils/reducedMotion';
@@ -139,7 +140,11 @@
 		{#if inExtensionPicker}
 			<div class="mx-auto max-w-2xl space-y-6">
 				<header>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="text-foreground text-2xl leading-snug font-semibold outline-none"
+					>
 						{m.thinking_space_explore_further()}
 					</h2>
 					<p class="text-muted-foreground mt-2 text-base leading-relaxed">
@@ -263,7 +268,12 @@
 			     participant opts in. Initial mode only — extension mode has a
 			     single "Done with this question" exit instead. -->
 				{#if !inExtensionChain && flow.minReached && flow.currentState.phase !== 'answering' && flow.followUpCount > 0 && !flow.currentState.wantsMore}
-					<section bind:this={continueEl} class="border-border border-t pt-8">
+					<section
+						bind:this={continueEl}
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="border-border border-t pt-8 outline-none"
+					>
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-start">
 							<div class="flex flex-1 flex-col items-stretch gap-2">
 								<Button
@@ -304,7 +314,12 @@
 				<!-- Continue alone — when there are no optional follow-ups to offer.
 			     Initial mode only. -->
 				{#if !inExtensionChain && flow.minReached && flow.currentState.phase !== 'answering' && flow.followUpCount === 0}
-					<section bind:this={continueEl} class="border-border border-t pt-8">
+					<section
+						bind:this={continueEl}
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="border-border border-t pt-8 outline-none"
+					>
 						<Button
 							size="lg"
 							class="h-12 w-full text-base"
@@ -372,7 +387,11 @@
 						<section class="border-border space-y-3 border-t pt-6">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<p class="text-foreground text-base font-semibold">
+									<p
+										tabindex="-1"
+										{@attach focusOnScreenChange}
+										class="text-foreground text-base font-semibold outline-none"
+									>
 										{inExtensionChain
 											? m.thinking_space_pick_deeper()
 											: flow.minReached

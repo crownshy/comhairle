@@ -32,6 +32,7 @@
 	import LiveRegion from '$lib/components/LiveRegion.svelte';
 	import { statementSourceOf } from './statementSource';
 	import { cn } from '$lib/utils';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -687,7 +688,11 @@
 			{#if opinionView === 'policy'}
 				<ModerationPolicy workflowStepId={stepId} {isPreview} />
 			{:else if opinionView === 'thanks'}
-				<p class="text-card-foreground text-center text-lg">
+				<p
+					tabindex="-1"
+					{@attach focusOnScreenChange}
+					class="text-card-foreground text-center text-lg outline-none"
+				>
 					{strictModeration
 						? m.polis_opinion_thanks_body_moderated()
 						: m.polis_opinion_thanks_body()}
@@ -899,6 +904,7 @@
 				<div class="w-full" in:fade={{ duration: 200 }}>
 					<GuideScreen
 						title={introTitle}
+						focusTitle={false}
 						next={m.polis_onboarding_next()}
 						onNext={() => goTo(firstVotingStage(practicePick))}
 					>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import PhoneOff from '@lucide/svelte/icons/phone-off';
 
 	interface Props {
@@ -17,7 +18,13 @@
 		</div>
 
 		<div class="flex flex-col items-center gap-4">
-			<h1 class="text-foreground text-4xl leading-10 font-bold">You left the meeting</h1>
+			<h1
+				tabindex="-1"
+				{@attach focusOnScreenChange}
+				class="text-foreground text-4xl leading-10 font-bold outline-none"
+			>
+				You left the meeting
+			</h1>
 			<p class="text-muted-foreground text-lg leading-7">
 				<span class="text-foreground font-medium">{title}</span> is still going. You can rejoin
 				until it ends.
