@@ -340,6 +340,7 @@
 		/** Surface which required fields are missing rather than silently doing nothing. */
 		if (!isComplete) {
 			submitAttempted = true;
+			await focusFirstMissingQuestion();
 			return;
 		}
 		await submitCurrent();
@@ -354,6 +355,20 @@
 			currentIndex += 1;
 		}
 		await scrollToTop();
+	}
+
+	let proposalQuestions = $state<HTMLElement | null>(null);
+
+	/** A radio group itself can't take focus, so focus its tabbable option instead. */
+	async function focusFirstMissingQuestion() {
+		await tick();
+		const field = proposalQuestions?.querySelector<HTMLElement>('[aria-invalid="true"]');
+		if (!field) return;
+		const target = field.matches('[role="radiogroup"]')
+			? (field.querySelector<HTMLElement>('[role="radio"][tabindex="0"]') ??
+				field.querySelector<HTMLElement>('[role="radio"]'))
+			: field;
+		target?.focus();
 	}
 
 	function goBack() {
@@ -578,7 +593,7 @@
 			{/if}
 		</div>
 	{:else if current}
-		<div class="space-y-6">
+		<div class="space-y-6" bind:this={proposalQuestions}>
 			<Card.Root>
 				<Card.Header>
 					<div class="pile">
@@ -593,8 +608,8 @@
 								<Tooltip.Provider delayDuration={150}>
 									<Tooltip.Root>
 										<Tooltip.Trigger
-											class="text-muted-foreground hover:text-foreground"
-											aria-label="What does Submitted mean?"
+											class="text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded-full"
+											aria-label={m.prioritization_submitted_info_label()}
 										>
 											<Info class="size-4" />
 										</Tooltip.Trigger>
@@ -694,12 +709,12 @@
 				</p>
 			{/if}
 			{#if showRequiredErrors}
-				<p class="text-destructive text-right text-sm">
+				<p role="alert" class="text-destructive text-right text-sm">
 					Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
 				</p>
 			{/if}
 			{#if submitError}
-				<p class="text-destructive text-right text-sm">{submitError}</p>
+				<p role="alert" class="text-destructive text-right text-sm">{submitError}</p>
 			{/if}
 		</div>
 	{/if}
