@@ -12,4 +12,6 @@ export type Tour = {
 	/** Unique across the app. Used as the "seen" key, so changing it replays the tour for everyone. */
 	id: string;
 	steps: TourStep[];
+	/** Label for the button that ends the tour. Defaults to driver.js's "Done". */
+	doneLabel?: string;
 };

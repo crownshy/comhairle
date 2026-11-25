@@ -6,7 +6,8 @@
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { stepModerationTour } from './tour';
 
-	useTour(() => stepModerationTour);
+	// The moderation rules dialog is this page's first-visit welcome, so the tour waits for a replay.
+	useTour(() => stepModerationTour, { autoplay: false });
 
 	let { data } = $props();
 

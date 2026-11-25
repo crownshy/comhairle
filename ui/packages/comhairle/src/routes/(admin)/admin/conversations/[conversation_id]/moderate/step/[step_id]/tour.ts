@@ -11,6 +11,13 @@ export const stepModerationTour: Tour = {
 			side: 'bottom'
 		},
 		{
+			element: '[data-tour="moderation-rules"]',
+			title: 'Moderation rules',
+			description:
+				'What matters most, what to do and never do, your reasons for rejecting, and a practice round with made-up statements.',
+			side: 'bottom'
+		},
+		{
 			element: '[data-tour="moderation-filters"]',
 			title: 'Work through the queue',
 			description:

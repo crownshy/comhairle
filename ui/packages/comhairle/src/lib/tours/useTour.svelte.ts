@@ -8,11 +8,14 @@ import type { Tour } from './types';
  * (e.g. which engagement tool a step uses) — a step route doesn't remount on a param change, so
  * only a getter re-activates the right tour when that state changes. A getter that returns
  * null/undefined deactivates any tour this call previously registered. */
-export function useTour(getTour: () => Tour | null | undefined) {
+export function useTour(
+	getTour: () => Tour | null | undefined,
+	options: { autoplay?: boolean } = {}
+) {
 	$effect(() => {
 		const tour = getTour();
 		if (!tour) return;
-		tourStore.activate(tour);
+		tourStore.activate(tour, options);
 		return () => tourStore.deactivate(tour.id);
 	});
 }
