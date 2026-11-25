@@ -8,7 +8,9 @@
  * The "Next" link is worked out from the order of topics below.
  *
  * The glossary (/admin/info/glossary) is separate: ADMIN_GLOSSARY at the bottom of this file.
- * Link to a term with [text](/admin/info/glossary#term-<term-in-kebab-case>).
+ * The first mention of a glossary term on a topic page becomes a tooltip automatically
+ * (plurals too). Add other word forms to the term's `aliases`, and set `learnMore` to the
+ * page that explains it; that page opens in a dialog from the tooltip.
  *
  * Inline formatting in any of these strings:
  *   **Launch**            bold – use for button, tab and field names as they appear on screen
@@ -54,6 +56,16 @@ import signUpImage from './assets/admin-guide/sign-up.webp';
 export type AdminGuideTerm = {
 	term: string;
 	definition: string;
+	/**
+	 * Other forms of the word that should also get the handbook tooltip. Simple plurals
+	 * (step → steps) are matched automatically; list anything else here, e.g. 'launched'.
+	 */
+	aliases?: string[];
+	/**
+	 * The handbook page that explains this term in depth, linked from its tooltip.
+	 * Copy: "How to <verb>" for a how-to topic, "See how it works" for a tool page.
+	 */
+	learnMore?: { label: string; href: string };
 };
 
 export type AdminGuideImage = {
@@ -1158,61 +1170,99 @@ export const ADMIN_GLOSSARY = {
 			{
 				term: 'Conversation',
 				definition:
-					'A conversation is a public consultation on a particular topic that you create and manage in the workspace.'
+					'A conversation is a public consultation on a particular topic that you create and manage in the workspace.',
+				learnMore: {
+					label: 'How to create one',
+					href: '/admin/info/how-to/create-a-conversation/create-a-conversation'
+				}
 			},
 			{
 				term: 'Step',
 				definition:
-					'One stage of the participant journey, such as reading background material or answering a poll. Each step uses one engagement tool.'
+					'One stage of the participant journey, such as reading background material or answering a poll. Each step uses one engagement tool.',
+				learnMore: {
+					label: 'How to design steps',
+					href: '/admin/info/how-to/design-the-engagement-process/design-steps'
+				}
 			},
 			{
 				term: 'Process design',
 				definition:
-					'Where you build the ordered list of steps (sometimes called the workflow) for a Conversation.'
+					'Where you build the ordered list of steps (sometimes called the workflow) for a Conversation.',
+				learnMore: {
+					label: 'How to design steps',
+					href: '/admin/info/how-to/design-the-engagement-process/design-steps'
+				}
 			},
 			{
 				term: 'Engagement tool',
 				definition:
-					'The tool providing an activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.'
+					'The tool providing an activity behind a step, for example Learn step, Participant-led Poll, Thinking space, Survey or Prioritization tool.',
+				learnMore: { label: 'Browse engagement tools', href: '/admin/info/tools' }
 			},
 			{
 				term: 'Preview',
 				definition:
-					'A view of the Conversation exactly as participants will see it, without making it live.'
+					'A view of the Conversation exactly as participants will see it, without making it live.',
+				learnMore: {
+					label: 'How to preview',
+					href: '/admin/info/how-to/create-a-conversation/preview'
+				}
 			},
 			{
 				term: 'Launch',
 				definition:
-					'Making the Conversation live so participants can take part. After launch, the Conversation can no longer be edited.'
+					'Making the Conversation live so participants can take part. After launch, the Conversation can no longer be edited.',
+				aliases: ['launched', 'launching'],
+				learnMore: {
+					label: 'How to launch',
+					href: '/admin/info/how-to/launch-a-conversation/launch-a-conversation'
+				}
 			},
 			{
 				term: 'Participant-led poll',
 				definition:
-					'An engagement tool where participants agree, disagree or pass on short statements, and can write statements of their own for others to vote on.'
+					'An engagement tool where participants agree, disagree or pass on short statements, and can write statements of their own for others to vote on.',
+				learnMore: { label: 'See how it works', href: '/admin/info/tools/polis' }
 			},
 			{
 				term: 'Statement',
 				definition:
-					'A short point in a Participant-led poll that participants vote on. A statement should make one point, so people can agree or disagree with it in a single vote.'
+					'A short point in a Participant-led poll that participants vote on. A statement should make one point, so people can agree or disagree with it in a single vote.',
+				learnMore: { label: 'See how it works', href: '/admin/info/tools/polis' }
 			},
 			{
 				term: 'Seed statement',
 				definition:
-					'A statement you add yourself to start a Participant-led poll, so participants have something to vote on from the beginning. Seed statements are accepted automatically.'
+					'A statement you add yourself to start a Participant-led poll, so participants have something to vote on from the beginning. Seed statements are accepted automatically.',
+				learnMore: { label: 'See how it works', href: '/admin/info/tools/polis' }
 			},
 			{
 				term: 'Moderation',
 				definition:
-					'Reviewing statements that participants write in a Participant-led Poll, and accepting or rejecting them.'
+					'Reviewing statements that participants write in a Participant-led Poll, and accepting or rejecting them.',
+				learnMore: {
+					label: 'How to moderate',
+					href: '/admin/info/how-to/manage-a-conversation/moderate'
+				}
 			},
 			{
 				term: 'Moderation policy',
 				definition:
-					'The list of reasons, such as Off-topic or Duplicate, that moderators choose from when rejecting a statement. Set it under **Configure** → **Moderation policy**.'
+					'The list of reasons, such as Off-topic or Duplicate, that moderators choose from when rejecting a statement. Set it under **Configure** → **Moderation policy**.',
+				learnMore: {
+					label: 'See an example policy',
+					href: '/admin/info/how-to/advanced/moderation-in-depth'
+				}
 			},
 			{
 				term: 'Insights',
-				definition: 'The responses and results collected in a step.'
+				definition: 'The responses and results collected in a step.',
+				aliases: ['insight'],
+				learnMore: {
+					label: 'How to see insights',
+					href: '/admin/info/how-to/manage-a-conversation/see-insights'
+				}
 			}
 		] satisfies AdminGuideTerm[]
 	).sort((a, b) => a.term.localeCompare(b.term))

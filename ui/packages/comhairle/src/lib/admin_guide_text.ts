@@ -15,7 +15,9 @@ export type GuideTextPart =
 	| { kind: 'text'; text: string }
 	| { kind: 'bold'; text: string }
 	| { kind: 'link'; text: string; href: string }
-	| { kind: 'icon'; name: GuideIconName };
+	| { kind: 'icon'; name: GuideIconName }
+	/** A glossary word shown with its definition on hover/tap; added by admin_guide_glossary.ts. */
+	| { kind: 'term'; text: string; term: string };
 
 export type GuideIconName =
 	| 'accept'
