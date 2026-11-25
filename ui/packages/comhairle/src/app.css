@@ -119,7 +119,7 @@ a {
  */
 .dynamic-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(var(--grid-item-width, 15rem), 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(var(--grid-item-width, 19rem), 1fr));
 	align-items: stretch;
 }
 

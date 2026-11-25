@@ -132,7 +132,7 @@
 
 <Dialog.Portal>
 	<Dialog.Overlay>
-		<Dialog.Content class="flex min-w-[90vw] flex-col overflow-y-scroll">
+		<Dialog.Content class="flex min-w-[90vw] flex-col">
 			<Dialog.Header class="mr-10 flex h-8 flex-row items-center text-xl font-bold">
 				<span class="grow">{filename}</span>
 				{#if !editable}
