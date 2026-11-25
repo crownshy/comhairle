@@ -85,6 +85,7 @@
 					<Form.Label>{m.username()}</Form.Label>
 					<Input
 						{...props}
+						autocomplete="nickname"
 						placeholder={m.username()}
 						bind:value={$formData.username}
 						required
@@ -100,6 +101,8 @@
 					<Form.Label>{m.email()}</Form.Label>
 					<Input
 						{...props}
+						type="email"
+						autocomplete="email"
 						placeholder={m.email()}
 						bind:value={$formData.email}
 						required

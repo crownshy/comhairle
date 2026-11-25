@@ -79,6 +79,8 @@
 							<Form.Label>{m.email()}</Form.Label>
 							<Input
 								bind:value={$formData.email}
+								type="email"
+								autocomplete="email"
 								placeholder={m.email_placeholder()}
 								{...props}
 								required

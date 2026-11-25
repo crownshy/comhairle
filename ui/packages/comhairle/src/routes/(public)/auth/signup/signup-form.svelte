@@ -79,6 +79,7 @@
 					<Form.Label>{m.username()}</Form.Label>
 					<Input
 						{...props}
+						autocomplete="nickname"
 						placeholder={m.username()}
 						bind:value={$formData.username}
 						required
@@ -92,7 +93,13 @@
 			<Form.Control>
 				{#snippet children({ props })}
 					<Form.Label>{m.email()}</Form.Label>
-					<Input {...props} placeholder={m.email()} bind:value={$formData.email} />
+					<Input
+						{...props}
+						type="email"
+						autocomplete="email"
+						placeholder={m.email()}
+						bind:value={$formData.email}
+					/>
 				{/snippet}
 			</Form.Control>
 			<Form.FieldErrors />
@@ -104,6 +111,7 @@
 					<Form.Label>{m.password()}</Form.Label>
 					<PasswordInput
 						{...props}
+						autocomplete="new-password"
 						placeholder={m.please_enter_a_password()}
 						bind:value={$formData.password}
 					/>
@@ -118,6 +126,7 @@
 					<Form.Label>{m.confirm_password()}</Form.Label>
 					<PasswordInput
 						{...props}
+						autocomplete="new-password"
 						placeholder={m.confirm_password()}
 						bind:value={$formData.password_confirm}
 					/>
