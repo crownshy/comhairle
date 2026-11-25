@@ -24,7 +24,7 @@ export function createRegionEditor() {
 	let requestId = 0;
 	let disposed = false;
 	const snapshot = $derived(
-		JSON.stringify([name, description, regionType, officialId, areaIds.sort()])
+		JSON.stringify([name, description, regionType, officialId, areaIds.toSorted()])
 	);
 	const dirty = $derived(editing && snapshot !== baseline);
 

@@ -5869,22 +5869,22 @@ curl -X POST \
                 schema: created_after,
             },
             {
-                name: "viewport_max_lat",
+                name: "viewport_center_lat",
                 type: "Query",
                 schema: limit,
             },
             {
-                name: "viewport_max_lng",
+                name: "viewport_center_lng",
                 type: "Query",
                 schema: limit,
             },
             {
-                name: "viewport_min_lat",
+                name: "viewport_lat_span",
                 type: "Query",
                 schema: limit,
             },
             {
-                name: "viewport_min_lng",
+                name: "viewport_lng_span",
                 type: "Query",
                 schema: limit,
             },

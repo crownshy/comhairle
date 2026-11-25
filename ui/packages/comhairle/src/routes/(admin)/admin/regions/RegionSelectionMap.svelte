@@ -8,7 +8,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Menu from '$lib/components/ui/dropdown-menu';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { areaFeatures } from './selection';
+	import { areaFeatures, viewportQuery } from './selection';
 	import { positionsFromCoordinates } from './import';
 	import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import 'maplibre-gl/dist/maplibre-gl.css';
@@ -40,6 +40,7 @@
 	const VIEWPORT_LIMIT = 1000;
 	const LOAD_BATCH_SIZE = 100;
 	const REFRESH_DELAY_MS = 1000;
+	const VIEWPORT_ERROR = 'Could not load boundaries for this view. Try again.';
 	const debouncedRefresh = useDebounce(refresh, REFRESH_DELAY_MS);
 
 	$effect(() => {
@@ -72,26 +73,16 @@
 		);
 	}
 
-	/** Normalise the map viewport to one WGS84 rectangle the API can filter on. */
+	/** Describe the map viewport as a WGS84 centre and span the API can filter on. */
 	function viewportQueries() {
 		const bounds = map?.getBounds();
 		if (!bounds) return null;
-		// We avoid letting the viewport bounds extend too close to the poles or wrap around the globe so that the
-		// resulting shape has a non-zero area. A viewport with a calculated area of zero will display all areas up to
-		// the pagination limit since smaller areas will not be filtered out.
-		const south = Math.max(-89, bounds.getSouth());
-		const north = Math.min(89, bounds.getNorth());
-		const span = Math.min(359, bounds.getEast() - bounds.getWest());
-		const west = ((bounds.getWest() + 180) % 360) - 180;
-		const east = west + span;
-		if (![south, north, west, east].every(Number.isFinite) || north <= south) return null;
-		const [minLng, maxLng] = east > west && east <= 180 ? [west, east] : [-180, 180];
-		return {
-			viewport_min_lng: minLng,
-			viewport_min_lat: south,
-			viewport_max_lng: maxLng,
-			viewport_max_lat: north
-		};
+		return viewportQuery({
+			west: bounds.getWest(),
+			south: bounds.getSouth(),
+			east: bounds.getEast(),
+			north: bounds.getNorth()
+		});
 	}
 
 	async function loadSelected(ids: string[]) {
@@ -150,9 +141,10 @@
 		if (disposed || currentRequest !== viewportRequestId) return;
 		if (response.err !== null) {
 			status = '';
-			errorMessage = 'Could not load boundaries for this view. Try again.';
+			errorMessage = VIEWPORT_ERROR;
 			return;
 		}
+		if (errorMessage === VIEWPORT_ERROR) errorMessage = '';
 		viewportAreas = response.ok.records;
 		status =
 			response.ok.total > viewportAreas.length
@@ -165,7 +157,7 @@
 		const response = await tryCatchAsync(() => debouncedRefresh());
 		if (response.err !== null && !disposed) {
 			status = '';
-			errorMessage = 'Could not load boundaries for this view. Try again.';
+			errorMessage = VIEWPORT_ERROR;
 		}
 	}
 

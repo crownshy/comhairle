@@ -74,6 +74,17 @@ describe('region editor operation states', () => {
 		expect(editor.dirty).toBe(false);
 	});
 
+	it('tracks area changes without reordering the selection', async () => {
+		const editor = createRegionEditor();
+		mocks.GetRegionAreaLinks.mockResolvedValueOnce({ area_ids: ['b-area'] });
+		await editor.select(region);
+		editor.toggle('a-area');
+		expect(editor.dirty).toBe(true);
+		expect(editor.areaIds).toEqual(['b-area', 'a-area']);
+		editor.toggle('a-area');
+		expect(editor.dirty).toBe(false);
+	});
+
 	it('reports a failed selection and recovers when another region loads', async () => {
 		const editor = createRegionEditor();
 		mocks.GetRegion.mockRejectedValueOnce(new Error('Failed'));
