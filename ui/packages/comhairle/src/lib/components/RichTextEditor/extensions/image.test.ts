@@ -40,6 +40,24 @@ describe('rendering image align and width', () => {
 	});
 });
 
+describe('rendering image alt text', () => {
+	function render(attrs: Record<string, unknown>) {
+		return renderRichTextToHtml(JSON.stringify(docWithImage(attrs)));
+	}
+
+	it('renders the alt text the image carries', () => {
+		expect(render({ alt: 'A map of the ward' })).toContain('alt="A map of the ward"');
+	});
+
+	it('renders an empty alt for a decorative image', () => {
+		expect(render({ alt: '' })).toContain('alt=""');
+	});
+
+	it('renders an empty alt for an image saved without alt text', () => {
+		expect(render({})).toContain('alt=""');
+	});
+});
+
 describe('reading image align and width back', () => {
 	const extensions = getBaseExtensions({ mode: 'editor' });
 
