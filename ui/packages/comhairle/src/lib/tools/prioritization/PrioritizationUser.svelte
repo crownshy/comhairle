@@ -456,7 +456,8 @@
 <div class="mx-auto w-full max-w-200">
 	{#if loadState.kind === 'loading'}
 		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
-			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
+			<LoaderCircle class="h-5 w-5 animate-spin" />
+			{m.prioritization_loading_proposals()}
 		</div>
 	{:else if loadState.kind === 'error'}
 		<Card.Root>
@@ -478,7 +479,7 @@
 			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
 				<CheckCircle2 class="text-primary size-10" />
 				<div class="space-y-1">
-					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
+					<h2 class="text-lg font-semibold">{m.prioritization_thanks_title()}</h2>
 					<p class="text-muted-foreground text-base">
 						{answeredCountLine}
 						{m.prioritization_review_or_continue()}
@@ -699,7 +700,7 @@
 						onclick={onDone}
 						disabled={submitting}
 					>
-						Skip this step
+						{m.prioritization_skip_step()}
 					</Button>
 				</div>
 			{:else if !canContinue && requiredReviews > 0}

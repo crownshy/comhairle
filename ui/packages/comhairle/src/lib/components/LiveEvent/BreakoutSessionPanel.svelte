@@ -2,6 +2,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import Hand from '@lucide/svelte/icons/hand';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		roomName: string;
@@ -34,13 +35,15 @@
 	<div class="flex shrink-0 flex-col items-start gap-2 px-5">
 		<div class="flex w-full max-w-326 items-center justify-center">
 			<h2 class="text-muted-foreground text-center text-xl leading-7 font-semibold">
-				Breakout session
+				{m.live_event_breakout_session()}
 			</h2>
 		</div>
 		<div class="flex w-full items-center justify-center">
-			<span class="{isWrappingUp ? 'text-destructive' : 'text-ring'} text-sm font-medium">
-				{isWrappingUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;<span
-					class="font-semibold tabular-nums">{timeLeftFormatted}</span
+			<span class="{isWrappingUp ? 'text-destructive' : 'text-ring'} text-base font-medium">
+				{isWrappingUp
+					? m.live_event_ending_in()
+					: m.live_event_time_left()}&nbsp;&nbsp;<span class="font-semibold tabular-nums"
+					>{timeLeftFormatted}</span
 				>
 			</span>
 		</div>
@@ -54,7 +57,7 @@
 			>
 				<div class="flex flex-col items-center gap-1">
 					<span class="text-primary text-xs leading-4 font-medium uppercase"
-						>Question</span
+						>{m.live_event_question()}</span
 					>
 					<p
 						class="text-foreground text-center text-lg leading-7 font-semibold break-words"
@@ -78,19 +81,19 @@
 		{#if isModerator}
 			<Button
 				variant="destructive"
-				class="h-10 px-4 text-sm font-medium"
+				class="h-10 px-4 text-base font-medium"
 				onclick={() => onLeaveBreakoutRoom?.()}
 			>
-				Leave {roomName}
+				{m.live_event_leave_room({ room: roomName })}
 			</Button>
 		{:else}
 			<Button
 				variant="primaryDark"
-				class="h-10 px-4 text-sm font-medium"
+				class="h-10 px-4 text-base font-medium"
 				onclick={() => onCallForSupport?.()}
 			>
 				<Hand class="h-4 w-4" />
-				Call for support
+				{m.live_event_call_for_support()}
 			</Button>
 		{/if}
 	</div>

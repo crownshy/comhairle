@@ -378,7 +378,7 @@
 		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">
 			{m.thinking_space_summary_heading()}
 		</h2>
-		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
+		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-base leading-relaxed">
 			{m.thinking_space_summary_desc()}
 		</p>
 		{#if requestUserSharePermission && hasDecidedConsent}
@@ -391,7 +391,7 @@
 	<!-- Answers recap: read-only source material for the summaries below. -->
 	<section>
 		<h3 class="text-foreground text-lg font-semibold">{m.thinking_space_your_answers()}</h3>
-		<p class="text-muted-foreground mt-1 mb-6 text-sm">{m.thinking_space_recap()}</p>
+		<p class="text-muted-foreground mt-1 mb-6 text-base">{m.thinking_space_recap()}</p>
 
 		<div class="space-y-6">
 			{#each questions as q (q.id)}
@@ -399,19 +399,19 @@
 				{#if item}
 					<div class="space-y-2">
 						<h4 class="text-foreground text-base font-semibold">{q.text}</h4>
-						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+						<p class="text-foreground text-base leading-relaxed whitespace-pre-wrap">
 							{item.rootAnswer}
 						</p>
 						{#each item.followUps as followUp (followUp.id)}
 							<div class="space-y-1 pl-4">
 								<p
-									class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
+									class="text-muted-foreground flex items-center gap-1.5 text-base leading-snug italic"
 								>
 									<CornerDownRight aria-hidden="true" class="size-3.5 shrink-0" />
 									{followUp.question}
 								</p>
 								<p
-									class="text-foreground text-sm leading-relaxed whitespace-pre-wrap"
+									class="text-foreground text-base leading-relaxed whitespace-pre-wrap"
 								>
 									{followUp.answer}
 								</p>
@@ -448,7 +448,7 @@
 					{@render status?.()}
 				</div>
 				{#if description}
-					<p class="text-foreground text-sm leading-relaxed">{description}</p>
+					<p class="text-foreground text-base leading-relaxed">{description}</p>
 				{/if}
 				<Textarea
 					{value}
@@ -527,7 +527,7 @@
 					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
 						{frozenLabel(i)}
 					</p>
-					<p class="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">
+					<p class="text-foreground/80 text-base leading-relaxed whitespace-pre-wrap">
 						{valueFor(round)}
 					</p>
 				</div>
@@ -542,7 +542,7 @@
 						class="text-primary mt-0.5 size-4 shrink-0 animate-pulse"
 					/>
 					<p
-						class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
+						class="text-muted-foreground text-base leading-relaxed transition-opacity duration-300"
 						class:opacity-0={fading}
 						class:opacity-100={!fading}
 						aria-live="polite"

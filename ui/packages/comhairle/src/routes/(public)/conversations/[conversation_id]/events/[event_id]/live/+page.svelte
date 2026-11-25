@@ -48,6 +48,7 @@
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
+	import { m } from '$lib/paraglide/messages';
 	import { mediaTimedOutDuringSwitch } from './roomSwitch';
 	import { nudgeBackToTab } from './tabNudge';
 	import MobileSheetToggle from './MobileSheetToggle.svelte';
@@ -213,7 +214,7 @@
 	let plenaryRoomName = $derived(event?.videoMeetingId ?? '');
 
 	let roomChipText = $derived.by(() => {
-		if (typeof roomContext === 'string') return 'Plenary room';
+		if (typeof roomContext === 'string') return m.live_event_plenary_room();
 		return roomContext.roomName;
 	});
 
@@ -321,12 +322,12 @@
 			if (seenAssistanceRequests.has(key)) continue;
 			const match = rn.match(/room-(\d+)/);
 			const ri = match ? parseInt(match[1]) : 0;
-			const roomName = `Breakout room #${ri + 1}`;
+			const roomName = m.live_event_breakout_room({ number: ri + 1 });
 			const participant = allParticipants.find((p) => p.user_id === userId);
 			const displayName = participant?.username ?? userId.slice(0, 8);
 			pushNotice({
-				message: `${displayName} from ${roomName} requested help.`,
-				actionLabel: `Enter ${roomName}`,
+				message: m.live_event_help_requested({ name: displayName, room: roomName }),
+				actionLabel: m.live_event_enter_room({ room: roomName }),
 				onAction: () => handleEnterBreakoutRoom(ri)
 			});
 			seenAssistanceRequests = new Set([...seenAssistanceRequests, key]);
@@ -383,7 +384,11 @@
 			trackedRoomIndex = assignedRoom;
 		} else if (assignedRoom !== null && assignedRoom !== tracked && tracked !== null) {
 			handleEnterBreakoutRoom(assignedRoom);
-			pushNotice({ message: `You've been moved to Breakout room #${assignedRoom + 1}` });
+			pushNotice({
+				message: m.live_event_moved_to_room({
+					room: m.live_event_breakout_room({ number: assignedRoom + 1 })
+				})
+			});
 			trackedRoomIndex = assignedRoom;
 		}
 	});
@@ -561,7 +566,7 @@
 		const roomAssignments = applyRoomEdits(editedRooms, videoCallService.breakoutRooms);
 		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom, roomAssignments);
 		showEditBreakout = false;
-		showToast('Breakout rooms updated');
+		showToast(m.live_event_rooms_updated());
 	}
 
 	function handleEnterBreakoutRoom(roomIndex: number) {
@@ -574,7 +579,7 @@
 		roomContext = {
 			type: 'breakout',
 			roomIndex,
-			roomName: `Breakout room #${roomIndex + 1}`
+			roomName: m.live_event_breakout_room({ number: roomIndex + 1 })
 		};
 
 		jitsiRoom.joinBreakout(roomIndex);
@@ -594,12 +599,12 @@
 	function handleCallForSupport() {
 		const roomId = typeof roomContext !== 'string' ? `room-${roomContext.roomIndex}` : 'room-0'; // Fallback for participants auto-assigned by backend
 		videoCallService.requestBreakoutRoomAssistance(eventId, roomId);
-		showToast('Support request sent to facilitator');
+		showToast(m.live_event_support_sent());
 	}
 
 	function handleBroadcast(message: string) {
 		videoCallService.broadcastMessage(eventId, message);
-		showToast('Broadcast sent');
+		showToast(m.live_event_broadcast_sent());
 	}
 
 	function handleUpdateTime(minutes: number) {
@@ -612,7 +617,11 @@
 			const preposition = minutes >= 0 ? 'to' : 'from';
 			const msg = `${abs} minute(s) ${verb} ${preposition} breakout session`;
 			videoCallService.broadcastMessage(eventId, msg);
-			showToast(`${abs} minute(s) ${verb}`);
+			showToast(
+				minutes >= 0
+					? m.live_event_minutes_added({ minutes: abs })
+					: m.live_event_minutes_removed({ minutes: abs })
+			);
 		}
 	}
 
@@ -624,7 +633,7 @@
 	function handleEndSessionPressed() {
 		const currentEnd = videoCallService.getBreakoutSessionEndTime();
 		if (!currentEnd || !isBreakoutActive) {
-			showToast('No active breakout session to end');
+			showToast(m.live_event_no_active_breakout());
 			return;
 		}
 
@@ -701,8 +710,8 @@
 
 		if (mediaTimedOutDuringSwitch(roomSwitchStartedAt, Date.now())) {
 			pushNotice({
-				message: "Your microphone and camera didn't reconnect when you changed rooms.",
-				actionLabel: 'Reconnect',
+				message: m.live_event_media_not_reconnected(),
+				actionLabel: m.live_event_reconnect(),
 				onAction: reconnectVideo
 			});
 		}
@@ -714,7 +723,7 @@
 		roomSwitchStartedAt = Date.now();
 		// Firefox holds Jitsi's mic and camera request until the tab is focused again.
 		if (document.hidden && !stopTabNudge) {
-			stopTabNudge = nudgeBackToTab('Rejoin your call');
+			stopTabNudge = nudgeBackToTab(m.live_event_rejoin_call());
 		}
 	}
 
@@ -747,7 +756,7 @@
 </script>
 
 <svelte:head>
-	<title>{event?.name ?? 'Live Event'}</title>
+	<title>{event?.name ?? m.live_event_title_fallback()}</title>
 </svelte:head>
 
 {#if meetingPhase === 'loading'}
@@ -762,9 +771,9 @@
 			</div>
 			<div class="flex flex-col items-center gap-3">
 				<h2 class="text-foreground text-2xl font-semibold">
-					{event?.name ?? 'Live Event'}
+					{event?.name ?? m.live_event_title_fallback()}
 				</h2>
-				<p class="text-muted-foreground text-base">Connecting to meeting…</p>
+				<p class="text-muted-foreground text-base">{m.live_event_connecting()}</p>
 			</div>
 		</div>
 	</div>
@@ -962,7 +971,7 @@
 				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
 			>
 				<MobileSheetToggle
-					title="Breakout Session"
+					title={m.live_event_breakout_session()}
 					expanded={!mobileSheetCollapsed}
 					onToggle={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
 				/>
@@ -978,7 +987,7 @@
 							>
 								<div class="flex flex-col items-center gap-2">
 									<span class="text-primary text-xs font-medium uppercase">
-										Question
+										{m.live_event_question()}
 									</span>
 									<p
 										class="text-foreground text-center text-lg leading-tight font-semibold break-words"
@@ -1003,7 +1012,7 @@
 								class="h-11 w-full text-sm font-medium"
 								onclick={handleLeaveBreakoutRoom}
 							>
-								Leave {roomChipText}
+								{m.live_event_leave_room({ room: roomChipText })}
 							</Button>
 						{:else}
 							<Button
@@ -1012,7 +1021,7 @@
 								onclick={handleCallForSupport}
 							>
 								<Hand class="mr-1.5 h-4 w-4" />
-								Call for support
+								{m.live_event_call_for_support()}
 							</Button>
 						{/if}
 					</div>
@@ -1026,7 +1035,9 @@
 				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
 			>
 				<MobileSheetToggle
-					title={isBreakoutActive ? 'Breakout Session' : 'Agenda'}
+					title={isBreakoutActive
+						? m.live_event_breakout_session()
+						: m.live_event_agenda()}
 					expanded={!mobileSheetCollapsed}
 					onToggle={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
 				/>
@@ -1082,7 +1093,7 @@
 					class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
 					disabled={mobileAgendaViewIndex <= 0}
 					onclick={() => mobileAgendaViewIndex--}
-					aria-label="Previous agenda item"
+					aria-label={m.live_event_previous_agenda_item()}
 				>
 					<ChevronLeft class="h-5 w-5" />
 				</button>
@@ -1092,7 +1103,7 @@
 					class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
 					disabled={mobileAgendaViewIndex >= agendaItems.length - 1}
 					onclick={() => mobileAgendaViewIndex++}
-					aria-label="Next agenda item"
+					aria-label={m.live_event_next_agenda_item()}
 				>
 					<ChevronRight class="h-5 w-5" />
 				</button>
@@ -1118,8 +1129,8 @@
 	participants={inCallParticipants}
 	initialAssignments={preassignedBreakoutRooms}
 	showFacilitators
-	title="Move people between rooms"
-	confirmLabel="Save"
+	title={m.live_event_move_people()}
+	confirmLabel={m.live_event_save()}
 	showDuration={false}
 	fixedRooms
 	onClose={() => (showEditBreakout = false)}
@@ -1168,7 +1179,7 @@
 				{roomChipText}
 			</span>
 			<span class="text-sidebar-foreground text-sm font-semibold tabular-nums md:text-xs">
-				<span class="md:hidden">Time left </span>
+				<span class="md:hidden">{m.live_event_time_left()} </span>
 				<span class="hidden md:inline">·</span>
 				{roomChipTimeLeft}
 			</span>
@@ -1227,7 +1238,7 @@
 				class="text-foreground shrink-0 p-1 disabled:opacity-30"
 				disabled={mobileAgendaViewIndex <= 0}
 				onclick={() => mobileAgendaViewIndex--}
-				aria-label="Previous agenda item"
+				aria-label={m.live_event_previous_agenda_item()}
 			>
 				<ChevronLeft class="h-5 w-5" />
 			</button>
@@ -1244,7 +1255,7 @@
 				class="text-foreground shrink-0 p-1 disabled:opacity-30"
 				disabled={mobileAgendaViewIndex >= agendaItems.length - 1}
 				onclick={() => mobileAgendaViewIndex++}
-				aria-label="Next agenda item"
+				aria-label={m.live_event_next_agenda_item()}
 			>
 				<ChevronRight class="h-5 w-5" />
 			</button>
@@ -1252,7 +1263,7 @@
 
 		{#if isBreakoutActive}
 			<p class="text-muted-foreground px-2 text-center text-xs leading-relaxed">
-				End the breakout session to continue with the agenda.
+				{m.live_event_end_breakout_to_continue()}
 			</p>
 		{:else if isLastItem}
 			<Button
@@ -1260,7 +1271,7 @@
 				class="h-11 w-full text-sm font-medium"
 				onclick={() => (showEndMeeting = true)}
 			>
-				End meeting
+				{m.live_event_end_meeting()}
 			</Button>
 		{:else}
 			<Button
@@ -1269,7 +1280,7 @@
 				onclick={handleNextAgendaItem}
 				disabled={!hasNext}
 			>
-				Start next step
+				{m.live_event_start_next_step()}
 				<ArrowRight class="ml-1.5 h-4 w-4" />
 			</Button>
 		{/if}
@@ -1283,7 +1294,9 @@
 			<span
 				class="{isBreakoutWrapUp ? 'text-destructive' : 'text-ring'} text-sm font-semibold"
 			>
-				{isBreakoutWrapUp ? 'Ending in' : 'Time left'}&nbsp;&nbsp;{timeLeftFormatted}
+				{isBreakoutWrapUp
+					? m.live_event_ending_in()
+					: m.live_event_time_left()}&nbsp;&nbsp;{timeLeftFormatted}
 			</span>
 			<div class="flex items-center gap-1.5">
 				<button
@@ -1317,7 +1330,7 @@
 				class="text-foreground shrink-0 p-1 disabled:opacity-30"
 				disabled={mobileRoomIndex <= 0}
 				onclick={() => (mobileRoomIndex = Math.max(0, mobileRoomIndex - 1))}
-				aria-label="Previous room"
+				aria-label={m.live_event_previous_room()}
 			>
 				<ChevronLeft class="h-5 w-5" />
 			</button>
@@ -1362,7 +1375,7 @@
 							onclick={() => handleEnterBreakoutRoom(room.index)}
 						>
 							<MoveUpRight class="h-4 w-4" />
-							Enter
+							{m.live_event_enter()}
 							{#if room.hasAssistanceRequest}
 								<span class="bg-destructive h-2 w-2 shrink-0 rounded-full"></span>
 							{/if}
@@ -1380,7 +1393,7 @@
 						breakoutRoomDisplays.length - 1,
 						mobileRoomIndex + 1
 					))}
-				aria-label="Next room"
+				aria-label={m.live_event_next_room()}
 			>
 				<ChevronRight class="h-5 w-5" />
 			</button>
@@ -1394,7 +1407,7 @@
 				onclick={() => (showBroadcast = true)}
 			>
 				<Megaphone class="mr-1.5 h-4 w-4" />
-				Broadcast message
+				{m.live_event_broadcast_message()}
 			</Button>
 			<Button
 				variant={isBreakoutWrapUp ? 'destructive' : 'outline'}
@@ -1405,7 +1418,7 @@
 				onclick={handleEndSessionPressed}
 			>
 				<CircleStop class="mr-1.5 h-4 w-4" />
-				{isBreakoutWrapUp ? 'End now' : 'End breakout session'}
+				{isBreakoutWrapUp ? m.live_event_end_now() : m.live_event_end_breakout()}
 			</Button>
 		</div>
 	</div>
@@ -1424,7 +1437,7 @@
 			</p>
 			<button
 				class="text-muted-foreground hover:text-foreground shrink-0 text-base"
-				aria-label="Dismiss"
+				aria-label={m.live_event_dismiss()}
 				onclick={() => (toastMessage = null)}
 			>
 				✕

@@ -17,6 +17,7 @@
 	import Info from '@lucide/svelte/icons/info';
 	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
+	import { m } from '$lib/paraglide/messages';
 
 	let { data }: PageProps = $props();
 
@@ -109,14 +110,17 @@
 			await invalidate(key('public/event'));
 		});
 		if (registered.err !== null) {
-			error = registered.err instanceof Error ? registered.err.message : 'Failed to register';
+			error =
+				registered.err instanceof Error
+					? registered.err.message
+					: m.event_register_failed();
 		}
 		joining = false;
 	}
 </script>
 
 <svelte:head>
-	<title>{event?.name ?? 'Event'}</title>
+	<title>{event?.name ?? m.event_title_fallback()}</title>
 </svelte:head>
 
 <div class="flex flex-col items-center">
@@ -139,7 +143,7 @@
 		<div
 			class="border-border w-full max-w-[700px] rounded-3xl border border-dashed p-12 text-center"
 		>
-			<p class="text-muted-foreground">Event not found.</p>
+			<p class="text-muted-foreground">{m.event_not_found()}</p>
 		</div>
 	{:else}
 		<!-- Hero section -->
@@ -155,12 +159,14 @@
 					>
 						<span class="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
 						></span>
-						Live
+						{m.event_status_live()}
 					</Badge>
 				{:else if status === 'past'}
-					<Badge variant="secondary" class="shrink-0">Past</Badge>
+					<Badge variant="secondary" class="shrink-0">{m.event_status_past()}</Badge>
 				{:else}
-					<Badge variant="outline" class="bg-primary/10 shrink-0">Upcoming</Badge>
+					<Badge variant="outline" class="bg-primary/10 shrink-0"
+						>{m.event_status_upcoming()}</Badge
+					>
 				{/if}
 			</div>
 
@@ -182,7 +188,9 @@
 						<div class="flex flex-col gap-1">
 							<div class="flex items-center gap-2">
 								<CalendarDays class="text-muted-foreground h-4 w-4" />
-								<span class="text-muted-foreground text-sm font-medium">Date</span>
+								<span class="text-muted-foreground text-sm font-medium"
+									>{m.event_date()}</span
+								>
 							</div>
 							{#if mounted}
 								<p
@@ -198,7 +206,9 @@
 						<div class="flex flex-col gap-1">
 							<div class="flex items-center gap-2">
 								<Clock class="text-muted-foreground h-4 w-4" />
-								<span class="text-muted-foreground text-sm font-medium">Time</span>
+								<span class="text-muted-foreground text-sm font-medium"
+									>{m.event_time()}</span
+								>
 							</div>
 							{#if mounted}
 								<p
@@ -214,7 +224,7 @@
 						<div class="flex flex-col gap-1">
 							<div class="flex items-center gap-2">
 								<span class="text-muted-foreground text-sm font-medium"
-									>Duration</span
+									>{m.event_duration()}</span
 								>
 							</div>
 							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
@@ -229,13 +239,16 @@
 							<div class="flex items-center gap-2">
 								<Users class="text-muted-foreground h-4 w-4" />
 								<span class="text-muted-foreground text-sm font-medium"
-									>Attendance</span
+									>{m.event_attendance()}</span
 								>
 							</div>
 							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
-								{attendanceCount} registered{event.capacity
-									? ` / ${event.capacity} capacity`
-									: ''}
+								{event.capacity
+									? m.event_registered_count_capacity({
+											count: attendanceCount,
+											capacity: event.capacity
+										})
+									: m.event_registered_count({ count: attendanceCount })}
 							</p>
 						</div>
 
@@ -243,7 +256,7 @@
 							<div class="flex items-center gap-2">
 								<UserCheck class="text-muted-foreground h-4 w-4" />
 								<span class="text-muted-foreground text-sm font-medium"
-									>Signup Mode</span
+									>{m.event_signup_mode()}</span
 								>
 							</div>
 							<p
@@ -266,12 +279,11 @@
 					<Info class="text-primary mt-0.5 h-4 w-4 shrink-0" />
 					<span>
 						{#if isInviteOnly}
-							You need an invite to join this event. Please use the link in your
-							invite.
+							{m.event_needs_invite()}
 						{:else if user}
-							Register below to join this event when it goes live.
+							{m.event_register_to_join()}
 						{:else}
-							Log in and register to join this event when it goes live.
+							{m.event_log_in_to_join()}
 						{/if}
 					</span>
 				</div>
@@ -279,26 +291,29 @@
 
 			{#if status === 'live' && userAttendance}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Join meeting
+					{m.event_join_meeting()}
 				</Button>
 			{:else if canStartMeeting && status === 'upcoming'}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Start meeting{msUntilStart > 0 ? ` (in ${countdownText})` : ''}
+					{msUntilStart > 0
+						? m.event_start_meeting_in({ countdown: countdownText })
+						: m.event_start_meeting()}
 				</Button>
 				<p class="text-muted-foreground text-xs">
-					As a facilitator, you can start the meeting at any time.
+					{m.event_facilitator_can_start()}
 				</p>
 			{:else if userAttendance && status === 'upcoming'}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Go to lobby{msUntilStart > 0 ? ` (starts in ${countdownText})` : ''}
+					{msUntilStart > 0
+						? m.event_go_to_lobby_starts_in({ countdown: countdownText })
+						: m.event_go_to_lobby()}
 				</Button>
 				<p class="text-muted-foreground text-xs">
-					You can wait in the lobby. The meeting will begin when the facilitator starts
-					it.
+					{m.event_lobby_wait()}
 				</p>
 			{:else if !userAttendance && user && status !== 'past' && isInviteOnly}
 				<p class="text-muted-foreground text-base">
-					This event is invite only. Please use the link in your invite to register.
+					{m.event_invite_only()}
 				</p>
 			{:else if !userAttendance && user && status !== 'past'}
 				<Button
@@ -308,7 +323,7 @@
 					onclick={registerAttendance}
 					disabled={joining}
 				>
-					{joining ? 'Registering…' : 'Register to Attend'}
+					{joining ? m.event_registering() : m.event_register()}
 				</Button>
 			{/if}
 
@@ -322,9 +337,7 @@
 
 			{#if !user && status !== 'past'}
 				<p class="text-muted-foreground text-sm">
-					{isInviteOnly
-						? 'This event is invite only. Please use the link in your invite to register.'
-						: 'Log in to register for this event.'}
+					{isInviteOnly ? m.event_invite_only() : m.event_log_in_to_register()}
 				</p>
 			{/if}
 

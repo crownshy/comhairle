@@ -28,7 +28,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Trigger
-		class="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-sm underline underline-offset-4 sm:text-base"
+		class="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-base underline underline-offset-4"
 	>
 		<ShieldCheck class="size-4 shrink-0" aria-hidden="true" />
 		<span class="sm:hidden">{m.data_protocol_link_short()}</span>

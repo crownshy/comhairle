@@ -115,7 +115,7 @@
 					data-state={value === cat.value ? 'checked' : 'unchecked'}
 				>
 					<RadioGroup.Item value={String(cat.value)} class="sm:sr-only" />
-					<span class="text-sm leading-tight group-data-[state=checked]:font-medium">
+					<span class="text-base leading-tight group-data-[state=checked]:font-medium">
 						{cat.label}
 					</span>
 				</Label>
@@ -142,7 +142,7 @@
 					onValueChange={(v) => typeof v === 'number' && handleSlider(v)}
 				/>
 			</div>
-			<div class="text-muted-foreground flex justify-between text-xs">
+			<div class="text-muted-foreground flex justify-between text-base">
 				<span class="font-medium" class:text-primary={leaningLabel === 'min'}>
 					{question.type.minLabel ?? ''}
 				</span>
