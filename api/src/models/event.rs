@@ -187,6 +187,7 @@ pub struct Event {
     #[partially(transparent)]
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
+    pub email_link_login: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -362,7 +363,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 18] = [
+const DEFAULT_COLUMNS: [EventIden; 19] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -379,6 +380,7 @@ const DEFAULT_COLUMNS: [EventIden; 18] = [
     EventIden::Metadata,
     EventIden::Format,
     EventIden::CustomEventLink,
+    EventIden::EmailLinkLogin,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -585,6 +587,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.metadata {
             values.push((EventIden::Metadata, value.clone().into()));
+        }
+        if let Some(value) = self.email_link_login {
+            values.push((EventIden::EmailLinkLogin, value.into()));
         }
 
         Ok(values)

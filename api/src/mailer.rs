@@ -22,14 +22,15 @@ use crate::models::email_template_config::{
     SCHEMA_EVENT_REGISTRATION_CONFIRMATION, SCHEMA_EVENT_REGISTRATION_INVITE,
     SCHEMA_EVENT_REMINDER,
 };
-use crate::models::event::{self, ResolveTimeZone};
+use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::media::{FromWithMedia, MediaResolver};
 use crate::models::permissions::ResourcePermission;
 use crate::models::users::{self, User};
 use crate::models::workflow_step::LocalizedWorkflowStep;
-use crate::models::{conversation, organization, otp};
-use crate::routes::auth::{OtpClaims, generate_jwt};
+use crate::models::{conversation, organization};
+use crate::routes::auth::generate_jwt;
 use crate::routes::conversations::dto::LocalizedConversationDto;
+use crate::routes::events::EventAccessClaims;
 
 static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
 
@@ -596,11 +597,17 @@ impl ComhairleMailer for Mailer {
         locale: &str,
     ) -> Result<(), ComhairleError> {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
+        let user = users::get_user_by_email(email, &state.db).await?;
 
-        let event_link = format!(
+        let mut event_link = format!(
             "{}/conversations/{}/events/{}",
             state.config.domain, event.conversation_id, event.id
         );
+        if event.email_link_login {
+            let access_token = build_event_access_token(&user, &state.config.jwt_secret, &event)?;
+            event_link.push_str(&format!("?access={access_token}"));
+        }
+
         let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
@@ -667,37 +674,15 @@ impl ComhairleMailer for Mailer {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
         let recipient = users::get_user_by_id(&recipient_id, &state.db).await?;
 
-        let event_path = format!(
-            "/conversations/{}/events/{}/live",
-            event.conversation_id, event.id
+        let mut event_link = format!(
+            "{}/conversations/{}/events/{}/live",
+            state.config.domain, event.conversation_id, event.id
         );
-
-        let otp = otp::create(
-            &state.db,
-            &recipient.id,
-            Some(event_path),
-            Some(event.start_time),
-        )
-        .await?;
-
-        let claims = OtpClaims {
-            email: email.to_string(),
-            otp: otp.code.clone(),
-        };
-        // Ensure JWT doesn't expire before event begins
-        let event_jwt_duration = event.start_time - Utc::now();
-        let otp_token = generate_jwt()
-            .user(&recipient)
-            .secret(&state.config.jwt_secret)
-            .custom_claims(claims)
-            .duration(event_jwt_duration)
-            .call()?;
-
-        let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
-        let otp_link = format!(
-            "{}/auth/login-otp/{}?backTo={}",
-            state.config.domain, otp_token, encoded_redirect_url
-        );
+        if event.email_link_login {
+            let access_token =
+                build_event_access_token(&recipient, &state.config.jwt_secret, &event)?;
+            event_link.push_str(&format!("?access={access_token}"));
+        }
 
         let calendar_invite = create_calendar_invite_attachment(
             &event.name,
@@ -709,7 +694,7 @@ impl ComhairleMailer for Mailer {
         let event_context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            event_link => otp_link,
+            event_link => event_link,
         };
 
         let email_config = email_template_config::get_effective(
@@ -736,7 +721,7 @@ impl ComhairleMailer for Mailer {
         let context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            event_link => otp_link,
+            event_link => event_link,
             ..rendered_map
         };
 
@@ -898,6 +883,27 @@ pub fn build_invite_attachment(ics_body: String) -> Result<SinglePart, Comhairle
         Attachment::new_inline("calendar-invite".to_string()).body(invite_body, content_type);
 
     Ok(attachment)
+}
+
+fn build_event_access_token(
+    user: &User,
+    secret: &str,
+    event: &LocalizedEvent,
+) -> Result<String, ComhairleError> {
+    let now = Utc::now();
+    let exp_duration = event.end_time - now + chrono::Duration::minutes(30);
+
+    let access_token = generate_jwt()
+        .user(user)
+        .secret(secret)
+        .custom_claims(EventAccessClaims {
+            user_id: user.id,
+            event_id: event.id,
+        })
+        .duration(exp_duration)
+        .call()?;
+
+    Ok(access_token)
 }
 
 #[cfg(test)]

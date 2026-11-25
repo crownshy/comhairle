@@ -274,6 +274,9 @@ pub enum ComhairleError {
     #[error("This invite is has an invalid type")]
     InvalidInviteType,
 
+    #[error("Invalid or expired event access link")]
+    InvalidEventAccessToken,
+
     #[error("This invite has an invalid resource: {0}")]
     InvalidInviteResource(String),
 
@@ -445,6 +448,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::InviteDoesNotMatchUser
             | ComhairleError::PreviewPasswordRequired
             | ComhairleError::WrongPreviewPassword
+            | ComhairleError::InvalidEventAccessToken
             | ComhairleError::NoLoggedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates
             | ComhairleError::EventHasPast

@@ -10,7 +10,8 @@ const validEvent = {
 	start_time: '10:00',
 	end_time: '11:00',
 	signup_mode: 'invite',
-	format: 'online'
+	format: 'online',
+	email_link_login: true
 };
 
 function linkIsAccepted(custom_event_link: string, format = 'online') {

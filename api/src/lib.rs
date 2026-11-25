@@ -275,7 +275,7 @@ pub async fn build_router_and_spec(
                 .nest("/{conversation_id}/documents", routes::documents::router())
                 .nest(
                     "/{conversation_id}/events",
-                    routes::events::router()
+                    routes::events::router(rate_limiters.as_ref())
                         .nest(
                             "/{event_id}/attendances",
                             routes::event_attendances::router(rate_limiters.as_ref()),
