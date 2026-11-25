@@ -32,18 +32,50 @@ describe('moderatePracticeRows', () => {
 });
 
 describe('practiceFeedback', () => {
+	const reasons = [
+		{ label: 'Privacy or personal info' },
+		{ label: 'Advertising or campaigning' }
+	];
+
 	it('has nothing to say about waiting statements', () => {
-		expect(practiceFeedback(practiceRows())).toEqual([]);
+		expect(practiceFeedback(practiceRows(), reasons)).toEqual([]);
 	});
 
 	it('says whether each decision was the right call', () => {
 		const rows = moderatePracticeRows(practiceRows(), ['practice-1', 'practice-3'], 'accepted');
-		const feedback = practiceFeedback(rows);
+		const feedback = practiceFeedback(rows, reasons);
 		expect(feedback.map(({ number, correct }) => ({ number, correct }))).toEqual([
 			{ number: 1, correct: true },
 			{ number: 3, correct: false }
 		]);
 		expect(feedback[0].message).toMatch(/^Right\./);
 		expect(feedback[1].message).toMatch(/^Not quite\./);
+	});
+
+	it('says when a reject is right but the reason is not', () => {
+		const rows = moderatePracticeRows(
+			practiceRows(),
+			['practice-3'],
+			'rejected',
+			'Privacy or personal info'
+		);
+		const [feedback] = practiceFeedback(rows, reasons);
+		expect(feedback.correct).toBe(false);
+		expect(feedback.message).toMatch(/reason should be Advertising or campaigning/);
+	});
+
+	it('takes a reason with a note as its label', () => {
+		const rows = moderatePracticeRows(
+			practiceRows(),
+			['practice-3'],
+			'rejected',
+			'Advertising or campaigning: link to a ticket site'
+		);
+		expect(practiceFeedback(rows, reasons)[0].correct).toBe(true);
+	});
+
+	it('accepts any reason when none in the policy fits', () => {
+		const rows = moderatePracticeRows(practiceRows(), ['practice-3'], 'rejected', 'Off topic');
+		expect(practiceFeedback(rows, [{ label: 'Off topic' }])[0].correct).toBe(true);
 	});
 });

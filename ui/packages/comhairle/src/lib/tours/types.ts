@@ -15,3 +15,8 @@ export type Tour = {
 	/** Label for the button that ends the tour. Defaults to driver.js's "Done". */
 	doneLabel?: string;
 };
+
+export type TourOptions = {
+	/** Off when the page has its own first-visit welcome, so the tour waits for a replay. */
+	autoplay?: boolean;
+};

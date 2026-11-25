@@ -22,8 +22,7 @@
 		needsReview,
 		translationForReader
 	} from './statementTranslations';
-
-	type ModerationStatus = PolisStatementAux['moderation_status'];
+	import type { ModerationStatus } from './moderationStatus';
 
 	type Props = {
 		editable?: boolean;

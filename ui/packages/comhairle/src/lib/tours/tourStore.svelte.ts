@@ -1,6 +1,6 @@
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import type { Tour } from './types';
+import type { Tour, TourOptions } from './types';
 
 const SEEN_KEY_PREFIX = 'comhairle-tour-seen:';
 
@@ -19,7 +19,7 @@ function runDriver(tour: Tour) {
 	const pointerOnly = tour.steps.length === 1 && tour.doneLabel !== undefined;
 	driver({
 		showProgress: tour.steps.length > 1,
-		...(tour.doneLabel && { doneBtnText: tour.doneLabel }),
+		...(tour.doneLabel !== undefined && { doneBtnText: tour.doneLabel }),
 		...(pointerOnly && { showButtons: ['next' as const] }),
 		allowClose: true,
 		overlayColor: 'black',
@@ -49,7 +49,7 @@ class TourStore {
 
 	/** Called once from a page's `useTour(tour)`. Auto-plays the first time this browser sees it,
 	 * unless the page has its own first-visit welcome and passes `autoplay: false`. */
-	activate(tour: Tour, { autoplay = true }: { autoplay?: boolean } = {}) {
+	activate(tour: Tour, { autoplay = true }: TourOptions = {}) {
 		this._active = tour;
 		if (autoplay && !hasSeen(tour.id)) {
 			markSeen(tour.id);

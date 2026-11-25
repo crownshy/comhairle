@@ -1,6 +1,7 @@
 import type { PolisStatementAux } from '@crownshy/api-client/api';
+import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
+import type { ModerationStatus } from './moderationStatus';
 
-type ModerationStatus = PolisStatementAux['moderation_status'];
 type Decision = Exclude<ModerationStatus, 'pending'>;
 
 type PracticeStatement = {
@@ -10,6 +11,8 @@ type PracticeStatement = {
 	right: string;
 	/** Said otherwise, and names the right call. */
 	wrong: string;
+	/** For a reject, matches the policy reasons that fit it. Any reason is fine when none do. */
+	fittingReason?: RegExp;
 };
 
 const PRACTICE_STATEMENTS: PracticeStatement[] = [
@@ -23,13 +26,15 @@ const PRACTICE_STATEMENTS: PracticeStatement[] = [
 		text: 'Dave Morris who runs the dodgems is always rude to kids. Someone should sack him.',
 		expected: 'rejected',
 		right: 'It names a private person and calls for them to lose their job. Reject it for privacy.',
-		wrong: 'It names a private person and calls for them to lose their job. Reject it for privacy, however fair the complaint is.'
+		wrong: 'It names a private person and calls for them to lose their job. Reject it for privacy, however fair the complaint is.',
+		fittingReason: /privacy|personal/i
 	},
 	{
 		text: 'Get 50% off your entry at cheap-park-tickets.biz, today only!',
 		expected: 'rejected',
 		right: 'It’s an advert, not a view. Reject it as advertising.',
-		wrong: 'It’s an advert, not a view, so there is nothing to vote on. Reject it as advertising.'
+		wrong: 'It’s an advert, not a view, so there is nothing to vote on. Reject it as advertising.',
+		fittingReason: /advert|spam|promot/i
 	}
 ];
 
@@ -76,18 +81,49 @@ export function moderatePracticeRows(
 
 export type PracticeFeedback = { id: string; number: number; correct: boolean; message: string };
 
+/** The policy reasons that fit a practice reject, or null when any reason will do. */
+function fittingReasons(statement: PracticeStatement, rejectReasons: RejectReason[]) {
+	const pattern = statement.fittingReason;
+	if (!pattern) return null;
+	const fitting = rejectReasons.filter((reason) => pattern.test(reason.label));
+	return fitting.length > 0 ? fitting : null;
+}
+
+function feedbackMessage(
+	row: PolisStatementAux,
+	statement: PracticeStatement,
+	rejectReasons: RejectReason[]
+): { correct: boolean; message: string } {
+	if (row.moderation_status !== statement.expected)
+		return { correct: false, message: `Not quite. ${statement.wrong}` };
+
+	const fitting =
+		row.moderation_status === 'rejected' && fittingReasons(statement, rejectReasons);
+	if (fitting) {
+		const labels = rejectReasons.map((reason) => reason.label);
+		const picked = splitReason(row.moderation_reason, labels).label;
+		if (!fitting.some((reason) => reason.label === picked))
+			return {
+				correct: false,
+				message: `Right to reject, but the reason should be ${fitting[0].label}. ${statement.right}`
+			};
+	}
+	return { correct: true, message: `Right. ${statement.right}` };
+}
+
 /** Whether each decided practice row was the right call, and why. Waiting rows have none. */
-export function practiceFeedback(rows: PolisStatementAux[]): PracticeFeedback[] {
+export function practiceFeedback(
+	rows: PolisStatementAux[],
+	rejectReasons: RejectReason[]
+): PracticeFeedback[] {
 	return rows.flatMap((row) => {
 		const statement = PRACTICE_STATEMENTS[row.polis_statement_id - 1];
 		if (!statement || row.moderation_status === 'pending') return [];
-		const correct = row.moderation_status === statement.expected;
 		return [
 			{
 				id: row.id,
 				number: row.polis_statement_id,
-				correct,
-				message: correct ? `Right. ${statement.right}` : `Not quite. ${statement.wrong}`
+				...feedbackMessage(row, statement, rejectReasons)
 			}
 		];
 	});

@@ -9,8 +9,7 @@
 	import StatementsTable from './StatementsTable.svelte';
 	import { moderatePracticeRows, practiceFeedback, practiceRows } from './practiceStatements';
 	import { pluralise } from '$lib/utils/pluralise';
-
-	type ModerationStatus = PolisStatementAux['moderation_status'];
+	import type { ModerationStatus } from './moderationStatus';
 
 	type Props = {
 		/** The step's moderation policy reasons, offered on reject as in the real list. */
@@ -22,7 +21,7 @@
 	let rows = $state(practiceRows());
 	let selected = $state<Record<string, boolean>>({});
 
-	const feedback = $derived(practiceFeedback(rows));
+	const feedback = $derived(practiceFeedback(rows, rejectReasons));
 	const anyDecided = $derived(feedback.length > 0);
 	const heading = $derived(`${rows.length} practice ${pluralise(rows.length, 'statement')}`);
 

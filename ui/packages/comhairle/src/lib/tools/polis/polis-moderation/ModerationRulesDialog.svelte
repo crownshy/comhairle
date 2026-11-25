@@ -130,15 +130,13 @@
 					{#each SECTIONS as section, index (section.id)}
 						{@const active = index === activeIndex}
 						<li>
-							<button
-								type="button"
+							<Button
+								variant={active ? 'default' : 'outline'}
 								onclick={() => jumpTo(index)}
 								aria-current={active ? 'location' : undefined}
 								class={cn(
-									'focus-visible:ring-ring/50 flex min-h-11 items-center gap-2 rounded-full border px-4 text-base whitespace-nowrap outline-none focus-visible:ring-[3px]',
-									active
-										? 'bg-primary text-primary-foreground border-primary'
-										: 'bg-background hover:bg-muted'
+									'min-h-11 px-4 text-base',
+									!active && 'text-foreground border-border hover:text-foreground'
 								)}
 								{@attach active && revealActivePill}
 							>
@@ -148,7 +146,7 @@
 									{index + 1}
 								</span>
 								{section.label}
-							</button>
+							</Button>
 						</li>
 					{/each}
 				</ul>
@@ -180,7 +178,8 @@
 				class="flex flex-col gap-5"
 			>
 				{@render sectionHeading(1)}
-				<!-- A table from md up; below that each row stacks its Do and Never. -->
+				<!-- A table from md up; below that each row stacks its Do and Never. Not the shadcn
+				     Table: its row hover tints every cell over the Do/Never colours, and it won't wrap. -->
 				<table class="block w-full border-collapse text-start md:table">
 					<thead class="sr-only md:not-sr-only md:table-header-group">
 						<tr>
@@ -263,8 +262,8 @@
 					</dl>
 				{:else}
 					<p class="text-base">
-						This conversation has no reasons for rejecting yet. Add a note to every
-						reject so decisions can be checked later.
+						This step’s moderation policy has no reasons for rejecting yet. Add a note
+						to every reject so decisions can be checked later.
 					</p>
 				{/if}
 				{#if canEditPolicy}

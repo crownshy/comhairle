@@ -29,6 +29,7 @@
 	import { buildStatementsCsv, moderationReportFilename } from './polis-moderation/statementsCsv';
 	import { permissions } from '$lib/permissions.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
+	import type { ModerationStatus } from './polis-moderation/moderationStatus';
 
 	type Props = {
 		conversationId: string;
@@ -56,7 +57,6 @@
 		defaultRejectReasons,
 		step
 	}: Props = $props();
-	type ModerationStatus = PolisStatementAux['moderation_status'];
 	const DECISIONS = { accepted: 'accept', rejected: 'reject', pending: 'pending' } as const;
 	const DONE_LABELS: Record<ModerationStatus, string> = {
 		accepted: 'accepted',
@@ -104,14 +104,20 @@
 	// at the button that reopens them. Remembered per browser; private windows show them again.
 	const RULES_SEEN_KEY = 'comhairle:moderation-rules-seen';
 	let rulesOpen = $state(false);
+	// Held in memory too, so blocked storage can't replay the pointer on every close.
+	let firstRulesVisit = false;
 
 	onMount(() => {
-		if (canModerate && readStorage(RULES_SEEN_KEY) !== 'true') rulesOpen = true;
+		if (!canModerate || readStorage(RULES_SEEN_KEY) === 'true') return;
+		// Marked seen on open, so leaving through a link inside the dialog still counts.
+		writeStorage(RULES_SEEN_KEY, 'true');
+		firstRulesVisit = true;
+		rulesOpen = true;
 	});
 
 	function rulesClosed() {
-		if (readStorage(RULES_SEEN_KEY) === 'true') return;
-		writeStorage(RULES_SEEN_KEY, 'true');
+		if (!firstRulesVisit) return;
+		firstRulesVisit = false;
 		tourStore.play(MODERATION_RULES_POINTER);
 	}
 

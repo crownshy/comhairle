@@ -11,8 +11,7 @@
 	import StatementModerationRow from './StatementModerationRow.svelte';
 	import RejectDialog from './RejectDialog.svelte';
 	import type { Snippet } from 'svelte';
-
-	type ModerationStatus = PolisStatementAux['moderation_status'];
+	import type { ModerationStatus } from './moderationStatus';
 
 	type Props = {
 		editable?: boolean;

@@ -1,6 +1,15 @@
-import type { Tour } from '$lib/tours/types';
+import type { Tour, TourStep } from '$lib/tours/types';
 
-export const stepModerationTour: Tour = {
+const rulesStep: TourStep = {
+	element: '[data-tour="moderation-rules"]',
+	title: 'Moderation rules',
+	description:
+		'What matters most, what to do and never do, your reasons for rejecting, and a practice round with made-up statements.',
+	side: 'bottom'
+};
+
+/** The Moderation rules button only shows for people who can moderate, so only they get its step. */
+export const stepModerationTour = (canModerate: boolean): Tour => ({
 	id: 'admin-step-moderation',
 	steps: [
 		{
@@ -10,13 +19,7 @@ export const stepModerationTour: Tour = {
 				'Every statement and decision, with reasons and notes, as a CSV. New statements arrive on their own when you open or return to this page.',
 			side: 'bottom'
 		},
-		{
-			element: '[data-tour="moderation-rules"]',
-			title: 'Moderation rules',
-			description:
-				'What matters most, what to do and never do, your reasons for rejecting, and a practice round with made-up statements.',
-			side: 'bottom'
-		},
+		...(canModerate ? [rulesStep] : []),
 		{
 			element: '[data-tour="moderation-filters"]',
 			title: 'Work through the queue',
@@ -32,4 +35,4 @@ export const stepModerationTour: Tour = {
 			side: 'top'
 		}
 	]
-};
+});
