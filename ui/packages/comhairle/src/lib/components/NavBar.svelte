@@ -110,10 +110,12 @@
 				<Button
 					variant="nav"
 					class="gap-2 rounded-full text-base font-normal"
+					aria-label={m.support_find_out_more()}
 					onclick={() => (supportDrawer.open = true)}
 				>
 					<CircleHelp class="size-5" aria-hidden="true" />
-					{m.support_find_out_more()}
+					<span class="max-sm:hidden" aria-hidden="true">{m.support_find_out_more()}</span
+					>
 				</Button>
 			{/if}
 
