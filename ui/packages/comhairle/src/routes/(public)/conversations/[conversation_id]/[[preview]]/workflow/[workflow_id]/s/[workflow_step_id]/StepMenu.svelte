@@ -147,7 +147,7 @@
 		{#if pendingLocale}
 			<Spinner class="size-4" />
 		{/if}
-		{getLanguageName(shownLocale, 'native')}
+		<span lang={shownLocale}>{getLanguageName(shownLocale, 'native')}</span>
 	</span>
 {/snippet}
 
@@ -257,7 +257,7 @@
 									disabled={pendingLocale !== null}
 									onclick={() => chooseLanguage(locale)}
 								>
-									{getLanguageName(locale, 'native')}
+									<span lang={locale}>{getLanguageName(locale, 'native')}</span>
 									{#if locale === pendingLocale}
 										<Spinner class="text-primary ml-auto size-5 shrink-0" />
 									{:else if locale === shownLocale}
@@ -378,7 +378,7 @@
 								disabled={pendingLocale !== null && locale !== pendingLocale}
 								class="cursor-pointer py-2.5 text-base"
 							>
-								{getLanguageName(locale, 'native')}
+								<span lang={locale}>{getLanguageName(locale, 'native')}</span>
 								{#if locale === pendingLocale}
 									<Spinner class="ml-auto size-4" />
 								{/if}

@@ -1,5 +1,29 @@
 import * as CookieConsent from 'vanilla-cookieconsent';
 
+const MODAL_SELECTORS = {
+	consentModal: '#cc-main .cm',
+	preferencesModal: '#cc-main .pm'
+} as const;
+
+const FOCUS_RETRY_MS = 50;
+const FOCUS_MAX_TRIES = 40;
+
+/**
+ * The library's own focus call can run before the modal is visible, which leaves focus
+ * on the page behind it. Focusing the dialog itself also makes screen readers read its title.
+ */
+function focusModalWhenVisible(selector: string, triesLeft = FOCUS_MAX_TRIES) {
+	const modal = document.querySelector<HTMLElement>(selector);
+	if (!modal || triesLeft === 0) return;
+	const style = getComputedStyle(modal);
+	if (style.visibility === 'hidden' || style.opacity !== '1') {
+		setTimeout(() => focusModalWhenVisible(selector, triesLeft - 1), FOCUS_RETRY_MS);
+		return;
+	}
+	modal.tabIndex = -1;
+	modal.focus();
+}
+
 const config: CookieConsent.CookieConsentConfig = {
 	autoShow: true,
 	disablePageInteraction: true,
@@ -37,28 +61,8 @@ const config: CookieConsent.CookieConsentConfig = {
 		// ads: {}
 	},
 
-	onFirstConsent: ({ cookie }) => {
-		console.log('onFirstConsent fired', cookie);
-	},
-
-	onConsent: ({ cookie }) => {
-		console.log('onConsent fired!', cookie, CookieConsent.getUserPreferences());
-	},
-
-	onChange: ({ changedCategories, changedServices }) => {
-		console.log('onChange fired!', changedCategories, changedServices);
-	},
-
-	onModalReady: ({ modalName }) => {
-		console.log('ready:', modalName);
-	},
-
 	onModalShow: ({ modalName }) => {
-		console.log('visible:', modalName);
-	},
-
-	onModalHide: ({ modalName }) => {
-		console.log('hidden:', modalName);
+		focusModalWhenVisible(MODAL_SELECTORS[modalName]);
 	},
 
 	guiOptions: {

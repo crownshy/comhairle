@@ -33,6 +33,7 @@
 	);
 
 	const isMobile = new IsMobile();
+	const titleId = $props.id();
 </script>
 
 {#if !isMobile.current}
@@ -55,20 +56,20 @@
 	</Select.Root>
 {:else}
 	<Drawer.Root>
-		<Drawer.Trigger class={cn(INPUT_STYLE)}>
+		<Drawer.Trigger {id} class={cn(INPUT_STYLE)}>
 			<span class="my-auto text-sm" class:text-muted-foreground={isPlaceholder}>
 				{label}
 			</span>
 		</Drawer.Trigger>
 		<Drawer.Content class="mb-8">
-			<Drawer.Header class="font-semibold">
-				{question}
+			<Drawer.Header>
+				<Drawer.Title id={titleId}>{question}</Drawer.Title>
 			</Drawer.Header>
-			<section class="mx-5 flex flex-col gap-5 overflow-y-auto">
+			<fieldset aria-labelledby={titleId} class="mx-5 flex flex-col gap-5 overflow-y-auto">
 				{#each options as option (option.value)}
 					<SelectItem {name} onselect={(value) => void (selected = value)} {...option} />
 				{/each}
-			</section>
+			</fieldset>
 		</Drawer.Content>
 	</Drawer.Root>
 {/if}

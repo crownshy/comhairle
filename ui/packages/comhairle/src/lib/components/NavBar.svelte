@@ -60,6 +60,10 @@
 	let hasSupportDrawer = $derived(page.data.hasSupportDrawer === true);
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
+
+	function isCurrentLink(href: string) {
+		return page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href));
+	}
 </script>
 
 <nav
@@ -79,8 +83,8 @@
 				<Button
 					href={link.href}
 					variant="nav"
-					class="h-10 text-base font-normal {page.url.pathname === link.href ||
-					(link.href !== '/' && page.url.pathname.startsWith(link.href))
+					aria-current={isCurrentLink(link.href) ? 'page' : undefined}
+					class="h-10 text-base font-normal {isCurrentLink(link.href)
 						? 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary shadow-xs'
 						: ''}">{link.name}</Button
 				>
@@ -130,6 +134,7 @@
 						{/snippet}
 					</Drawer.Trigger>
 					<Drawer.Content>
+						<Drawer.Title class="sr-only">{m.nav_drawer_title()}</Drawer.Title>
 						<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
 							<!-- User section -->
 							{#if user}
@@ -166,6 +171,7 @@
 									<Button
 										href={link.href}
 										variant="ghost"
+										aria-current={isCurrentLink(link.href) ? 'page' : undefined}
 										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 									>
 										<Icon class="text-muted-foreground size-5" />

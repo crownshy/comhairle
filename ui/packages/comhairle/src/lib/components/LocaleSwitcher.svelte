@@ -3,6 +3,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { getLanguageName } from '$lib/config/languages';
 	import { switchLocale } from '$lib/utils/locale';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		class?: string;
@@ -21,11 +22,14 @@
 
 <Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
 	<Select.Trigger class="{className} [/&_svg]:opacity-100">
-		<span class="text-center">{languageName}</span>
+		<span class="sr-only">{m.language()}</span>
+		<span class="text-center" lang={currentLanguage}>{languageName}</span>
 	</Select.Trigger>
 	<Select.Content>
 		{#each locales as locale (locale)}
-			<Select.Item value={locale}>{getLanguageName(locale, 'native')}</Select.Item>
+			<Select.Item value={locale} lang={locale}
+				>{getLanguageName(locale, 'native')}</Select.Item
+			>
 		{/each}
 	</Select.Content>
 </Select.Root>

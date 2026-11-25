@@ -12,7 +12,7 @@
 </script>
 
 <label
-	class=" border-card bg-card has-checked:border-primary has-checked:bg-primary/30 cursor-pointer rounded-xl border-2 p-5 pl-2 hover:border-gray-500/20 hover:bg-gray-500/20"
+	class="border-card bg-card has-checked:border-primary has-checked:bg-primary/30 has-focus-visible:border-ring has-focus-visible:ring-ring/50 cursor-pointer rounded-xl border-2 p-5 pl-2 hover:border-gray-500/20 hover:bg-gray-500/20 has-focus-visible:ring-[3px]"
 >
 	<input
 		type={multi ? 'checkbox' : 'radio'}
