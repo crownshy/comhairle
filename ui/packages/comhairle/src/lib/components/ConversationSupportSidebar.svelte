@@ -74,6 +74,7 @@
 		</Drawer.Trigger>
 	{/if}
 	<Drawer.Content class="flex w-full! max-w-full! flex-col pb-12 lg:max-w-[50%]!">
+		<Drawer.Title class="sr-only">{m.support_find_out_more()}</Drawer.Title>
 		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col gap-0">
 			<div class="border-border flex shrink-0 items-end gap-2 border-b px-4 pt-2">
 				<Drawer.Close

@@ -8,10 +8,11 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import type { ThemeName } from '$lib/types/theme';
 	import { cn } from '$lib/utils';
+	import { m } from '$lib/paraglide/messages';
 
 	type Props = {
 		href?: string;
-		/** Names the link when the mark alone doesn't say where it goes. */
+		/** Names the link. Defaults to "Home" when it links to `/`. */
 		ariaLabel?: string;
 		showText?: boolean;
 		logoSize?: 'sm' | 'md' | 'lg';
@@ -33,6 +34,8 @@
 		class: className = '',
 		surface = 'dark'
 	}: Props = $props();
+
+	let linkLabel = $derived(ariaLabel ?? (href === '/' ? m.home() : undefined));
 
 	const fullSizeMap = {
 		sm: 'h-8 w-34',
@@ -114,7 +117,7 @@
 
 {#if href}
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-	<a {href} aria-label={ariaLabel} class={cn('flex items-center', color, className)}>
+	<a {href} aria-label={linkLabel} class={cn('flex items-center', color, className)}>
 		{@render logoContent()}
 	</a>
 {:else}
