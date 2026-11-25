@@ -200,7 +200,6 @@
 				class={QueryParams.get<ConversationsParams>('view') === 'list'
 					? 'flex flex-col gap-3'
 					: 'dynamic-grid gap-6'}
-				style="--grid-item-width: 19rem;"
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="public">
