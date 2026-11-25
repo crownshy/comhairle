@@ -28,7 +28,10 @@
 				<li>
 					<button
 						type="button"
-						onclick={() => QueryParams.set(param, isActive ? '' : value).update()}
+						onclick={() =>
+							QueryParams.set(param, isActive ? '' : value)
+								.set('page', '1')
+								.update()}
 						aria-current={isActive ? 'page' : undefined}
 					>
 						<Badge variant={isActive ? 'primary' : 'outline'}>
@@ -59,13 +62,15 @@
 				{/each}
 			</Select.Content>
 		</Select.Root>
-		<Button
-			icon={X}
-			title="Remove filter"
-			aria-label="Remove filter"
-			class="rounded-lg"
-			variant="secondary"
-			onclick={() => QueryParams.remove<ConversationsParams>('filter').update()}
-		/>
+		{#if selected}
+			<Button
+				icon={X}
+				title="Remove filter"
+				aria-label="Remove filter"
+				class="rounded-lg"
+				variant="secondary"
+				onclick={() => QueryParams.remove<ConversationsParams>('filter').update()}
+			/>
+		{/if}
 	</div>
 {/if}
