@@ -1145,7 +1145,12 @@
 		>
 			<div class="flex flex-col items-center gap-3">
 				<CheckCircle2 class="text-primary size-8" />
-				<h2 class="text-card-foreground text-2xl leading-tight font-semibold">
+				<!-- The vote buttons are gone, so focus comes here rather than dropping to the page. -->
+				<h2
+					tabindex="-1"
+					class="text-card-foreground text-2xl leading-tight font-semibold outline-none"
+					{@attach (heading) => heading.focus()}
+				>
 					{totalVotes === 1
 						? m.polis_votes_counted_one({ count: totalVotes })
 						: m.polis_votes_counted({ count: totalVotes })}
