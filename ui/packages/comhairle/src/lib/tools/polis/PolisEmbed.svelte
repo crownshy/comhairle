@@ -733,7 +733,7 @@
 			bind:value={opinionText}
 			oninput={() => (opinionError = false)}
 			placeholder={m.polis_opinion_placeholder()}
-			aria-label={m.polis_add_your_own_opinion()}
+			aria-labelledby="polis-opinion-title"
 			maxlength={MAX_STATEMENT_LENGTH}
 			aria-describedby="polis-opinion-characters-left"
 			class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
@@ -776,7 +776,10 @@
 					{#if opinionThanks}
 						<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
 					{/if}
-					<Drawer.Title class="text-card-foreground text-xl font-semibold">
+					<Drawer.Title
+						id="polis-opinion-title"
+						class="text-card-foreground text-xl font-semibold"
+					>
 						{OPINION_TITLES[opinionView]()}
 					</Drawer.Title>
 				</div>
@@ -807,7 +810,10 @@
 				{#if opinionThanks}
 					<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
 				{/if}
-				<Dialog.Title class="text-card-foreground text-2xl font-semibold">
+				<Dialog.Title
+					id="polis-opinion-title"
+					class="text-card-foreground text-2xl font-semibold"
+				>
 					{OPINION_TITLES[opinionView]()}
 				</Dialog.Title>
 			</Dialog.Header>

@@ -15,6 +15,7 @@
 	};
 
 	let { question, value, disabled = false, invalid = false, onChange }: Props = $props();
+	const questionTextId = $props.id();
 
 	function handleLikert(raw: string) {
 		const n = Number(raw);
@@ -73,7 +74,7 @@
 </script>
 
 <div class="space-y-3" class:opacity-60={disabled}>
-	<p class="text-base font-medium" class:text-destructive={invalid}>
+	<p id={questionTextId} class="text-base font-medium" class:text-destructive={invalid}>
 		{question.text}
 		{#if question.type.kind === 'text' && !question.required}
 			<span class="text-muted-foreground font-normal">(optional)</span>
@@ -129,6 +130,7 @@
 		</div>
 	{:else}
 		<Textarea
+			aria-labelledby={questionTextId}
 			placeholder="Your answer"
 			rows={3}
 			{disabled}
