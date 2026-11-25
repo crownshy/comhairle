@@ -42,7 +42,7 @@
 	);
 
 	const TAB_TRIGGER_CLASS =
-		'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-muted-foreground/40 active:bg-muted data-[state=active]:text-foreground data-[state=active]:border-primary dark:data-[state=active]:border-primary data-[state=active]:hover:bg-muted/60 dark:data-[state=active]:hover:bg-muted/60 h-11 flex-none cursor-pointer rounded-none rounded-t-md border-0 border-b-2 border-transparent bg-transparent px-3 text-base shadow-none transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent';
+		'text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-muted-foreground/40 active:bg-muted data-[state=active]:text-foreground data-[state=active]:border-primary dark:data-[state=active]:border-primary data-[state=active]:hover:bg-muted/60 dark:data-[state=active]:hover:bg-muted/60 h-auto min-h-11 max-w-full flex-none cursor-pointer rounded-none rounded-t-md border-0 border-b-2 border-transparent bg-transparent px-3 text-base whitespace-normal shadow-none transition-colors data-[state=active]:bg-transparent data-[state=active]:shadow-none dark:data-[state=active]:bg-transparent';
 
 	// Embedded pages have no NavBar to hold the trigger, so they keep a floating one.
 	let isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
@@ -73,7 +73,7 @@
 			<CircleHelp class="size-7" aria-hidden="true" />
 		</Drawer.Trigger>
 	{/if}
-	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col pb-12 lg:max-w-[50vw]!">
+	<Drawer.Content class="flex w-full! max-w-full! flex-col pb-12 lg:max-w-[50%]!">
 		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col gap-0">
 			<div class="border-border flex shrink-0 items-end gap-2 border-b px-4 pt-2">
 				<Drawer.Close
@@ -83,7 +83,7 @@
 					<LucideChevronRight class="stroke-foreground" aria-hidden="true" />
 				</Drawer.Close>
 				<Tabs.List
-					class="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none bg-transparent p-0"
+					class="h-auto w-full min-w-0 flex-wrap justify-start gap-1 rounded-none bg-transparent p-0"
 				>
 					{#if learningAssistantAvailable}
 						<Tabs.Trigger value="learningAssistant" class={TAB_TRIGGER_CLASS}
