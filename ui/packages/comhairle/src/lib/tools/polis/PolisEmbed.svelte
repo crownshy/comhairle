@@ -485,6 +485,39 @@
 	/** The vote Polis failed to save, kept so Try again can resend it. */
 	let failedVote = $state<Vote | undefined>(undefined);
 
+	let voteButtons = $state<Record<Vote, HTMLElement | null>>({
+		agree: null,
+		disagree: null,
+		pass: null
+	});
+
+	// Try again disappears once the vote saves, so focus moves to the matching vote button first.
+	function retryFailedVote() {
+		if (!failedVote) return;
+		voteButtons[failedVote]?.focus();
+		doVote(failedVote);
+	}
+
+	/** True from a saved live vote until the next one starts, so only real votes are announced. */
+	let voteRecorded = $state(false);
+
+	// Polis counts the statement it just served in `remaining`.
+	const opinionPosition = $derived(
+		Math.min(polisTotal, Math.max(1, polisTotal - polisRemaining + 1))
+	);
+
+	// Empty while the next statement loads, so the region changes, and is read, once it arrives.
+	const voteStatus = $derived.by(() => {
+		if (!voteRecorded) return '';
+		if (screen === 'continue-prompt') return m.polis_vote_recorded();
+		if (screen !== 'voting' || guideStage || waitingForNext || !shownStatement) return '';
+		return m.polis_vote_recorded_next({
+			position: opinionPosition,
+			total: polisTotal,
+			statement: displayText
+		});
+	});
+
 	/** Counts a vote towards progress. True when it is the one that meets the threshold. */
 	function countVote(): boolean {
 		totalVotes++;
@@ -529,7 +562,7 @@
 	}
 
 	async function doVote(vote: Vote) {
-		if (voteCooldown || !shownStatement) return;
+		if (disabled || !shownStatement) return;
 		if (practiceStatement) {
 			practiceVote(practiceStatement, vote);
 			return;
@@ -538,6 +571,7 @@
 		waitingForNext = true;
 		voteCooldown = true;
 		failedVote = undefined;
+		voteRecorded = false;
 
 		// Count the vote only once Polis has saved it, so Next never unlocks on lost votes.
 		const saved = await polis.submitVote(vote);
@@ -547,6 +581,7 @@
 			voteCooldown = false;
 			return;
 		}
+		voteRecorded = true;
 		const metThreshold = countVote();
 		afterLiveVote();
 
@@ -572,6 +607,7 @@
 
 	function resumeVoting() {
 		startNextVotingRound(user_id, voteScopeKey);
+		voteRecorded = false;
 		screen = 'voting';
 	}
 
@@ -831,6 +867,8 @@
 
 <Spotlight target="polis-onboarding" moment={spotlightMoment} onSkip={skipOnboarding} />
 
+<p role="status" class="sr-only">{voteStatus}</p>
+
 <div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting' && stage === 'deciding'}
 		<!-- Shaped like the intro, which is what almost everyone here sees next. -->
@@ -1033,13 +1071,14 @@
 						role="alert"
 					>
 						<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
-						<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
+						<Button variant="outline" onclick={retryFailedVote}>
 							{m.try_again()}
 						</Button>
 					</div>
 				{/if}
 
-				<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
+				<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready.
+				     Between votes they are only aria-disabled: a natively disabled button drops focus. -->
 				{#if !polisError && (!polisReady || shownStatement)}
 					{@const VOTE_BUTTON_CLASS =
 						'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
@@ -1047,7 +1086,9 @@
 					<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
 						<Button
 							size="lg"
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.agree}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('agree')}
 							class={VOTE_BUTTON_CLASS}
 						>
@@ -1056,7 +1097,9 @@
 						</Button>
 						<Button
 							size="lg"
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.disagree}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('disagree')}
 							class={VOTE_BUTTON_CLASS}
 						>
@@ -1070,7 +1113,9 @@
 								VOTE_BUTTON_CLASS,
 								'text-foreground/80 hover:text-foreground w-full sm:w-auto'
 							)}
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.pass}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('pass')}
 						>
 							{m.polis_pass_unsure()}

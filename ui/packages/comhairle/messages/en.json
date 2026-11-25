@@ -301,6 +301,8 @@
 	"polis_moderation_policy_outcome": "If your statement breaks one of these rules, it is removed and other participants won't vote on it. You can still write a new one.",
 	"polis_opinion_not_submitted": "Your opinion wasn't submitted. Please try again.",
 	"polis_vote_not_saved": "Your vote wasn't saved.",
+	"polis_vote_recorded": "Vote recorded.",
+	"polis_vote_recorded_next": "Vote recorded. Opinion {position} of {total}: {statement}",
 	"polis_opinion_placeholder": "Enter your own opinion here",
 	"polis_tip_max_length": "Keep it short: up to {max} characters",
 	"polis_characters_left": "{count} characters left",
