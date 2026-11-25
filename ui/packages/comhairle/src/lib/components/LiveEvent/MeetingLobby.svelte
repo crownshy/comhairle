@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import AnimatedLoader from './AnimatedLoader.svelte';
 	import type {
 		VideoCallParticipant,
@@ -99,7 +100,13 @@
 
 {#snippet titleBlock()}
 	<div class="flex flex-col items-center gap-3">
-		<h1 class="text-foreground text-center text-2xl leading-7 font-semibold">{title}</h1>
+		<h1
+			tabindex="-1"
+			{@attach focusOnScreenChange}
+			class="text-foreground text-center text-2xl leading-7 font-semibold outline-none"
+		>
+			{title}
+		</h1>
 		<p class="text-muted-foreground text-center text-xl leading-6 font-semibold">
 			{scheduledTime}{#if phase === 'ended' && endedTime}<br />Ended at {endedTime}{/if}
 		</p>

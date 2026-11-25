@@ -8,6 +8,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { lobbyHref } from './lobbyHref';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
@@ -31,6 +32,8 @@
 
 	let joining = $state(false);
 	let error = $state<string | null>(null);
+	// Focus moves to the registered chip only after registering here, not on every visit.
+	let justRegistered = $state(false);
 
 	/**
 	 * Time + date formatting depends on the user's local timezone, which differs between server
@@ -114,6 +117,8 @@
 				registered.err instanceof Error
 					? registered.err.message
 					: m.event_register_failed();
+		} else {
+			justRegistered = true;
 		}
 		joining = false;
 	}
@@ -329,7 +334,9 @@
 
 			{#if userAttendance}
 				<span
-					class="inline-flex items-center rounded-full bg-green-500/10 px-4 py-2 text-sm font-medium text-green-600"
+					tabindex="-1"
+					{@attach justRegistered && focusOnScreenChange}
+					class="inline-flex items-center rounded-full bg-green-500/10 px-4 py-2 text-sm font-medium text-green-600 outline-none"
 				>
 					✓ You're registered ({userAttendance.role})
 				</span>

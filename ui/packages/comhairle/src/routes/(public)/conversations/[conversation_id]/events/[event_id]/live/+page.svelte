@@ -10,6 +10,7 @@
 	import { breakoutAutoEnterRoom } from '$lib/utils/breakoutAutoEnter';
 	import { applyRoomEdits, groupParticipantsByRoom } from '$lib/utils/breakoutRoomAssignments';
 	import { mapApiAgenda } from '$lib/utils/liveEventAgenda';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { JitsiRoom } from './jitsiRoom.svelte';
 	import { MeetingAttendance } from './meetingAttendance.svelte';
 	import type {
@@ -770,7 +771,11 @@
 				></div>
 			</div>
 			<div class="flex flex-col items-center gap-3">
-				<h2 class="text-foreground text-2xl font-semibold">
+				<h2
+					tabindex="-1"
+					{@attach focusOnScreenChange}
+					class="text-foreground text-2xl font-semibold outline-none"
+				>
 					{event?.name ?? m.live_event_title_fallback()}
 				</h2>
 				<p class="text-muted-foreground text-base">{m.live_event_connecting()}</p>
@@ -813,7 +818,11 @@
 					<div
 						class="flex items-center justify-between gap-3 md:flex-wrap md:justify-start md:gap-4"
 					>
-						<span class="text-sidebar-foreground text-lg font-medium md:text-xl">
+						<span
+							tabindex="-1"
+							{@attach focusOnScreenChange}
+							class="text-sidebar-foreground text-lg font-medium outline-none md:text-xl"
+						>
 							{event?.name ?? 'Event'}
 						</span>
 						<div class="flex items-center gap-1.5">
