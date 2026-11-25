@@ -1,8 +1,9 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import Hand from '@lucide/svelte/icons/hand';
 	import { m } from '$lib/paraglide/messages';
+	import BreakoutQuestionCard from './BreakoutQuestionCard.svelte';
+	import { fadeScrollEdges } from './fadeScrollEdges';
 
 	interface Props {
 		roomName: string;
@@ -55,29 +56,12 @@
 	</div>
 
 	<!-- Content -->
-	<div class="flex flex-1 flex-col items-center gap-6 overflow-y-auto px-3 py-5">
+	<div
+		class="flex flex-1 flex-col items-center gap-6 overflow-y-auto px-3 py-5"
+		{@attach fadeScrollEdges}
+	>
 		{#if question}
-			<div
-				class="bg-background flex w-full shrink-0 flex-col items-center gap-4 rounded-xl p-6"
-			>
-				<div class="flex flex-col items-center gap-1">
-					<span class="text-primary text-xs leading-4 font-medium uppercase"
-						>{m.live_event_question()}</span
-					>
-					<p
-						class="text-foreground text-center text-lg leading-7 font-semibold break-words"
-					>
-						{question}
-					</p>
-				</div>
-
-				{#if description}
-					<div class="h-0 w-full border-t"></div>
-					<div class="text-foreground w-full text-base leading-6 font-normal">
-						<ContentRenderer content={description} />
-					</div>
-				{/if}
-			</div>
+			<BreakoutQuestionCard {question} {description} />
 		{/if}
 	</div>
 
