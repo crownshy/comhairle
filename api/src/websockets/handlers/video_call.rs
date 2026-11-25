@@ -179,11 +179,7 @@ impl VideoCallState {
             .participants
             .get(&user_id)
             .is_some_and(VideoCallParticipant::is_host);
-        let already_placed = self
-            .breakout_rooms
-            .iter()
-            .any(|room| room.participants.contains(&user_id));
-        if is_host || already_placed {
+        if is_host || self.has_a_breakout_room(&user_id) {
             return;
         }
 
@@ -194,6 +190,30 @@ impl VideoCallState {
         {
             emptiest_room.participants.push(user_id);
         }
+    }
+
+    fn has_a_breakout_room(&self, user_id: &Uuid) -> bool {
+        self.breakout_rooms
+            .iter()
+            .any(|room| room.participants.contains(user_id))
+    }
+
+    /// The rooms a host laid out, minus anyone who isn't in the call. Someone offline who
+    /// already has a room keeps it, so they go back to it when they reconnect instead of
+    /// being placed in the emptiest room. Empty rooms are kept: room numbers are positions
+    /// in this list, so dropping one would send people to the wrong Jitsi room.
+    fn rooms_from_layout(&self, layout: &[Vec<Uuid>]) -> Vec<BreakoutRoomAssignments> {
+        layout
+            .iter()
+            .map(|room_ids| BreakoutRoomAssignments {
+                participants: room_ids
+                    .iter()
+                    .filter(|id| self.participants.contains_key(id) || self.has_a_breakout_room(id))
+                    .copied()
+                    .collect(),
+                room_jid: None,
+            })
+            .collect()
     }
 
     /// Ids of everyone in the call who should be split into breakout rooms, hosts left out.
@@ -1088,36 +1108,23 @@ impl VideoCallMessageHandler {
                 if let Some(participant) = call.participants.get(&user_id)
                     && participant.is_host()
                 {
-                    let breakout_rooms =
-                        if let Some(ref explicit) = assignment_data.room_assignments {
-                            // Empty rooms are kept: room numbers are positions in this list,
-                            // so dropping one would renumber the rooms after it and send
-                            // their participants to the wrong Jitsi room.
-                            explicit
-                                .iter()
-                                .map(|room_ids| BreakoutRoomAssignments {
-                                    participants: room_ids
-                                        .iter()
-                                        .filter(|id| call.participants.contains_key(id))
-                                        .copied()
-                                        .collect(),
-                                    room_jid: None,
-                                })
-                                .collect()
-                        } else {
-                            let mut participant_ids = call.breakout_candidates();
-                            let mut rng = rand::thread_rng();
-                            participant_ids.shuffle(&mut rng);
+                    let breakout_rooms = if let Some(ref layout) = assignment_data.room_assignments
+                    {
+                        call.rooms_from_layout(layout)
+                    } else {
+                        let mut participant_ids = call.breakout_candidates();
+                        let mut rng = rand::thread_rng();
+                        participant_ids.shuffle(&mut rng);
 
-                            // Divide into rooms with max_users_per_room
-                            participant_ids
-                                .chunks(max_users)
-                                .map(|chunk| BreakoutRoomAssignments {
-                                    participants: chunk.to_vec(),
-                                    room_jid: None,
-                                })
-                                .collect()
-                        };
+                        // Divide into rooms with max_users_per_room
+                        participant_ids
+                            .chunks(max_users)
+                            .map(|chunk| BreakoutRoomAssignments {
+                                participants: chunk.to_vec(),
+                                room_jid: None,
+                            })
+                            .collect()
+                    };
 
                     let stale_jids: Vec<String> =
                         std::mem::replace(&mut call.breakout_rooms, breakout_rooms)
@@ -1761,6 +1768,20 @@ mod tests {
         call.place_in_breakout_room(walk_in);
 
         assert_eq!(room_of(&call, walk_in), Some(1));
+    }
+
+    #[test]
+    fn someone_offline_keeps_their_room_when_a_host_edits_the_rooms() {
+        let (online, offline, stranger) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+        let call = call_with(
+            &[(online, "participant")],
+            vec![vec![offline], vec![online]],
+        );
+
+        let rooms = call.rooms_from_layout(&[vec![offline, stranger], vec![online]]);
+
+        assert_eq!(rooms[0].participants, vec![offline]);
+        assert_eq!(rooms[1].participants, vec![online]);
     }
 
     #[test]
