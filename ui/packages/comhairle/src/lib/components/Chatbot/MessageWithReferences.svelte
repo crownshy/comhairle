@@ -80,7 +80,7 @@
 								onclick={() => onOpenSource?.(chunk)}
 								class="text-chat-primary bg-chat-primary-lighter hover:bg-chat-primary-light mx-0.5 inline-flex h-4 w-4 cursor-pointer items-center justify-center rounded-full align-baseline text-[10px] font-medium transition-colors"
 							>
-								<Info class="h-3 w-3" />
+								<Info aria-hidden="true" class="h-3 w-3" />
 							</button>
 						{/snippet}
 					</HoverCard.Trigger>

@@ -470,7 +470,7 @@
 				disabled={!canPrev || !revealed}
 				onclick={() => goToPage(currentPage - 1)}
 			>
-				<ChevronLeftIcon class="size-4" />
+				<ChevronLeftIcon aria-hidden="true" class="size-4" />
 			</Button>
 			<span class="text-foreground text-sm font-medium">Page {currentPage} of {numPages}</span
 			>
@@ -483,7 +483,7 @@
 				disabled={!canNext || !revealed}
 				onclick={() => goToPage(currentPage + 1)}
 			>
-				<ChevronRightIcon class="size-4" />
+				<ChevronRightIcon aria-hidden="true" class="size-4" />
 			</Button>
 		</div>
 
@@ -496,7 +496,7 @@
 				disabled={!revealed || renderedScale <= MIN_ZOOM}
 				onclick={zoomOut}
 			>
-				<MinusIcon class="size-4" />
+				<MinusIcon aria-hidden="true" class="size-4" />
 			</Button>
 			<Select.Root type="single" value={zoomValue} onValueChange={setZoom}>
 				<Select.Trigger size="sm" class="min-w-26 justify-between" aria-label="Zoom level">
@@ -516,7 +516,7 @@
 				disabled={!revealed || renderedScale >= MAX_ZOOM}
 				onclick={zoomIn}
 			>
-				<PlusIcon class="size-4" />
+				<PlusIcon aria-hidden="true" class="size-4" />
 			</Button>
 		</div>
 	</div>

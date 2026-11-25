@@ -226,7 +226,10 @@
 					<div
 						class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm"
 					>
-						<AlertTriangle class="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+						<AlertTriangle
+							aria-hidden="true"
+							class="mt-0.5 h-4 w-4 shrink-0 text-red-600"
+						/>
 						<div class="min-w-0 flex-1">
 							<p class="font-semibold text-red-800">
 								{m.learning_assistant_load_fail()}
@@ -237,7 +240,7 @@
 								class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
 								onclick={retryInit}
 							>
-								<RefreshCw class="h-3 w-3" />
+								<RefreshCw aria-hidden="true" class="h-3 w-3" />
 								{m.try_again()}
 							</button>
 						</div>
@@ -338,6 +341,7 @@
 										</p>
 									</div>
 									<ChevronDown
+										aria-hidden="true"
 										class="text-muted-foreground mt-1 h-4 w-4 shrink-0 transition-transform {open
 											? 'rotate-180'
 											: ''}"
@@ -352,6 +356,7 @@
 													class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm"
 												>
 													<AlertTriangle
+														aria-hidden="true"
 														class="mt-0.5 h-4 w-4 shrink-0 text-red-600"
 													/>
 													<div class="min-w-0 flex-1">
@@ -366,7 +371,10 @@
 																onclick={retryLast}
 																disabled={isStreaming}
 															>
-																<RefreshCw class="h-3 w-3" />
+																<RefreshCw
+																	aria-hidden="true"
+																	class="h-3 w-3"
+																/>
 																{m.try_again()}
 															</button>
 														{/if}
@@ -420,6 +428,7 @@
 																onclick={() => openSource(chunk)}
 															>
 																<FileText
+																	aria-hidden="true"
 																	class="h-3 w-3 shrink-0"
 																/>
 																<span class="truncate"

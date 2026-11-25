@@ -406,7 +406,7 @@
 								<p
 									class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
 								>
-									<CornerDownRight class="size-3.5 shrink-0" />
+									<CornerDownRight aria-hidden="true" class="size-3.5 shrink-0" />
 									{followUp.question}
 								</p>
 								<p
@@ -437,7 +437,7 @@
 		)}
 			<div class="bg-primary/10 space-y-3 rounded-lg p-4">
 				<div class="flex items-center gap-2">
-					<Sparkles class="text-primary size-4 shrink-0" />
+					<Sparkles aria-hidden="true" class="text-primary size-4 shrink-0" />
 					<p
 						id={labelId}
 						class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
@@ -488,17 +488,17 @@
 				{#snippet saveStatus()}
 					{#if saveStateById[round.id] === 'saving'}
 						<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
-							<LoaderCircle class="size-3 animate-spin" />
+							<LoaderCircle aria-hidden="true" class="size-3 animate-spin" />
 							{m.saving()}
 						</span>
 					{:else if saveStateById[round.id] === 'saved'}
 						<span class="inline-flex items-center gap-1 text-xs text-green-600">
-							<Check class="size-3" />
+							<Check aria-hidden="true" class="size-3" />
 							{m.saved()}
 						</span>
 					{:else if saveStateById[round.id] === 'error'}
 						<span class="text-destructive inline-flex items-center gap-1 text-xs">
-							<TriangleAlert class="size-3" />
+							<TriangleAlert aria-hidden="true" class="size-3" />
 							{m.not_saved()}
 						</span>
 					{/if}
@@ -532,7 +532,10 @@
 		{#if pendingNextRound}
 			<div class="space-y-3">
 				<div class="flex items-start gap-2">
-					<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
+					<Sparkles
+						aria-hidden="true"
+						class="text-primary mt-0.5 size-4 shrink-0 animate-pulse"
+					/>
 					<p
 						class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
 						class:opacity-0={fading}
@@ -576,7 +579,7 @@
 							onclick={() => onAnswerMore?.()}
 							disabled={!onAnswerMore}
 						>
-							<PlusCircle class="size-3.5" />
+							<PlusCircle aria-hidden="true" class="size-3.5" />
 							{m.thinking_space_answer_more()}
 						</Button>
 					{:else}
@@ -586,7 +589,7 @@
 							onclick={() => onRetryGenerate?.()}
 							disabled={!onRetryGenerate}
 						>
-							<RotateCcw class="size-3.5" />
+							<RotateCcw aria-hidden="true" class="size-3.5" />
 							{m.try_again()}
 						</Button>
 					{/if}
@@ -609,7 +612,7 @@
 								onclick={() => onAnswerMore?.()}
 								disabled={!onAnswerMore}
 							>
-								<PlusCircle class="size-3.5" />
+								<PlusCircle aria-hidden="true" class="size-3.5" />
 								{m.thinking_space_answer_more()}
 							</Button>
 						{:else}
@@ -619,7 +622,7 @@
 								onclick={() => onRetryGenerate?.()}
 								disabled={!onRetryGenerate}
 							>
-								<RotateCcw class="size-3.5" />
+								<RotateCcw aria-hidden="true" class="size-3.5" />
 								{m.try_again()}
 							</Button>
 						{/if}
@@ -641,7 +644,7 @@
 						onclick={onAnswerMore}
 						disabled={latestOverLimit || !onAnswerMore}
 					>
-						<PlusCircle class="size-4" />
+						<PlusCircle aria-hidden="true" class="size-4" />
 						{m.thinking_space_answer_more()}
 					</Button>
 					<Button
@@ -650,7 +653,7 @@
 						onclick={submit}
 						disabled={!latestHasText || submitting || latestOverLimit}
 					>
-						<Check class="size-4" />
+						<Check aria-hidden="true" class="size-4" />
 						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
 					</Button>
 				</div>

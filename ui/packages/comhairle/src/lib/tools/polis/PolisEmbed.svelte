@@ -710,7 +710,7 @@
 			class="h-12 w-full gap-2 px-6 text-lg sm:w-auto"
 			onclick={() => showOpinionView('form')}
 		>
-			<ArrowLeft class="size-5 rtl:-scale-x-100" />
+			<ArrowLeft aria-hidden="true" class="size-5 rtl:-scale-x-100" />
 			{m.polis_back_to_your_opinion()}
 		</Button>
 	{:else if opinionView === 'thanks'}
@@ -945,7 +945,7 @@
 							class="h-12 gap-2 px-6 text-lg"
 							onclick={openAddOpinion}
 						>
-							<MessageSquarePlus class="size-5" />
+							<MessageSquarePlus aria-hidden="true" class="size-5" />
 							{m.polis_add_your_own_opinion()}
 						</Button>
 					{/snippet}
@@ -991,7 +991,7 @@
 							class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
 							in:fade={{ duration: 300 }}
 						>
-							<AlertTriangle class="text-destructive h-8 w-8" />
+							<AlertTriangle aria-hidden="true" class="text-destructive h-8 w-8" />
 							<p class="text-foreground text-lg font-medium">
 								{m.something_went_wrong()}
 							</p>
@@ -1040,7 +1040,7 @@
 										class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
 										aria-expanded={showOriginal}
 									>
-										<Languages class="h-4 w-4" />
+										<Languages aria-hidden="true" class="h-4 w-4" />
 										{localized?.source_locale
 											? m.polis_translated_from({
 													language: languageName(localized.source_locale)
@@ -1217,7 +1217,7 @@
 				disabled={!polisReady}
 				onclick={openAddOpinion}
 			>
-				<MessageSquare fill="currentColor" class="h-5 w-5" />
+				<MessageSquare aria-hidden="true" fill="currentColor" class="h-5 w-5" />
 				<span class="hidden md:inline">{m.polis_add_opinion_long()}</span>
 				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
 			</Button>

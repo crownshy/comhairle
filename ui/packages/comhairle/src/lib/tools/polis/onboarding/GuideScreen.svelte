@@ -21,7 +21,7 @@
 	<div class="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
 		<Button size="lg" class="h-12 gap-2 px-6 text-lg" onclick={onNext}>
 			{next}
-			<ChevronRight class="size-5 rtl:-scale-x-100" />
+			<ChevronRight aria-hidden="true" class="size-5 rtl:-scale-x-100" />
 		</Button>
 		{@render actions?.()}
 	</div>
