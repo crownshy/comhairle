@@ -9,7 +9,7 @@
 	import { FORMATTING_TOOLS, type FormattingTool } from './formattingTools';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { cn } from '$lib/utils';
-	import { isVideoFileUrl } from '$lib/utils/videoUrl';
+	import { insertVideo } from './insertMedia';
 
 	import List from '@lucide/svelte/icons/list';
 	import ListOrdered from '@lucide/svelte/icons/list-ordered';
@@ -169,8 +169,8 @@
 	<UrlInputPopover
 		type="image"
 		allowLocalSelection
-		onSubmit={({ url }) => {
-			editor?.chain().focus().setImage({ src: url }).run();
+		onSubmit={({ url, alt }) => {
+			editor?.chain().focus().setImage({ src: url, alt }).run();
 		}}
 	>
 		{@render button({ title: 'Add Image', active: false, Icon: ImageIcon })}
@@ -178,13 +178,7 @@
 	<UrlInputPopover
 		type="video"
 		allowLocalSelection
-		onSubmit={({ from, url }) => {
-			if (from === 'library' || isVideoFileUrl(url)) {
-				editor?.chain().focus().setVideo({ src: url }).run();
-			} else {
-				editor?.chain().focus().setIframe({ src: url }).run();
-			}
-		}}
+		onSubmit={(video) => insertVideo(editor, video)}
 	>
 		{@render button({ title: 'Add Video', active: false, Icon: Video })}
 	</UrlInputPopover>

@@ -1,5 +1,6 @@
 import { Node } from '@tiptap/core';
 import { validateIframeUrl, DEFAULT_ALLOWED_DOMAINS } from '$lib/utils/urlValidation';
+import { m } from '$lib/paraglide/messages';
 
 export interface IframeOptions {
 	allowFullscreen: boolean;
@@ -10,7 +11,7 @@ export interface IframeOptions {
 declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
 		iframe: {
-			setIframe: (options: { src: string }) => ReturnType;
+			setIframe: (options: { src: string; title?: string | null }) => ReturnType;
 		};
 	}
 }
@@ -55,6 +56,14 @@ export const Iframe = Node.create<IframeOptions>({
 
 					return { src: validSrc };
 				}
+			},
+			title: {
+				default: null,
+				parseHTML: (element) => element.getAttribute('title') || null,
+				// Screen readers announce an iframe by its title, so fall back to a generic one.
+				renderHTML: (attributes) => ({
+					title: attributes.title || m.rich_text_embedded_video_title()
+				})
 			},
 			frameborder: {
 				default: 0,
@@ -157,7 +166,7 @@ export const Iframe = Node.create<IframeOptions>({
 	addCommands() {
 		return {
 			setIframe:
-				(options: { src: string }) =>
+				(options: { src: string; title?: string | null }) =>
 				({ tr, dispatch }) => {
 					const validSrc = validateIframeUrl(
 						options.src,
@@ -168,6 +177,7 @@ export const Iframe = Node.create<IframeOptions>({
 
 					const node = this.type.create({
 						src: validSrc || options.src,
+						title: options.title || null,
 						allowfullscreen: this.options.allowFullscreen,
 						sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
 						referrerpolicy: 'no-referrer-when-downgrade'

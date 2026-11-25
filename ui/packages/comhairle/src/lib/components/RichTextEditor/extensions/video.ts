@@ -4,11 +4,15 @@ import {
 	withFirstFrameThumbnail,
 	withoutFirstFrameThumbnail
 } from '$lib/utils/videoUrl';
+import { validateUrl } from '$lib/utils/urlValidation';
+import { m } from '$lib/paraglide/messages';
 
 export interface VideoOptions {
 	src: string;
 	controls?: boolean;
 	autoplay?: boolean;
+	/** URL of a WebVTT captions file, shown as a captions track participants can turn on. */
+	captions?: string | null;
 }
 
 declare module '@tiptap/core' {
@@ -17,6 +21,10 @@ declare module '@tiptap/core' {
 			setVideo: (options: VideoOptions) => ReturnType;
 		};
 	}
+}
+
+function readCaptionsSrc(element: HTMLElement): string | null {
+	return element.querySelector('track[kind="captions"]')?.getAttribute('src') ?? null;
 }
 
 function readVideoSrc(element: HTMLElement): string {
@@ -50,6 +58,10 @@ export const Video = Node.create<VideoOptions>({
 			autoplay: {
 				default: false,
 				parseHTML: (element) => element.hasAttribute('autoplay')
+			},
+			captions: {
+				default: null,
+				parseHTML: readCaptionsSrc
 			}
 		};
 	},
@@ -69,8 +81,11 @@ export const Video = Node.create<VideoOptions>({
 
 	renderHTML({ node }) {
 		const { src, controls, autoplay } = node.attrs;
+		const captions = validateUrl(node.attrs.captions);
+		const source = ['source', { src: withFirstFrameThumbnail(src) }];
 
-		// playsinline stops iPhones forcing fullscreen playback.
+		// playsinline stops iPhones forcing fullscreen playback. Browsers only load a captions
+		// file from another origin when the video is requested with CORS, hence crossorigin.
 		return [
 			'video',
 			{
@@ -78,9 +93,13 @@ export const Video = Node.create<VideoOptions>({
 				autoplay: autoplay ? '' : null,
 				playsinline: '',
 				preload: 'metadata',
+				crossorigin: captions ? 'anonymous' : null,
 				class: 'w-full rounded-lg'
 			},
-			['source', { src: withFirstFrameThumbnail(src) }]
+			source,
+			...(captions
+				? [['track', { kind: 'captions', src: captions, label: m.rich_text_captions() }]]
+				: [])
 		];
 	},
 

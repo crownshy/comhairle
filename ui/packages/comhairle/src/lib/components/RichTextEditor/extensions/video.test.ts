@@ -52,3 +52,49 @@ describe('video node', () => {
 		expect(editor.getHTML()).toContain('<iframe');
 	});
 });
+
+describe('video captions', () => {
+	const CAPTIONS = 'https://media.example.com/clip.vtt';
+
+	it('renders a captions track when the video has a captions file', () => {
+		createEditor().commands.setVideo({ src: CLIP, captions: CAPTIONS });
+
+		const html = editor.getHTML();
+		expect(html).toContain(`<track kind="captions" src="${CAPTIONS}"`);
+		expect(html).toContain('crossorigin="anonymous"');
+	});
+
+	it('renders no track or crossorigin without a captions file', () => {
+		createEditor().commands.setVideo({ src: CLIP });
+
+		const html = editor.getHTML();
+		expect(html).not.toContain('<track');
+		expect(html).not.toContain('crossorigin');
+	});
+
+	it('keeps the captions file when stored HTML is loaded again', () => {
+		createEditor().commands.setVideo({ src: CLIP, captions: CAPTIONS });
+		editor.commands.setContent(editor.getHTML());
+
+		expect(editor.getJSON().content?.[0]).toMatchObject({
+			type: 'video',
+			attrs: { src: CLIP, captions: CAPTIONS }
+		});
+	});
+});
+
+describe('iframe title', () => {
+	const EMBED = 'https://www.youtube.com/embed/abc123';
+
+	it('renders the title the author gave', () => {
+		createEditor().commands.setIframe({ src: EMBED, title: 'Budget explainer' });
+
+		expect(editor.getHTML()).toContain('title="Budget explainer"');
+	});
+
+	it('falls back to a generic title for embeds saved without one', () => {
+		createEditor(`<iframe src="${EMBED}"></iframe>`);
+
+		expect(editor.getHTML()).toContain('title="Embedded video"');
+	});
+});
