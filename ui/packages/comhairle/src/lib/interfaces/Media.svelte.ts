@@ -73,7 +73,8 @@ class Uploader {
 				filename: data.media.name,
 				name: data.name,
 				alt: data.alt,
-				contentType: data.media.type
+				contentType: data.media.type,
+				size: data.media.size
 			})
 		);
 
@@ -194,15 +195,30 @@ function getFilename(filename: string): string {
 	return filename.slice(0, index);
 }
 
-function formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
-	const denominations = ['B', 'KB', 'MB', 'GB'];
+const denominations = ['B', 'KB', 'MB', 'GB'] as const;
+
+type FormatBytesOptions = {
+	size?: (typeof denominations)[number];
+	dp?: number;
+};
+/**
+ * Format bytes into a condensed string, automatically picks the size for best readability
+ * @param bytes - value in bytes
+ * @param options -
+ * - size?: forces a fixed size, e.g. "GB"
+ * - dp?: decimal points to round to, defaults to 2
+ * @example
+ * formatBytes(3_000) = "3KB"
+ * formatBytes(21_123_223) = "21.12MB"
+ */
+function formatBytes(bytes: number, options: FormatBytesOptions = { dp: 2 }): string {
 	const factor = 1_000; // 1_024 for kibibytes
 
 	const calcBytes = (bytes: number, index: number): number =>
 		Math.round((bytes / Math.pow(factor, index)) * 100) / 100;
 
-	if (size) {
-		const index = denominations.indexOf(size);
+	if (options?.size) {
+		const index = denominations.indexOf(options.size);
 		return `${calcBytes(bytes, index)}${denominations[index]}`;
 	}
 
@@ -211,11 +227,11 @@ function formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
 
 		if (value <= 0.7) {
 			const previousSafeIndex = Math.max(i - 1, 0);
-			return `${calcBytes(bytes, previousSafeIndex)}${denominations[previousSafeIndex]}`;
+			return `${calcBytes(bytes, previousSafeIndex).toFixed(options.dp)}${denominations[previousSafeIndex]}`;
 		}
 
 		if (i === denominations.length - 1) {
-			return `${calcBytes(bytes, i)}${denominations[i]}`;
+			return `${calcBytes(bytes, i).toFixed(options.dp)}${denominations[i]}`;
 		}
 	}
 

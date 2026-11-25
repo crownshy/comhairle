@@ -91,6 +91,7 @@ async fn upload(
         filename: filename.clone(),
         name: upload_media.name,
         alt: upload_media.alt,
+        size: upload_media.size,
         content_type,
     };
 
@@ -221,6 +222,7 @@ mod tests {
             filename: format!("{random_name}.jpg"),
             name: random_name,
             alt: "alt text".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -235,6 +237,7 @@ mod tests {
         let content_type = "image/jpeg";
         let name = "test-name";
         let alt = "test-alt";
+        let size = 12_000_000;
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
@@ -257,6 +260,7 @@ mod tests {
             content_type: content_type.to_string(),
             name: name.to_string(),
             alt: alt.to_string(),
+            size: size,
         };
 
         let (_, value, _) = session
@@ -279,6 +283,7 @@ mod tests {
             alt.to_string(),
             "incorrect alt text"
         );
+        assert_eq!(upload_response.media.size, size, "incorrect file size");
         assert_eq!(
             upload_response.media.content_type,
             MediaContentType::Jpeg,

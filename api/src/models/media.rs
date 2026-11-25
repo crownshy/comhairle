@@ -25,6 +25,7 @@ pub struct UploadMediaDto {
     pub filename: String,
     pub name: String,
     pub alt: String,
+    pub size: i32,
     pub content_type: String,
 }
 
@@ -50,6 +51,8 @@ pub struct Media {
     pub name: String,
     /// Alt text for the media
     pub alt: String,
+    /// Size of media file in bytes (i32 max is 2,147,483,647 (2.15GB))
+    pub size: i32,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
     pub owner_id: Uuid,
@@ -190,13 +193,14 @@ impl MediaContentType {
     }
 }
 
-const DEFAULT_COLUMNS: [MediaIden; 10] = [
+const DEFAULT_COLUMNS: [MediaIden; 11] = [
     MediaIden::Id,
     MediaIden::StoreName,
     MediaIden::StorageKey,
     MediaIden::Filename,
     MediaIden::Name,
     MediaIden::Alt,
+    MediaIden::Size,
     MediaIden::ContentType,
     MediaIden::OwnerId,
     MediaIden::CreatedAt,
@@ -272,6 +276,7 @@ pub struct CreateMedia {
     pub filename: String,
     pub name: String,
     pub alt: String,
+    pub size: i32,
     pub content_type: MediaContentType,
 }
 
@@ -283,6 +288,7 @@ impl CreateMedia {
             MediaIden::Filename,
             MediaIden::Name,
             MediaIden::Alt,
+            MediaIden::Size,
             MediaIden::ContentType,
         ]
     }
@@ -294,6 +300,7 @@ impl CreateMedia {
             (*self.filename).into(),
             (*self.name).into(),
             (*self.alt).into(),
+            self.size.into(),
             self.content_type.clone().into(),
         ]
     }
@@ -552,6 +559,7 @@ mod tests {
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
             alt: "test alt text".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -587,6 +595,7 @@ mod tests {
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
             alt: "test alt text".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -622,6 +631,7 @@ mod tests {
             filename: "image-b.jpg".to_string(),
             name: "image-b".to_string(),
             alt: "alt text b".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
@@ -630,6 +640,7 @@ mod tests {
             filename: "image-a.jpg".to_string(),
             name: "image-a".to_string(),
             alt: "alt text a".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
@@ -638,6 +649,7 @@ mod tests {
             filename: "image-d.jpg".to_string(),
             name: "image-d".to_string(),
             alt: "alt text d".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
@@ -646,6 +658,7 @@ mod tests {
             filename: "image-c.jpg".to_string(),
             name: "image-c".to_string(),
             alt: "alt text c".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
@@ -654,6 +667,7 @@ mod tests {
             filename: "image-e.jpg".to_string(),
             name: "image-e".to_string(),
             alt: "alt text e".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -699,6 +713,7 @@ mod tests {
             filename: "image-b.jpg".to_string(),
             name: "image-b".to_string(),
             alt: "alt text b".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
@@ -707,6 +722,7 @@ mod tests {
             filename: "image-a.jpg".to_string(),
             name: "image-a".to_string(),
             alt: "alt text a".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
@@ -715,6 +731,7 @@ mod tests {
             filename: "image-d.jpg".to_string(),
             name: "image-d".to_string(),
             alt: "alt text d".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -759,6 +776,7 @@ mod tests {
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
             alt: "test alt text".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 
@@ -799,6 +817,7 @@ mod tests {
             filename: "test-image.jpg".to_string(),
             name: "test-image".to_string(),
             alt: "test alt text".to_string(),
+            size: 12_000_000,
             content_type: MediaContentType::Jpeg,
         };
 

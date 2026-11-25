@@ -24,9 +24,10 @@ describe('Media interface', () => {
 	});
 
 	it('Should format bytes correctly', () => {
-		expect(Media.formatBytes(2_000_012, 'MB')).toEqual('2MB');
+		expect(Media.formatBytes(2_000_012, { size: 'MB' })).toEqual('2MB');
 		expect(Media.formatBytes(1_312_424)).toEqual('1.31MB');
 		expect(Media.formatBytes(5_712)).toEqual('5.71KB');
+		expect(Media.formatBytes(21_357_712, { dp: 0 })).toEqual('21MB');
 	});
 
 	it.each(['image/png', 'video/mp4', 'audio/mpeg'] as const)(
@@ -42,6 +43,7 @@ describe('Media interface', () => {
 					filename: file.name,
 					name: 'Uploaded media',
 					alt: 'Description',
+					size: 12_000_000,
 					contentType,
 					storageKey: 'upload',
 					storeName: 'media',
