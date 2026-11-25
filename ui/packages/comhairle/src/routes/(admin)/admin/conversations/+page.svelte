@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ArrowRight } from '@lucide/svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import ConversationCard, {
 		type ConversationCardLayout
 	} from '$lib/components/ConversationCard.svelte';

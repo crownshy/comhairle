@@ -10,7 +10,9 @@
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
 	import { useDebounce } from 'runed';
-	import { ArrowDown, ArrowRight, Info } from '@lucide/svelte';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import Info from '@lucide/svelte/icons/info';
 	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import FilterBadges from '$lib/components/FilterBadges.svelte';
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
@@ -60,7 +62,7 @@
 		event.preventDefault();
 		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		list.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-		document.getElementById('conversations-heading')?.focus({ preventScroll: true });
+		list.focus({ preventScroll: true });
 	}
 </script>
 
@@ -171,7 +173,11 @@
 						/>
 					</div>
 				{/if}
-				<h2 id="conversations" class="mb-6 text-2xl font-bold sm:text-3xl">
+				<h2
+					id="conversations"
+					tabindex="-1"
+					class="mb-6 text-2xl font-bold outline-none sm:text-3xl"
+				>
 					{m.conversations_all_heading()}
 				</h2>
 				<p>

@@ -6,7 +6,8 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
-	import { ChevronRight, MessageSquareText } from '@lucide/svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import { cn } from '$lib/utils';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import { resolve } from '$app/paths';
