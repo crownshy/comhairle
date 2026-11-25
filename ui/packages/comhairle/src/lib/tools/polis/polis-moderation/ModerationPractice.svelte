@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import Callout from '$lib/components/Callout.svelte';
+	import { cn } from '$lib/utils';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -80,16 +80,23 @@
 			{#each feedback as item (item.id)}
 				{@const Icon = item.correct ? CircleCheck : CircleX}
 				<li>
-					<Callout
-						variant={item.correct ? 'primary' : 'danger'}
-						class="flex items-start gap-3 px-4"
+					<div
+						class={cn(
+							'flex items-start gap-3 rounded-lg px-4 py-3',
+							item.correct ? 'bg-primary/5' : 'bg-destructive/5'
+						)}
 					>
-						<Icon class="mt-1 size-5 shrink-0" />
+						<Icon
+							class={cn(
+								'mt-1 size-5 shrink-0',
+								item.correct ? 'text-primary' : 'text-destructive'
+							)}
+						/>
 						<p class="text-base">
 							<span class="font-semibold tabular-nums">#{item.number}</span>
 							{item.message}
 						</p>
-					</Callout>
+					</div>
 				</li>
 			{/each}
 		</ul>

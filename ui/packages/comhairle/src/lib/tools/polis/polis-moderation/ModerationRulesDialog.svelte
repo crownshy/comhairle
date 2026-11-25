@@ -4,7 +4,6 @@
 	import { resolve } from '$app/paths';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import Callout from '$lib/components/Callout.svelte';
 	import type { RejectReason } from '$lib/moderation/moderationPolicy';
 	import { cn } from '$lib/utils';
 	import { scrollBehavior } from '$lib/utils/reducedMotion';
@@ -163,13 +162,13 @@
 				class="flex flex-col gap-5"
 			>
 				{@render sectionHeading(0)}
-				<Callout class="flex items-start gap-3 px-5 py-4">
+				<div class="bg-primary/5 flex items-start gap-3 rounded-lg px-5 py-4">
 					<Info class="text-primary mt-1 size-5 shrink-0" />
 					<div class="flex flex-col gap-1">
 						<p class="text-lg font-semibold">{MODERATION_HEADLINE}</p>
 						<p class="text-base">{MODERATION_HEADLINE_REASON}</p>
 					</div>
-				</Callout>
+				</div>
 			</section>
 
 			<section
