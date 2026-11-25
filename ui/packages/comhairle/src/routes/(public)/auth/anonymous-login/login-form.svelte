@@ -65,7 +65,7 @@
 	</div>
 
 	{#if $errMessage}
-		<p class="text-destructive text-center text-sm">{$errMessage}</p>
+		<p role="alert" class="text-destructive text-center text-sm">{$errMessage}</p>
 	{/if}
 
 	<div class="space-y-6">
@@ -77,10 +77,11 @@
 						<Tooltip.Provider delayDuration={0}>
 							<Tooltip.Root>
 								<Tooltip.Trigger
-									class="inline-flex cursor-default"
+									class="focus-visible:ring-ring inline-flex size-6 cursor-default items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none"
+									aria-label={m.anonymous_id_info()}
 									onclick={(e) => e.preventDefault()}
 								>
-									<Info class="text-muted-foreground size-4" />
+									<Info class="text-muted-foreground size-4" aria-hidden="true" />
 								</Tooltip.Trigger>
 								<Tooltip.Content side="top" class="text-sm">
 									{m.anonymous_id_tooltip()}

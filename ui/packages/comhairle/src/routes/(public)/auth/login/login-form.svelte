@@ -86,6 +86,8 @@
 					<Form.Label>{m.email()}</Form.Label>
 					<Input
 						{...props}
+						type="email"
+						autocomplete="email"
 						placeholder={m.email()}
 						bind:value={$formData.email}
 						required
@@ -101,6 +103,7 @@
 					<Form.Label>{m.password()}</Form.Label>
 					<PasswordInput
 						bind:value={$formData.password}
+						autocomplete="current-password"
 						placeholder={m.please_enter_a_password()}
 						{...props}
 						required

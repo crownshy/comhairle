@@ -66,6 +66,7 @@
 						<PasswordInput
 							bind:value={$formData.password}
 							{...props}
+							autocomplete="new-password"
 							placeholder={m.new_password()}
 						/>
 					{/snippet}
@@ -81,6 +82,7 @@
 						<PasswordInput
 							bind:value={$formData.confirmPassword}
 							{...props}
+							autocomplete="new-password"
 							placeholder={m.confirm_password()}
 						/>
 					{/snippet}

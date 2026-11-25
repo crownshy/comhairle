@@ -48,38 +48,44 @@
 			<Tooltip.Provider delayDuration={0}>
 				<Tooltip.Root open={copied ? true : undefined}>
 					<Tooltip.Trigger>
-						<button
-							use:copy={{ text: data?.user?.guestCode ?? '', onCopy: onCopied }}
-							class="group inline-flex cursor-pointer items-center gap-3 rounded-lg bg-white px-5 py-2 transition-all duration-200 hover:bg-white/90 hover:shadow-lg active:scale-[0.98] lg:gap-4 lg:px-8 lg:py-3"
-						>
-							<span
-								class="text-center text-2xl leading-8 font-bold text-black select-all sm:text-3xl lg:text-5xl lg:leading-[52px]"
+						{#snippet child({ props })}
+							<button
+								{...props}
+								use:copy={{ text: data?.user?.guestCode ?? '', onCopy: onCopied }}
+								class="group inline-flex cursor-pointer items-center gap-3 rounded-lg bg-white px-5 py-2 transition-all duration-200 hover:bg-white/90 hover:shadow-lg active:scale-[0.98] lg:gap-4 lg:px-8 lg:py-3"
 							>
-								{data?.user?.guestCode}
-							</span>
-							<span
-								class="text-black/40 transition-colors duration-200 group-hover:text-black/70"
-							>
-								{#if copied}
-									<span in:fade={{ duration: 150 }}>
-										<Icon
-											icon="solar:check-circle-bold"
-											class="size-5 text-green-600 lg:size-7"
-										/>
-									</span>
-								{:else}
-									<span in:fade={{ duration: 150 }}>
-										<Icon icon="solar:copy-bold" class="size-5 lg:size-7" />
-									</span>
-								{/if}
-							</span>
-						</button>
+								<span
+									class="text-center text-2xl leading-8 font-bold text-black select-all sm:text-3xl lg:text-5xl lg:leading-[52px]"
+								>
+									{data?.user?.guestCode}
+								</span>
+								<span class="sr-only">{m.thank_you_copy_id()}</span>
+								<span
+									class="text-black/40 transition-colors duration-200 group-hover:text-black/70"
+									aria-hidden="true"
+								>
+									{#if copied}
+										<span in:fade={{ duration: 150 }}>
+											<Icon
+												icon="solar:check-circle-bold"
+												class="size-5 text-green-600 lg:size-7"
+											/>
+										</span>
+									{:else}
+										<span in:fade={{ duration: 150 }}>
+											<Icon icon="solar:copy-bold" class="size-5 lg:size-7" />
+										</span>
+									{/if}
+								</span>
+							</button>
+						{/snippet}
 					</Tooltip.Trigger>
 					<Tooltip.Content side="top" sideOffset={8}>
-						{copied ? 'Copied!' : 'Click to copy'}
+						{copied ? m.thank_you_id_copied() : m.thank_you_copy_id()}
 					</Tooltip.Content>
 				</Tooltip.Root>
 			</Tooltip.Provider>
+			<p class="sr-only" aria-live="polite">{copied ? m.thank_you_id_copied() : ''}</p>
 
 			<div class="flex flex-row gap-2 sm:gap-3">
 				<Button
