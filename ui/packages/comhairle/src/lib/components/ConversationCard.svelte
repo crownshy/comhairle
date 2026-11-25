@@ -94,26 +94,21 @@
 		</article>
 	{:else}
 		<article
-			class={cn(
-				CARD_CLASS,
-				'grid grid-rows-[auto_auto_auto_auto_auto] gap-4 rounded-2xl p-3'
-			)}
+			class={cn(CARD_CLASS, 'grid grid-rows-[1fr_1fr_auto_auto_auto] gap-4 rounded-2xl p-3')}
 		>
-			<div class="bg-primary/10 relative aspect-video w-full rounded-xl">
+			<div class="bg-primary/10 w-full rounded-xl">
 				{#if conversation.imageUrl}
 					<img
 						src={conversation.imageUrl}
 						alt="Image for {conversation.title}"
-						class="inset-0 h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
+						class="aspect-video h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
 					/>
 				{:else}
-					<MessageSquareText
-						class="text-primary/30 absolute inset-0 m-auto size-16 rounded-xl"
-					/>
+					<MessageSquareText class="text-primary/30 inset-0 m-auto size-16 rounded-xl" />
 				{/if}
 				<ConversationStatusBadge
 					{status}
-					class="absolute top-3 left-3 border-transparent shadow-md backdrop-blur"
+					class="absolute top-4 left-4 border-transparent shadow-md backdrop-blur"
 				/>
 			</div>
 
@@ -134,7 +129,7 @@
 				</div>
 			{/if}
 			{#if Actions}
-				<div class="mt-auto flex flex-wrap items-center gap-3 pt-2">
+				<div class="flex flex-wrap items-center gap-3 pt-2">
 					{@render Actions()}
 				</div>
 			{/if}
