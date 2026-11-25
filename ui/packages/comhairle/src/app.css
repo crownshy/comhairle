@@ -38,6 +38,7 @@ html {
 	outline-offset: 0;
 	box-shadow: 0 0 0 4px var(--focus-ring-outer);
 }
+
 /* For controls inside a scrolling strip, which clips anything drawn outside them:
    draw the same two bands just inside the edge instead. */
 .focus-inset:focus-visible {
@@ -113,6 +114,15 @@ a {
 	}
 }
 
+/**
+ * Class used to create dynamic grids, a nicer version of flex & flex-wrap
+ */
+.dynamic-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(var(--grid-item-width, 15rem), 1fr));
+	align-items: stretch;
+}
+
 /* sonner's default close button is a bordered circle translated over the toast corner */
 [data-sonner-toaster] [data-sonner-toast][data-styled='true'] {
 	padding-right: 3rem;
@@ -160,6 +170,7 @@ a {
 		from {
 			opacity: 0;
 		}
+
 		to {
 			opacity: 1;
 		}
@@ -169,6 +180,7 @@ a {
 		from {
 			transform: translateX(-100%);
 		}
+
 		to {
 			transform: translateX(350%);
 		}

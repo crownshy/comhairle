@@ -111,9 +111,10 @@
 				class={[
 					QueryParams.get<ConversationsParams>('view') === 'list'
 						? 'flex w-full flex-col gap-3'
-						: 'grid w-full grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3',
+						: 'dynamic-grid w-full gap-6',
 					'transition-opacity'
 				]}
+				style="--grid-item-width: 18rem;"
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="admin">
