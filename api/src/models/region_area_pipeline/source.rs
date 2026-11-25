@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use reqwest::Url;
@@ -12,8 +12,8 @@ use crate::error::ComhairleError;
 
 type Result<T> = std::result::Result<T, ComhairleError>;
 
-pub const MAX_SNAPSHOT_BYTES: usize = 64 * 1024 * 1024;
-const MAX_REDIRECTS: usize = 5;
+// Don't lock out the server if someone points it at a bot hole.
+const MAX_REDIRECTS: usize = 10;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn upload_key(upload_id: Uuid) -> String {
@@ -25,9 +25,6 @@ pub async fn store_upload(storage: &dyn BulkStorageService, bytes: Vec<u8>) -> R
         return Err(ComhairleError::BadRequest(
             "The uploaded pipeline source is empty".to_string(),
         ));
-    }
-    if bytes.len() > MAX_SNAPSHOT_BYTES {
-        return Err(snapshot_too_large());
     }
     let upload_id = Uuid::new_v4();
     tokio::time::timeout(
@@ -57,19 +54,14 @@ pub async fn load_source(
             })?,
         PipelineSource::UploadedFile { upload_id } => {
             let storage = storage.ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
-            let bytes = tokio::time::timeout(
-                REQUEST_TIMEOUT,
-                storage.get_file_limited(&upload_key(*upload_id), MAX_SNAPSHOT_BYTES),
-            )
-            .await
-            .map_err(|_| {
-                ComhairleError::BackgroundJobFailed(
-                    "Pipeline source download timed out".to_string(),
-                )
-            })??;
-            if bytes.len() > MAX_SNAPSHOT_BYTES {
-                return Err(snapshot_too_large());
-            }
+            let bytes =
+                tokio::time::timeout(REQUEST_TIMEOUT, storage.get_file(&upload_key(*upload_id)))
+                    .await
+                    .map_err(|_| {
+                        ComhairleError::BackgroundJobFailed(
+                            "Pipeline source download timed out".to_string(),
+                        )
+                    })??;
             Ok(bytes)
         }
     }
@@ -179,12 +171,6 @@ impl PublicHttpsSource {
                 response.status()
             )));
         }
-        if response
-            .content_length()
-            .is_some_and(|size| size > MAX_SNAPSHOT_BYTES as u64)
-        {
-            return Err(snapshot_too_large());
-        }
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|error| {
             ComhairleError::BackgroundJobFailed(format!(
@@ -192,9 +178,6 @@ impl PublicHttpsSource {
                 error.without_url()
             ))
         })? {
-            if chunk.len() > MAX_SNAPSHOT_BYTES - bytes.len() {
-                return Err(snapshot_too_large());
-            }
             bytes.extend_from_slice(&chunk);
         }
         Ok(FetchOutcome::Complete(bytes))
@@ -213,12 +196,6 @@ async fn resolve_public_addresses(host: &str, port: u16) -> Result<Vec<SocketAdd
     })?
     .collect();
     Ok(addresses)
-}
-
-fn snapshot_too_large() -> ComhairleError {
-    ComhairleError::BadRequest(format!(
-        "Pipeline source exceeds the {MAX_SNAPSHOT_BYTES} byte limit"
-    ))
 }
 
 #[cfg(test)]
@@ -258,10 +235,10 @@ mod tests {
 
         let expected_key = upload_key(upload_id);
         storage
-            .expect_get_file_limited()
+            .expect_get_file()
             .once()
-            .withf(move |key, limit| key == expected_key && *limit == MAX_SNAPSHOT_BYTES)
-            .returning(|_, _| Box::pin(async { Ok(b"geojson".to_vec()) }));
+            .withf(move |key| key == expected_key)
+            .returning(|_| Box::pin(async { Ok(b"geojson".to_vec()) }));
         let source = PipelineSource::UploadedFile { upload_id };
         assert_eq!(
             load_source(&source, Some(&storage)).await.unwrap(),

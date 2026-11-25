@@ -789,6 +789,126 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn deletes_managed_regions_only_through_their_area(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let definition = definition()?;
+        let (sql, values) = Query::insert()
+            .into_table(PipelineIden::Table)
+            .columns([PipelineIden::DraftDefinition])
+            .values([serde_json::to_value(&definition)?.into()])?
+            .returning_col(PipelineIden::Id)
+            .build_sqlx(PostgresQueryBuilder);
+        let pipeline_id: Uuid = sqlx::query_scalar_with(&sql, values)
+            .fetch_one(&pool)
+            .await?;
+        apply(
+            &pool,
+            pipeline_id,
+            &definition,
+            &snapshot(vec![feature("a", "Alpha", 2)])?,
+        )
+        .await?;
+        let (sql, values) = Query::select()
+            .columns([FeatureIden::RegionAreaId, FeatureIden::RegionId])
+            .from(FeatureIden::Table)
+            .build_sqlx(PostgresQueryBuilder);
+        let (area_id, region_id): (Uuid, Uuid) =
+            sqlx::query_as_with(&sql, values).fetch_one(&pool).await?;
+
+        assert!(matches!(
+            crate::models::region::delete(&pool, &region_id).await,
+            Err(ComhairleError::PipelineManagedRegion)
+        ));
+
+        crate::models::region_area::delete(&pool, &area_id).await?;
+        assert!(matches!(
+            crate::models::region::get_by_id(&pool, &region_id).await,
+            Err(ComhairleError::ResourceNotFound(_))
+        ));
+        let (sql, values) = Query::select()
+            .expr(Expr::col(FeatureIden::RegionId).count())
+            .from(FeatureIden::Table)
+            .build_sqlx(PostgresQueryBuilder);
+        let remaining: i64 = sqlx::query_scalar_with(&sql, values)
+            .fetch_one(&pool)
+            .await?;
+        assert_eq!(remaining, 0);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn deletes_pipelines_with_or_without_their_areas(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let definition = definition()?;
+        let mut owned = Vec::new();
+        for code in ["kept", "removed"] {
+            let (sql, values) = Query::insert()
+                .into_table(PipelineIden::Table)
+                .columns([PipelineIden::DraftDefinition])
+                .values([serde_json::to_value(&definition)?.into()])?
+                .returning_col(PipelineIden::Id)
+                .build_sqlx(PostgresQueryBuilder);
+            let pipeline_id: Uuid = sqlx::query_scalar_with(&sql, values)
+                .fetch_one(&pool)
+                .await?;
+            let size = if code == "kept" { 2 } else { 5 };
+            apply(
+                &pool,
+                pipeline_id,
+                &definition,
+                &snapshot(vec![feature(code, code, size)])?,
+            )
+            .await?;
+            let (sql, values) = Query::select()
+                .columns([FeatureIden::RegionAreaId, FeatureIden::RegionId])
+                .from(FeatureIden::Table)
+                .and_where(Expr::col(FeatureIden::PipelineId).eq(pipeline_id))
+                .build_sqlx(PostgresQueryBuilder);
+            let (area_id, region_id): (Uuid, Uuid) =
+                sqlx::query_as_with(&sql, values).fetch_one(&pool).await?;
+            owned.push((pipeline_id, area_id, region_id));
+        }
+        let [
+            (kept_pipeline, kept_area, kept_region),
+            (removed_pipeline, removed_area, removed_region),
+        ] = owned[..]
+        else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            super::super::lifecycle::delete(&pool, kept_pipeline, false).await?,
+            0
+        );
+        crate::models::region_area::get_by_id(&pool, &kept_area).await?;
+        crate::models::region::delete(&pool, &kept_region).await?;
+
+        assert_eq!(
+            super::super::lifecycle::delete(&pool, removed_pipeline, true).await?,
+            1
+        );
+        assert!(matches!(
+            crate::models::region_area::get_by_id(&pool, &removed_area).await,
+            Err(ComhairleError::ResourceNotFound(_))
+        ));
+        assert!(matches!(
+            crate::models::region::get_by_id(&pool, &removed_region).await,
+            Err(ComhairleError::ResourceNotFound(_))
+        ));
+        let (sql, values) = Query::select()
+            .expr(Expr::col(PipelineIden::Id).count())
+            .from(PipelineIden::Table)
+            .build_sqlx(PostgresQueryBuilder);
+        let pipelines: i64 = sqlx::query_scalar_with(&sql, values)
+            .fetch_one(&pool)
+            .await?;
+        assert_eq!(pipelines, 0);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore = "requires a locally supplied pipeline definition and snapshot"]
     async fn reconciles_local_snapshot(pool: PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let definition_path = std::env::var("PIPELINE_TEST_DEFINITION")?;

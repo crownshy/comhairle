@@ -114,29 +114,6 @@ impl BulkStorageService for S3StorageService {
         Ok(data.into_bytes().to_vec())
     }
 
-    async fn get_file_limited(
-        &self,
-        path: &str,
-        max_bytes: usize,
-    ) -> Result<Vec<u8>, BulkStorageError> {
-        let result = self
-            .s3_client
-            .get_object()
-            .bucket(&self.bucket)
-            .key(path)
-            .send()
-            .await
-            .map_err(|error| BulkStorageError::FailedToGetFile(error.to_string()))?;
-
-        if result
-            .content_length()
-            .is_some_and(|length| length > max_bytes as i64)
-        {
-            return Err(BulkStorageError::FileTooLarge(max_bytes));
-        }
-        read_limited(result.body, max_bytes).await
-    }
-
     /// Deletes a file from S3.
     async fn delete_file(&self, path: &str) -> Result<(), super::BulkStorageError> {
         self.s3_client
@@ -232,37 +209,5 @@ impl BulkStorageService for S3StorageService {
             .collect();
 
         Ok(entries)
-    }
-}
-
-async fn read_limited(mut body: ByteStream, max_bytes: usize) -> Result<Vec<u8>, BulkStorageError> {
-    let mut bytes = Vec::new();
-    while let Some(chunk) = body
-        .try_next()
-        .await
-        .map_err(|error| BulkStorageError::FailedToGetFile(error.to_string()))?
-    {
-        if chunk.len() > max_bytes - bytes.len() {
-            return Err(BulkStorageError::FileTooLarge(max_bytes));
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    Ok(bytes)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn enforces_file_limit_while_reading() {
-        let body = ByteStream::from_static(b"four");
-        assert_eq!(read_limited(body, 4).await.unwrap(), b"four");
-
-        let body = ByteStream::from_static(b"five!");
-        assert!(matches!(
-            read_limited(body, 4).await,
-            Err(BulkStorageError::FileTooLarge(4))
-        ));
     }
 }

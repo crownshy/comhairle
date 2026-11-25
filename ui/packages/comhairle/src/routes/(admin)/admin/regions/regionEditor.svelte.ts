@@ -3,6 +3,7 @@ import { apiClient } from '@crownshy/api-client/client';
 import { getLocale } from '$lib/paraglide/runtime';
 import { saveTranslation } from '$lib/components/Translation/translationUtils';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
+import { apiErrorMessage } from '$lib/utils/apiErrorMessage';
 import { toggleArea } from './selection';
 
 type State = 'idle' | 'saving' | 'saved' | 'error' | 'loading';
@@ -147,7 +148,7 @@ export function createRegionEditor() {
 		);
 		if (disposed) return;
 		if (response.err !== null) {
-			error = 'Could not delete this region.';
+			error = apiErrorMessage(response.err, 'Could not delete this region.');
 			editorState = 'error';
 			return;
 		}

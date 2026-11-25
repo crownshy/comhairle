@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use aide::axum::routing::{get_with, post_with, put_with};
-use axum::extract::{DefaultBodyLimit, Json, Multipart, Path, State};
+use axum::extract::{Json, Multipart, Path, Query, State};
 use axum::http::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::region_area_pipeline::reconcile::ReconciliationCounts;
-use crate::models::region_area_pipeline::source::{MAX_SNAPSHOT_BYTES, store_upload};
+use crate::models::region_area_pipeline::source::store_upload;
 use crate::models::region_area_pipeline::tables::Pipeline;
 use crate::models::region_area_pipeline::{PipelineDefinition, lifecycle};
 use crate::routes::auth::RequiredSuperAdminUser;
@@ -19,6 +19,18 @@ use crate::routes::auth::RequiredSuperAdminUser;
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct UploadSourceResponse {
     pub upload_id: Uuid,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct DeletePipelineOptions {
+    /// Also delete the pipeline's geographic areas and the Regions created for them.
+    #[serde(default)]
+    pub delete_areas: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct DeletePipelineResponse {
+    pub deleted_areas: usize,
 }
 
 async fn list(
@@ -95,6 +107,16 @@ async fn deactivate(
     Ok(Json(lifecycle::deactivate(&state.db, pipeline_id).await?))
 }
 
+async fn delete(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredSuperAdminUser(_user): RequiredSuperAdminUser,
+    Path(pipeline_id): Path<Uuid>,
+    Query(options): Query<DeletePipelineOptions>,
+) -> Result<Json<DeletePipelineResponse>, ComhairleError> {
+    let deleted_areas = lifecycle::delete(&state.db, pipeline_id, options.delete_areas).await?;
+    Ok(Json(DeletePipelineResponse { deleted_areas }))
+}
+
 async fn upload_source(
     State(state): State<Arc<ComhairleState>>,
     RequiredSuperAdminUser(_user): RequiredSuperAdminUser,
@@ -113,11 +135,6 @@ async fn upload_source(
 
     let mut bytes = Vec::new();
     while let Some(chunk) = field.chunk().await? {
-        if chunk.len() > MAX_SNAPSHOT_BYTES - bytes.len() {
-            return Err(ComhairleError::BadRequest(format!(
-                "Pipeline source exceeds the {MAX_SNAPSHOT_BYTES} byte limit"
-            )));
-        }
         bytes.extend_from_slice(&chunk);
     }
     drop(field);
@@ -163,6 +180,14 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .security_requirement("JWT")
                     .summary("Replace a pipeline draft definition")
                     .response::<200, Json<Pipeline>>()
+            })
+            .delete_with(delete, |operation| {
+                operation
+                    .id("DeleteRegionAreaPipeline")
+                    .tag("Region Area Pipelines")
+                    .security_requirement("JWT")
+                    .summary("Delete a pipeline, optionally with its geographic areas")
+                    .response::<200, Json<DeletePipelineResponse>>()
             }),
         )
         .api_route(
@@ -217,7 +242,6 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
                     .response::<201, Json<UploadSourceResponse>>()
             }),
         )
-        .layer(DefaultBodyLimit::max(MAX_SNAPSHOT_BYTES + 128 * 1024))
 }
 
 #[cfg(test)]

@@ -16,6 +16,8 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::region::RegionIden;
+use crate::models::region_area_pipeline::tables::FeatureIden;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "region_area")]
@@ -538,17 +540,39 @@ pub async fn intersecting(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    let (sql, values) = Query::delete()
+        .from_table(FeatureIden::Table)
+        .and_where(Expr::col(FeatureIden::RegionAreaId).eq(*id))
+        .returning_col(FeatureIden::RegionId)
+        .build_sqlx(PostgresQueryBuilder);
+    let pipeline_region_id: Option<Uuid> = sqlx::query_scalar_with(&sql, values)
+        .fetch_optional(&mut *tx)
+        .await?;
+
     let (sql, values) = Query::delete()
         .from_table(RegionAreaIden::Table)
         .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
         .returning(returning_columns())
         .build_sqlx(PostgresQueryBuilder);
-
     let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Region Area")?;
 
+    if let Some(region_id) = pipeline_region_id {
+        let (sql, values) = Query::delete()
+            .from_table(RegionIden::Table)
+            .and_where(Expr::col(RegionIden::Id).eq(region_id))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *tx)
+            .await
+            .resolve_db_err("Region")?;
+    }
+
+    tx.commit().await?;
     Ok(area)
 }
 
@@ -643,6 +667,21 @@ mod tests {
             [(177.0, 180.0), (-180.0, -173.0)]
         );
         assert_eq!(viewport(30.0, 360.0).longitude_ranges(), [(-180.0, 180.0)]);
+    }
+
+    #[test]
+    fn clamps_polar_viewports_before_measuring_area() {
+        let viewport = |center_lat, lat_span| Viewport {
+            center_lng: 0.0,
+            center_lat,
+            lng_span: 360.0,
+            lat_span,
+        };
+        let globe = 4.0 * std::f64::consts::PI * EARTH_AUTHALIC_RADIUS_M.powi(2);
+        let north_of_60 = viewport(75.0, 30.0).area_sqm();
+        assert!((viewport(0.0, 180.0).area_sqm() - globe).abs() < 1.0);
+        assert!((viewport(80.0, 40.0).area_sqm() - north_of_60).abs() < 1.0);
+        assert!((viewport(-90.0, 180.0).area_sqm() - globe / 2.0).abs() < 1.0);
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

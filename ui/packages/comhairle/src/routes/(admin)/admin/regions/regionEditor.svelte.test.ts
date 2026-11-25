@@ -191,6 +191,12 @@ describe('region editor operation states', () => {
 		expect(editor.state).toBe('error');
 		expect(editor.editing).toBe(true);
 		expect(editor.error).toBe('Could not delete this region.');
+		const pipelineMessage = 'Managed by a pipeline. Delete the geographic area instead.';
+		mocks.DeleteRegion.mockRejectedValueOnce({
+			response: { status: 409, data: { err: pipelineMessage } }
+		});
+		await editor.remove();
+		expect(editor.error).toBe(pipelineMessage);
 		await editor.remove();
 		expect(editor.state).toBe('idle');
 		expect(editor.editing).toBe(false);

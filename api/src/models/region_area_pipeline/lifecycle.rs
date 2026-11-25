@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use sea_query::extension::postgres::PgFunc;
 use sea_query::{Expr, LockType, OnConflict, Order, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use sqlx::{Acquire, PgConnection, PgPool};
@@ -7,11 +8,14 @@ use uuid::Uuid;
 use super::reconcile::{ReconciliationCounts, reconcile_locked};
 use super::source::load_source;
 use super::tables::{
-    Pipeline, PipelineIden, PipelineStatus, RunStatus, Snapshot, SnapshotIden, SnapshotKind,
+    FeatureIden, Pipeline, PipelineIden, PipelineStatus, RunStatus, Snapshot, SnapshotIden,
+    SnapshotKind,
 };
 use super::{PipelineDefinition, PipelineSource, state};
 use crate::bulk_storage_service::BulkStorageService;
 use crate::error::ComhairleError;
+use crate::models::region::RegionIden;
+use crate::models::region_area::RegionAreaIden;
 
 type Result<T> = std::result::Result<T, ComhairleError>;
 
@@ -277,6 +281,71 @@ pub async fn deactivate(db: &PgPool, id: Uuid) -> Result<Pipeline> {
     Ok(pipeline)
 }
 
+/// Removes the pipeline and its bookkeeping. Kept areas and Regions become ordinary
+/// unmanaged records; otherwise they are deleted with it. Returns the areas deleted.
+pub async fn delete(db: &PgPool, id: Uuid, delete_areas: bool) -> Result<usize> {
+    let mut tx = db.begin().await?;
+    locked(&mut tx, id).await?;
+
+    let (sql, values) = Query::delete()
+        .from_table(SnapshotIden::Table)
+        .and_where(Expr::col(SnapshotIden::PipelineId).eq(id))
+        .build_sqlx(PostgresQueryBuilder);
+    sqlx::query_with(&sql, values).execute(&mut *tx).await?;
+
+    let (sql, values) = Query::delete()
+        .from_table(FeatureIden::Table)
+        .and_where(Expr::col(FeatureIden::PipelineId).eq(id))
+        .returning(Query::returning().columns([FeatureIden::RegionAreaId, FeatureIden::RegionId]))
+        .build_sqlx(PostgresQueryBuilder);
+    let owned: Vec<(Uuid, Uuid)> = sqlx::query_as_with(&sql, values)
+        .fetch_all(&mut *tx)
+        .await?;
+
+    let deleted_areas = if delete_areas && !owned.is_empty() {
+        let (area_ids, region_ids): (Vec<_>, Vec<_>) = owned.into_iter().unzip();
+        let (sql, values) = Query::delete()
+            .from_table(RegionIden::Table)
+            .and_where(Expr::col(RegionIden::Id).eq(PgFunc::any(region_ids)))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *tx)
+            .await
+            .map_err(regions_in_use)?;
+        let (sql, values) = Query::delete()
+            .from_table(RegionAreaIden::Table)
+            .and_where(Expr::col(RegionAreaIden::Id).eq(PgFunc::any(area_ids)))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *tx)
+            .await
+            .map_err(regions_in_use)?
+            .rows_affected() as usize
+    } else {
+        0
+    };
+
+    let (sql, values) = Query::delete()
+        .from_table(PipelineIden::Table)
+        .and_where(Expr::col(PipelineIden::Id).eq(id))
+        .build_sqlx(PostgresQueryBuilder);
+    sqlx::query_with(&sql, values).execute(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(deleted_areas)
+}
+
+fn regions_in_use(error: sqlx::Error) -> ComhairleError {
+    if let sqlx::Error::Database(ref database_error) = error
+        && database_error.kind() == sqlx::error::ErrorKind::ForeignKeyViolation
+    {
+        return ComhairleError::Conflict(
+            "Some of this pipeline's Regions or areas are still in use elsewhere. Keep the areas, or remove those links first."
+                .into(),
+        );
+    }
+    error.into()
+}
+
 impl Snapshot {
     async fn get(
         connection: &mut PgConnection,
@@ -512,7 +581,7 @@ mod tests {
         let bytes = Arc::new(Mutex::new(snapshot("Original")));
         let content = bytes.clone();
         let mut storage = MockBulkStorageService::new();
-        storage.expect_get_file_limited().returning(move |_, _| {
+        storage.expect_get_file().returning(move |_| {
             let bytes = content.lock().unwrap().clone();
             Box::pin(async move { Ok(bytes) })
         });
