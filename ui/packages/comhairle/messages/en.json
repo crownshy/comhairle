@@ -463,6 +463,7 @@
 	"learning_assistant_privacy_notice": "Please don't enter any personal information into the Learning Assistant, such as your name or email address.",
 	"learning_assistant_load_fail": "Couldn't load learning assistant",
 	"learning_assistant_input_placeholder": "Type a question here",
+	"learning_assistant_input_label": "Your question",
 	"learning_assistant_no_answer": "Couldn't get an answer",
 	"learning_assistant_enable_statement": "Enable the learning assistant above to ask questions about this page.",
 	"thinking_space_pick_question": "Pick a question to explore further",

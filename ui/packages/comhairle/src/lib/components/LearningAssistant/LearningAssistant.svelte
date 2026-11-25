@@ -37,6 +37,7 @@
 	};
 
 	let { conversationId, pageTitle = '', loading = false, variant = 'inline' }: Props = $props();
+	const questionInputId = $props.id();
 
 	let enabled = $state(true);
 	let inputVal = $state('');
@@ -249,6 +250,12 @@
 				{:else if !(chatError && pageQAs.length === 0)}
 					<!-- Inline prompt -->
 					<div class="mb-6">
+						<label
+							for={questionInputId}
+							class="text-foreground mb-2 block text-base font-medium"
+						>
+							{m.learning_assistant_input_label()}
+						</label>
 						{#if showPlaceholder}
 							<button
 								type="button"
@@ -263,6 +270,7 @@
 								class="border-ring ring-ring/50 bg-background flex h-9 items-center gap-2 rounded-lg border px-3 py-1 shadow-xs ring-[3px] transition-[color,box-shadow]"
 							>
 								<input
+									id={questionInputId}
 									bind:this={inputRef}
 									bind:value={inputVal}
 									onfocus={() => (focused = true)}
