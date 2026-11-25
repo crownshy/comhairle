@@ -28,6 +28,7 @@ export type InputKey =
 	| 'admin/system/permissions'
 	| 'admin/workflow-steps'
 	| 'public/conversation'
+	| 'public/conversations'
 	| 'public/documents'
 	| 'public/event'
 	| 'public/settings/profile'

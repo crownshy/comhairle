@@ -76,7 +76,7 @@
 		{m.skip_to_content()}
 	</a>
 	{#if !isEmbed && !isAuthPage && !isLivePage && !isRoomDisplay && !isStepPage}
-		<NavBar user={data.user} {isAdmin} />
+		<NavBar user={data.user} {isAdmin} overHero={isHomePage} />
 	{/if}
 	{#if isStepPage}
 		<!-- The step page puts the main landmark on its own scroll, so its header and pager stay outside it. -->

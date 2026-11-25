@@ -17,12 +17,14 @@
 		conversation: LocalizedConversationDto;
 		for: 'admin' | 'public';
 		layout?: ConversationCardLayout;
+		/** Overrides the status badge text, e.g. "Live now" on the public home page. */
+		statusLabel?: string;
 		// Small facts under the description, e.g. "Shared", or later "Closes in 5 days".
 		Meta?: Snippet;
 		Actions?: Snippet;
 	};
 
-	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
+	let { conversation, for: _for, layout = 'card', statusLabel, Meta, Actions }: Props = $props();
 
 	let status = $derived(Conversation.getStatus(conversation));
 	let href = $derived.by(() => {
@@ -66,7 +68,7 @@
 			</div>
 
 			<div class="flex min-w-0 grow flex-col items-start gap-1.5">
-				<ConversationStatusBadge {status} />
+				<ConversationStatusBadge {status} label={statusLabel} />
 				<svelte:element
 					this={_for === 'admin' ? 'h2' : 'h3'}
 					class="text-foreground line-clamp-2 text-base leading-snug font-semibold sm:text-lg"
@@ -112,6 +114,7 @@
 				{/if}
 				<ConversationStatusBadge
 					{status}
+					label={statusLabel}
 					class="absolute top-4 left-4 border-transparent shadow-md backdrop-blur"
 				/>
 			</div>
