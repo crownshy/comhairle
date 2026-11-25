@@ -68,7 +68,13 @@
 
 <div class="bg-primary/10 relative h-72 w-full overflow-hidden sm:h-96 lg:h-128">
 	{#if conversation.imageUrl}
-		<img src={conversation.imageUrl} alt="" class="absolute inset-0 size-full object-cover" />
+		<!-- Contained, not cropped, so small or portrait uploads show whole. It starts below the
+			join card that overlaps this band. -->
+		<img
+			src={conversation.imageUrl}
+			alt=""
+			class="absolute inset-x-0 top-24 mx-auto h-[calc(100%-6rem)] w-full max-w-5xl object-contain sm:top-20 sm:h-[calc(100%-5rem)]"
+		/>
 	{:else}
 		<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-20" />
 	{/if}
