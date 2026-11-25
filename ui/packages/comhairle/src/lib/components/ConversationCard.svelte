@@ -94,7 +94,10 @@
 		</article>
 	{:else}
 		<article
-			class={cn(CARD_CLASS, 'grid grid-rows-[1fr_1fr_auto_auto_auto] gap-4 rounded-2xl p-3')}
+			class={cn(
+				CARD_CLASS,
+				'relative grid grid-rows-[1fr_1fr_auto_auto_auto] gap-4 rounded-2xl p-3'
+			)}
 		>
 			<div class="bg-primary/10 w-full rounded-xl">
 				{#if conversation.imageUrl}
