@@ -2,11 +2,12 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import { page } from '$app/stores';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { resolve } from '$app/paths';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { formatDateShort, formatTime } from '$lib/utils';
+	import { cn, formatDateShort, formatTime } from '$lib/utils';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { lobbyHref } from './lobbyHref';
@@ -129,19 +130,24 @@
 </svelte:head>
 
 <div class="flex flex-col items-center">
-	<!-- Back navigation -->
 	<div class="w-full max-w-[1280px] px-6 py-12">
-		<div class="flex items-center gap-3">
-			<Button
-				variant="outline"
-				size="icon"
-				href="/conversations/{conversationId}/events"
-				class="h-9 w-9"
+		<a
+			href={resolve('/(public)/conversations/[conversation_id]/events', {
+				conversation_id: conversationId
+			})}
+			class="group text-foreground inline-flex items-center gap-3 text-sm font-medium"
+		>
+			<span
+				class={cn(
+					buttonVariants({ variant: 'outline', size: 'icon' }),
+					'group-hover:bg-accent group-hover:text-accent-foreground h-9 w-9'
+				)}
+				aria-hidden="true"
 			>
 				<ArrowLeft class="h-4 w-4" />
-			</Button>
-			<span class="text-foreground text-sm font-medium">All events</span>
-		</div>
+			</span>
+			{m.events_all_events()}
+		</a>
 	</div>
 
 	{#if !event}
@@ -332,15 +338,18 @@
 				</Button>
 			{/if}
 
-			{#if userAttendance}
-				<span
-					tabindex="-1"
-					{@attach justRegistered && focusOnScreenChange}
-					class="inline-flex items-center rounded-full bg-green-500/10 px-4 py-2 text-sm font-medium text-green-600 outline-none"
-				>
-					✓ You're registered ({userAttendance.role})
-				</span>
-			{/if}
+			<!-- -mt-4 cancels the column gap while the region is empty. -->
+			<div role="status" class="empty:-mt-4">
+				{#if userAttendance}
+					<span
+						tabindex="-1"
+						{@attach justRegistered && focusOnScreenChange}
+						class="inline-flex items-center rounded-full bg-green-500/10 px-4 py-2 text-sm font-medium text-green-600 outline-none"
+					>
+						✓ You're registered ({userAttendance.role})
+					</span>
+				{/if}
+			</div>
 
 			{#if !user && status !== 'past'}
 				<p class="text-muted-foreground text-sm">
@@ -348,9 +357,11 @@
 				</p>
 			{/if}
 
-			{#if error}
-				<p class="text-destructive text-sm">{error}</p>
-			{/if}
+			<div role="alert" class="empty:-mt-4">
+				{#if error}
+					<p class="text-destructive text-sm">{error}</p>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </div>
