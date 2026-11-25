@@ -7,7 +7,7 @@
 	} from '$lib/components/ui/button';
 
 	type HelperProps = Props & {
-		content: String;
+		content: string;
 		variant: ButtonVariant;
 		size: ButtonSize;
 	};

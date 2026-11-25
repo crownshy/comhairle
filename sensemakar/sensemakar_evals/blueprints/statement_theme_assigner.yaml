@@ -1,0 +1,18 @@
+task: statement_theme_assigner
+description: >
+  Assigns each statement to one of a given set of themes
+  (sensemakar::statement_theme_assigner::StatementThemeAssigner). This case's
+  themes ("Transport", "Services") are defined inline in the test rather than
+  in the fixture, since the task takes two inputs and the fixture only covers
+  the statements half.
+cases:
+  - id: transport-vs-services
+    fixture: ../fixtures/statement_theme_assigner/statements.json
+    should:
+      - "Assigns the late-bus and packed-tram statements to the Transport theme"
+      - "Assigns the rubbish-collection and broken-streetlight statements to the Services theme"
+      - "Returns exactly one assignment per input statement id"
+    should_not:
+      - "Assigns a statement to a theme id that wasn't in the given theme list"
+      - "Leaves any input statement id unassigned"
+    weight: 1.0

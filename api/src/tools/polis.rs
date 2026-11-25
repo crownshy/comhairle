@@ -27,6 +27,9 @@ use crate::models::job::CreateJob;
 use crate::models::moderation_policy::{self, PublishedReason};
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::conversation::Action;
+use crate::models::polis_moderation_event::{
+    self, ModerationAction, PolisModerationEvent, StatusChange,
+};
 use crate::models::polis_statement_aux::{
     CreateDerivedStatement, CreatePolisStatementAux, PolisStatementAux,
     PolisStatementAuxFilterOptions, ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
@@ -249,6 +252,8 @@ impl ToolImpl for PolisTool {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        _db: &mut sqlx::PgConnection,
+        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
@@ -475,6 +480,20 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
+                "/polis/statement_translation",
+                get_with(list_step_statement_translations, |op| {
+                    op.id("PolisListStepStatementTranslations")
+                        .tag("Tools")
+                        .summary("List machine translations for every statement in a step")
+                        .description(
+                            "Returns the stored translations of all statements in a \
+                             workflow step, so the moderation queue can show them in one \
+                             request. Each carries ai_generated and requires_validation flags.",
+                        )
+                        .response::<200, Json<Vec<PolisStatementTranslation>>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_translation/{id}",
                 put_with(update_statement_translation, |op| {
                     op.id("PolisUpdateStatementTranslation")
@@ -652,6 +671,39 @@ impl ToolImpl for PolisTool {
                     Action::Moderate,
                     authorize_polis_statement,
                 )),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}/undo_split",
+                post_with(undo_split_statement, |op| {
+                    op.id("PolisUndoSplitStatement")
+                        .tag("Tools")
+                        .summary("Undo a split or reword")
+                        .description(
+                            "Rejects every replacement a split posted for this statement and \
+                             moves the original back to waiting. Polis can't delete a \
+                             statement, so replacements are rejected with the reason \
+                             \"Split undone\". Fails if a replacement has itself been split.",
+                        )
+                        .response::<200, Json<SplitStatementResponse>>()
+                })
+                .route_layer(from_fn_with_state(
+                    Action::Moderate,
+                    authorize_polis_statement,
+                )),
+            )
+            .api_route(
+                "/polis/moderation_events",
+                get_with(list_moderation_events, |op| {
+                    op.id("PolisListModerationEvents")
+                        .tag("Tools")
+                        .summary("List the moderation log for a step")
+                        .description(
+                            "Every moderation decision on the step's statements, newest \
+                             first: who made it, the status before and after, and the \
+                             reason. The log is append-only.",
+                        )
+                        .response::<200, Json<Vec<PolisModerationEvent>>>()
+                }),
             )
     }
 }
@@ -1353,6 +1405,33 @@ async fn list_statement_translations(
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct StepTranslationsQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_step_statement_translations(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(query): Query<StepTranslationsQuery>,
+) -> Result<(StatusCode, Json<Vec<PolisStatementTranslation>>), ComhairleError> {
+    // Includes translations of waiting and rejected statements, so only the moderation team.
+    polis_statement_aux::check_can_perform_any(
+        &state,
+        &user,
+        &query.workflow_step_id,
+        &[Action::Update, Action::Moderate],
+    )
+    .await?;
+    let translations = models::polis_statement_translation::list_by_workflow_step_id(
+        &state.db,
+        &query.workflow_step_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(translations)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct LocalizedStatementQuery {
     pub polis_conversation_id: String,
     pub polis_statement_id: i32,
@@ -1583,6 +1662,8 @@ pub async fn sync_statement_aux_inner(
 pub enum ModerationDecisionRequest {
     Accept,
     Reject,
+    /// Back to waiting, to undo an accept or reject made by mistake.
+    Pending,
 }
 
 impl From<ModerationDecisionRequest> for ModerationStatus {
@@ -1590,6 +1671,7 @@ impl From<ModerationDecisionRequest> for ModerationStatus {
         match value {
             ModerationDecisionRequest::Accept => ModerationStatus::Accepted,
             ModerationDecisionRequest::Reject => ModerationStatus::Rejected,
+            ModerationDecisionRequest::Pending => ModerationStatus::Pending,
         }
     }
 }
@@ -1601,22 +1683,23 @@ pub struct ModerateStatementAuxRequest {
 }
 
 /// The reason to persist for a moderation decision. Reject keeps the supplied
-/// reason; accept clears it (returns `None`) so a stored reason never describes
-/// a statement that is no longer rejected (ADR-0015). Shared by the single and
+/// reason; accept and pending clear it (return `None`) so a stored reason never
+/// describes a statement that is no longer rejected (ADR-0015). Shared by the single and
 /// batch handlers so the invariant lives in one place.
 fn reason_for_decision<'a>(
     status: &ModerationStatus,
     reason: &'a Option<String>,
 ) -> Option<&'a str> {
     match status {
-        ModerationStatus::Accepted => None,
-        _ => reason.as_deref(),
+        ModerationStatus::Rejected => reason.as_deref(),
+        _ => None,
     }
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Extension(aux): Extension<PolisStatementAux>,
     Json(request): Json<ModerateStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
@@ -1651,6 +1734,16 @@ async fn moderate_statement_aux(
 
     let updated =
         models::polis_statement_aux::moderate(&state.db, aux.id, status.clone(), reason).await?;
+    polis_moderation_event::record(
+        &state.db,
+        user.id,
+        ModerationAction::Decision,
+        &[StatusChange {
+            before: &aux,
+            after: &updated,
+        }],
+    )
+    .await?;
 
     Ok((StatusCode::OK, Json(updated)))
 }
@@ -1680,6 +1773,7 @@ pub struct SplitStatementResponse {
 #[instrument(err(Debug), skip(state))]
 async fn split_statement(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Extension(original): Extension<PolisStatementAux>,
     Json(request): Json<SplitStatementRequest>,
 ) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
@@ -1753,12 +1847,143 @@ async fn split_statement(
         derived.len()
     );
 
+    let before = original;
     let (original, replacements) =
-        models::polis_statement_aux::record_split(&state.db, original.id, &derived, &reason)
-            .await?;
+        models::polis_statement_aux::record_split(&state.db, before.id, &derived, &reason).await?;
+    polis_moderation_event::record(
+        &state.db,
+        user.id,
+        ModerationAction::Split,
+        &[StatusChange {
+            before: &before,
+            after: &original,
+        }],
+    )
+    .await?;
 
     Ok((
         StatusCode::CREATED,
+        Json(SplitStatementResponse {
+            original,
+            replacements,
+        }),
+    ))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ModerationEventsQuery {
+    pub workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_moderation_events(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(query): Query<ModerationEventsQuery>,
+) -> Result<(StatusCode, Json<Vec<PolisModerationEvent>>), ComhairleError> {
+    polis_statement_aux::check_can_perform_any(
+        &state,
+        &user,
+        &query.workflow_step_id,
+        &[Action::Update, Action::Moderate],
+    )
+    .await?;
+    let events =
+        polis_moderation_event::list_by_workflow_step_id(&state.db, query.workflow_step_id).await?;
+    Ok((StatusCode::OK, Json(events)))
+}
+
+/// The reason stored on a replacement when its split is undone.
+const SPLIT_UNDONE_REASON: &str = "Split undone";
+
+/// Undo a split or reword: reject its replacements, then move the original back to
+/// waiting. Replacements go first so the poll never shows the original and its
+/// replacements at once. Replacements already rejected are skipped, so a retry after a
+/// partial failure finishes the job.
+#[instrument(err(Debug), skip(state))]
+async fn undo_split_statement(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Extension(original): Extension<PolisStatementAux>,
+) -> Result<(StatusCode, Json<SplitStatementResponse>), ComhairleError> {
+    let replacements =
+        models::polis_statement_aux::list_replacements(&state.db, original.id).await?;
+    if replacements.is_empty() {
+        return Err(ComhairleError::BadRequest(
+            "this statement was not split or reworded".into(),
+        ));
+    }
+    for replacement in &replacements {
+        let nested =
+            models::polis_statement_aux::list_replacements(&state.db, replacement.id).await?;
+        if !nested.is_empty() {
+            return Err(ComhairleError::BadRequest(
+                "a replacement was split again; undo that split first".into(),
+            ));
+        }
+    }
+
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &original.workflow_step_id).await?;
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    for replacement in replacements
+        .iter()
+        .filter(|r| r.moderation_status != ModerationStatus::Rejected)
+    {
+        client
+            .moderate_comment(
+                &config.poll_id,
+                replacement.polis_statement_id,
+                ModerationStatus::Rejected,
+                &auth_cookies,
+            )
+            .await?;
+    }
+    client
+        .moderate_comment(
+            &config.poll_id,
+            original.polis_statement_id,
+            ModerationStatus::Pending,
+            &auth_cookies,
+        )
+        .await?;
+
+    let replacement_ids: Vec<Uuid> = replacements.iter().map(|r| r.id).collect();
+    let (original_before, replacements_before) = (original, replacements);
+    let (original, replacements) = models::polis_statement_aux::record_undo_split(
+        &state.db,
+        original_before.id,
+        &replacement_ids,
+        SPLIT_UNDONE_REASON,
+    )
+    .await?;
+    let mut changes = vec![StatusChange {
+        before: &original_before,
+        after: &original,
+    }];
+    for after in &replacements {
+        if let Some(before) = replacements_before.iter().find(|row| row.id == after.id) {
+            changes.push(StatusChange { before, after });
+        }
+    }
+    polis_moderation_event::record(&state.db, user.id, ModerationAction::UndoSplit, &changes)
+        .await?;
+
+    Ok((
+        StatusCode::OK,
         Json(SplitStatementResponse {
             original,
             replacements,
@@ -1793,6 +2018,7 @@ pub struct ModerateStatementAuxBatchResponse {
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux_batch(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
     Extension(batch): Extension<AuthorizedPolisStatementBatch>,
     Json(request): Json<ModerateStatementAuxBatchRequest>,
 ) -> Result<(StatusCode, Json<ModerateStatementAuxBatchResponse>), ComhairleError> {
@@ -1845,6 +2071,15 @@ async fn moderate_statement_aux_batch(
     let succeeded =
         models::polis_statement_aux::moderate_many(&state.db, &succeeded_ids, status, reason)
             .await?;
+    let changes: Vec<StatusChange> = succeeded
+        .iter()
+        .filter_map(|after| {
+            let before = batch.rows.iter().find(|row| row.id == after.id)?;
+            Some(StatusChange { before, after })
+        })
+        .collect();
+    polis_moderation_event::record(&state.db, user.id, ModerationAction::Decision, &changes)
+        .await?;
 
     Ok((
         StatusCode::OK,
@@ -2485,6 +2720,170 @@ mod tests {
         Arc::new(service)
     }
 
+    async fn split_into(
+        pool: &PgPool,
+        original: &PolisStatementAux,
+        tids: &[i32],
+    ) -> Result<Vec<PolisStatementAux>, Box<dyn Error>> {
+        let derived: Vec<polis_statement_aux::CreateDerivedStatement> = tids
+            .iter()
+            .map(|tid| polis_statement_aux::CreateDerivedStatement {
+                workflow_step_id: original.workflow_step_id,
+                zid: *tid,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: *tid,
+                statement_text: format!("replacement {tid}"),
+                original_statement_id: original.id,
+            })
+            .collect();
+        let (_, replacements) =
+            polis_statement_aux::record_split(pool, original.id, &derived, "split").await?;
+        Ok(replacements)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn undo_split_rejects_replacements_and_reopens_the_original(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+        let original = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let replacements = split_into(&pool, &original, &[10, 11]).await?;
+
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", original.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let reopened = polis_statement_aux::get_by_id(&pool, &original.id).await?;
+        assert_eq!(reopened.moderation_status, ModerationStatus::Pending);
+        assert_eq!(reopened.moderation_reason, None);
+        for replacement in replacements {
+            let reloaded = polis_statement_aux::get_by_id(&pool, &replacement.id).await?;
+            assert_eq!(reloaded.moderation_status, ModerationStatus::Rejected);
+            assert_eq!(reloaded.moderation_reason.as_deref(), Some("Split undone"));
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn undo_split_refuses_a_statement_that_was_never_split_or_split_again(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+
+        let never_split = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", never_split.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let original = insert_pending_aux(&pool, owner_id, workflow_step_id, 2).await?;
+        let replacements = split_into(&pool, &original, &[20, 21]).await?;
+        split_into(&pool, &replacements[0], &[30]).await?;
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", original.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        let unchanged = polis_statement_aux::get_by_id(&pool, &original.id).await?;
+        assert_eq!(unchanged.moderation_status, ModerationStatus::Rejected);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn decisions_and_undo_split_land_in_the_moderation_log(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+        let statement = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+
+        let reject = json!({ "decision": "reject", "moderation_reason": "Duplicate" });
+        for _ in 0..2 {
+            let (status, _, _) = owner
+                .post(
+                    &app,
+                    &format!("/tools/polis/statement_aux/{}/moderate", statement.id),
+                    reject.to_string().into(),
+                )
+                .await?;
+            assert_eq!(status, StatusCode::OK);
+        }
+
+        let original = insert_pending_aux(&pool, owner_id, workflow_step_id, 2).await?;
+        split_into(&pool, &original, &[10, 11]).await?;
+        let (status, _, _) = owner
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/undo_split", original.id),
+                json!({}).to_string().into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, value, _) = owner
+            .get(
+                &app,
+                &format!("/tools/polis/moderation_events?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        let events: Vec<PolisModerationEvent> = serde_json::from_value(value)?;
+
+        let decisions: Vec<_> = events
+            .iter()
+            .filter(|e| e.action == ModerationAction::Decision)
+            .collect();
+        assert_eq!(decisions.len(), 1, "repeating a decision logs it once");
+        assert_eq!(decisions[0].polis_statement_aux_id, statement.id);
+        assert_eq!(decisions[0].actor_id, Some(owner_id));
+        assert_eq!(decisions[0].from_status, ModerationStatus::Pending);
+        assert_eq!(decisions[0].to_status, ModerationStatus::Rejected);
+        assert_eq!(decisions[0].reason.as_deref(), Some("Duplicate"));
+
+        let undo = events
+            .iter()
+            .filter(|e| e.action == ModerationAction::UndoSplit)
+            .count();
+        assert_eq!(undo, 3, "the original and both replacements");
+
+        let edit = sqlx::query("UPDATE polis_moderation_event SET reason = 'changed'")
+            .execute(&pool)
+            .await;
+        assert!(edit.is_err(), "logged events can't be edited");
+
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
+        intruder.signup(&app).await?;
+        let (status, _, _) = intruder
+            .get(
+                &app,
+                &format!("/tools/polis/moderation_events?workflow_step_id={workflow_step_id}"),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn owner_can_batch_moderate(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -2588,6 +2987,27 @@ mod tests {
             ModerationStatus::Accepted
         );
         Ok(())
+    }
+
+    #[test]
+    fn only_a_reject_keeps_its_reason() {
+        let reason = Some("Duplicate".to_string());
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Rejected, &reason),
+            Some("Duplicate")
+        );
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Accepted, &reason),
+            None
+        );
+        assert_eq!(
+            reason_for_decision(&ModerationStatus::Pending, &reason),
+            None
+        );
+        assert_eq!(
+            ModerationStatus::from(ModerationDecisionRequest::Pending),
+            ModerationStatus::Pending
+        );
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -2976,6 +3396,28 @@ mod tests {
             *posted.lock().unwrap(),
             vec!["Accepted seed".to_string(), "Pending seed".to_string()]
         );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn only_the_moderation_team_can_list_step_translations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let url = format!("/tools/polis/statement_translation?workflow_step_id={workflow_step_id}");
+
+        let (status, _, _) = owner.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
+        intruder.signup(&app).await?;
+        let (status, _, _) = intruder.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::FORBIDDEN);
         Ok(())
     }
 }

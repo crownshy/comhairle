@@ -3,6 +3,7 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import { Slider } from '$lib/components/ui/slider';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import { m } from '$lib/paraglide/messages';
 	import type { Question } from '../types';
 
 	type Props = {
@@ -15,6 +16,12 @@
 	};
 
 	let { question, value, disabled = false, invalid = false, onChange }: Props = $props();
+
+	const fieldId = $props.id();
+	const questionTextId = `${fieldId}-question`;
+	const errorId = `${fieldId}-error`;
+
+	let errorDescription = $derived(invalid ? errorId : undefined);
 
 	function handleLikert(raw: string) {
 		const n = Number(raw);
@@ -62,6 +69,14 @@
 		return null;
 	});
 
+	let sliderValueText = $derived.by(() => {
+		if (question.type.kind !== 'continuous') return undefined;
+		const { minValue, maxValue, minLabel, maxLabel } = question.type;
+		const scale = { min: minLabel || String(minValue), max: maxLabel || String(maxValue) };
+		if (typeof value !== 'number') return m.prioritization_slider_not_answered(scale);
+		return m.prioritization_slider_value_text({ ...scale, value: String(+value.toFixed(2)) });
+	});
+
 	/** Tracks whether the current pointer gesture moved the thumb. Reset in the
 	 * capture phase (before bits-ui updates), so a tap that lands exactly on the
 	 * resting thumb (e.g. choosing the middle) still commits an answer on release. */
@@ -73,7 +88,7 @@
 </script>
 
 <div class="space-y-3" class:opacity-60={disabled}>
-	<p class="text-base font-medium" class:text-destructive={invalid}>
+	<p id={questionTextId} class="text-base font-medium" class:text-destructive={invalid}>
 		{question.text}
 		{#if question.type.kind === 'text' && !question.required}
 			<span class="text-muted-foreground font-normal">(optional)</span>
@@ -85,6 +100,9 @@
 			value={value !== null ? String(value) : undefined}
 			onValueChange={handleLikert}
 			{disabled}
+			aria-labelledby={questionTextId}
+			aria-describedby={errorDescription}
+			aria-invalid={invalid || undefined}
 			class="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(var(--likert-cols),minmax(0,1fr))] sm:gap-3"
 			style="--likert-cols: {question.type.categories.length};"
 		>
@@ -97,7 +115,7 @@
 					data-state={value === cat.value ? 'checked' : 'unchecked'}
 				>
 					<RadioGroup.Item value={String(cat.value)} class="sm:sr-only" />
-					<span class="text-sm leading-tight group-data-[state=checked]:font-medium">
+					<span class="text-base leading-tight group-data-[state=checked]:font-medium">
 						{cat.label}
 					</span>
 				</Label>
@@ -113,12 +131,18 @@
 					max={sliderRange.max}
 					step={sliderRange.step}
 					{disabled}
+					thumbProps={{
+						'aria-labelledby': questionTextId,
+						'aria-describedby': errorDescription,
+						'aria-invalid': invalid || undefined,
+						'aria-valuetext': sliderValueText
+					}}
 					onpointerdowncapture={() => (gestureChanged = false)}
 					onpointerup={commitRestingIfUntouched}
 					onValueChange={(v) => typeof v === 'number' && handleSlider(v)}
 				/>
 			</div>
-			<div class="text-muted-foreground flex justify-between text-xs">
+			<div class="text-muted-foreground flex justify-between text-base">
 				<span class="font-medium" class:text-primary={leaningLabel === 'min'}>
 					{question.type.minLabel ?? ''}
 				</span>
@@ -129,16 +153,21 @@
 		</div>
 	{:else}
 		<Textarea
-			placeholder="Your answer"
+			placeholder={m.prioritization_answer_placeholder()}
 			rows={3}
 			{disabled}
+			aria-labelledby={questionTextId}
+			aria-describedby={errorDescription}
+			aria-invalid={invalid || undefined}
 			value={typeof value === 'string' ? value : ''}
 			oninput={handleText}
 		/>
 	{/if}
 
 	{#if invalid}
-		<p class="text-destructive text-sm">Please answer this question to continue.</p>
+		<p id={errorId} class="text-destructive text-sm">
+			Please answer this question to continue.
+		</p>
 	{/if}
 </div>
 

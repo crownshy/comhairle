@@ -18,7 +18,8 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import NewEventSchema from './NewEventSchema';
-	import { CalendarIcon, AlertCircle } from 'lucide-svelte';
+	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import AlertCircle from '@lucide/svelte/icons/circle-alert';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { cn } from '$lib/utils';
 	import { notifications } from '$lib/notifications.svelte';

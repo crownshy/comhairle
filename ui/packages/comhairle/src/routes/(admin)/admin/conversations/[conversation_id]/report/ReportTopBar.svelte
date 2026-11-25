@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import EllipsisVertical from 'lucide-svelte/icons/ellipsis-vertical';
-	import EyeOff from 'lucide-svelte/icons/eye-off';
-	import ExternalLink from 'lucide-svelte/icons/external-link';
-	import Globe from 'lucide-svelte/icons/globe';
-	import Languages from 'lucide-svelte/icons/languages';
-	import LoaderCircle from 'lucide-svelte/icons/loader-circle';
-	import PencilLine from 'lucide-svelte/icons/pencil-line';
-	import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
+	import Check from '@lucide/svelte/icons/check';
+	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Globe from '@lucide/svelte/icons/globe';
+	import Languages from '@lucide/svelte/icons/languages';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import PencilLine from '@lucide/svelte/icons/pencil-line';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import type { PublicStepResults } from '$lib/reports/embeds';

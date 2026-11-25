@@ -15,7 +15,7 @@
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import { LoadingButton } from '$lib/components/ui/button';
-	import { Sparkles } from '@lucide/svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { formatDistanceToNow } from 'date-fns';
 
 	type Props = {

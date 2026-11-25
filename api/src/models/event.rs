@@ -23,7 +23,7 @@ use crate::models::pagination::{Order, PageOptions, PaginatedResults};
 use crate::models::scheduled_email::{
     self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig,
 };
-use crate::models::translations::{TextContentId, TextFormat, new_translation};
+use crate::models::translations::{TextContentId, TextFormat, TranslationScope, new_translation};
 use crate::models::users::User;
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -61,6 +61,16 @@ impl EventAgenda {
             EventAgendaItem::BreakoutRoom(b) => b.max_per_room,
             _ => None,
         })
+    }
+
+    /// Keeps the items up to and including `current_step` and replaces everything after
+    /// it with `upcoming`. Used for live edits during a call, where items that have
+    /// started or finished can't change.
+    pub fn with_upcoming(&self, current_step: usize, upcoming: Vec<EventAgendaItem>) -> Self {
+        let locked_count = (current_step + 1).min(self.0.len());
+        let mut items = self.0[..locked_count].to_vec();
+        items.extend(upcoming);
+        EventAgenda(items)
     }
 }
 
@@ -177,6 +187,7 @@ pub struct Event {
     #[partially(transparent)]
     pub location: Option<EventLocation>,
     pub metadata: Option<serde_json::Value>,
+    pub email_link_login: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -352,7 +363,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 18] = [
+const DEFAULT_COLUMNS: [EventIden; 19] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -369,6 +380,7 @@ const DEFAULT_COLUMNS: [EventIden; 18] = [
     EventIden::Metadata,
     EventIden::Format,
     EventIden::CustomEventLink,
+    EventIden::EmailLinkLogin,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -477,8 +489,24 @@ pub async fn create(
     columns.push(EventIden::ConversationId);
     values.push((*conversation_id).into());
 
-    let name = new_translation(db, "en", &new_event.name, TextFormat::Plain).await?;
-    let description = new_translation(db, "en", &new_event.description, TextFormat::Plain).await?;
+    let mut transaction = db.begin().await?;
+    let scope = TranslationScope::Conversation(*conversation_id);
+    let name = new_translation(
+        &mut transaction,
+        scope,
+        "en",
+        &new_event.name,
+        TextFormat::Plain,
+    )
+    .await?;
+    let description = new_translation(
+        &mut transaction,
+        scope,
+        "en",
+        &new_event.description,
+        TextFormat::Plain,
+    )
+    .await?;
 
     columns.push(EventIden::Name);
     values.push(name.id.into());
@@ -503,9 +531,10 @@ pub async fn create(
         .build_sqlx(PostgresQueryBuilder);
 
     let event = sqlx::query_as_with::<_, Event, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *transaction)
         .await?;
 
+    transaction.commit().await?;
     Ok(event)
 }
 
@@ -558,6 +587,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.metadata {
             values.push((EventIden::Metadata, value.clone().into()));
+        }
+        if let Some(value) = self.email_link_login {
+            values.push((EventIden::EmailLinkLogin, value.into()));
         }
 
         Ok(values)
@@ -788,7 +820,7 @@ pub async fn list(
     let query = Query::select()
         .from(EventIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
-        .and_where(Expr::col(EventIden::ConversationId).eq(*conversation_id))
+        .and_where(Expr::col((EventIden::Table, EventIden::ConversationId)).eq(*conversation_id))
         .to_owned();
 
     // Add current_attendance computed column using subquery
@@ -968,6 +1000,47 @@ mod tests {
 
         let too_long = format!("https://meet.google.com/{}", "a".repeat(2048));
         assert!(validate_custom_event_link(&too_long).is_err());
+    }
+
+    fn basic_item(title: &str) -> EventAgendaItem {
+        EventAgendaItem::Basic(BasicEventAgendaItem {
+            title: title.to_string(),
+            description: String::new(),
+            estimated_time: 0,
+        })
+    }
+
+    fn agenda_of(titles: &[&str]) -> EventAgenda {
+        EventAgenda(titles.iter().map(|title| basic_item(title)).collect())
+    }
+
+    #[test]
+    fn with_upcoming_keeps_the_current_and_earlier_items() {
+        let agenda = agenda_of(&["Welcome", "Intro", "Old next", "Old last"]);
+
+        let edited = agenda.with_upcoming(1, vec![basic_item("New next")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Intro", "New next"]));
+    }
+
+    #[test]
+    fn with_upcoming_can_clear_or_append_after_the_last_item() {
+        let agenda = agenda_of(&["Welcome", "Close"]);
+
+        assert_eq!(agenda.with_upcoming(1, vec![]), agenda);
+        assert_eq!(
+            agenda.with_upcoming(1, vec![basic_item("Extra")]),
+            agenda_of(&["Welcome", "Close", "Extra"])
+        );
+    }
+
+    #[test]
+    fn with_upcoming_handles_a_step_past_the_end_of_the_agenda() {
+        let agenda = agenda_of(&["Welcome"]);
+
+        let edited = agenda.with_upcoming(5, vec![basic_item("Added")]);
+
+        assert_eq!(edited, agenda_of(&["Welcome", "Added"]));
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
@@ -1258,6 +1331,9 @@ mod tests {
         let _ = create(&pool, &conversation_id, &new_event_3).await?;
         let _ = create(&pool, &conversation_id, &new_event_4).await?;
 
+        let other_conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        create_named_event(&pool, other_conversation_id, "other_conversation_event").await?;
+
         let page_options = PageOptions {
             offset: None,
             limit: None,
@@ -1279,6 +1355,18 @@ mod tests {
         .await?;
 
         assert_eq!(results.total, 4, "incorrect number of events");
+        assert_eq!(
+            results.records.len(),
+            4,
+            "incorrect number of event records"
+        );
+        assert!(
+            results
+                .records
+                .iter()
+                .all(|record| record.event.conversation_id == conversation_id),
+            "events from another conversation were included"
+        );
         assert_eq!(
             results.records[2].event.name,
             "test_event_3".to_string(),

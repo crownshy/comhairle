@@ -110,6 +110,7 @@ export const OrganizationAction = z.enum([
   "organization_read",
   "organization_update",
   "organization_delete",
+  "organization_translate",
   "list_permission",
   "grant_permission",
   "revoke_permission",
@@ -309,6 +310,7 @@ export const LocalizedEventDto = z
     currentAttendance: z.union([z.number(), z.null()]).optional(),
     customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
+    emailLinkLogin: z.boolean(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
     id: z.string().uuid(),
@@ -483,14 +485,6 @@ export const TextFormat = z.union([
   z.literal("rich"),
 ]);
 export type TextFormat = z.infer<typeof TextFormat>;
-export const CreateTextContentRequest = z
-  .object({
-    content: z.string(),
-    format: TextFormat,
-    primary_locale: z.string(),
-  })
-  .passthrough();
-export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentDto = z
   .object({
     format: TextFormat,
@@ -510,6 +504,32 @@ export const TextTranslationDto = z
   })
   .passthrough();
 export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const TranslationDto = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type TranslationDto = z.infer<typeof TranslationDto>;
+export const TranslationScope = z.union([
+  z.object({ type: z.literal("system") }).passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("conversation") })
+    .passthrough(),
+  z
+    .object({ id: z.string().uuid(), type: z.literal("organization") })
+    .passthrough(),
+]);
+export type TranslationScope = z.infer<typeof TranslationScope>;
+export const CreateTextContentRequest = z
+  .object({
+    content: z.string(),
+    format: TextFormat,
+    primary_locale: z.string(),
+    scope: TranslationScope,
+  })
+  .passthrough();
+export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentWithTranslations = z
   .object({
     format: TextFormat,
@@ -549,6 +569,25 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
+export const TranslateTextContentSourceRequest = z
+  .object({ source_content: z.string(), source_locale: z.string() })
+  .passthrough();
+export type TranslateTextContentSourceRequest = z.infer<
+  typeof TranslateTextContentSourceRequest
+>;
+export const TranslatedText = z
+  .object({ content: z.string(), requires_validation: z.boolean() })
+  .passthrough();
+export type TranslatedText = z.infer<typeof TranslatedText>;
+export const TranslateTextRequest = z
+  .object({
+    scope: TranslationScope,
+    source_content: z.string(),
+    source_locale: z.string(),
+    target_locale: z.string(),
+  })
+  .passthrough();
+export type TranslateTextRequest = z.infer<typeof TranslateTextRequest>;
 export const PolisPublicKeyStats = z
   .object({
     participants: z.number().int().gte(0),
@@ -881,7 +920,10 @@ export const ThemeStatistic = z
 export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
 export const ThemeRequest = z.object({ theme: z.string() }).passthrough();
 export type ThemeRequest = z.infer<typeof ThemeRequest>;
-export const ModerationDecisionRequest = z.enum(["accept", "reject"]);
+export const ModerationDecisionRequest = z.union([
+  z.enum(["accept", "reject"]),
+  z.literal("pending"),
+]);
 export type ModerationDecisionRequest = z.infer<
   typeof ModerationDecisionRequest
 >;
@@ -963,6 +1005,26 @@ export const SplitStatementResponse = z
   })
   .passthrough();
 export type SplitStatementResponse = z.infer<typeof SplitStatementResponse>;
+export const ModerationAction = z.union([
+  z.literal("decision"),
+  z.literal("split"),
+  z.literal("undo_split"),
+]);
+export type ModerationAction = z.infer<typeof ModerationAction>;
+export const PolisModerationEvent = z
+  .object({
+    action: ModerationAction,
+    actor_id: z.union([z.string(), z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    from_status: ModerationStatus,
+    id: z.string().uuid(),
+    polis_statement_aux_id: z.string().uuid(),
+    reason: z.union([z.string(), z.null()]).optional(),
+    to_status: ModerationStatus,
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type PolisModerationEvent = z.infer<typeof PolisModerationEvent>;
 export const HeyFormPublicChoice = z
   .object({ count: z.number().int().gte(0), label: z.string() })
   .passthrough();
@@ -2320,14 +2382,19 @@ export const WorkflowStepStats = z
   .object({
     completed: z.number().int(),
     id: z.string().uuid(),
+    maxActiveSeconds: z.union([z.number(), z.null()]).optional(),
+    medianActiveSeconds: z.union([z.number(), z.null()]).optional(),
     started: z.number().int(),
   })
   .passthrough();
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
 export const WorkflowStats = z
   .object({
+    activeUsers: z.number().int(),
+    finishedUsers: z.number().int(),
     signupStats: z.array(DailySignupStats),
     stepStats: z.array(WorkflowStepStats),
+    totalActiveSeconds: z.number().int(),
     totalUsers: z.number().int(),
   })
   .passthrough();
@@ -2372,13 +2439,6 @@ export const UserParticipationDto = z
   })
   .passthrough();
 export type UserParticipationDto = z.infer<typeof UserParticipationDto>;
-export const TranslationDto = z
-  .object({
-    textContent: TextContentDto,
-    textTranslations: z.array(TextTranslationDto),
-  })
-  .passthrough();
-export type TranslationDto = z.infer<typeof TranslationDto>;
 export const JsonFieldWithTranslations = z
   .object({ localized: z.string(), translations: TranslationDto })
   .passthrough();
@@ -3539,6 +3599,7 @@ export const EventDto = z
     createdAt: z.string().datetime({ offset: true }),
     customEventLink: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
+    emailLinkLogin: z.boolean(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
     id: z.string().uuid(),
@@ -3586,6 +3647,7 @@ export const EventWithTranslations = z
     customEventLink: z.union([z.string(), z.null()]).optional(),
     defaultTimeZone: z.string(),
     description: z.string(),
+    emailLinkLogin: z.boolean(),
     endTime: z.string().datetime({ offset: true }),
     format: EventFormat,
     id: z.string().uuid(),
@@ -3612,6 +3674,7 @@ export const PartialEvent = z
     custom_event_link: z.union([z.string(), z.null()]),
     default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
+    email_link_login: z.union([z.boolean(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     format: z.union([EventFormat, z.null()]),
     location: z.union([EventLocation, z.null()]),
@@ -3627,6 +3690,8 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const EventAccessRequest = z.object({ token: z.string() }).passthrough();
+export type EventAccessRequest = z.infer<typeof EventAccessRequest>;
 export const BreakoutSeatDto = z
   .object({
     inviteId: z.union([z.string(), z.null()]).optional(),
@@ -3761,6 +3826,10 @@ export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
 export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
+export const RecorderWebhookResponse = z
+  .object({ success: z.boolean() })
+  .passthrough();
+export type RecorderWebhookResponse = z.infer<typeof RecorderWebhookResponse>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -4018,6 +4087,19 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const UploadMediaDto = z
+  .object({
+    alt: z.string(),
+    contentType: z.string(),
+    filename: z.string(),
+    name: z.string(),
+  })
+  .passthrough();
+export type UploadMediaDto = z.infer<typeof UploadMediaDto>;
+export const UploadMediaResponseDto = z
+  .object({ media: MediaDto, presignedUploadUrl: z.string() })
+  .passthrough();
+export type UploadMediaResponseDto = z.infer<typeof UploadMediaResponseDto>;
 export const MediaEditableFields = z
   .object({
     alt: z.union([z.string(), z.null()]),
@@ -4327,13 +4409,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UnreadCount,
   NotificationDelivery,
   TextFormat,
-  CreateTextContentRequest,
   TextContentDto,
   TextTranslationDto,
+  TranslationDto,
+  TranslationScope,
+  CreateTextContentRequest,
   TextContentWithTranslations,
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
+  TranslateTextContentSourceRequest,
+  TranslatedText,
+  TranslateTextRequest,
   PolisPublicKeyStats,
   PolisPublicGroup,
   PolisPublicGroupVotes,
@@ -4385,6 +4472,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_WikiPollConversationSummary,
   SplitStatementRequest,
   SplitStatementResponse,
+  ModerationAction,
+  PolisModerationEvent,
   HeyFormPublicChoice,
   HeyFormPublicScalePoint,
   HeyFormPublicScale,
@@ -4528,7 +4617,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowDemographics,
   UserParticipation,
   UserParticipationDto,
-  TranslationDto,
   JsonFieldWithTranslations,
   CategoryWithTranslations,
   QuestionTypeWithTranslations,
@@ -4644,6 +4732,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  EventAccessRequest,
   BreakoutSeatDto,
   BreakoutRoomDto,
   BreakoutPlanDto,
@@ -4664,6 +4753,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DeleteRecordingResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
+  RecorderWebhookResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -4694,6 +4784,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  UploadMediaDto,
+  UploadMediaResponseDto,
   MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
@@ -4928,7 +5020,7 @@ const endpoints = makeApi([
   {
     method: "get",
     path: "/conversation",
-    alias: "ListConverastions",
+    alias: "ListConversations",
     description: `List conversations`,
     requestFormat: "json",
     parameters: [
@@ -5406,6 +5498,21 @@ curl -X POST \
     response: EventDto,
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/access",
+    alias: "AccessEvent",
+    description: `Exchanges the access token from an event email link for a session. The token is reusable until it expires and only works while the user is registered for the event`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/attendances",
     alias: "ListEventAttendances",
@@ -5544,6 +5651,14 @@ curl -X POST \
     description: `Enqueue a background job to transcribe and categorize a single audio recording.`,
     requestFormat: "json",
     response: ProcessRecordingResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/recorder_webhook",
+    alias: "RecorderWebhook",
+    description: `Webhook jitsi-recorder calls when a triggered recording session ends. Authenticated by an HMAC signature derived from the recording id.`,
+    requestFormat: "json",
+    response: z.object({ success: z.boolean() }).passthrough(),
   },
   {
     method: "post",
@@ -6787,36 +6902,18 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   {
     method: "post",
     path: "/media",
-    alias: "postMedia",
-    description: `
-Upload a media resource to the bulk_storage_service 
-and create a new record in the database.
-
-
-This endpoint requires multipart/form-data.
-
-Generated API clients may not support file uploads.
-
-Use FormData and a raw HTTP request.
-
-**Example (curl):**
-&#x60;&#x60;&#x60;bash
-curl -X POST \
--H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
-&#x27;localhost:3000/media&#x27; \
---form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
-&#x60;&#x60;&#x60;
-                            `,
-    requestFormat: "form-data",
+    alias: "UploadMedia",
+    description: `Upload media - creates the media in the backend then returns a presigned url to upload the media to a bulk storage service`,
+    requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `multipart form data`,
+        description: `Upload media request body type.`,
         type: "Body",
-        schema: z.array(z.any()),
+        schema: UploadMediaDto,
       },
     ],
-    response: z.array(MediaDto),
+    response: UploadMediaResponseDto,
   },
   {
     method: "get",
@@ -8194,6 +8291,21 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/polis/moderation_events",
+    alias: "PolisListModerationEvents",
+    description: `Every moderation decision on the step&#x27;s statements, newest first: who made it, the status before and after, and the reason. The log is append-only.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PolisModerationEvent),
+  },
+  {
+    method: "get",
     path: "/tools/polis/moderation_policy",
     alias: "PolisGetPublishedModerationPolicy",
     description: `Lists the reject reasons (label and description) the step&#x27;s moderators pick from, so participants can read the rules before they write a statement. Reads the draft config when preview is set or the step isn&#x27;t launched.`,
@@ -8541,6 +8653,14 @@ Use a raw HTTP request and process the response body incrementally.
     response: z.array(PolisStatementTranslation),
   },
   {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/undo_split",
+    alias: "PolisUndoSplitStatement",
+    description: `Rejects every replacement a split posted for this statement and moves the original back to waiting. Polis can&#x27;t delete a statement, so replacements are rejected with the reason &quot;Split undone&quot;. Fails if a replacement has itself been split.`,
+    requestFormat: "json",
+    response: SplitStatementResponse,
+  },
+  {
     method: "get",
     path: "/tools/polis/statement_aux/localized",
     alias: "PolisGetLocalizedStatement",
@@ -8614,6 +8734,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.array(ThemeStatistic),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_translation",
+    alias: "PolisListStepStatementTranslations",
+    description: `Returns the stored translations of all statements in a workflow step, so the moderation queue can show them in one request. Each carries ai_generated and requires_validation flags.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(PolisStatementTranslation),
   },
   {
     method: "put",
@@ -9115,11 +9250,6 @@ Create a response for prioritization tool proposal
         schema: status,
       },
       {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
@@ -9171,11 +9301,6 @@ Create a response for prioritization tool proposal
       },
       {
         name: "root_question_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "user_id",
         type: "Query",
         schema: created_after,
       },
@@ -9495,11 +9620,47 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
   {
     method: "post",
+    path: "/translations/:text_content_id/:locale/translate-source",
+    alias: "TranslateTextContentSource",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: TranslateTextContentSourceRequest,
+      },
+    ],
+    response: TranslatedText,
+  },
+  {
+    method: "post",
     path: "/translations/:text_content_id/translate",
     alias: "GenerateAllTranslations",
     description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
     requestFormat: "json",
     response: TextContentWithTranslations,
+  },
+  {
+    method: "get",
+    path: "/translations/orphaned",
+    alias: "ListOrphanedTextContent",
+    description: `Super Administrators only. Returns content marked for manual review because its resource scope could not be verified.`,
+    requestFormat: "json",
+    response: z.array(TranslationDto),
+  },
+  {
+    method: "post",
+    path: "/translations/translate",
+    alias: "TranslateText",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: TranslateTextRequest,
+      },
+    ],
+    response: TranslatedText,
   },
   {
     method: "get",

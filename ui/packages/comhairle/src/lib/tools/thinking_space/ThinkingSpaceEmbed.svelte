@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Loader2, RotateCcw } from 'lucide-svelte';
+	import Loader2 from '@lucide/svelte/icons/loader-circle';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -222,26 +223,30 @@
 
 {#if !loaded}
 	<div class="flex h-96 items-center justify-center">
-		<Loader2 class="text-primary size-6 animate-spin" />
-		<span class="text-muted-foreground ml-2 text-sm">Loading…</span>
+		<Loader2 aria-hidden="true" class="text-primary size-6 animate-spin" />
+		<span class="text-muted-foreground ml-2 text-sm">{m.thinking_space_loading()}</span>
 	</div>
 {:else if configIncomplete}
 	<div class="mx-auto max-w-md px-6 py-12 text-center">
-		<h2 class="text-foreground text-xl font-semibold">Not configured yet</h2>
+		<h2 class="text-foreground text-xl font-semibold">
+			{m.thinking_space_not_configured_title()}
+		</h2>
 		<p class="text-muted-foreground mt-2 text-sm">
-			An admin needs to add at least one question to this Thinking Space before participants
-			can take part.
+			{m.thinking_space_not_configured_body()}
 		</p>
 	</div>
 {:else if loadError}
 	<div class="mx-auto max-w-md px-6 py-12 text-center">
-		<h2 class="text-foreground text-xl font-semibold">Couldn't load your progress</h2>
+		<h2 class="text-foreground text-xl font-semibold">{m.thinking_space_load_error_title()}</h2>
 		<p class="text-muted-foreground mt-2 text-sm">
-			Something went wrong loading this Thinking Space.
+			{m.thinking_space_load_error_body()}
 		</p>
 		<div class="mt-4 flex justify-center">
 			<Button variant="outline" size="sm" onclick={handleRetryLoad} disabled={retryingLoad}>
-				<RotateCcw class="size-3.5 {retryingLoad ? 'animate-spin' : ''}" />
+				<RotateCcw
+					aria-hidden="true"
+					class="size-3.5 {retryingLoad ? 'animate-spin' : ''}"
+				/>
 				{m.try_again()}
 			</Button>
 		</div>

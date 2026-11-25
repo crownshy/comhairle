@@ -1,37 +1,64 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Button, LoadingButton } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import * as Tabs from '$lib/components/ui/tabs';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { downloadCsv } from '$lib/utils/csv';
-	import type { RejectReason } from '$lib/moderation/moderationPolicy';
+	import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
-	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { Download, RefreshCw, Search } from '@lucide/svelte';
+	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
+	import Download from '@lucide/svelte/icons/download';
+	import Search from '@lucide/svelte/icons/search';
+	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
+	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
+	import UndoSplitDialog from './polis-moderation/UndoSplitDialog.svelte';
+	import StatementsPagination from './polis-moderation/StatementsPagination.svelte';
 	import StatementsTable from './polis-moderation/StatementsTable.svelte';
-	import { buildStatementsCsv } from './polis-moderation/statementsCsv';
+	import { StatementSync } from './polis-moderation/statementSync';
+	import { participantOriginal } from './polis-moderation/participantOriginal';
+	import { buildStatementsCsv, moderationReportFilename } from './polis-moderation/statementsCsv';
 	import { permissions } from '$lib/permissions.svelte';
+	import { pluralise } from '$lib/utils/pluralise';
 
 	type Props = {
 		conversationId: string;
+		conversationTitle: string;
+		stepName: string;
 		workflowStepId: string;
 		statements: PolisStatementAux[];
+		translations: PolisStatementTranslation[];
 		/** The step's moderation policy reasons (ADR-0038), offered on reject. */
 		rejectReasons: RejectReason[];
 		/** The API's default reasons. Export always matches them, see `reasonLabels`. */
 		defaultRejectReasons: RejectReason[];
+		/** The step's config, for the moderator email switch. */
+		step: PolisStepTarget;
 	};
 
 	let {
 		conversationId,
+		conversationTitle,
+		stepName,
 		workflowStepId,
 		statements: initialStatements,
+		translations: initialTranslations,
 		rejectReasons,
-		defaultRejectReasons
+		defaultRejectReasons,
+		step
 	}: Props = $props();
+	type ModerationStatus = PolisStatementAux['moderation_status'];
+	const DECISIONS = { accepted: 'accept', rejected: 'reject', pending: 'pending' } as const;
+	const DONE_LABELS: Record<ModerationStatus, string> = {
+		accepted: 'accepted',
+		rejected: 'rejected',
+		pending: 'moved back to waiting'
+	};
+
 	const canModerate = $derived(
 		permissions.can('conversation', 'conversation_moderate', conversationId)
 	);
@@ -48,68 +75,83 @@
 	// the Polis statements key and a fresh `initialStatements` flows back down).
 	let statements = $derived(initialStatements);
 
-	// --- Sync from Polis ---
-	// Participant submissions only appear here after a sync — aux rows are synced
-	// from Polis, not created live. Existing moderation/themes are preserved.
-	let syncing = $state(false);
-
-	async function syncFromPolis() {
-		if ((!canModerate && !canEdit) || syncing) return;
-		syncing = true;
-
-		const res = await tryCatchAsync(() =>
-			apiClient.PolisSyncStatementAux({ workflow_step_id: workflowStepId })
-		);
-		if (res.err !== null) {
-			console.error('PolisSyncStatementAux failed', res.err);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'Failed to sync statements from Polis'
-			});
-			syncing = false;
-			return;
+	let translations = $derived(initialTranslations);
+	const translationsByStatement = $derived.by(() => {
+		const grouped: Record<string, PolisStatementTranslation[]> = {};
+		for (const translation of translations) {
+			(grouped[translation.polis_statement_aux_id] ??= []).push(translation);
 		}
+		return grouped;
+	});
 
-		notifications.send({
-			priority: 'INFO',
-			message: `Synced ${res.ok.synced} statement${res.ok.synced === 1 ? '' : 's'} from Polis${
-				res.ok.skipped_invalid_xid ? ` (${res.ok.skipped_invalid_xid} skipped)` : ''
-			}`
-		});
-		// Keep the spinner up through the reload so the button doesn't flicker.
-		await invalidate(key('admin/polis/statements'));
-		syncing = false;
+	function replaceTranslation(updated: PolisStatementTranslation) {
+		translations = translations.map((t) => (t.id === updated.id ? updated : t));
 	}
 
-	// --- Status filters + search ---
-	type Filter = 'all' | 'seeded' | 'accepted' | 'pending' | 'rejected';
-	let filter = $state<Filter>('all');
+	// --- Keeping the list fresh ---
+	const canSync = $derived(canModerate || canEdit);
+	const statementSync = new StatementSync(() => workflowStepId);
+
+	onMount(() => (canSync ? statementSync.start() : undefined));
+
+	// --- Status views + search ---
+	// Opens on the waiting queue, since clearing it is why moderators come here.
+	type Filter = 'pending' | 'accepted' | 'rejected' | 'all';
+	let filter = $state<Filter>('pending');
 	let search = $state('');
 
-	const counts = $derived({
-		all: statements.length,
-		seeded: statements.filter((s) => s.is_seed).length,
-		accepted: statements.filter((s) => s.moderation_status === 'accepted').length,
-		pending: statements.filter((s) => s.moderation_status === 'pending').length,
-		rejected: statements.filter((s) => s.moderation_status === 'rejected').length
+	const counts = $derived.by(() => {
+		const tally = { pending: 0, accepted: 0, rejected: 0, all: statements.length };
+		for (const statement of statements) tally[statement.moderation_status]++;
+		return tally;
 	});
 
-	const visible = $derived.by(() => {
+	const filtered = $derived.by(() => {
 		let list = statements;
-		if (filter === 'seeded') list = list.filter((s) => s.is_seed);
-		else if (filter !== 'all') list = list.filter((s) => s.moderation_status === filter);
+		if (filter !== 'all') list = list.filter((s) => s.moderation_status === filter);
 		const q = search.trim().toLowerCase();
 		if (q) list = list.filter((s) => s.statement_text.toLowerCase().includes(q));
-		return [...list].sort((a, b) => b.polis_statement_id - a.polis_statement_id);
+		return list.toSorted((a, b) => b.polis_statement_id - a.polis_statement_id);
 	});
 
+	const LIST_STATUS_WORDS: Record<Filter, string> = {
+		pending: 'waiting ',
+		accepted: 'accepted ',
+		rejected: 'rejected ',
+		all: ''
+	};
+	const listHeading = $derived(
+		`${filtered.length} ${LIST_STATUS_WORDS[filter]}${pluralise(filtered.length, 'statement')}`
+	);
+
 	const filters: { key: Filter; label: string }[] = [
-		{ key: 'all', label: 'All' },
-		{ key: 'seeded', label: 'Seeded' },
+		{ key: 'pending', label: 'Waiting' },
 		{ key: 'accepted', label: 'Accepted' },
-		{ key: 'pending', label: 'Pending' },
-		{ key: 'rejected', label: 'Rejected' }
+		{ key: 'rejected', label: 'Rejected' },
+		{ key: 'all', label: 'All' }
 	];
+	const isFilter = (value: string): value is Filter => filters.some((f) => f.key === value);
+
+	// --- Pages ---
+	// Live polls run to hundreds of statements; one long list made range-select and scrolling slow.
+	const PAGE_SIZE = 50;
+	// Writable derived: goes back to page 1 whenever the view or search changes.
+	let pageNumber = $derived.by(() => {
+		void filter;
+		void search;
+		return 1;
+	});
+	// Deciding the last rows on the last page would otherwise leave an empty page.
+	const pageCount = $derived(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
+	const currentPage = $derived(Math.min(pageNumber, pageCount));
+	const visible = $derived(
+		filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+	);
+
+	function goToPage(page: number) {
+		pageNumber = page;
+		clearSelection();
+	}
 
 	// --- Download ---
 	// Built from the rows already loaded, so it reflects the last sync. The default labels are
@@ -120,13 +162,15 @@
 
 	function downloadStatements() {
 		if (!canExport) return;
-		const date = new Date().toISOString().slice(0, 10);
-		downloadCsv(`polis-statements-${date}.csv`, buildStatementsCsv(statements, reasonLabels));
+		downloadCsv(
+			moderationReportFilename({ conversationTitle, stepName, date: new Date() }),
+			buildStatementsCsv(statements, reasonLabels)
+		);
 	}
 
 	// --- Multi-select + bulk moderation ---
 	// Selection is keyed by aux row id. Select-all and the bulk actions operate
-	// on the currently visible (filtered + searched) rows only.
+	// on the rows on the current page only.
 	let selected = $state<Record<string, boolean>>({});
 	const selectedVisible = $derived(visible.filter((r) => selected[r.id]));
 
@@ -169,12 +213,12 @@
 	}
 
 	// Which bulk action is in flight (drives the per-button spinner); null when idle.
-	let bulkAction = $state<'accepted' | 'rejected' | null>(null);
+	let bulkAction = $state<ModerationStatus | null>(null);
 	const bulkWorking = $derived(bulkAction !== null);
 
-	async function bulkModerate(status: 'accepted' | 'rejected', reason?: string) {
+	async function bulkModerate(status: ModerationStatus, reason?: string) {
 		if (!canModerate) return;
-		const decision = status === 'accepted' ? 'accept' : 'reject';
+		const decision = DECISIONS[status];
 		// Skip rows already in the target status.
 		const targets = selectedVisible.filter((r) => r.moderation_status !== status);
 		if (!targets.length || bulkWorking) return;
@@ -203,7 +247,6 @@
 		bulkAction = null;
 		clearSelection();
 		if (result.err !== null) {
-			console.error('Bulk moderate failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to update statements' });
 		} else if (result.ok.failed.length) {
 			notifications.send({
@@ -211,10 +254,7 @@
 				message: `${result.ok.failed.length} of ${targets.length} failed to update`
 			});
 		} else {
-			notifications.send({
-				priority: 'INFO',
-				message: `${targets.length} statement${targets.length === 1 ? '' : 's'} ${status}`
-			});
+			offerUndo(targets, status, reason);
 		}
 		// Reconcile with server truth (also corrects any partial failures).
 		await invalidate(key('admin/polis/statements'));
@@ -224,19 +264,20 @@
 	// Track in-flight requests per aux row so the buttons can disable mid-call.
 	let pending = $state<Record<string, boolean>>({});
 
-	async function setStatus(
-		row: PolisStatementAux,
-		status: 'accepted' | 'rejected',
-		reason?: string
-	) {
+	async function setStatus(row: PolisStatementAux, status: ModerationStatus, reason?: string) {
 		if (!canModerate) return;
 		// If the clicked row is part of an active selection, the per-row accept/reject
 		// applies to the whole selection (same as the bulk bar). Clicking a row that
 		// isn't selected stays a single-row action.
 		if (selected[row.id]) return bulkModerate(status, reason);
+		const before = await moderateRow(row, status, reason);
+		if (before) offerUndo([before], status, reason);
+	}
 
-		if (pending[row.id] || row.moderation_status === status) return;
-		const decision = status === 'accepted' ? 'accept' : 'reject';
+	/** Moderates one row, ignoring any selection. Returns the row as it was, or null on failure. */
+	async function moderateRow(row: PolisStatementAux, status: ModerationStatus, reason?: string) {
+		if (pending[row.id] || row.moderation_status === status) return null;
+		const decision = DECISIONS[status];
 		pending = { ...pending, [row.id]: true };
 
 		// Optimistic update; roll back on failure. Accept clears any prior reason
@@ -257,12 +298,72 @@
 		pending = { ...pending, [row.id]: false };
 
 		if (res.err !== null) {
-			console.error('PolisModerateStatementAux failed', res.err);
 			statements = statements.map((s) => (s.id === row.id ? prev : s));
 			notifications.send({ priority: 'ERROR', message: 'Failed to update statement' });
-			return;
+			return null;
 		}
 		statements = statements.map((s) => (s.id === row.id ? res.ok : s));
+		// A sync that started before this decision reached the server would load the old row.
+		if (statementSync.syncing) await invalidate(key('admin/polis/statements'));
+		return prev;
+	}
+
+	// A slip is one click to fix, instead of an "are you sure?" before every decision.
+	function offerUndo(before: PolisStatementAux[], status: ModerationStatus, reason?: string) {
+		notifications.send({
+			priority: 'INFO',
+			message: doneMessage(before.length, status, reason),
+			duration: 6000,
+			action: { label: 'Undo', onClick: () => restore(before) }
+		});
+	}
+
+	function doneMessage(count: number, status: ModerationStatus, reason?: string) {
+		const subject = count === 1 ? 'Statement' : `${count} statements`;
+		const label = splitReason(reason, reasonLabels).label;
+		return label
+			? `${subject} ${DONE_LABELS[status]}: ${label}`
+			: `${subject} ${DONE_LABELS[status]}`;
+	}
+
+	async function restore(before: PolisStatementAux[]) {
+		if (before.length === 1) {
+			const current = statements.find((s) => s.id === before[0].id);
+			if (current)
+				await moderateRow(
+					current,
+					before[0].moderation_status,
+					before[0].moderation_reason ?? undefined
+				);
+			return;
+		}
+
+		const beforeById = new Map(before.map((row) => [row.id, row]));
+		statements = statements.map((s) => beforeById.get(s.id) ?? s);
+
+		// The batch endpoint takes one decision and reason, so rows go back in groups.
+		const groups: Record<string, PolisStatementAux[]> = {};
+		for (const row of before) {
+			(groups[`${row.moderation_status}:${row.moderation_reason ?? ''}`] ??= []).push(row);
+		}
+		const results = await Promise.all(
+			Object.values(groups).map((rows) =>
+				tryCatchAsync(() =>
+					apiClient.PolisModerateStatementAuxBatch({
+						ids: rows.map((row) => row.id),
+						decision: DECISIONS[rows[0].moderation_status],
+						moderation_reason: rows[0].moderation_reason ?? null
+					})
+				)
+			)
+		);
+		if (results.some((result) => result.err !== null || result.ok.failed.length > 0)) {
+			notifications.send({
+				priority: 'ERROR',
+				message: 'Failed to undo for some statements'
+			});
+		}
+		await invalidate(key('admin/polis/statements'));
 	}
 
 	// --- Split / reword ---
@@ -296,14 +397,54 @@
 	let splitTarget = $state<PolisStatementAux | null>(null);
 	let splitOpen = $state(false);
 
-	// The statement the participant was viewing when they submitted the target, if we
-	// can resolve it. `visible_statement_when_submitted` stores the Polis tid.
+	// What the participant first wrote, when the target is already a moderator's edit.
+	const splitParticipantStatement = $derived(
+		splitTarget ? participantOriginal(splitTarget, statements) : null
+	);
+
+	// The statement the participant was viewing when they wrote it, if we can resolve it.
+	// `visible_statement_when_submitted` stores the Polis tid, and only the participant's
+	// own statement carries it.
 	const splitContext = $derived.by(() => {
-		const tid = splitTarget?.visible_statement_when_submitted;
+		const tid = splitParticipantStatement?.visible_statement_when_submitted;
 		if (!tid) return undefined;
 		const n = Number(tid);
 		return statements.find((s) => s.polis_statement_id === n)?.statement_text;
 	});
+
+	// --- Undo split ---
+	// From the row menu it asks first, since votes on the replacements are lost. The toast
+	// right after a split undoes straight away: there's been no time to collect votes.
+	let undoSplitTarget = $state<PolisStatementAux | null>(null);
+	let undoingSplit = $state(false);
+
+	function askUndoSplit(row: PolisStatementAux) {
+		if (!canModerate) return;
+		undoSplitTarget = row;
+	}
+
+	async function undoSplit(original: PolisStatementAux) {
+		if (!canModerate || undoingSplit) return;
+		undoingSplit = true;
+		const res = await tryCatchAsync(() =>
+			apiClient.PolisUndoSplitStatement(undefined, { params: { id: original.id } })
+		);
+		undoingSplit = false;
+		undoSplitTarget = null;
+		if (res.err !== null) {
+			notifications.send({
+				priority: 'ERROR',
+				message:
+					'Couldn’t undo the split. If one of its statements was split again, undo that one first.'
+			});
+		} else {
+			notifications.send({
+				priority: 'INFO',
+				message: 'Split undone. The original is back in Waiting.'
+			});
+		}
+		await invalidate(key('admin/polis/statements'));
+	}
 
 	function openSplit(row: PolisStatementAux) {
 		if (!canModerate) return;
@@ -312,63 +453,55 @@
 	}
 </script>
 
-<div class="flex flex-col gap-6 rounded-xl">
-	<!-- Heading + actions -->
-	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-		<div class="flex max-w-3xl flex-col gap-1">
-			<h2 class="text-2xl font-bold">Statements moderation</h2>
-			<p class="text-muted-foreground text-sm">Moderate and view all statements.</p>
+<!-- pb-24 keeps the last row clear of the fixed Help button. -->
+<div class="flex flex-col gap-6 pb-24">
+	<div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+		<div class="flex min-w-0 flex-col gap-1">
+			<h2 class="text-2xl font-bold">{stepName}</h2>
+			<ModeratorEmailStatus {step} {canEdit} />
 		</div>
-		<!-- Full-width stacked buttons on phones, a wrapping row from sm up. -->
-		<div
+		<Button
 			data-tour="moderation-actions"
-			class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:shrink-0"
+			variant="outline"
+			disabled={!canExport || statements.length === 0}
+			onclick={downloadStatements}
+			title="Every statement and decision, as a CSV"
 		>
-			<Button
-				variant="outline"
-				disabled={!canExport || statements.length === 0}
-				onclick={downloadStatements}
-			>
-				<Download class="size-4" />
-				Download CSV
-			</Button>
-			{#if canModerate || canEdit}
-				<LoadingButton
-					loading={syncing}
-					variant="outline"
-					onclick={syncFromPolis}
-					title="Pull the latest submitted statements from Polis"
-				>
-					<RefreshCw class="size-4" />
-					Sync from Polis
-				</LoadingButton>
-			{/if}
+			<Download class="size-4" />
+			Download report
+		</Button>
+	</div>
+
+	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<Tabs.Root
+			value={filter}
+			onValueChange={(value) => {
+				if (isFilter(value)) filter = value;
+			}}
+			class="min-w-0"
+		>
+			<div class="-mx-1 overflow-x-auto px-1">
+				<Tabs.List data-tour="moderation-filters" class="h-11">
+					{#each filters as f (f.key)}
+						<Tabs.Trigger value={f.key} class="gap-2 px-3 text-base">
+							{f.label}
+							<span class="text-muted-foreground tabular-nums">{counts[f.key]}</span>
+						</Tabs.Trigger>
+					{/each}
+				</Tabs.List>
+			</div>
+		</Tabs.Root>
+		<div class="relative w-full md:ml-auto md:w-72">
+			<Search
+				class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+			/>
+			<Input
+				bind:value={search}
+				placeholder="Search statements"
+				aria-label="Search statements"
+				class="pl-9"
+			/>
 		</div>
-	</div>
-
-	<!-- Search -->
-	<div class="relative max-w-sm">
-		<Search
-			class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-		/>
-		<Input bind:value={search} placeholder="Search statements…" class="pl-9" />
-	</div>
-
-	<!-- Status filter chips -->
-	<div data-tour="moderation-filters" class="flex flex-wrap items-center gap-2">
-		{#each filters as f (f.key)}
-			<button
-				type="button"
-				onclick={() => (filter = f.key)}
-				class={`inline-flex cursor-pointer items-center rounded-full px-3.5 py-2 text-sm font-medium transition-colors ${
-					filter === f.key
-						? 'bg-primary text-primary-foreground'
-						: 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-				}`}
-			>
-				{f.label} · {counts[f.key]}
-			</button>
-		{/each}
 	</div>
 
 	<!-- Statements list -->
@@ -376,19 +509,50 @@
 		<StatementsTable
 			editable={canModerate}
 			rows={visible}
+			showStatus={filter === 'all'}
+			heading={listHeading}
 			{rejectReasons}
 			{selected}
 			{pending}
 			{bulkAction}
 			{lineage}
+			{translationsByStatement}
+			onTranslationChange={replaceTranslation}
 			onToggleSelect={toggleSelect}
 			onToggleAll={toggleSelectAll}
 			onClear={clearSelection}
 			onBulkModerate={bulkModerate}
 			onModerate={setStatus}
 			onSplit={openSplit}
-		/>
+			onUndoSplit={askUndoSplit}
+		>
+			{#snippet empty()}
+				{#if statements.length === 0}
+					<p class="text-muted-foreground px-4 py-8 text-base">
+						No statements yet. New statements from participants appear here as they come
+						in.
+					</p>
+				{:else if search.trim()}
+					<p class="text-muted-foreground px-4 py-8 text-base">
+						No statements match "{search.trim()}".
+					</p>
+				{:else if filter === 'pending'}
+					<p class="text-muted-foreground px-4 py-8 text-base">
+						All caught up. Nothing is waiting for a decision.
+					</p>
+				{:else}
+					<p class="text-muted-foreground px-4 py-8 text-base">No statements here yet.</p>
+				{/if}
+			{/snippet}
+		</StatementsTable>
 	</div>
+
+	<StatementsPagination
+		count={filtered.length}
+		perPage={PAGE_SIZE}
+		page={currentPage}
+		onPageChange={goToPage}
+	/>
 </div>
 
 {#if canModerate}
@@ -396,7 +560,20 @@
 		{conversationId}
 		bind:open={splitOpen}
 		original={splitTarget}
+		participantText={splitParticipantStatement?.id !== splitTarget?.id
+			? splitParticipantStatement?.statement_text
+			: undefined}
 		viewedContext={splitContext}
 		onDone={() => invalidate(key('admin/polis/statements'))}
+		onUndo={undoSplit}
+	/>
+	<UndoSplitDialog
+		original={undoSplitTarget}
+		replacementCount={undoSplitTarget
+			? (lineage[undoSplitTarget.id]?.replacedBy?.length ?? 0)
+			: 0}
+		working={undoingSplit}
+		onConfirm={() => undoSplitTarget && undoSplit(undoSplitTarget)}
+		onCancel={() => (undoSplitTarget = null)}
 	/>
 {/if}

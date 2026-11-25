@@ -133,17 +133,27 @@ impl BulkStorageService for S3StorageService {
     async fn get_write_file_url(
         &self,
         target_dest: &str,
+        metadata: Option<FileMetadata>,
     ) -> Result<String, super::BulkStorageError> {
         let expires_in: Duration = Duration::from_secs(PUT_EXPIRES);
 
         let expires_in: PresigningConfig = PresigningConfig::expires_in(expires_in)
             .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;
 
-        let presigned_request = self
+        let mut builder = self
             .s3_client
             .put_object()
             .bucket(&self.bucket)
-            .key(target_dest)
+            .key(target_dest);
+
+        if let Some(metadata) = metadata {
+            builder = builder.content_type(metadata.content_type);
+            if metadata.is_public {
+                builder = builder.acl(ObjectCannedAcl::PublicRead);
+            }
+        }
+
+        let presigned_request = builder
             .presigned(expires_in)
             .await
             .map_err(|e| BulkStorageError::FailedToGetUploadPresign(e.to_string()))?;

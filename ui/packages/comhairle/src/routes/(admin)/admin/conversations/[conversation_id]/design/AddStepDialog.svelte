@@ -12,7 +12,9 @@
 		type PickerLoad,
 		type PublishedDemographicItem
 	} from '$lib/demographicCatalogue';
-	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Check from '@lucide/svelte/icons/check';
 	import { goto, invalidate } from '$app/navigation';
 	import { createWorkflowStep } from './createWorkflowstep';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';

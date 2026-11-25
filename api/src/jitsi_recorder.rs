@@ -81,7 +81,18 @@ struct StartRecordingRequest<'a> {
     webhook_url: String,
     webhook_secret: String,
     nickname: &'a str,
-    jwt_token: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    jwt_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xmpp_username: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xmpp_password: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    focus_jid: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    xmpp_auth_domain: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    main_room_jid: Option<&'a str>,
 }
 
 /// Starts a jitsi-recorder session for `room_name`.
@@ -106,13 +117,13 @@ pub async fn trigger_recording(
     room_name: &str,
     muc_domain: Option<&str>,
     recording_name: &str,
+    // Some(_) => breakout room: use the password-authenticated recorder
+    // account, granting it this main room's affiliation first (see
+    // `jitsi_recorder::trigger_recording`'s doc comment). None => main room:
+    // mint a bot JWT as before.
+    main_room_jid: Option<&str>,
 ) -> Result<(), ComhairleError> {
     let recorder_config = state.required_jitsi_recorder_config()?;
-    let video_call_config = state
-        .config
-        .video_call_service
-        .as_ref()
-        .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
     let recording_id = Uuid::new_v4();
     let s3_key_prefix = format!("events/{event_id}/recordings/{recording_id}");
@@ -133,7 +144,67 @@ pub async fn trigger_recording(
     )
     .await?;
 
-    let jwt_token = mint_bot_jwt(video_call_config, room_name)?;
+    let (jwt_token, xmpp_username, xmpp_password, focus_jid, xmpp_auth_domain, main_room_jid) =
+        if let Some(main_room_jid) = main_room_jid {
+            let username = recorder_config
+                .recorder_xmpp_username
+                .as_deref()
+                .ok_or_else(|| {
+                    ComhairleError::JitsiRecorderError(
+                        "breakout recording requires recorder_xmpp_username/password to be configured"
+                            .to_string(),
+                    )
+                })?;
+            let password = recorder_config
+                .recorder_xmpp_password
+                .as_deref()
+                .ok_or_else(|| {
+                    ComhairleError::JitsiRecorderError(
+                        "breakout recording requires recorder_xmpp_username/password to be configured"
+                            .to_string(),
+                    )
+                })?;
+            let focus_jid = recorder_config
+                .recorder_focus_jid
+                .as_deref()
+                .ok_or_else(|| {
+                    ComhairleError::JitsiRecorderError(
+                        "breakout recording requires recorder_focus_jid to be configured"
+                            .to_string(),
+                    )
+                })?;
+            let auth_domain = recorder_config
+                .recorder_xmpp_domain
+                .as_deref()
+                .ok_or_else(|| {
+                    ComhairleError::JitsiRecorderError(
+                        "breakout recording requires recorder_xmpp_domain to be configured"
+                            .to_string(),
+                    )
+                })?;
+            (
+                None,
+                Some(username),
+                Some(password),
+                Some(focus_jid),
+                Some(auth_domain),
+                Some(main_room_jid),
+            )
+        } else {
+            let video_call_config = state
+                .config
+                .video_call_service
+                .as_ref()
+                .ok_or(ComhairleError::NoVideoServiceConfigured)?;
+            (
+                Some(mint_bot_jwt(video_call_config, room_name)?),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        };
     let webhook_secret =
         derive_recorder_webhook_secret(&recorder_config.webhook_secret, &recording_id)?;
     let webhook_url = format!(
@@ -148,6 +219,11 @@ pub async fn trigger_recording(
         webhook_secret,
         nickname: BOT_NAME,
         jwt_token,
+        xmpp_username,
+        xmpp_password,
+        focus_jid,
+        xmpp_auth_domain,
+        main_room_jid,
     };
 
     let response = reqwest::Client::new()

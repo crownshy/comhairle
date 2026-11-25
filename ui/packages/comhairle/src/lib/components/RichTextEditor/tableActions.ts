@@ -1,14 +1,12 @@
 import type { Editor } from '@tiptap/core';
-import {
-	ArrowUpToLine,
-	ArrowDownToLine,
-	ArrowLeftToLine,
-	ArrowRightToLine,
-	Heading,
-	Trash2,
-	type Icon
-} from 'lucide-svelte';
-import type { ComponentType } from 'svelte';
+import ArrowUpToLine from '@lucide/svelte/icons/arrow-up-to-line';
+import ArrowDownToLine from '@lucide/svelte/icons/arrow-down-to-line';
+import ArrowLeftToLine from '@lucide/svelte/icons/arrow-left-to-line';
+import ArrowRightToLine from '@lucide/svelte/icons/arrow-right-to-line';
+import Heading from '@lucide/svelte/icons/heading';
+import Trash2 from '@lucide/svelte/icons/trash-2';
+import type { IconProps } from '@lucide/svelte';
+import type { Component } from 'svelte';
 
 /**
  * The set of table operations shared by the toolbar dropdown and the floating
@@ -17,7 +15,7 @@ import type { ComponentType } from 'svelte';
  */
 export type TableAction = {
 	label: string;
-	Icon: ComponentType<Icon>;
+	Icon: Component<IconProps>;
 	run: (editor: Editor) => void;
 	/** Renders in a warning colour and, in menus, typically closes the surface. */
 	destructive?: boolean;

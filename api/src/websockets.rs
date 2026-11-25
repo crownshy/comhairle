@@ -26,8 +26,8 @@ use uuid::Uuid;
 use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::users::User;
+use crate::redis_connection::RedisConnection;
 use crate::routes::auth::RequiredUser;
-use crate::websockets::config::WebsocketConfig;
 
 /// Trait for handling domain-specific WebSocket messages.
 ///
@@ -205,10 +205,11 @@ pub type ConnectionMap = Arc<DashMap<ConnectionId, WebSocketConnection>>;
 pub type UserConnectionMap = Arc<DashMap<Uuid, Vec<ConnectionId>>>;
 pub type HandlerRegistry = Arc<DashMap<String, Arc<dyn WebSocketMessageHandler>>>;
 
-#[derive(Clone, Debug)]
+const WEBSOCKET_CHANNEL: &str = "comhairle_api_websocket_messages";
+
+#[derive(Clone)]
 struct ComhairleWebSocketServiceRedis {
-    redis_publisher: redis::aio::MultiplexedConnection,
-    redis_url: String,
+    connection: Arc<dyn RedisConnection>,
     instance_id: Uuid,
 }
 
@@ -352,32 +353,16 @@ impl MockWebSocketService {
 }
 
 impl ComhairleWebSocketService {
-    pub async fn new(config: Option<&WebsocketConfig>) -> Result<Self, ComhairleError> {
-        let redis_service = if let Some(config) = &config {
-            let client = redis::Client::open(config.redis_pubsub_url.as_str())
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
-
-            // Get a multiplexed connection for PUBLISHING
-            let redis_publisher = client
-                .get_multiplexed_async_connection()
-                .await
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
-
-            Some(ComhairleWebSocketServiceRedis {
-                redis_publisher,
-                redis_url: config.redis_pubsub_url.clone(),
-                instance_id: Uuid::new_v4(),
-            })
-        } else {
-            None
-        };
-
-        Ok(Self {
+    pub fn new(redis: Option<Arc<dyn RedisConnection>>) -> Self {
+        Self {
             connections: Arc::new(DashMap::new()),
             user_connections: Arc::new(DashMap::new()),
             handlers: Arc::new(DashMap::new()),
-            redis_service,
-        })
+            redis_service: redis.map(|connection| ComhairleWebSocketServiceRedis {
+                connection,
+                instance_id: Uuid::new_v4(),
+            }),
+        }
     }
 
     fn required_redis_service(&self) -> Result<&ComhairleWebSocketServiceRedis, ComhairleError> {
@@ -395,24 +380,16 @@ impl ComhairleWebSocketService {
             ));
         }
         let redis_service = self.required_redis_service()?;
-        // Create a DEDICATED connection just for listening
-        let client = redis::Client::open(redis_service.redis_url.as_str())
-            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
-        let mut pubsub = client
-            .get_async_pubsub()
-            .await
-            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
-
-        pubsub
-            .subscribe("comhairle_api_websocket_messages")
+        let mut subscription = redis_service
+            .connection
+            .subscribe(WEBSOCKET_CHANNEL)
             .await
             .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
 
         let self_clone = self.clone();
 
         let handle = tokio::spawn(async move {
-            while let Some(msg) = pubsub.on_message().next().await {
-                let payload: Vec<u8> = msg.get_payload_bytes().to_vec();
+            while let Some(payload) = subscription.next().await {
                 let pubsub_msg: WebsocketPubSubMessage = match serde_json::from_slice(&payload) {
                     Ok(m) => m,
                     Err(_) => continue,
@@ -482,13 +459,17 @@ impl ComhairleWebSocketService {
                         }
                     }
                     WebsocketPubSubMessage::SendToRoom {
+                        sender_id,
                         domain,
                         room_id,
                         message,
-                        ..
                     } => {
-                        // Deliberately NO echo-skip: the publishing instance did not deliver
-                        // locally (see `broadcast_to_room`), so it must also forward here.
+                        if let Some(redis_service) = self_clone.redis_service.as_ref()
+                            && sender_id == redis_service.instance_id
+                        {
+                            continue;
+                        }
+
                         if let Ok(ws_message) = serde_json::from_value(message)
                             && let Ok(room_uuid) = Uuid::parse_str(&room_id)
                         {
@@ -499,6 +480,7 @@ impl ComhairleWebSocketService {
                     }
                 }
             }
+            error!("WebSocket Redis subscription closed");
         });
 
         Ok(handle)
@@ -514,13 +496,13 @@ impl ComhairleWebSocketService {
             ));
         }
         let redis_service = self.required_redis_service()?;
-        let mut conn = redis_service.redis_publisher.clone();
-        if let Ok(payload) = serde_json::to_string(message) {
-            use redis::AsyncCommands;
-            conn.publish::<_, _, ()>("comhairle_api_websocket_messages", payload)
-                .await
-                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
-        }
+        let payload = serde_json::to_vec(message)
+            .map_err(|e| ComhairleError::SerializationError(e.to_string()))?;
+        redis_service
+            .connection
+            .publish(WEBSOCKET_CHANNEL, &payload)
+            .await
+            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
         Ok(())
     }
 
@@ -764,30 +746,21 @@ impl WebSocketService for ComhairleWebSocketService {
         room_id: &Uuid,
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError> {
-        // With Redis, publish once and let EVERY instance — including this one, via its
-        // own subscription — forward to the members it holds. That keeps a single code
-        // path and avoids local/remote duplication.
-        //
-        // Without Redis (single instance / dev) there is no subscriber loop, so publishing
-        // would reach nobody; deliver locally as a fallback instead.
-        match &self.redis_service {
-            Some(redis_service) => {
-                let pubsub_message = WebsocketPubSubMessage::SendToRoom {
-                    sender_id: redis_service.instance_id,
-                    domain: domain.to_string(),
-                    room_id: room_id.to_string(),
-                    message: serde_json::to_value(message)
-                        .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
-                };
+        let sent_count = self
+            .send_to_room_members_local(domain, room_id, message)
+            .await?;
+        if let Some(redis_service) = &self.redis_service {
+            let pubsub_message = WebsocketPubSubMessage::SendToRoom {
+                sender_id: redis_service.instance_id,
+                domain: domain.to_string(),
+                room_id: room_id.to_string(),
+                message: serde_json::to_value(message)
+                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+            };
 
-                self.publish_to_redis(&pubsub_message).await?;
-                Ok(0)
-            }
-            None => {
-                self.send_to_room_members_local(domain, room_id, message)
-                    .await
-            }
+            self.publish_to_redis(&pubsub_message).await?;
         }
+        Ok(sent_count)
     }
 
     fn get_connection_count(&self) -> usize {
@@ -1062,96 +1035,29 @@ async fn route_to_handler(
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-    use redis_test::server::RedisServer;
-    use serial_test::serial;
-
     use super::*;
+    use crate::redis_connection::MockRedis;
+    use crate::test_helpers::test_user;
 
     #[tokio::test]
-    #[serial]
     async fn test_websocket_broadcast_to_all_with_redis_pubsub() {
-        // Keep Redis server alive throughout the test (for temporary servers)
-        let _redis_server: Option<redis_test::server::RedisServer>;
-        let redis_url: String;
-
-        // Try to connect to localhost:6379 first (CI environment)
-        let client = redis::Client::open("redis://localhost:6379/");
-        let can_connect = if let Ok(client) = client {
-            client.get_connection().is_ok()
-        } else {
-            false
-        };
-
-        if can_connect {
-            _redis_server = None;
-            redis_url = "redis://localhost:6379/".to_string();
-        } else {
-            // Try to start a temporary server for local development
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(RedisServer::new)) {
-                Ok(server) => {
-                    let addr = server.connection_info().addr().to_string();
-                    redis_url = format!("redis://{}/", addr);
-
-                    // Wait for the Redis server to start up
-                    for attempt in 0..5 {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                        if let Ok(client) = redis::Client::open(redis_url.as_str())
-                            && client.get_connection().is_ok()
-                        {
-                            break;
-                        }
-                        if attempt == 4 {
-                            return;
-                        }
-                    }
-                    _redis_server = Some(server);
-                }
-                Err(_) => {
-                    return;
-                }
-            }
-        }
-
-        // Create two independent WebSocket services with Redis pub/sub enabled
-        let websocket_config = Some(WebsocketConfig {
-            redis_pubsub_url: redis_url.clone(),
-        });
-
-        let service_1 = ComhairleWebSocketService::new(websocket_config.as_ref())
-            .await
-            .expect("Failed to create service 1");
-        let service_2 = ComhairleWebSocketService::new(websocket_config.as_ref())
-            .await
-            .expect("Failed to create service 2");
+        let redis = Arc::new(MockRedis::new());
+        let service_1 = ComhairleWebSocketService::new(Some(redis.clone()));
+        let service_2 = ComhairleWebSocketService::new(Some(redis));
 
         // Start subscribers for both services
-        let _subscriber_1 = service_1
+        let subscriber_1 = service_1
             .start_pubsub_subscriber()
             .await
             .expect("Failed to start subscriber 1");
-        let _subscriber_2 = service_2
+        let subscriber_2 = service_2
             .start_pubsub_subscriber()
             .await
             .expect("Failed to start subscriber 2");
 
         // Create mock users
         let user_id = Uuid::new_v4();
-        let user = crate::models::users::User {
-            id: user_id,
-            email: Some("test@example.com".to_string()),
-            username: Some("test_user".to_string()),
-            password: None,
-            guest_code: None,
-            avatar_url: None,
-            email_verified: true,
-            auth_type: crate::models::users::UserAuthType::EmailPassword,
-            organization_id: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            signup_ip: None,
-            signup_user_agent: None,
-        };
+        let user = test_user(user_id);
 
         let addr = "127.0.0.1:9999".parse().unwrap();
         let (connection_1, mut receiver_1) = WebSocketConnection::new(user.clone(), addr);
@@ -1159,9 +1065,6 @@ mod tests {
 
         service_1.add_connection(connection_1.clone());
         service_2.add_connection(connection_2.clone());
-
-        // Give time for subscriptions to be ready
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // Create a test message
         let test_message = WebSocketMessage::Notification {
@@ -1181,75 +1084,35 @@ mod tests {
             "Service 1 should have sent to its own connection"
         );
 
-        // Give time for the message to be published and received via Redis
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-
-        // Check if connection 1 received the message (from its own broadcast)
-        if let Ok(msg) =
-            tokio::time::timeout(std::time::Duration::from_millis(100), receiver_1.recv()).await
-            && let Some(msg) = msg
-            && let Ok(ws_msg) =
-                serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
-        {
-            // Message should be received via the channel
-            assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
+        let expected = serde_json::to_value(&test_message).expect("serialize notification");
+        for receiver in [&mut receiver_1, &mut receiver_2] {
+            let message = tokio::time::timeout(std::time::Duration::from_secs(1), receiver.recv())
+                .await
+                .expect("notification timed out")
+                .expect("connection closed");
+            let received: serde_json::Value =
+                serde_json::from_str(message.to_text().expect("text frame"))
+                    .expect("parse notification");
+            assert_eq!(received, expected);
         }
 
-        // Check if service_2's connections received the broadcast via Redis pub/sub
-        // The message should have been published to Redis and received by the subscriber
-        if let Ok(msg) =
-            tokio::time::timeout(std::time::Duration::from_millis(500), receiver_2.recv()).await
-            && let Some(msg) = msg
-            && let Ok(ws_msg) =
-                serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
-        {
-            assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
-        }
-
-        // Verify the message was received by both services
+        stop_subscribers([subscriber_1, subscriber_2]).await;
+        assert!(receiver_1.try_recv().is_err(), "publisher received an echo");
+        assert!(
+            receiver_2.try_recv().is_err(),
+            "remote received a duplicate"
+        );
         assert_eq!(service_1.get_connection_count(), 1);
         assert_eq!(service_2.get_connection_count(), 1);
     }
 
-    /// Returns a usable Redis URL (plus the temp-server guard, if one was spawned),
-    /// or None if Redis is unavailable and the test should skip.
-    fn redis_url_or_skip() -> Option<(Option<RedisServer>, String)> {
-        let can_connect = redis::Client::open("redis://localhost:6379/")
-            .map(|c| c.get_connection().is_ok())
-            .unwrap_or(false);
-        if can_connect {
-            return Some((None, "redis://localhost:6379/".to_string()));
-        }
-
-        let server =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(RedisServer::new)).ok()?;
-        let redis_url = format!("redis://{}/", server.connection_info().addr());
-        for _ in 0..5 {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            if let Ok(client) = redis::Client::open(redis_url.as_str())
-                && client.get_connection().is_ok()
-            {
-                return Some((Some(server), redis_url));
-            }
-        }
-        None
-    }
-
-    fn test_user(id: Uuid) -> crate::models::users::User {
-        crate::models::users::User {
-            id,
-            email: Some("test@example.com".to_string()),
-            username: Some("test_user".to_string()),
-            password: None,
-            guest_code: None,
-            avatar_url: None,
-            email_verified: true,
-            auth_type: crate::models::users::UserAuthType::EmailPassword,
-            organization_id: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            signup_ip: None,
-            signup_user_agent: None,
+    async fn stop_subscribers(subscribers: [tokio::task::JoinHandle<()>; 2]) {
+        for subscriber in subscribers {
+            subscriber.abort();
+            let error = subscriber
+                .await
+                .expect_err("subscriber should be cancelled");
+            assert!(error.is_cancelled(), "subscriber panicked: {error}");
         }
     }
 
@@ -1297,30 +1160,18 @@ mod tests {
     /// A participant connected to a DIFFERENT instance than the one that publishes an
     /// agenda update must still receive it, via Redis fan-out through `broadcast_to_room`.
     #[tokio::test]
-    #[serial]
     async fn test_broadcast_to_room_fans_out_across_instances() {
         use crate::websockets::handlers::video_call::VideoCallMessageHandler;
 
-        let Some((_redis_server, redis_url)) = redis_url_or_skip() else {
-            return;
-        };
+        let redis = Arc::new(MockRedis::new());
+        let service_1 = ComhairleWebSocketService::new(Some(redis.clone()));
+        let service_2 = ComhairleWebSocketService::new(Some(redis));
 
-        let websocket_config = Some(WebsocketConfig {
-            redis_pubsub_url: redis_url.clone(),
-        });
-
-        let service_1 = ComhairleWebSocketService::new(websocket_config.as_ref())
-            .await
-            .expect("Failed to create service 1");
-        let service_2 = ComhairleWebSocketService::new(websocket_config.as_ref())
-            .await
-            .expect("Failed to create service 2");
-
-        let _subscriber_1 = service_1
+        let subscriber_1 = service_1
             .start_pubsub_subscriber()
             .await
             .expect("Failed to start subscriber 1");
-        let _subscriber_2 = service_2
+        let subscriber_2 = service_2
             .start_pubsub_subscriber()
             .await
             .expect("Failed to start subscriber 2");
@@ -1344,24 +1195,93 @@ mod tests {
         service_1.add_connection(conn_a);
         service_2.add_connection(conn_b);
 
-        // Let both subscriptions settle.
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
         let message = WebSocketMessage::Custom {
             event: "video_call:agenda_updated".to_string(),
             data: serde_json::json!([{ "Basic": { "title": "Updated agenda item" } }]),
         };
 
         // Publish from service_1 ONLY.
-        service_1
+        let sent_count = service_1
             .broadcast_to_room("video_call", &event_id, &message)
             .await
             .expect("broadcast_to_room failed");
+        assert_eq!(sent_count, 1);
 
-        // The publisher's own participant receives it (no local pre-delivery — it comes
-        // back through service_1's own subscription)...
+        // The publisher receives the update without depending on its subscription.
         assert_received_agenda_update(&mut recv_a, "user_a (publishing instance)").await;
         // ...and so does the participant on the OTHER instance. This is the fan-out.
         assert_received_agenda_update(&mut recv_b, "user_b (remote instance)").await;
+        stop_subscribers([subscriber_1, subscriber_2]).await;
+        assert!(recv_a.try_recv().is_err(), "publisher received a duplicate");
+        assert!(recv_b.try_recv().is_err(), "remote received a duplicate");
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_to_room_without_a_live_local_subscriber() {
+        use crate::websockets::handlers::video_call::VideoCallMessageHandler;
+
+        for abort_local_subscriber in [false, true] {
+            for start_remote_subscriber in [false, true] {
+                let redis = Arc::new(MockRedis::new());
+                let service = ComhairleWebSocketService::new(Some(redis.clone()));
+                let remote_service = ComhairleWebSocketService::new(Some(redis));
+
+                if abort_local_subscriber {
+                    let subscriber = service.start_pubsub_subscriber().await.unwrap();
+                    subscriber.abort();
+                    assert!(subscriber.await.unwrap_err().is_cancelled());
+                }
+                let remote_subscriber = if start_remote_subscriber {
+                    Some(remote_service.start_pubsub_subscriber().await.unwrap())
+                } else {
+                    None
+                };
+
+                let event_id = Uuid::new_v4();
+                let addr = "127.0.0.1:9999".parse().unwrap();
+                let mut receivers = Vec::new();
+                for instance in [&service, &remote_service] {
+                    let user_id = Uuid::new_v4();
+                    let handler = Arc::new(VideoCallMessageHandler::new());
+                    insert_call_participant(&handler, event_id, user_id);
+                    instance.register_handler(handler);
+                    let (connection, receiver) = WebSocketConnection::new(test_user(user_id), addr);
+                    instance.add_connection(connection);
+                    receivers.push(receiver);
+                }
+                let message = WebSocketMessage::Custom {
+                    event: "video_call:agenda_updated".to_string(),
+                    data: serde_json::json!([]),
+                };
+
+                assert_eq!(
+                    service
+                        .broadcast_to_room("video_call", &event_id, &message)
+                        .await
+                        .unwrap(),
+                    1
+                );
+                let mut receivers = receivers.into_iter();
+                let mut local_receiver = receivers.next().unwrap();
+                let mut remote_receiver = receivers.next().unwrap();
+                assert_received_agenda_update(&mut local_receiver, "local participant").await;
+
+                if let Some(subscriber) = remote_subscriber {
+                    assert_received_agenda_update(&mut remote_receiver, "remote participant").await;
+                    subscriber.abort();
+                    assert!(subscriber.await.unwrap_err().is_cancelled());
+                } else {
+                    assert!(remote_receiver.try_recv().is_err());
+                }
+                assert!(
+                    local_receiver.try_recv().is_err(),
+                    "local received a duplicate"
+                );
+                assert!(
+                    remote_receiver.try_recv().is_err(),
+                    "remote received a duplicate"
+                );
+            }
+        }
     }
 }

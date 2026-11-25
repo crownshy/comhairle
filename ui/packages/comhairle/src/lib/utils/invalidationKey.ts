@@ -1,5 +1,5 @@
 type InvalidationKey = `${string}:${string}`;
-type InputKey =
+export type InputKey =
 	| 'admin/conversation'
 	| 'admin/conversation/documents'
 	| 'admin/conversation/events'
@@ -16,6 +16,7 @@ type InputKey =
 	| 'admin/email-template-config'
 	| 'admin/event'
 	| 'admin/knowledge-base/documents'
+	| 'admin/media-library/media'
 	| 'admin/organization/details'
 	| 'admin/organization/permissions'
 	| 'admin/organizations'

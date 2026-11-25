@@ -7,7 +7,9 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { CheckCircle2, Info, LoaderCircle } from 'lucide-svelte';
+	import CheckCircle2 from '@lucide/svelte/icons/circle-check';
+	import Info from '@lucide/svelte/icons/info';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
@@ -338,6 +340,7 @@
 		/** Surface which required fields are missing rather than silently doing nothing. */
 		if (!isComplete) {
 			submitAttempted = true;
+			await focusFirstMissingQuestion();
 			return;
 		}
 		await submitCurrent();
@@ -352,6 +355,20 @@
 			currentIndex += 1;
 		}
 		await scrollToTop();
+	}
+
+	let proposalQuestions = $state<HTMLElement | null>(null);
+
+	/** A radio group itself can't take focus, so focus its tabbable option instead. */
+	async function focusFirstMissingQuestion() {
+		await tick();
+		const field = proposalQuestions?.querySelector<HTMLElement>('[aria-invalid="true"]');
+		if (!field) return;
+		const target = field.matches('[role="radiogroup"]')
+			? (field.querySelector<HTMLElement>('[role="radio"][tabindex="0"]') ??
+				field.querySelector<HTMLElement>('[role="radio"]'))
+			: field;
+		target?.focus();
 	}
 
 	function goBack() {
@@ -439,7 +456,8 @@
 <div class="mx-auto w-full max-w-200">
 	{#if loadState.kind === 'loading'}
 		<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
-			<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
+			<LoaderCircle class="h-5 w-5 animate-spin" />
+			{m.prioritization_loading_proposals()}
 		</div>
 	{:else if loadState.kind === 'error'}
 		<Card.Root>
@@ -461,7 +479,7 @@
 			<Card.Content class="flex flex-col items-center gap-5 py-10 text-center">
 				<CheckCircle2 class="text-primary size-10" />
 				<div class="space-y-1">
-					<h2 class="text-lg font-semibold">Thanks for your answers</h2>
+					<h2 class="text-lg font-semibold">{m.prioritization_thanks_title()}</h2>
 					<p class="text-muted-foreground text-base">
 						{answeredCountLine}
 						{m.prioritization_review_or_continue()}
@@ -576,7 +594,7 @@
 			{/if}
 		</div>
 	{:else if current}
-		<div class="space-y-6">
+		<div class="space-y-6" bind:this={proposalQuestions}>
 			<Card.Root>
 				<Card.Header>
 					<div class="pile">
@@ -591,8 +609,8 @@
 								<Tooltip.Provider delayDuration={150}>
 									<Tooltip.Root>
 										<Tooltip.Trigger
-											class="text-muted-foreground hover:text-foreground"
-											aria-label="What does Submitted mean?"
+											class="text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded-full"
+											aria-label={m.prioritization_submitted_info_label()}
 										>
 											<Info class="size-4" />
 										</Tooltip.Trigger>
@@ -682,7 +700,7 @@
 						onclick={onDone}
 						disabled={submitting}
 					>
-						Skip this step
+						{m.prioritization_skip_step()}
 					</Button>
 				</div>
 			{:else if !canContinue && requiredReviews > 0}
@@ -692,12 +710,12 @@
 				</p>
 			{/if}
 			{#if showRequiredErrors}
-				<p class="text-destructive text-right text-sm">
+				<p role="alert" class="text-destructive text-right text-sm">
 					Please answer the highlighted question{missingKeys.size > 1 ? 's' : ''} before continuing.
 				</p>
 			{/if}
 			{#if submitError}
-				<p class="text-destructive text-right text-sm">{submitError}</p>
+				<p role="alert" class="text-destructive text-right text-sm">{submitError}</p>
 			{/if}
 		</div>
 	{/if}

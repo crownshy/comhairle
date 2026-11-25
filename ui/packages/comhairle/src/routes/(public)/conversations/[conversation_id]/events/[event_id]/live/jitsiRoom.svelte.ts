@@ -57,7 +57,7 @@ export class JitsiRoom {
 	 * here can hand it to the backend as that room's identity.
 	 */
 	jidForIndex(roomIndex: number): string | null {
-		return getJitsiBreakoutRoomId(this._rooms, roomIndex);
+		return getJitsiBreakoutRoomId(this.rooms, roomIndex);
 	}
 
 	/**
@@ -166,6 +166,17 @@ export class JitsiRoom {
 
 	hangup() {
 		this._api?.executeCommand('hangup');
+	}
+
+	/**
+	 * Let go of an iframe that has hung up or is being rebuilt. The next iframe starts in
+	 * the main room and reports the rooms afresh, so this forgets the list without retiring
+	 * it: the session's rooms are still the ones to go back into.
+	 */
+	detach() {
+		this._api = null;
+		this._rooms = {};
+		this._ready = false;
 	}
 
 	/** Forget the room list, including rooms Jitsi has yet to remove. The call stays up. */

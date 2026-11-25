@@ -13,7 +13,11 @@ function getStorageKey(workflowStepId: string, conversationId: string, userId: s
 	return `${STORAGE_KEY_PREFIX}${userId}_${workflowStepId}_${conversationId}`;
 }
 
-export function loadClaims(workflowStepId: string, conversationId: string, userId: string): ClaimModification {
+export function loadClaims(
+	workflowStepId: string,
+	conversationId: string,
+	userId: string
+): ClaimModification {
 	if (typeof window === 'undefined') {
 		return createEmptyModifications();
 	}
@@ -60,7 +64,11 @@ export function saveClaimModifications(
 	}
 }
 
-export function clearClaimModifications(workflowStepId: string, conversationId: string, userId: string): void {
+export function clearClaimModifications(
+	workflowStepId: string,
+	conversationId: string,
+	userId: string
+): void {
 	if (typeof window === 'undefined') return;
 
 	try {

@@ -23,7 +23,8 @@ const EventSchema = z
 			})
 		}),
 		format: z.string(),
-		custom_event_link: z.string().optional()
+		custom_event_link: z.string().optional(),
+		email_link_login: z.boolean()
 	})
 	.superRefine((data, ctx) => {
 		const customLink = data.custom_event_link?.trim();

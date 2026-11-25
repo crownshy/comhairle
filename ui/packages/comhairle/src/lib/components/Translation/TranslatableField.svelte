@@ -6,7 +6,11 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
-	import { Languages, X, Check, LoaderCircle, TriangleAlert } from 'lucide-svelte';
+	import Languages from '@lucide/svelte/icons/languages';
+	import X from '@lucide/svelte/icons/x';
+	import Check from '@lucide/svelte/icons/check';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { getLanguageName } from '$lib/config/languages';
 	import type { ComponentProps } from 'svelte';
 	import {

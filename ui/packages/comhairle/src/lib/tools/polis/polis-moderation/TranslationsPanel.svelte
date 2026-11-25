@@ -1,59 +1,40 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
-	import { LoadingButton } from '$lib/components/ui/button';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementTranslation } from '@crownshy/api-client/api';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import Check from '@lucide/svelte/icons/check';
+	import { languageName, needsReview } from './statementTranslations';
 
 	type Props = {
-		polisStatementAuxId: string;
+		translations: PolisStatementTranslation[];
+		onChange: (translation: PolisStatementTranslation) => void;
 	};
 
-	let { polisStatementAuxId }: Props = $props();
+	let { translations, onChange }: Props = $props();
 
-	let loading = $state(true);
-	let translations = $state<PolisStatementTranslation[]>([]);
-	// Local edit buffer, keyed by translation id, so typing doesn't fight the
-	// server-synced `translations` array until a save actually lands.
+	type SaveState = 'saving' | 'saved' | 'failed';
+
+	// Edits live here until they save, so a slow save never overwrites what is being typed.
 	let drafts = $state<Record<string, string>>({});
-	let saving = $state<Record<string, boolean>>({});
+	let saveStates = $state<Record<string, SaveState>>({});
 	let verifying = $state<Record<string, boolean>>({});
 
-	function localeLabel(locale: string): string {
-		try {
-			return new Intl.DisplayNames([getLocale()], { type: 'language' }).of(locale) ?? locale;
-		} catch {
-			return locale;
-		}
-	}
+	const textOf = (translation: PolisStatementTranslation) =>
+		drafts[translation.id] ?? translation.content;
 
-	async function load() {
-		loading = true;
-		const res = await tryCatchAsync(() =>
-			apiClient.PolisListStatementTranslations({ params: { id: polisStatementAuxId } })
-		);
-		loading = false;
-		if (res.err !== null) {
-			console.error('PolisListStatementTranslations failed', res.err);
-			notifications.send({ priority: 'ERROR', message: 'Failed to load translations' });
-			return;
-		}
-		translations = res.ok;
-		drafts = Object.fromEntries(res.ok.map((t) => [t.id, t.content]));
-	}
-
-	load();
+	guardUnsavedChanges(() =>
+		translations.some((t) => saveStates[t.id] === 'saving' || saveStates[t.id] === 'failed')
+	);
 
 	async function save(translation: PolisStatementTranslation) {
-		const content = drafts[translation.id];
-		if (content === undefined || content === translation.content || saving[translation.id]) {
-			return;
-		}
-		saving = { ...saving, [translation.id]: true };
+		const content = textOf(translation);
+		if (content === translation.content || saveStates[translation.id] === 'saving') return;
+		saveStates[translation.id] = 'saving';
 
 		const res = await tryCatchAsync(() =>
 			apiClient.PolisUpdateStatementTranslation(
@@ -61,82 +42,89 @@
 				{ params: { id: translation.id } }
 			)
 		);
-		saving = { ...saving, [translation.id]: false };
-
 		if (res.err !== null) {
-			console.error('PolisUpdateStatementTranslation failed', res.err);
+			saveStates[translation.id] = 'failed';
 			notifications.send({ priority: 'ERROR', message: 'Failed to save translation' });
 			return;
 		}
-		translations = translations.map((t) => (t.id === translation.id ? res.ok : t));
-		drafts = { ...drafts, [translation.id]: res.ok.content };
-		notifications.send({ priority: 'INFO', message: 'Translation saved' });
+		saveStates[translation.id] = 'saved';
+		onChange(res.ok);
 	}
 
 	async function verify(translation: PolisStatementTranslation) {
 		if (verifying[translation.id]) return;
-		verifying = { ...verifying, [translation.id]: true };
+		verifying[translation.id] = true;
 
 		const res = await tryCatchAsync(() =>
 			apiClient.PolisVerifyStatementTranslation(undefined, {
 				params: { id: translation.id }
 			})
 		);
-		verifying = { ...verifying, [translation.id]: false };
+		verifying[translation.id] = false;
 
 		if (res.err !== null) {
-			console.error('PolisVerifyStatementTranslation failed', res.err);
-			notifications.send({ priority: 'ERROR', message: 'Failed to verify translation' });
+			notifications.send({
+				priority: 'ERROR',
+				message: 'Failed to mark translation as correct'
+			});
 			return;
 		}
-		translations = translations.map((t) => (t.id === translation.id ? res.ok : t));
-		notifications.send({ priority: 'INFO', message: 'Translation verified' });
+		onChange(res.ok);
 	}
 </script>
 
-<div class="bg-muted/30 flex flex-col gap-3 rounded-lg border p-4">
-	{#if loading}
-		<div class="flex items-center gap-2 text-sm">
-			<Spinner class="size-4" />
-			Loading translations…
-		</div>
-	{:else if translations.length === 0}
-		<p class="text-muted-foreground text-sm italic">No translations generated yet.</p>
+<div class="flex max-w-prose flex-col gap-4 border-l-2 pl-4">
+	{#if translations.length === 0}
+		<p class="text-muted-foreground text-base">No translations yet.</p>
 	{:else}
 		{#each translations as translation (translation.id)}
+			{@const fieldId = `translation-${translation.id}`}
+			{@const saveState = saveStates[translation.id]}
 			<div class="flex flex-col gap-2">
-				<div class="flex items-center gap-2">
-					<span class="text-sm font-medium">{localeLabel(translation.locale)}</span>
-					{#if translation.ai_generated && translation.requires_validation}
+				<div class="flex flex-wrap items-center gap-2">
+					<label for={fieldId} class="text-base font-medium">
+						{languageName(translation.locale)}
+					</label>
+					{#if needsReview(translation)}
 						<Badge variant="secondary">Needs review</Badge>
+					{:else}
+						<Badge variant="outline">Reviewed</Badge>
+					{/if}
+					<span class="text-muted-foreground ml-auto text-base" aria-live="polite">
+						{#if saveState === 'saving'}
+							Saving…
+						{:else if saveState === 'saved'}
+							Saved
+						{/if}
+					</span>
+				</div>
+				<Textarea
+					id={fieldId}
+					value={textOf(translation)}
+					oninput={(e) => (drafts[translation.id] = e.currentTarget.value)}
+					onblur={() => save(translation)}
+					class="min-h-11 md:text-base"
+				/>
+				{#if saveState === 'failed'}
+					<div class="flex items-center gap-2">
+						<p class="text-destructive text-base">Couldn't save this translation.</p>
+						<Button variant="outline" size="sm" onclick={() => save(translation)}>
+							Retry
+						</Button>
+					</div>
+				{:else if needsReview(translation)}
+					<div>
 						<LoadingButton
 							size="sm"
-							variant="ghost"
+							variant="outline"
 							loading={!!verifying[translation.id]}
 							onclick={() => verify(translation)}
 						>
-							Looks correct
+							<Check class="size-4" />
+							Mark as correct
 						</LoadingButton>
-					{/if}
-				</div>
-				<Textarea
-					value={drafts[translation.id] ?? translation.content}
-					oninput={(e) =>
-						(drafts = { ...drafts, [translation.id]: e.currentTarget.value })}
-					rows={2}
-				/>
-				<div class="flex justify-end">
-					<LoadingButton
-						size="sm"
-						variant="outline"
-						loading={!!saving[translation.id]}
-						disabled={(drafts[translation.id] ?? translation.content) ===
-							translation.content}
-						onclick={() => save(translation)}
-					>
-						Save
-					</LoadingButton>
-				</div>
+					</div>
+				{/if}
 			</div>
 		{/each}
 	{/if}

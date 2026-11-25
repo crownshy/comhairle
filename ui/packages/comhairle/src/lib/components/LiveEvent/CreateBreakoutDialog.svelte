@@ -3,7 +3,12 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
 	import { isFacilitatorRole } from '$lib/utils/breakoutRoomAssignments';
-	import { X, RefreshCw, Clock, Pin, Users, Crown } from 'lucide-svelte';
+	import X from '@lucide/svelte/icons/x';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Pin from '@lucide/svelte/icons/pin';
+	import Users from '@lucide/svelte/icons/users';
+	import Crown from '@lucide/svelte/icons/crown';
 
 	interface Props {
 		open: boolean;

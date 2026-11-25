@@ -4,15 +4,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import {
-		Sparkles,
-		RotateCcw,
-		Check,
-		CornerDownRight,
-		PlusCircle,
-		LoaderCircle,
-		TriangleAlert
-	} from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Check from '@lucide/svelte/icons/check';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import PlusCircle from '@lucide/svelte/icons/circle-plus';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
@@ -24,6 +22,7 @@
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
 	import { cn } from '$lib/utils';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
 
 	type Props = {
 		topic: string;
@@ -379,7 +378,7 @@
 		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">
 			{m.thinking_space_summary_heading()}
 		</h2>
-		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
+		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-base leading-relaxed">
 			{m.thinking_space_summary_desc()}
 		</p>
 		{#if requestUserSharePermission && hasDecidedConsent}
@@ -392,7 +391,7 @@
 	<!-- Answers recap: read-only source material for the summaries below. -->
 	<section>
 		<h3 class="text-foreground text-lg font-semibold">{m.thinking_space_your_answers()}</h3>
-		<p class="text-muted-foreground mt-1 mb-6 text-sm">{m.thinking_space_recap()}</p>
+		<p class="text-muted-foreground mt-1 mb-6 text-base">{m.thinking_space_recap()}</p>
 
 		<div class="space-y-6">
 			{#each questions as q (q.id)}
@@ -400,19 +399,19 @@
 				{#if item}
 					<div class="space-y-2">
 						<h4 class="text-foreground text-base font-semibold">{q.text}</h4>
-						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+						<p class="text-foreground text-base leading-relaxed whitespace-pre-wrap">
 							{item.rootAnswer}
 						</p>
 						{#each item.followUps as followUp (followUp.id)}
 							<div class="space-y-1 pl-4">
 								<p
-									class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
+									class="text-muted-foreground flex items-center gap-1.5 text-base leading-snug italic"
 								>
-									<CornerDownRight class="size-3.5 shrink-0" />
+									<CornerDownRight aria-hidden="true" class="size-3.5 shrink-0" />
 									{followUp.question}
 								</p>
 								<p
-									class="text-foreground text-sm leading-relaxed whitespace-pre-wrap"
+									class="text-foreground text-base leading-relaxed whitespace-pre-wrap"
 								>
 									{followUp.answer}
 								</p>
@@ -427,6 +426,7 @@
 	<!-- Summary stack: one editable textarea per round. -->
 	<section class="mt-12 space-y-8">
 		{#snippet summaryEditor(
+			labelId: string,
 			label: string,
 			description: string | undefined,
 			value: string,
@@ -438,14 +438,17 @@
 		)}
 			<div class="bg-primary/10 space-y-3 rounded-lg p-4">
 				<div class="flex items-center gap-2">
-					<Sparkles class="text-primary size-4 shrink-0" />
-					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+					<Sparkles aria-hidden="true" class="text-primary size-4 shrink-0" />
+					<p
+						id={labelId}
+						class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+					>
 						{label}
 					</p>
 					{@render status?.()}
 				</div>
 				{#if description}
-					<p class="text-foreground text-sm leading-relaxed">{description}</p>
+					<p class="text-foreground text-base leading-relaxed">{description}</p>
 				{/if}
 				<Textarea
 					{value}
@@ -453,6 +456,7 @@
 					{onblur}
 					{readonly}
 					rows={10}
+					aria-labelledby={labelId}
 					class="bg-background text-base leading-relaxed {readonly
 						? 'cursor-not-allowed opacity-70'
 						: ''}"
@@ -463,6 +467,7 @@
 
 		{#snippet manualSummaryEditor()}
 			{@render summaryEditor(
+				'thinking-space-manual-summary-label',
 				m.thinking_space_summary_manual_label(),
 				undefined,
 				manualDraft,
@@ -482,27 +487,32 @@
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
 				{#snippet saveStatus()}
-					{#if saveStateById[round.id] === 'saving'}
-						<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
-							<LoaderCircle class="size-3 animate-spin" />
-							{m.saving()}
-						</span>
-					{:else if saveStateById[round.id] === 'saved'}
-						<span class="inline-flex items-center gap-1 text-xs text-green-600">
-							<Check class="size-3" />
-							{m.saved()}
-						</span>
-					{:else if saveStateById[round.id] === 'error'}
-						<span class="text-destructive inline-flex items-center gap-1 text-xs">
-							<TriangleAlert class="size-3" />
-							{m.not_saved()}
-						</span>
-					{/if}
+					<LiveRegion kind="status" class="inline-flex">
+						{#if saveStateById[round.id] === 'saving'}
+							<span
+								class="text-muted-foreground inline-flex items-center gap-1 text-xs"
+							>
+								<LoaderCircle aria-hidden="true" class="size-3 animate-spin" />
+								{m.saving()}
+							</span>
+						{:else if saveStateById[round.id] === 'saved'}
+							<span class="inline-flex items-center gap-1 text-xs text-green-600">
+								<Check aria-hidden="true" class="size-3" />
+								{m.saved()}
+							</span>
+						{:else if saveStateById[round.id] === 'error'}
+							<span class="text-destructive inline-flex items-center gap-1 text-xs">
+								<TriangleAlert aria-hidden="true" class="size-3" />
+								{m.not_saved()}
+							</span>
+						{/if}
+					</LiveRegion>
 				{/snippet}
 				<!-- Lock the previous round while the next one generates: once
 				generation starts this round is about to freeze, so editing it
 				would be lost. -->
 				{@render summaryEditor(
+					'thinking-space-latest-summary-label',
 					latestLabel(rounds.length),
 					m.thinking_space_summary_edit_desc(),
 					valueFor(round),
@@ -517,7 +527,7 @@
 					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
 						{frozenLabel(i)}
 					</p>
-					<p class="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">
+					<p class="text-foreground/80 text-base leading-relaxed whitespace-pre-wrap">
 						{valueFor(round)}
 					</p>
 				</div>
@@ -527,9 +537,12 @@
 		{#if pendingNextRound}
 			<div class="space-y-3">
 				<div class="flex items-start gap-2">
-					<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
+					<Sparkles
+						aria-hidden="true"
+						class="text-primary mt-0.5 size-4 shrink-0 animate-pulse"
+					/>
 					<p
-						class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
+						class="text-muted-foreground text-base leading-relaxed transition-opacity duration-300"
 						class:opacity-0={fading}
 						class:opacity-100={!fading}
 						aria-live="polite"
@@ -555,11 +568,13 @@
 
 		{#if showFirstGenError}
 			<div class="space-y-3">
-				<p class="text-muted-foreground text-center text-sm">
-					{insufficientAnswers
-						? m.thinking_space_summary_insufficient_failure()
-						: m.thinking_space_summary_gen_failure()}
-				</p>
+				<LiveRegion kind="alert">
+					<p class="text-muted-foreground text-center text-base">
+						{insufficientAnswers
+							? m.thinking_space_summary_insufficient_failure()
+							: m.thinking_space_summary_gen_failure()}
+					</p>
+				</LiveRegion>
 				<p class="text-muted-foreground text-center text-sm">
 					{m.thinking_space_summary_continue_without()}
 				</p>
@@ -571,7 +586,7 @@
 							onclick={() => onAnswerMore?.()}
 							disabled={!onAnswerMore}
 						>
-							<PlusCircle class="size-3.5" />
+							<PlusCircle aria-hidden="true" class="size-3.5" />
 							{m.thinking_space_answer_more()}
 						</Button>
 					{:else}
@@ -581,7 +596,7 @@
 							onclick={() => onRetryGenerate?.()}
 							disabled={!onRetryGenerate}
 						>
-							<RotateCcw class="size-3.5" />
+							<RotateCcw aria-hidden="true" class="size-3.5" />
 							{m.try_again()}
 						</Button>
 					{/if}
@@ -592,11 +607,13 @@
 			{#if showRetryInline}
 				<div class="border-border flex flex-col gap-3 rounded-lg border px-4 py-3">
 					<div class="flex items-center justify-between gap-3">
-						<p class="text-muted-foreground text-sm">
-							{insufficientAnswers
-								? m.thinking_space_summary_insufficient_failure()
-								: m.thinking_space_summary_gen_round_failure()}
-						</p>
+						<LiveRegion kind="alert">
+							<p class="text-muted-foreground text-base">
+								{insufficientAnswers
+									? m.thinking_space_summary_insufficient_failure()
+									: m.thinking_space_summary_gen_round_failure()}
+							</p>
+						</LiveRegion>
 						{#if insufficientAnswers}
 							<Button
 								variant="outline"
@@ -604,7 +621,7 @@
 								onclick={() => onAnswerMore?.()}
 								disabled={!onAnswerMore}
 							>
-								<PlusCircle class="size-3.5" />
+								<PlusCircle aria-hidden="true" class="size-3.5" />
 								{m.thinking_space_answer_more()}
 							</Button>
 						{:else}
@@ -614,7 +631,7 @@
 								onclick={() => onRetryGenerate?.()}
 								disabled={!onRetryGenerate}
 							>
-								<RotateCcw class="size-3.5" />
+								<RotateCcw aria-hidden="true" class="size-3.5" />
 								{m.try_again()}
 							</Button>
 						{/if}
@@ -636,7 +653,7 @@
 						onclick={onAnswerMore}
 						disabled={latestOverLimit || !onAnswerMore}
 					>
-						<PlusCircle class="size-4" />
+						<PlusCircle aria-hidden="true" class="size-4" />
 						{m.thinking_space_answer_more()}
 					</Button>
 					<Button
@@ -645,7 +662,7 @@
 						onclick={submit}
 						disabled={!latestHasText || submitting || latestOverLimit}
 					>
-						<Check class="size-4" />
+						<Check aria-hidden="true" class="size-4" />
 						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
 					</Button>
 				</div>

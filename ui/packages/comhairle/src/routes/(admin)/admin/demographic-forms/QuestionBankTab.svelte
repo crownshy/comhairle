@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Copy } from 'lucide-svelte';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { Badge } from '$lib/components/ui/badge';
 	import TagBadge from './TagBadge.svelte';
 	import { Button } from '$lib/components/ui/button';

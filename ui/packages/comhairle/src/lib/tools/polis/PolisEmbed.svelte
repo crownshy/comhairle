@@ -5,17 +5,16 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import {
-		ThumbsUp,
-		ThumbsDown,
-		CheckCircle2,
-		MessageSquare,
-		MessageSquarePlus,
-		AlertTriangle,
-		ShieldCheck,
-		ArrowLeft,
-		Languages
-	} from 'lucide-svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import ThumbsUp from '@lucide/svelte/icons/thumbs-up';
+	import ThumbsDown from '@lucide/svelte/icons/thumbs-down';
+	import CheckCircle2 from '@lucide/svelte/icons/circle-check';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import MessageSquarePlus from '@lucide/svelte/icons/message-square-plus';
+	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Languages from '@lucide/svelte/icons/languages';
 	import { onMount } from 'svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import {
@@ -30,8 +29,10 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
 	import ModerationPolicy from './ModerationPolicy.svelte';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
 	import { statementSourceOf } from './statementSource';
 	import { cn } from '$lib/utils';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { type LocalizedStatement } from '@crownshy/api-client/api';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -487,6 +488,39 @@
 	/** The vote Polis failed to save, kept so Try again can resend it. */
 	let failedVote = $state<Vote | undefined>(undefined);
 
+	let voteButtons = $state<Record<Vote, HTMLElement | null>>({
+		agree: null,
+		disagree: null,
+		pass: null
+	});
+
+	// Try again disappears once the vote saves, so focus moves to the matching vote button first.
+	function retryFailedVote() {
+		if (!failedVote) return;
+		voteButtons[failedVote]?.focus();
+		doVote(failedVote);
+	}
+
+	/** True from a saved live vote until the next one starts, so only real votes are announced. */
+	let voteRecorded = $state(false);
+
+	// Polis counts the statement it just served in `remaining`.
+	const opinionPosition = $derived(
+		Math.min(polisTotal, Math.max(1, polisTotal - polisRemaining + 1))
+	);
+
+	// Empty while the next statement loads, so the region changes, and is read, once it arrives.
+	const voteStatus = $derived.by(() => {
+		if (!voteRecorded) return '';
+		if (screen === 'continue-prompt') return m.polis_vote_recorded();
+		if (screen !== 'voting' || guideStage || waitingForNext || !shownStatement) return '';
+		return m.polis_vote_recorded_next({
+			position: opinionPosition,
+			total: polisTotal,
+			statement: displayText
+		});
+	});
+
 	/** Counts a vote towards progress. True when it is the one that meets the threshold. */
 	function countVote(): boolean {
 		totalVotes++;
@@ -531,7 +565,7 @@
 	}
 
 	async function doVote(vote: Vote) {
-		if (voteCooldown || !shownStatement) return;
+		if (disabled || !shownStatement) return;
 		if (practiceStatement) {
 			practiceVote(practiceStatement, vote);
 			return;
@@ -540,6 +574,7 @@
 		waitingForNext = true;
 		voteCooldown = true;
 		failedVote = undefined;
+		voteRecorded = false;
 
 		// Count the vote only once Polis has saved it, so Next never unlocks on lost votes.
 		const saved = await polis.submitVote(vote);
@@ -549,6 +584,7 @@
 			voteCooldown = false;
 			return;
 		}
+		voteRecorded = true;
 		const metThreshold = countVote();
 		afterLiveVote();
 
@@ -574,6 +610,7 @@
 
 	function resumeVoting() {
 		startNextVotingRound(user_id, voteScopeKey);
+		voteRecorded = false;
 		screen = 'voting';
 	}
 
@@ -651,7 +688,11 @@
 			{#if opinionView === 'policy'}
 				<ModerationPolicy workflowStepId={stepId} {isPreview} />
 			{:else if opinionView === 'thanks'}
-				<p class="text-card-foreground text-center text-lg">
+				<p
+					tabindex="-1"
+					{@attach focusOnScreenChange}
+					class="text-card-foreground text-center text-lg outline-none"
+				>
 					{strictModeration
 						? m.polis_opinion_thanks_body_moderated()
 						: m.polis_opinion_thanks_body()}
@@ -676,7 +717,7 @@
 			class="h-12 w-full gap-2 px-6 text-lg sm:w-auto"
 			onclick={() => showOpinionView('form')}
 		>
-			<ArrowLeft class="size-5 rtl:-scale-x-100" />
+			<ArrowLeft aria-hidden="true" class="size-5 rtl:-scale-x-100" />
 			{m.polis_back_to_your_opinion()}
 		</Button>
 	{:else if opinionView === 'thanks'}
@@ -722,11 +763,12 @@
 
 {#snippet opinionBoxAndStatus()}
 	{#if opinionError}
-		<div
+		<LiveRegion
+			kind="alert"
 			class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
 		>
 			{m.polis_opinion_not_submitted()}
-		</div>
+		</LiveRegion>
 	{/if}
 
 	<div class="w-full">
@@ -735,7 +777,7 @@
 			bind:value={opinionText}
 			oninput={() => (opinionError = false)}
 			placeholder={m.polis_opinion_placeholder()}
-			aria-label={m.polis_add_your_own_opinion()}
+			aria-labelledby="polis-opinion-title"
 			maxlength={MAX_STATEMENT_LENGTH}
 			aria-describedby="polis-opinion-characters-left"
 			class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
@@ -778,7 +820,10 @@
 					{#if opinionThanks}
 						<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
 					{/if}
-					<Drawer.Title class="text-card-foreground text-xl font-semibold">
+					<Drawer.Title
+						id="polis-opinion-title"
+						class="text-card-foreground text-xl font-semibold"
+					>
 						{OPINION_TITLES[opinionView]()}
 					</Drawer.Title>
 				</div>
@@ -809,7 +854,10 @@
 				{#if opinionThanks}
 					<CheckCircle2 class="text-primary size-12" aria-hidden="true" />
 				{/if}
-				<Dialog.Title class="text-card-foreground text-2xl font-semibold">
+				<Dialog.Title
+					id="polis-opinion-title"
+					class="text-card-foreground text-2xl font-semibold"
+				>
 					{OPINION_TITLES[opinionView]()}
 				</Dialog.Title>
 			</Dialog.Header>
@@ -833,6 +881,8 @@
 
 <Spotlight target="polis-onboarding" moment={spotlightMoment} onSkip={skipOnboarding} />
 
+<p role="status" class="sr-only">{voteStatus}</p>
+
 <div class="flex w-full flex-col items-center gap-8 py-4 md:py-0">
 	{#if screen === 'voting' && stage === 'deciding'}
 		<!-- Shaped like the intro, which is what almost everyone here sees next. -->
@@ -854,6 +904,7 @@
 				<div class="w-full" in:fade={{ duration: 200 }}>
 					<GuideScreen
 						title={introTitle}
+						focusTitle={false}
 						next={m.polis_onboarding_next()}
 						onNext={() => goTo(firstVotingStage(practicePick))}
 					>
@@ -903,7 +954,7 @@
 							class="h-12 gap-2 px-6 text-lg"
 							onclick={openAddOpinion}
 						>
-							<MessageSquarePlus class="size-5" />
+							<MessageSquarePlus aria-hidden="true" class="size-5" />
 							{m.polis_add_your_own_opinion()}
 						</Button>
 					{/snippet}
@@ -949,13 +1000,15 @@
 							class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
 							in:fade={{ duration: 300 }}
 						>
-							<AlertTriangle class="text-destructive h-8 w-8" />
-							<p class="text-foreground text-lg font-medium">
-								{m.something_went_wrong()}
-							</p>
-							<p class="text-muted-foreground text-base">
-								{m.polis_error_description()}
-							</p>
+							<AlertTriangle class="text-destructive h-8 w-8" aria-hidden="true" />
+							<LiveRegion kind="alert" class="flex flex-col items-center gap-4">
+								<p class="text-foreground text-lg font-medium">
+									{m.something_went_wrong()}
+								</p>
+								<p class="text-muted-foreground text-base">
+									{m.polis_error_description()}
+								</p>
+							</LiveRegion>
 						</div>
 					{:else if !polisReady || waitingForNext || polisLoading || !shownStatement}
 						<!-- Loading, between statements, or briefly empty before the screen
@@ -983,7 +1036,11 @@
 									'rounded-2xl border p-3 transition-colors sm:p-6',
 									source.cardClass
 								)}
-								in:fly={{ y: 20, duration: 500, easing: cubicOut }}
+								in:fly={{
+									y: 20,
+									duration: prefersReducedMotion.current ? 0 : 500,
+									easing: cubicOut
+								}}
 							>
 								<StatementSourceLabel {source} />
 								<p
@@ -995,10 +1052,10 @@
 									<button
 										type="button"
 										onclick={() => (showOriginal = !showOriginal)}
-										class="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+										class="text-muted-foreground hover:text-foreground mt-3 inline-flex min-h-6 items-center gap-1.5 text-sm font-medium transition-colors"
 										aria-expanded={showOriginal}
 									>
-										<Languages class="h-4 w-4" />
+										<Languages aria-hidden="true" class="h-4 w-4" />
 										{localized?.source_locale
 											? m.polis_translated_from({
 													language: languageName(localized.source_locale)
@@ -1035,13 +1092,14 @@
 						role="alert"
 					>
 						<p class="text-foreground text-base">{m.polis_vote_not_saved()}</p>
-						<Button variant="outline" onclick={() => failedVote && doVote(failedVote)}>
+						<Button variant="outline" onclick={retryFailedVote}>
 							{m.try_again()}
 						</Button>
 					</div>
 				{/if}
 
-				<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready. -->
+				<!-- Rendered (disabled) while loading so the layout doesn't shift once Polis is ready.
+				     Between votes they are only aria-disabled: a natively disabled button drops focus. -->
 				{#if !polisError && (!polisReady || shownStatement)}
 					{@const VOTE_BUTTON_CLASS =
 						'h-12 flex-1 px-6 text-lg has-[>svg]:px-6 sm:flex-none'}
@@ -1049,7 +1107,9 @@
 					<div class="flex w-full flex-wrap items-center gap-3 md:gap-5">
 						<Button
 							size="lg"
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.agree}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('agree')}
 							class={VOTE_BUTTON_CLASS}
 						>
@@ -1058,7 +1118,9 @@
 						</Button>
 						<Button
 							size="lg"
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.disagree}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('disagree')}
 							class={VOTE_BUTTON_CLASS}
 						>
@@ -1072,7 +1134,9 @@
 								VOTE_BUTTON_CLASS,
 								'text-foreground/80 hover:text-foreground w-full sm:w-auto'
 							)}
-							disabled={disabled || !polisReady}
+							bind:ref={voteButtons.pass}
+							disabled={!polisReady}
+							aria-disabled={disabled}
 							onclick={() => doVote('pass')}
 						>
 							{m.polis_pass_unsure()}
@@ -1102,7 +1166,12 @@
 		>
 			<div class="flex flex-col items-center gap-3">
 				<CheckCircle2 class="text-primary size-8" />
-				<h2 class="text-card-foreground text-2xl leading-tight font-semibold">
+				<!-- The vote buttons are gone, so focus comes here rather than dropping to the page. -->
+				<h2
+					tabindex="-1"
+					class="text-card-foreground text-2xl leading-tight font-semibold outline-none"
+					{@attach (heading) => heading.focus()}
+				>
 					{totalVotes === 1
 						? m.polis_votes_counted_one({ count: totalVotes })
 						: m.polis_votes_counted({ count: totalVotes })}
@@ -1163,7 +1232,7 @@
 				disabled={!polisReady}
 				onclick={openAddOpinion}
 			>
-				<MessageSquare fill="currentColor" class="h-5 w-5" />
+				<MessageSquare aria-hidden="true" fill="currentColor" class="h-5 w-5" />
 				<span class="hidden md:inline">{m.polis_add_opinion_long()}</span>
 				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
 			</Button>

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use aide::axum::routing::{delete_with, get_with, patch_with, post_with};
-use axum::extract::{Json, Multipart, Path, Query, State};
+use axum::extract::{Json, Path, Query, State};
 use hyper::StatusCode;
 use tracing::instrument;
 use uuid::Uuid;
@@ -13,13 +13,12 @@ use crate::ComhairleState;
 use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
 use crate::models::media::{
-    self, CreateMedia, File, MediaContentType, MediaEditableFields, MediaFilterOptions,
-    MediaOrderOptions, UploadMediaForm,
+    self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
+    MediaOrderOptions, UploadMediaDto, UploadMediaResponseDto,
 };
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::routes::auth::RequiredAdminUser;
 use crate::routes::media::dto::MediaDto;
-use crate::tools::id::gen_id;
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
@@ -49,8 +48,8 @@ async fn get(
 async fn upload(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    mut form_data: Multipart,
-) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    Json(upload_media): Json<UploadMediaDto>,
+) -> Result<(StatusCode, Json<UploadMediaResponseDto>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let bulk_storage_config = state
         .config
@@ -58,59 +57,15 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
-    let mut upload_media_form = UploadMediaForm::new();
-
-    while let Some(field) = form_data.next_field().await? {
-        let content_type = field.content_type().map(|f| f.to_string());
-        let field_name = field.name().map(|n| n.to_string());
-
-        // Check if the field is not a file
-        if content_type.is_none() {
-            let Some(field_name) = field_name else {
-                continue;
-            };
-            let Ok(text) = field.text().await.map(|f| f.to_string()) else {
-                continue;
-            };
-            match field_name.as_str() {
-                "name" => upload_media_form.name = text,
-                "alt" => upload_media_form.alt = text,
-                &_ => (),
-            }
-            continue;
-        };
-
-        let filename = field
-            .file_name()
-            .map(|f| f.to_string())
-            .unwrap_or_else(gen_id);
-        let bytes = field.bytes().await?.to_vec();
-
-        upload_media_form.file = File {
-            filename,
-            bytes,
-            content_type: content_type.unwrap_or_default(),
-        };
-    }
-
-    if upload_media_form.name.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No file name provided".to_string(),
-        ));
-    }
-    if upload_media_form.alt.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No alt text provided".to_string(),
-        ));
-    }
-    if upload_media_form.file.content_type.is_empty() {
-        return Err(ComhairleError::BadRequest(
-            "No content-type set".to_string(),
-        ));
-    }
+    let filename = upload_media.filename.replace(" ", "_");
 
     // Unsupported content will error out here
-    let content_type = MediaContentType::get_type(&upload_media_form.file)?;
+    let content_type = MediaContentType::get_type(&upload_media.content_type, &filename)?;
+
+    let file_metadata = FileMetadata {
+        content_type: upload_media.content_type.to_owned(),
+        is_public: true,
+    };
 
     let prefix = match content_type {
         MediaContentType::Jpeg
@@ -125,30 +80,28 @@ async fn upload(
         | MediaContentType::Wav => "audio",
     };
 
-    let storage_key = format!("{}/{}", prefix, upload_media_form.file.filename);
-    bulk_storage_service
-        .upload_file(
-            &storage_key,
-            upload_media_form.file.bytes,
-            FileMetadata {
-                is_public: true,
-                content_type: upload_media_form.file.content_type.to_string(),
-            },
-        )
+    let storage_key = format!("{}/{}", prefix, &filename);
+    let presigned_url = bulk_storage_service
+        .get_write_file_url(&storage_key, Some(file_metadata))
         .await?;
 
     let create_media = CreateMedia {
         store_name: bulk_storage_config.store_name.to_string(),
         storage_key,
-        filename: upload_media_form.file.filename.to_string(),
-        name: upload_media_form.name,
-        alt: upload_media_form.alt,
+        filename: filename.clone(),
+        name: upload_media.name,
+        alt: upload_media.alt,
         content_type,
     };
 
-    let media = media::create(&state.db, &create_media, &user.id).await?;
+    let new_media = media::create(&state.db, &create_media, &user.id).await?;
 
-    Ok((StatusCode::CREATED, Json(media.into())))
+    let response = UploadMediaResponseDto {
+        presigned_upload_url: presigned_url,
+        media: new_media.into(),
+    };
+
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -207,26 +160,14 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
         .api_route(
             "/",
             post_with(upload, |op| {
-                op.tag("Media")
+                op.id("UploadMedia")
+                    .tag("Media")
                     .summary("Upload media resource")
                     .description(
-                        "
-Upload a media resource to the bulk_storage_service 
-and create a new record in the database.\n\n
-This endpoint requires multipart/form-data.\n\n\
-Generated API clients may not support file uploads.\n\n\
-Use FormData and a raw HTTP request.\n\n\
-**Example (curl):**\n\
-```bash
-curl -X POST \\
--H 'Cookie: auth-token=...;' \\
-'localhost:3000/media' \\
---form 'file=@/path-to-document.pdf'
-```
-                            ",
+                        "Upload media - creates the media in the backend then returns a presigned url to upload the media to a bulk storage service",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<Vec<MediaDto>>>()
+                    .response::<201, Json<UploadMediaResponseDto>>()
             }),
         )
         .api_route(
@@ -257,15 +198,17 @@ curl -X POST \\
 mod tests {
     use std::error::Error;
 
+    use axum::body::Body;
     use sqlx::PgPool;
 
     use super::*;
-    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
+    use crate::bulk_storage_service::MockBulkStorageService;
     use crate::models::media::Media;
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::pagination::PaginatedResults;
     use crate::setup_server;
-    use crate::test_helpers::{MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_state};
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_state};
+    use crate::tools::id::gen_id;
 
     async fn create_random_image_record(
         db: &PgPool,
@@ -288,7 +231,6 @@ mod tests {
     async fn should_upload_media_to_bulk_storage_and_create_record(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let boundary = "test-boundary";
         let filename = "test_file.jpg";
         let content_type = "image/jpeg";
         let name = "test-name";
@@ -296,15 +238,12 @@ mod tests {
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
-            .expect_upload_file()
+            .expect_get_write_file_url()
             .once()
-            .returning(move |_, _, _| {
-                Box::pin(async move {
-                    Ok(UploadResult {
-                        url: format!("https://storage.com/{}", filename),
-                    })
-                })
+            .returning(move |_, _| {
+                Box::pin(async move { Ok("https://s3.example.com/presigned-url".to_string()) })
             });
+
         let state = test_state()
             .db(pool)
             .bulk_storage_service(Arc::new(bulk_storage_service))
@@ -313,22 +252,35 @@ mod tests {
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
-        let body = MultipartBodyBuilder::new(boundary.to_string())
-            .add_field("name", name)
-            .add_field("alt", alt)
-            .add_file(filename, Some(content_type), "test-content")
-            .build();
+        let body = UploadMediaDto {
+            filename: filename.to_string(),
+            content_type: content_type.to_string(),
+            name: name.to_string(),
+            alt: alt.to_string(),
+        };
 
         let (_, value, _) = session
-            .post_multipart(&app, "/media", boundary, body.into())
+            .post(&app, "/media", Body::from(serde_json::to_string(&body)?))
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let upload_response: UploadMediaResponseDto = serde_json::from_value(value)?;
 
-        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
-        assert_eq!(media.name, name.to_string(), "incorrect name");
-        assert_eq!(media.alt, alt.to_string(), "incorrect alt text");
         assert_eq!(
-            media.content_type,
+            upload_response.media.filename,
+            filename.to_string(),
+            "incorrect filename"
+        );
+        assert_eq!(
+            upload_response.media.name,
+            name.to_string(),
+            "incorrect name"
+        );
+        assert_eq!(
+            upload_response.media.alt,
+            alt.to_string(),
+            "incorrect alt text"
+        );
+        assert_eq!(
+            upload_response.media.content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );

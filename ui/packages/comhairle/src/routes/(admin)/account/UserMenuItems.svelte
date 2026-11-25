@@ -2,7 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { Home, Info, LogOut, Moon, Settings, Sun } from 'lucide-svelte';
+	import Home from '@lucide/svelte/icons/house';
+	import Info from '@lucide/svelte/icons/info';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Settings from '@lucide/svelte/icons/settings';
+	import Sun from '@lucide/svelte/icons/sun';
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';

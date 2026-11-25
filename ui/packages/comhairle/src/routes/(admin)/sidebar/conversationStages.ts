@@ -1,12 +1,15 @@
-import type { ComponentType } from 'svelte';
+import type { Component } from 'svelte';
+import type { IconProps } from '@lucide/svelte';
 import { resolve } from '$app/paths';
-import { Flag, Rocket } from 'lucide-svelte';
+import Flag from '@lucide/svelte/icons/flag';
+import Rocket from '@lucide/svelte/icons/rocket';
 import type { ConversationDto } from '@crownshy/api-client/api';
 import {
 	conversationSections,
 	type ConversationSection,
 	type SectionStage
 } from '$lib/config/conversation-steps';
+import { MODERATION_SECTIONS, type ConversationSurface } from '$lib/utils/conversationSurface';
 
 export type StageState = 'done' | 'current' | 'locked';
 
@@ -21,7 +24,7 @@ export type SectionLink = {
 	name: string;
 	path: string;
 	href: string;
-	icon: ComponentType;
+	icon: Component<IconProps>;
 	active: boolean;
 	/** Why the link can't be opened, or null when it can. */
 	lock: SectionLock | null;
@@ -44,9 +47,21 @@ type StageInput = {
 	canAdmin: boolean;
 	/** Adds Moderate to Engage. */
 	hasPolisStep?: boolean;
+	surface?: ConversationSurface;
 };
 
 export function conversationStages({
+	conversation,
+	pathname,
+	canAdmin,
+	hasPolisStep = false,
+	surface = 'full'
+}: StageInput): ConversationStage[] {
+	if (surface === 'full') return allStages({ conversation, pathname, canAdmin, hasPolisStep });
+	return moderationStages(allStages({ conversation, pathname, canAdmin, hasPolisStep: true }));
+}
+
+function allStages({
 	conversation,
 	pathname,
 	canAdmin,
@@ -108,6 +123,22 @@ export function conversationStages({
 			sections: sectionsIn('results')
 		}
 	];
+}
+
+/**
+ * A moderator sees only the moderation sections, open whether or not the conversation is live
+ * or has a Polis step yet, so their sidebar is never empty or locked.
+ */
+function moderationStages(stages: ConversationStage[]): ConversationStage[] {
+	return stages
+		.filter((stage) => !stage.link)
+		.map((stage) => ({
+			...stage,
+			sections: stage.sections
+				.filter((link) => MODERATION_SECTIONS.includes(link.path))
+				.map((link) => ({ ...link, lock: null }))
+		}))
+		.filter((stage) => stage.sections.length > 0);
 }
 
 /** Engage and Close: locked before launch, current while live, done once closed. */

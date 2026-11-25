@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { cn } from '$lib/utils';
 	import { PAGER_BUTTON_CLASS } from './pager';

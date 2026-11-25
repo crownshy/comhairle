@@ -2,10 +2,15 @@
 	import { resolve } from '$app/paths';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
-	import { Check, ChevronDown, Eye, Lock, Rocket } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Eye from '@lucide/svelte/icons/eye';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Rocket from '@lucide/svelte/icons/rocket';
 	import type { Snippet } from 'svelte';
 	import { permissions } from '$lib/permissions.svelte';
 	import { cn } from '$lib/utils';
+	import { conversationSurface } from '$lib/utils/conversationSurface';
 	import {
 		conversationStages,
 		sectionLockLabels,
@@ -31,8 +36,11 @@
 		})
 	);
 	let canAdmin = $derived(permissions.can('conversation', 'conversation_admin', conversation.id));
+	let surface = $derived(
+		conversationSurface((action) => permissions.can('conversation', action, conversation.id))
+	);
 	let stages = $derived(
-		conversationStages({ conversation, pathname: path, canAdmin, hasPolisStep })
+		conversationStages({ conversation, pathname: path, canAdmin, hasPolisStep, surface })
 	);
 	// Collapsed view: every link in order, milestones (Launch, Close) included.
 	let sections = $derived(
@@ -130,105 +138,116 @@
 	</Tooltip.Root>
 {/snippet}
 
-<ol
-	aria-label="Conversation sections"
-	class="flex flex-col gap-5 pr-4 group-data-[collapsible=icon]:hidden"
->
-	{#each stages as stage, index (stage.id)}
-		{@const open = isOpen(stage)}
-		<li class="flex flex-col gap-2">
-			{#if stage.link && !stage.link.lock}
-				{@const active = stage.link.active}
-				<a
-					href={stage.link.href}
-					aria-current={active ? 'page' : undefined}
-					class={cn(MILESTONE_ROW, active ? ROW_ACTIVE : ROW_HOVER)}
+{#snippet sectionRow(link: SectionLink)}
+	{#if link.lock}
+		{#snippet sectionBody()}
+			<link.icon class="size-4 shrink-0" />
+			<span class="flex-1 truncate">{link.name}</span>
+		{/snippet}
+		{@render lockedRow(
+			link.lock,
+			'text-sidebar-foreground/40 flex h-9 cursor-not-allowed items-center gap-2 rounded-lg px-2 text-sm',
+			sectionBody
+		)}
+	{:else}
+		<a
+			href={link.href}
+			aria-current={link.active ? 'page' : undefined}
+			class={cn(LINK_ROW, link.active ? ROW_ACTIVE : [LINK_ROW_IDLE, ROW_HOVER])}
+		>
+			<link.icon class="size-4 shrink-0" />
+			<span class="flex-1 truncate">{link.name}</span>
+			{#if link.path === 'design'}
+				<span
+					class={cn(
+						'shrink-0 rounded-full px-2 text-xs',
+						link.active
+							? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground'
+							: 'bg-sidebar-foreground/15 text-sidebar-foreground'
+					)}
 				>
-					{@render stageHeading(stage, index, active)}
-				</a>
-			{:else if stage.link?.lock}
-				{#snippet milestoneBody()}
-					{@render stageHeading(stage, index)}
-				{/snippet}
-				{@render lockedRow(
-					stage.link.lock,
-					cn(MILESTONE_ROW, 'text-sidebar-foreground/40 cursor-not-allowed'),
-					milestoneBody
-				)}
-			{:else if isFoldable(stage)}
-				<button
-					type="button"
-					aria-expanded={open}
-					aria-controls="stage-{stage.id}"
-					onclick={() => toggle(stage)}
-					class={cn(MILESTONE_ROW, 'text-left', ROW_HOVER)}
-				>
-					{@render stageHeading(stage, index)}
-					<ChevronDown
-						class={cn(
-							'text-sidebar-foreground/70 ml-auto size-4 shrink-0 transition-transform',
-							!open && '-rotate-90'
-						)}
-						aria-hidden="true"
-					/>
-				</button>
-			{:else}
-				<div class="flex items-center gap-3">
-					{@render stageHeading(stage, index)}
-				</div>
+					{stepCount}<span class="sr-only"> {stepCount === 1 ? 'step' : 'steps'}</span>
+				</span>
 			{/if}
+		</a>
+	{/if}
+{/snippet}
 
-			{#if stage.sections.length > 0 && open}
-				<ul
-					id="stage-{stage.id}"
-					class="border-sidebar-foreground/20 ml-3 flex flex-col gap-0.5 border-l pl-2"
-				>
-					{#each stage.sections as link (link.path)}
-						<li>
-							{#if link.lock}
-								{#snippet sectionBody()}
-									<link.icon class="size-4 shrink-0" />
-									<span class="flex-1 truncate">{link.name}</span>
-								{/snippet}
-								{@render lockedRow(
-									link.lock,
-									'text-sidebar-foreground/40 flex h-9 cursor-not-allowed items-center gap-2 rounded-lg px-2 text-sm',
-									sectionBody
-								)}
-							{:else}
-								<a
-									href={link.href}
-									aria-current={link.active ? 'page' : undefined}
-									class={cn(
-										LINK_ROW,
-										link.active ? ROW_ACTIVE : [LINK_ROW_IDLE, ROW_HOVER]
-									)}
-								>
-									<link.icon class="size-4 shrink-0" />
-									<span class="flex-1 truncate">{link.name}</span>
-									{#if link.path === 'design'}
-										<span
-											class={cn(
-												'shrink-0 rounded-full px-2 text-xs',
-												link.active
-													? 'bg-sidebar-accent-foreground/10 text-sidebar-accent-foreground'
-													: 'bg-sidebar-foreground/15 text-sidebar-foreground'
-											)}
-										>
-											{stepCount}<span class="sr-only">
-												{stepCount === 1 ? 'step' : 'steps'}</span
-											>
-										</span>
-									{/if}
-								</a>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</li>
-	{/each}
-</ol>
+<!-- A moderator has one section, so it sits on its own without a stage around it (ADR-0065). -->
+{#if surface === 'moderation'}
+	<ul
+		aria-label="Conversation sections"
+		class="flex flex-col gap-0.5 pr-4 group-data-[collapsible=icon]:hidden"
+	>
+		{#each sections as link (link.path)}
+			<li>{@render sectionRow(link)}</li>
+		{/each}
+	</ul>
+{:else}
+	<ol
+		aria-label="Conversation sections"
+		class="flex flex-col gap-5 pr-4 group-data-[collapsible=icon]:hidden"
+	>
+		{#each stages as stage, index (stage.id)}
+			{@const open = isOpen(stage)}
+			<li class="flex flex-col gap-2">
+				{#if stage.link && !stage.link.lock}
+					{@const active = stage.link.active}
+					<a
+						href={stage.link.href}
+						aria-current={active ? 'page' : undefined}
+						class={cn(MILESTONE_ROW, active ? ROW_ACTIVE : ROW_HOVER)}
+					>
+						{@render stageHeading(stage, index, active)}
+					</a>
+				{:else if stage.link?.lock}
+					{#snippet milestoneBody()}
+						{@render stageHeading(stage, index)}
+					{/snippet}
+					{@render lockedRow(
+						stage.link.lock,
+						cn(MILESTONE_ROW, 'text-sidebar-foreground/40 cursor-not-allowed'),
+						milestoneBody
+					)}
+				{:else if isFoldable(stage)}
+					<button
+						type="button"
+						aria-expanded={open}
+						aria-controls="stage-{stage.id}"
+						onclick={() => toggle(stage)}
+						class={cn(MILESTONE_ROW, 'text-left', ROW_HOVER)}
+					>
+						{@render stageHeading(stage, index)}
+						<ChevronDown
+							class={cn(
+								'text-sidebar-foreground/70 ml-auto size-4 shrink-0 transition-transform',
+								!open && '-rotate-90'
+							)}
+							aria-hidden="true"
+						/>
+					</button>
+				{:else}
+					<div class="flex items-center gap-3">
+						{@render stageHeading(stage, index)}
+					</div>
+				{/if}
+
+				{#if stage.sections.length > 0 && open}
+					<ul
+						id="stage-{stage.id}"
+						class="border-sidebar-foreground/20 ml-3 flex flex-col gap-0.5 border-l pl-2"
+					>
+						{#each stage.sections as link (link.path)}
+							<li>
+								{@render sectionRow(link)}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</li>
+		{/each}
+	</ol>
+{/if}
 
 <!-- Collapsed: one icon per section, in the same order. -->
 {#snippet previewIcon()}

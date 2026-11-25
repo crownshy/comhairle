@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Plus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import type { ExtractedClaim } from './types';
 
 	interface Props {
 		claims?: ExtractedClaim[];
 		onApprove?: (claimId: string) => void;
-		onEdit?: (claimId: string, newContent: string) => void;
 		onRemove?: (claimId: string) => void;
 		onSave?: (claimId: string, content: string) => void;
 		onAdd?: () => void;
@@ -16,7 +15,6 @@
 	let {
 		claims = [],
 		onApprove = () => {},
-		onEdit = () => {},
 		onRemove = () => {},
 		onSave = () => {},
 		onAdd = () => {}

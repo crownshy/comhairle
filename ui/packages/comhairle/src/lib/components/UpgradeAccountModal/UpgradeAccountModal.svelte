@@ -10,7 +10,9 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { upgradeAccountSchema } from './schema';
 	import type { UserDto } from '@crownshy/api-client/api';
-	import { UserCheck, Mail, Lock } from 'lucide-svelte';
+	import UserCheck from '@lucide/svelte/icons/user-check';
+	import Mail from '@lucide/svelte/icons/mail';
+	import Lock from '@lucide/svelte/icons/lock';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
 	import type { Snippet } from 'svelte';

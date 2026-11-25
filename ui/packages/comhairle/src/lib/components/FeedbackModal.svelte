@@ -51,7 +51,7 @@
 	>
 	<Dialog.Content class="gap-6 p-8 sm:max-w-2xl">
 		<Dialog.Header class="gap-3">
-			<Dialog.Title class="text-2xl">{m.share_feedback()}</Dialog.Title>
+			<Dialog.Title id="feedback-title" class="text-2xl">{m.share_feedback()}</Dialog.Title>
 			<Dialog.Description class="text-lg">
 				{m.we_are_interested_in_hearing_what_is_good_and_bad_about_this_process()}
 			</Dialog.Description>
@@ -62,7 +62,7 @@
 		{:else}
 			<Textarea
 				id="feedback"
-				aria-label={m.share_feedback()}
+				aria-labelledby="feedback-title"
 				placeholder={m.type_your_feedback_here()}
 				bind:value={feedback}
 				class="min-h-40 text-lg md:text-lg"

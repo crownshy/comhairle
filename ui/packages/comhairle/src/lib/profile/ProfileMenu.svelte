@@ -7,7 +7,10 @@
 	import LoginButtons from './LoginButtons.svelte';
 	import { userInitials } from '$lib/utils';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
+	import Bell from '@lucide/svelte/icons/bell';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import Settings from '@lucide/svelte/icons/settings';
+	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
 
 	import { notificationService } from '$lib/services/notifications.svelte';

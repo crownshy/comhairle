@@ -7,6 +7,7 @@
 	import TextViewer from './TextViewer.svelte';
 	import type { PdfHighlight } from './highlights';
 	import type { PreviewKind } from '$lib/utils/previewKind';
+	import { m } from '$lib/paraglide/messages';
 
 	type PdfViewerProps = { src: string; highlights?: PdfHighlight[]; initialPage?: number | null };
 
@@ -67,10 +68,10 @@
 					rel="noopener noreferrer"
 					variant="outline"
 					size="sm"
-					aria-label="Download"
+					aria-label={m.pdf_download()}
 				>
-					<DownloadIcon class="size-4" />
-					<span class="hidden sm:inline">Download</span>
+					<DownloadIcon aria-hidden="true" class="size-4" />
+					<span class="hidden sm:inline">{m.pdf_download()}</span>
 				</Button>
 			{/if}
 		</Dialog.Header>

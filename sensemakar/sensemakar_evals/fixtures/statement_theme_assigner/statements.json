@@ -1,0 +1,6 @@
+[
+  {"id": "1", "speaker_id": null, "statement_type": null, "text": "The bus never turns up on time and I end up late for work.", "lang": "en"},
+  {"id": "2", "speaker_id": null, "statement_type": null, "text": "Rubbish collection has been missed three weeks running.", "lang": "en"},
+  {"id": "3", "speaker_id": null, "statement_type": null, "text": "Trams are packed solid every morning during rush hour.", "lang": "en"},
+  {"id": "4", "speaker_id": null, "statement_type": null, "text": "The council took ages to fix the broken streetlight outside the school.", "lang": "en"}
+]

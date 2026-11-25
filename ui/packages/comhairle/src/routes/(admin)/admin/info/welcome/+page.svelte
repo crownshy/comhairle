@@ -1,17 +1,15 @@
 <script lang="ts">
-	import {
-		Activity,
-		ArrowRight,
-		FilePlus2,
-		FileText,
-		MessageSquareWarning,
-		Rocket,
-		ShieldCheck,
-		UserPen,
-		UserRound,
-		Volume2,
-		Workflow
-	} from 'lucide-svelte';
+	import Activity from '@lucide/svelte/icons/activity';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import FilePlus2 from '@lucide/svelte/icons/file-plus-2';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import MessageSquareWarning from '@lucide/svelte/icons/message-square-warning';
+	import Rocket from '@lucide/svelte/icons/rocket';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import UserPen from '@lucide/svelte/icons/user-pen';
+	import UserRound from '@lucide/svelte/icons/user-round';
+	import Volume2 from '@lucide/svelte/icons/volume-2';
+	import Workflow from '@lucide/svelte/icons/workflow';
 	import { ADMIN_WELCOME as W, type WelcomeIcon } from '$lib/admin_welcome';
 	import { GUIDE_NAV } from '$lib/tool_guides';
 	import GuideRichText from '$lib/components/AdminGuide/GuideRichText.svelte';
@@ -33,7 +31,7 @@
 	<title>{W.title}</title>
 </svelte:head>
 
-<main class="w-full max-w-6xl min-w-0 p-6 md:p-10">
+<div class="w-full max-w-6xl min-w-0 p-6 md:p-10">
 	<!-- Hero, with the curved background shape from the report design -->
 	<header
 		class="bg-primary text-primary-foreground relative overflow-hidden rounded-2xl px-6 py-10 md:px-10 md:py-14"
@@ -192,4 +190,4 @@
 			</section>
 		</div>
 	</section>
-</main>
+</div>

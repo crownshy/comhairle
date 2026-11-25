@@ -66,8 +66,8 @@ export function inspectBoundaries(input: unknown, filename: string): BoundaryDat
 	if (collection.crs)
 		throw new Error('GeoJSON must be WGS84 without a legacy CRS. Export as EPSG:4326.');
 	const binaryTree = new BinaryTree<string, string>();
-	for (let feature of collection.features) {
-		for (let key of Object.keys(feature.properties ?? {})) {
+	for (const feature of collection.features) {
+		for (const key of Object.keys(feature.properties ?? {})) {
 			binaryTree.insert(key);
 		}
 	}

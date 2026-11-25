@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowRight, BookOpen, Lightbulb } from 'lucide-svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
 	import GuideImageCarousel from '$lib/components/AdminGuide/GuideImageCarousel.svelte';
 	import GuideRichText from '$lib/components/AdminGuide/GuideRichText.svelte';
 	import type { AdminGuideImage } from '$lib/admin_guides';
@@ -70,7 +72,7 @@
 	<title>{topic.title} - Comhairle Handbook</title>
 </svelte:head>
 
-<main
+<div
 	class="grid w-full max-w-6xl min-w-0 gap-8 rounded-xl p-6 md:p-10 lg:grid-cols-[minmax(0,48rem)_16rem] lg:items-start lg:gap-10"
 >
 	<article class="max-w-3xl min-w-0">
@@ -296,4 +298,4 @@
 			</a>
 		</aside>
 	{/if}
-</main>
+</div>

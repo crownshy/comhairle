@@ -15,6 +15,7 @@
 	import StepShell from './StepShell.svelte';
 	import StepChrome from './StepChrome.svelte';
 	import StepPager from './StepPager.svelte';
+	import DataProtocolLink from './DataProtocolLink.svelte';
 	import StepComplete from './StepComplete.svelte';
 	import StepProceedBar from './StepProceedBar.svelte';
 	import StepHeader from './StepHeader.svelte';
@@ -35,6 +36,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
+	import { MAIN_CONTENT_ID } from '$lib/utils/mainContent';
 	import LearningAssistantSkeleton from '$lib/components/LearningAssistant/LearningAssistantSkeleton.svelte';
 	import { workflowService } from '$lib/services/workflow.svelte';
 	import { ws } from '$lib/api/websockets.svelte';
@@ -483,10 +485,22 @@
 					blockedReason={currentSequence?.blockedReason}
 					onBack={goBack}
 					onForward={goForward}
-				/>
+				>
+					{#snippet aside()}
+						<DataProtocolLink
+							stepName={workflowStep.name}
+							text={workflowStep.dataProtocol}
+							toolType={toolConfig?.type}
+							{availableDocuments}
+							conversationId={conversation.id}
+						/>
+					{/snippet}
+				</StepPager>
 			{/if}
 		{/snippet}
 	</StepShell>
 {:else}
-	<h1>{m.step_not_found()}</h1>
+	<main id={MAIN_CONTENT_ID} tabindex="-1" class="outline-none">
+		<h1>{m.step_not_found()}</h1>
+	</main>
 {/if}

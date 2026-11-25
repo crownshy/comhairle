@@ -3,7 +3,7 @@ export { Toaster as NotificationsToaster } from '$lib/components/ui/sonner';
 import { z } from 'zod';
 
 // Use to serialize and deserialize the flash notifications
-let FlashString: z.ZodType<Array<SendOpts>> = z.array(
+const FlashString: z.ZodType<Array<SendOpts>> = z.array(
 	z.object({
 		message: z.string(),
 		priority: z.optional(z.enum(['INFO', 'WARNING', 'ERROR', 'SUCCESS'])),
@@ -15,7 +15,8 @@ class NotificationsManager {
 	private static DEFAULT_DURATION = 60000;
 
 	public send(opts: SendOpts) {
-		if (!NotificationsManager.isShown(opts.priority)) return;
+		// A toast with an action (like Undo) is the only way to reach that action, so it always shows.
+		if (!opts.action && !NotificationsManager.isShown(opts.priority)) return;
 		this.toastFn(opts.priority)(opts.message, {
 			duration: opts.duration || NotificationsManager.DEFAULT_DURATION,
 			action: opts.action
@@ -47,7 +48,7 @@ class NotificationsManager {
 	// retrive the flash notifications
 	public addFlash(opts: SendOpts) {
 		try {
-			let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
+			const flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 			let flash;
 			if (flashString) {
 				flash = FlashString.parse(JSON.parse(flashString));
@@ -55,17 +56,17 @@ class NotificationsManager {
 				flash = [opts];
 			}
 			sessionStorage.setItem('comhairle_flash_notfifications', JSON.stringify(flash));
-		} catch (e) {
+		} catch {
 			console.warn('Failed to set session storage, probably on server');
 		}
 	}
 
 	public showFlash() {
 		if (!sessionStorage) return;
-		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
+		const flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 		if (flashString) {
-			let flash = FlashString.parse(JSON.parse(flashString));
-			for (let message of flash) {
+			const flash = FlashString.parse(JSON.parse(flashString));
+			for (const message of flash) {
 				this.send(message);
 			}
 		}

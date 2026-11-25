@@ -334,7 +334,7 @@
 				<iframe
 					bind:this={iframeEl}
 					src={fullUrl}
-					title="survey"
+					title={m.heyform_frame_title()}
 					onload={handleLoad}
 					allow="microphone; camera"
 					style={measuredHeight ? `height:${measuredHeight}px` : undefined}

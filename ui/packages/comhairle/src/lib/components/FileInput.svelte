@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { FileText } from 'lucide-svelte';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import { Button } from '$lib/components/ui/button';
 	import type { FileAttr } from '$lib/components/EasyForm';
-	import Media from '$lib/interfaces/Media';
+	import Media from '$lib/interfaces/Media.svelte';
 
 	interface Props extends FileAttr {
 		disabled?: boolean;

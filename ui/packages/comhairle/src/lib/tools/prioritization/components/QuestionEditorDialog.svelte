@@ -5,7 +5,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
-	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import QuestionField from './QuestionField.svelte';
 	import type { PrioritizationStore } from '../store.svelte';
 	import type {
@@ -31,6 +33,7 @@
 		open: boolean;
 		question?: DraftQuestion | null;
 		store: PrioritizationStore;
+		conversationId: string;
 		toolConfig: ToolConfig<DraftTranslatableJsonField>;
 		/** Which question set this dialog edits. */
 		target?: 'proposal' | 'section';
@@ -43,6 +46,7 @@
 		open,
 		question = null,
 		store,
+		conversationId,
 		toolConfig,
 		target = 'proposal',
 		onOpenChange,
@@ -253,7 +257,10 @@
 		try {
 			// Create translations for any new translatable fields in draft
 			const questionWithNewlyCreatedTranslations =
-				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale);
+				await traverseTranslatableJsonAndCreateTranslations(draft, primaryLocale, {
+					type: 'conversation',
+					id: conversationId
+				});
 
 			const existing =
 				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];

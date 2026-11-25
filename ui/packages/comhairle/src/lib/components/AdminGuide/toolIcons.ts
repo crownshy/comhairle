@@ -1,12 +1,10 @@
-import {
-	BookOpenText,
-	ClipboardList,
-	Lightbulb,
-	ListOrdered,
-	MessagesSquare,
-	Mic,
-	Video
-} from 'lucide-svelte';
+import BookOpenText from '@lucide/svelte/icons/book-open-text';
+import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+import Lightbulb from '@lucide/svelte/icons/lightbulb';
+import ListOrdered from '@lucide/svelte/icons/list-ordered';
+import MessagesSquare from '@lucide/svelte/icons/messages-square';
+import Mic from '@lucide/svelte/icons/mic';
+import Video from '@lucide/svelte/icons/video';
 import { TOOL_OVERVIEW, type ToolIcon } from '$lib/tool_overview';
 
 /** One icon per engagement tool, shared by the rail and the tools overview page. */

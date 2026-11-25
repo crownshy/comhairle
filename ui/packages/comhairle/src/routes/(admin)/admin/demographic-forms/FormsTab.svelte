@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
 	import TagBadge from './TagBadge.svelte';
-	import { Copy } from 'lucide-svelte';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Table from '$lib/components/ui/table';

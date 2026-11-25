@@ -1,0 +1,32 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+	import Info from '@lucide/svelte/icons/info';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+
+	type Props = {
+		children: Snippet;
+		actions?: Snippet;
+		/** warning: orange, something needs attention. info: blue, a suggestion or tip. */
+		tone?: 'warning' | 'info';
+	};
+
+	let { children, actions, tone = 'warning' }: Props = $props();
+
+	const TONES = {
+		warning: { surface: 'bg-orange-50', icon: TriangleAlert, iconClass: 'text-orange-600' },
+		info: { surface: 'bg-accent', icon: Info, iconClass: 'text-primary' }
+	};
+	let look = $derived(TONES[tone]);
+	let Icon = $derived(look.icon);
+</script>
+
+<!-- A one-line message with its next step, at the top of a tab. -->
+<div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 {look.surface}">
+	<div class="flex min-w-0 flex-[1_1_28rem] items-center gap-3">
+		<Icon class="size-5 shrink-0 {look.iconClass}" aria-hidden="true" />
+		<p class="text-background text-base">{@render children()}</p>
+	</div>
+	{#if actions}
+		<div class="flex flex-wrap gap-2">{@render actions()}</div>
+	{/if}
+</div>

@@ -12,17 +12,15 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { dndzone, type DndEvent } from 'svelte-dnd-action';
-	import {
-		ArrowDown,
-		ArrowUp,
-		Clock,
-		GripVertical,
-		Lightbulb,
-		Plus,
-		RotateCcw,
-		Users,
-		X
-	} from 'lucide-svelte';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import Clock from '@lucide/svelte/icons/clock';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Lightbulb from '@lucide/svelte/icons/lightbulb';
+	import Plus from '@lucide/svelte/icons/plus';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Users from '@lucide/svelte/icons/users';
+	import X from '@lucide/svelte/icons/x';
 	import { GUIDE_NAV, TOOL_GUIDES } from '$lib/tool_guides';
 	import { conversationTemplates } from '$lib/conversation_templates';
 	import { minutesRange, TEMPLATE_STEP_TOOLS } from '$lib/tool_overview';

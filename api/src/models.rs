@@ -26,6 +26,7 @@ pub mod organization;
 pub mod otp;
 pub mod pagination;
 pub mod permissions;
+pub mod polis_moderation_event;
 pub mod polis_statement_aux;
 pub mod polis_statement_translation;
 pub mod proposal;

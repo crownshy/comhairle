@@ -1,4 +1,4 @@
-import SeparatorHorizontal from 'lucide-svelte/icons/separator-horizontal';
+import SeparatorHorizontal from '@lucide/svelte/icons/separator-horizontal';
 import {
 	FORMATTING_TOOLS as TOOLS,
 	type FormattingTool

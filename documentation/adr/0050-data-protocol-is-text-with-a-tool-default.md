@@ -30,7 +30,7 @@ every step would carry its own translation rows for text nobody touched.
 shown only on Thinking Space steps.
 
 **4. Participants read it in the Find out more Privacy tab, above the conversation's privacy
-policy.** A link from the step bar is the next step; design is sketching options for it.
+policy.** A link from the step bar opens the same text in a pop-up (#1890, ADR-0048 amendment).
 
 **5. Admins can edit it while the conversation is live.** Locking it, and the privacy policy,
 once live is an open question on #666.

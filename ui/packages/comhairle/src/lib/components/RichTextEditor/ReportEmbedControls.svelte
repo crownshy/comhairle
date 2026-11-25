@@ -2,8 +2,8 @@
 	import type { Editor } from '@tiptap/core';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import ChartNoAxesColumn from '@lucide/svelte/icons/chart-no-axes-column';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import {
 		sectionBlocksForTool,
 		sectionBlocksInDocument,

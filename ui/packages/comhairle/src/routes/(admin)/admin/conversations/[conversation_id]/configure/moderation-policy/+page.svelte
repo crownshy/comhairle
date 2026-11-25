@@ -3,7 +3,9 @@
 	import { invalidate } from '$app/navigation';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, RotateCcw, Trash2 } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { cn } from '$lib/utils';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import {
@@ -13,8 +15,8 @@
 		rejectReasonsFromPolicy,
 		withSavedReasonIds
 	} from '$lib/moderation/moderationPolicy';
-	import { Autosave } from '../autosave.svelte';
-	import SaveStatusPill from '../SaveStatusPill.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
+	import SaveStatusPill from '$lib/components/SaveStatusPill.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type { UpdateModerationPolicyReason } from '@crownshy/api-client/api';
 	import { permissions } from '$lib/permissions.svelte';

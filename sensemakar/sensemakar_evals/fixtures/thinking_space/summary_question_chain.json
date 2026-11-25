@@ -1,0 +1,44 @@
+{
+  "base_interaction": {
+    "question": {
+      "text": "How might social prescribing affect your community?",
+      "asking_reasion": "We want to understand the lived experience of people and how this policy might improve their own lives and that of their communities",
+      "ai_generated": false
+    },
+    "answer": {
+      "text": "I think it would be a great benefit for the community. There are many resources in the areas surrounding this neighborhood but none are financially accessible to people who live here. This would give them access"
+    }
+  },
+  "follow_ups": [
+    {
+      "question": {
+        "text": "Can you say more about what resources might be made available?",
+        "asking_reasion": "We want to deepen the user's response",
+        "ai_generated": true
+      },
+      "answer": {
+        "text": "There is a sports club that has swimming and tennis courts but it's really expensive. Lots of folks I know have expressed being stressed out and being able to exercise regularly would help. Having access to that would be wonderful"
+      }
+    },
+    {
+      "question": {
+        "text": "Do you think that people would take advantage of those resources if offered?",
+        "asking_reasion": "We want to understand how effective the policy might be",
+        "ai_generated": true
+      },
+      "answer": {
+        "text": "I am not really sure. I know younger people would but I am unsure if older people might feel like it's just not for them, that they would be out of place and not welcome at a membership club"
+      }
+    },
+    {
+      "question": {
+        "text": "Do you think young people would be happy being prescribed a social remedy over a medical one?",
+        "asking_reasion": "We want to understand how different demographics might respond to the policy",
+        "ai_generated": true
+      },
+      "answer": {
+        "text": "No, all the young people I know would be very against it"
+      }
+    }
+  ]
+}

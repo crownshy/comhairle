@@ -1049,7 +1049,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
         .api_route(
             "/",
             get_with(list_conversations, |op| {
-                op.id("ListConverastions")
+                op.id("ListConversations")
                     .summary("List conversations with optional filtering and ordering")
                     .tag("Conversation")
                     .description("List conversations")
@@ -1252,9 +1252,10 @@ mod tests {
     use uuid::Uuid;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
+    use crate::bulk_storage_service::MockBulkStorageService;
     use crate::config::BotServiceConfig;
     use crate::models::conversation::PartialConversation;
+    use crate::models::media::{UploadMediaDto, UploadMediaResponseDto};
     use crate::models::permissions::conversation::Role;
     use crate::models::permissions::{
         ActorId, GrantRoleRequest, OrganizationWithPermissionDto, PermissionRole, grant_role,
@@ -1262,13 +1263,10 @@ mod tests {
     };
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::{CohostInfo, ConversationResponse};
-    use crate::routes::media::dto::MediaDto;
     use crate::routes::permissions::GrantPermissionBody;
     use crate::routes::translations::dto::TextContentDto;
     use crate::setup_server;
-    use crate::test_helpers::{
-        MultipartBodyBuilder, TEST_PASSWORD, UserSession, test_config, test_state,
-    };
+    use crate::test_helpers::{TEST_PASSWORD, UserSession, test_config, test_state};
 
     const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 
@@ -2146,12 +2144,14 @@ mod tests {
         let create_privacy_policy = json!({
             "primary_locale": "en",
             "format": "plain",
-            "content": "Test privacy policy"
+            "content": "Test privacy policy",
+            "scope": { "type": "conversation", "id": conversation.id }
         });
         let create_faqs = json!({
             "primary_locale": "en",
             "format": "plain",
-            "content": "Test faqs"
+            "content": "Test faqs",
+            "scope": { "type": "conversation", "id": conversation.id }
         });
         let (_, privacy_policy_res, _) = session
             .post(
@@ -2231,20 +2231,14 @@ mod tests {
     async fn should_be_able_to_get_conversation_with_media(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let boundary = "test-boundary";
-        let filename = "test_file.jpg";
-        let content_type = "image/jpeg";
+        let filename = "test-filename.jpg";
 
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service
-            .expect_upload_file()
+            .expect_get_write_file_url()
             .once()
-            .returning(move |_, _, _| {
-                Box::pin(async move {
-                    Ok(UploadResult {
-                        url: format!("https://storage.com/{}", filename),
-                    })
-                })
+            .returning(move |_, _| {
+                Box::pin(async move { Ok(format!("https://storage.com/{}", &filename)) })
             });
 
         let state = test_state()
@@ -2276,22 +2270,23 @@ mod tests {
             .await?;
         let conversation: ConversationDto = serde_json::from_value(value)?;
 
-        let body = MultipartBodyBuilder::new(boundary.to_string())
-            .add_field("name", "test-name")
-            .add_field("alt", "test-alt")
-            .add_file(filename, Some(content_type), "test-content")
-            .build();
+        let body = UploadMediaDto {
+            filename: filename.to_string(),
+            content_type: String::from("image/jpeg"),
+            name: String::from("test-name"),
+            alt: String::from("test-alt"),
+        };
 
         let (_, value, _) = session
-            .post_multipart(&app, "/media", boundary, body.into())
+            .post(&app, "/media", Body::from(serde_json::to_string(&body)?))
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let upload_media: UploadMediaResponseDto = serde_json::from_value(value)?;
 
         session
             .update_conversation(
                 &app,
                 &conversation.id.to_string(),
-                json!({ "image": media.id }),
+                json!({ "image": upload_media.media.id }),
             )
             .await?;
 
@@ -2301,7 +2296,9 @@ mod tests {
         let conversation: LocalizedConversationDto = serde_json::from_value(value)?;
 
         assert!(
-            conversation.image_url.contains("/images/test_file.jpg"),
+            conversation
+                .image_url
+                .contains(format!("/images/{}", filename).as_str()),
             "incorrect image_url"
         );
 

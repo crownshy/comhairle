@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check } from 'lucide-svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import { Badge } from '$lib/components/ui/badge';
 	import { statusToBadgeVariant } from './translationUtils';
 	import type { Locale } from '$lib/paraglide/runtime';

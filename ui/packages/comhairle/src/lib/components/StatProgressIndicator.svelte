@@ -1,5 +1,4 @@
 <script lang="ts">
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { PieChart, Text } from 'layerchart';
@@ -60,7 +59,9 @@
 	</Card.Content>
 	<Card.Footer class="flex-col gap-2 text-sm">
 		<div class="flex items-center gap-2 leading-none font-medium">
-			{((currentValue * 100) / total).toLocaleString(undefined, { minimumFractionDigits: 0 })}% of {entityType}
+			{((currentValue * 100) / total).toLocaleString(undefined, {
+				minimumFractionDigits: 0
+			})}% of {entityType}
 			({currentValue} out of {total}) have {message}
 		</div>
 	</Card.Footer>

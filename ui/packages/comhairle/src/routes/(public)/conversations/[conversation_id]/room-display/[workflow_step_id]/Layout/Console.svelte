@@ -20,7 +20,7 @@
 		type RoomSurface,
 		type WallView
 	} from '../board/surfaces';
-	import { PanelRight } from '@lucide/svelte';
+	import PanelRight from '@lucide/svelte/icons/panel-right';
 	import { groupLabel } from '$lib/tools/polis/report';
 	import OpinionMap from '../OpinionMap/OpinionMap.svelte';
 	import { Button } from '$lib/components/ui/button';

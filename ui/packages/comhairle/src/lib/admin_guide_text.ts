@@ -5,6 +5,7 @@
  *   **Launch**                bold
  *   [Sign up](/auth/signup)   link
  *   :accept: :reject: :split:  the moderation action buttons, drawn as icons
+ *   :more:                     a statement's more actions menu (three dots)
  *   :collapse: :expand:        the admin sidebar's collapse and expand buttons
  *   :login: :signup: :preview: the Log In, Sign Up and Preview buttons
  *   :actions:                  a step's actions menu (three dots)
@@ -20,6 +21,7 @@ export type GuideIconName =
 	| 'accept'
 	| 'reject'
 	| 'split'
+	| 'more'
 	| 'collapse'
 	| 'expand'
 	| 'login'
@@ -29,7 +31,7 @@ export type GuideIconName =
 	| 'workspace';
 
 const TOKEN =
-	/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|:(accept|reject|split|collapse|expand|login|signup|preview|actions|workspace):/g;
+	/\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|:(accept|reject|split|more|collapse|expand|login|signup|preview|actions|workspace):/g;
 
 export function parseGuideText(source: string): GuideTextPart[] {
 	const parts: GuideTextPart[] = [];

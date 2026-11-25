@@ -47,15 +47,26 @@ function layoutAttribute(name: keyof ImageLayout, keys: Set<string>) {
 	};
 }
 
+// An image with no alt attribute gets its file name read out, so one without alt text
+// (marked decorative, or saved before alt was asked for) renders an empty alt instead.
+const altAttribute = {
+	default: null,
+	parseHTML: (element: HTMLElement) => element.getAttribute('alt'),
+	renderHTML: (attributes: Record<string, unknown>) => ({
+		alt: typeof attributes.alt === 'string' ? attributes.alt : ''
+	})
+};
+
 /**
  * The stock Image node plus `align` and `width`. Both are stored as keys and rendered as
  * `data-align` / `data-width`, which editor-content.css lays out, so the document holds no raw
- * CSS. Keep the option lists in sync with that stylesheet.
+ * CSS. Keep the option lists in sync with that stylesheet. `alt` is always rendered.
  */
 export const Image = BaseImage.extend({
 	addAttributes() {
 		return {
 			...this.parent?.(),
+			alt: altAttribute,
 			align: layoutAttribute('align', ALIGN_KEYS),
 			width: layoutAttribute('width', WIDTH_KEYS)
 		};

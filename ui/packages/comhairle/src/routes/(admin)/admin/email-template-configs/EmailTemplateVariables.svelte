@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Popover from '$lib/components/ui/popover';
-	import { Info } from 'lucide-svelte';
+	import Info from '@lucide/svelte/icons/info';
 
 	type Props = { templateVariables: string[] };
 	let { templateVariables }: Props = $props();

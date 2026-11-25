@@ -3,7 +3,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Progress } from '$lib/components/ui/progress';
-	import { Plus, Trash2, Upload, Search, Languages, Info } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Upload from '@lucide/svelte/icons/upload';
+	import Search from '@lucide/svelte/icons/search';
+	import Languages from '@lucide/svelte/icons/languages';
+	import Info from '@lucide/svelte/icons/info';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -21,8 +26,8 @@
 	import type { ConversationWithTranslations } from '@crownshy/api-client/api';
 	import { invalidate } from '$app/navigation';
 	import { key } from '$lib/utils/invalidationKey';
-	import { Autosave } from '../autosave.svelte';
-	import SaveStatusPill from '../SaveStatusPill.svelte';
+	import { Autosave } from '$lib/utils/autosave.svelte';
+	import SaveStatusPill from '$lib/components/SaveStatusPill.svelte';
 
 	type Props = {
 		conversation: ConversationWithTranslations;
@@ -249,14 +254,30 @@
 
 			if (sourceTerms && !termsOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(sourceTerms, activeLocale, primaryLocale)
+					aiTranslateContent(
+						sourceTerms,
+						activeLocale,
+						{
+							type: 'conversation',
+							id: conversation.id
+						},
+						primaryLocale
+					)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.terms[activeLocale] = result.ok;
 			}
 			if (sourceTip && !tipOf(row, activeLocale).trim()) {
 				const result = await tryCatchAsync(() =>
-					aiTranslateContent(sourceTip, activeLocale, primaryLocale)
+					aiTranslateContent(
+						sourceTip,
+						activeLocale,
+						{
+							type: 'conversation',
+							id: conversation.id
+						},
+						primaryLocale
+					)
 				);
 				if (result.err || !result.ok) rowFailed = true;
 				else row.tooltips[activeLocale] = result.ok;

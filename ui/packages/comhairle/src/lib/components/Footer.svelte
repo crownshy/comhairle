@@ -2,10 +2,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
-
-	let emailValue = $state('');
 
 	// Contact, Support and FAQ routes don't exist yet and 404 (#845). Hidden until they
 	// exist and are wired to real pages. Follow-up: re-add once the routes are built.
@@ -30,7 +26,10 @@
 					class="flex flex-col items-center gap-6 md:flex-1 md:flex-row md:justify-between"
 				>
 					<ComhairleLogo color="text-sidebar-foreground" />
-					<nav class="flex flex-wrap items-center justify-center gap-8">
+					<nav
+						aria-label={m.nav_footer_label()}
+						class="flex flex-wrap items-center justify-center gap-8"
+					>
 						{#each navLinks as link (link.href)}
 							<a
 								href={link.href}

@@ -12,7 +12,7 @@
 		try {
 			await apiClient.ResendVerificationEmail({ id: user.id });
 			notifications.send({ message: m.verification_email_sent(), priority: 'SUCCESS' });
-		} catch (e) {
+		} catch {
 			responseMessage = m.verify_error_message();
 			if (!user) {
 				responseMessage += m.verify_missing_user();

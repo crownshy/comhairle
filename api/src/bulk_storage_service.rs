@@ -97,7 +97,11 @@ pub trait BulkStorageService: Send + Sync {
     /// # Returns
     ///
     /// Returns a presigned URL that can be used to upload a file via HTTP PUT.
-    async fn get_write_file_url(&self, path: &str) -> Result<String, BulkStorageError>;
+    async fn get_write_file_url(
+        &self,
+        path: &str,
+        metadata: Option<FileMetadata>,
+    ) -> Result<String, BulkStorageError>;
 
     /// Generates a presigned URL for downloading a file.
     ///
@@ -162,7 +166,7 @@ impl MockBulkStorageService {
             .expect_delete_file()
             .returning(|_| Box::pin(async move { Ok(()) }));
 
-        storage.expect_get_write_file_url().returning(|_| {
+        storage.expect_get_write_file_url().returning(|_, _| {
             Box::pin(async move { Ok("https://storage.com/signed_upload_path".to_owned()) })
         });
 

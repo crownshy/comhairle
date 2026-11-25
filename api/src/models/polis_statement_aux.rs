@@ -261,6 +261,62 @@ pub async fn record_split(
     Ok((original, derived_rows))
 }
 
+/// The statements a split or reword posted in place of `original_id`.
+#[instrument(err(Debug), skip(db))]
+pub async fn list_replacements(
+    db: &PgPool,
+    original_id: Uuid,
+) -> Result<Vec<PolisStatementAux>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(PolisStatementAuxIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(PolisStatementAuxIden::OriginalStatementId).eq(original_id))
+        .order_by(
+            PolisStatementAuxIden::PolisStatementId,
+            sea_query::Order::Asc,
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let rows = query_as_with(&sql, values).fetch_all(db).await?;
+    Ok(rows)
+}
+
+/// The database half of undoing a split: rejects every replacement with `reason` and moves
+/// the original back to waiting, in one transaction so the two never disagree.
+#[instrument(err(Debug), skip(db))]
+pub async fn record_undo_split(
+    db: &PgPool,
+    original_id: Uuid,
+    replacement_ids: &[Uuid],
+    reason: &str,
+) -> Result<(PolisStatementAux, Vec<PolisStatementAux>), ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(ModerationStatus::Rejected, Some(reason)))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(replacement_ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+    let replacements = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+        .fetch_all(&mut *tx)
+        .await?;
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(moderation_values(ModerationStatus::Pending, None))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(original_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+    let original = query_as_with::<_, PolisStatementAux, _>(&sql, values)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok((original, replacements))
+}
+
 #[derive(Debug)]
 pub struct UpsertFromPolis {
     pub workflow_step_id: Uuid,

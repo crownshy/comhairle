@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::translations::TextContentId;
+use crate::models::translations::{TextContentId, TranslationScope};
 use crate::tools::thinking_space::{
     ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup,
 };
@@ -63,6 +63,8 @@ pub trait ToolImpl: Send + Sync + 'static {
     async fn setup(
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<Self::Config, ComhairleError>;
 
@@ -336,35 +338,37 @@ impl ToolSetup {
     pub async fn setup(
         &self,
         state: &Arc<ComhairleState>,
+        db: &mut sqlx::PgConnection,
+        scope: TranslationScope,
         locale: &str,
     ) -> Result<ToolConfig, ComhairleError> {
         match self {
             ToolSetup::Polis(setup) => Ok(ToolConfig::Polis(
-                polis::PolisTool::setup(setup, state, locale).await?,
+                polis::PolisTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Learn(setup) => Ok(ToolConfig::Learn(
-                learn::LearnTool::setup(setup, state, locale).await?,
+                learn::LearnTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::HeyForm(setup) => Ok(ToolConfig::HeyForm(
-                heyform::HeyFormTool::setup(setup, state, locale).await?,
+                heyform::HeyFormTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Stories(setup) => Ok(ToolConfig::Stories(
-                stories::StoriesTool::setup(setup, state, locale).await?,
+                stories::StoriesTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
-                elicitation_bot::ElicitationBotTool::setup(setup, state, locale).await?,
+                elicitation_bot::ElicitationBotTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
-                prioritization::PrioritizationTool::setup(setup, state, locale).await?,
+                prioritization::PrioritizationTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
-                thinking_space::ThinkingSpaceTool::setup(setup, state, locale).await?,
+                thinking_space::ThinkingSpaceTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::DemographicQuestion(setup) => Ok(ToolConfig::DemographicQuestion(
-                DemographicQuestionTool::setup(setup, state, locale).await?,
+                DemographicQuestionTool::setup(setup, state, db, scope, locale).await?,
             )),
             ToolSetup::DemographicForm(setup) => Ok(ToolConfig::DemographicForm(
-                DemographicFormTool::setup(setup, state, locale).await?,
+                DemographicFormTool::setup(setup, state, db, scope, locale).await?,
             )),
         }
     }

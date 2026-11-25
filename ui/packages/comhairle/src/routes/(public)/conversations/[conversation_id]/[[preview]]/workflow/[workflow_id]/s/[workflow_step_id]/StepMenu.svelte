@@ -1,17 +1,15 @@
 <script lang="ts">
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import {
-		ChevronDown,
-		ChevronRight,
-		Check,
-		CircleHelp,
-		ShieldCheck,
-		Languages,
-		Lock,
-		Moon,
-		Sun
-	} from 'lucide-svelte';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Check from '@lucide/svelte/icons/check';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import Languages from '@lucide/svelte/icons/languages';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
 	import { Spinner } from '$lib/components/ui/spinner';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { themeStore } from '$lib/stores/theme.svelte';
@@ -128,7 +126,7 @@
 		>
 			{#if style.done}
 				<!-- `text-current` opts out of the menu item's blanket muted colour for icons. -->
-				<Check class="size-3.5 text-current" strokeWidth={3} />
+				<Check class="size-3.5 text-current" strokeWidth={3} aria-hidden="true" />
 			{:else}
 				{position}
 			{/if}
@@ -136,35 +134,39 @@
 		<span class={cn('min-w-0 truncate text-base font-medium', style.name)}>
 			{step.name}
 		</span>
+		{#if style.done}
+			<span class="sr-only">{m.step_menu_completed()}</span>
+		{/if}
 		{#if style.locked}
-			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" />
+			<span class="sr-only">{m.step_menu_locked()}</span>
+			<Lock class="text-muted-foreground ml-auto size-4 shrink-0" aria-hidden="true" />
 		{/if}
 	</span>
 {/snippet}
 
 {#snippet languageRowInner()}
-	<Languages class="text-muted-foreground size-5 shrink-0" />
+	<Languages class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	<span>{m.language()}</span>
 	<span class="text-muted-foreground ml-auto flex items-center gap-2">
 		{#if pendingLocale}
 			<Spinner class="size-4" />
 		{/if}
-		{getLanguageName(shownLocale, 'native')}
+		<span lang={shownLocale}>{getLanguageName(shownLocale, 'native')}</span>
 	</span>
 {/snippet}
 
 {#snippet faqRowInner()}
-	<CircleHelp class="text-muted-foreground size-5 shrink-0" />
+	<CircleHelp class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	{m.faq()}
 {/snippet}
 
 {#snippet privacyRowInner()}
-	<ShieldCheck class="text-muted-foreground size-5 shrink-0" />
+	<ShieldCheck class="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
 	{m.privacy_policy()}
 {/snippet}
 
 {#snippet themeRowInner()}
-	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" />
+	<ThemeIcon class="text-muted-foreground size-5 shrink-0 stroke-current" aria-hidden="true" />
 	{themeLabel}
 {/snippet}
 
@@ -247,6 +249,7 @@
 								'text-muted-foreground size-5 shrink-0 transition-transform',
 								languageListOpen && 'rotate-90'
 							)}
+							aria-hidden="true"
 						/>
 					</button>
 					{#if languageListOpen}
@@ -259,11 +262,14 @@
 									disabled={pendingLocale !== null}
 									onclick={() => chooseLanguage(locale)}
 								>
-									{getLanguageName(locale, 'native')}
+									<span lang={locale}>{getLanguageName(locale, 'native')}</span>
 									{#if locale === pendingLocale}
 										<Spinner class="text-primary ml-auto size-5 shrink-0" />
 									{:else if locale === shownLocale}
-										<Check class="text-primary ml-auto size-5 shrink-0" />
+										<Check
+											class="text-primary ml-auto size-5 shrink-0"
+											aria-hidden="true"
+										/>
 									{/if}
 								</button>
 							{/each}
@@ -380,7 +386,7 @@
 								disabled={pendingLocale !== null && locale !== pendingLocale}
 								class="cursor-pointer py-2.5 text-base"
 							>
-								{getLanguageName(locale, 'native')}
+								<span lang={locale}>{getLanguageName(locale, 'native')}</span>
 								{#if locale === pendingLocale}
 									<Spinner class="ml-auto size-4" />
 								{/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import AdminSidebar, { type OpenConversation } from './sidebar/AdminSidebar.svelte';
 	import { workspaceGroups } from './sidebar/workspaceLinks';
-	import { hasSiteAdminRole, hasSuperAdminRole } from '$lib/utils/permissions';
+	import { hasSiteAdminRole, hasSuperAdminRole, isModeratorOnly } from '$lib/utils/permissions';
 	import type {
 		ConversationWithTranslations,
 		WorkflowStepsListResponse
@@ -15,6 +15,7 @@
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirectServer } from '$lib/urls';
+	import { pathWithQuery } from '$lib/utils/backTo';
 	import AutosaveLeaveGuard from '$lib/components/Translation/AutosaveLeaveGuard.svelte';
 	// import HelpChat from './HelpChat.svelte';
 	import HelpCorner from './HelpCorner.svelte';
@@ -38,12 +39,13 @@
 	let groups = $derived(
 		workspaceGroups({
 			isSiteAdmin: hasSiteAdminRole(data.userRoles),
-			isSuperAdmin: hasSuperAdminRole(data.userRoles)
+			isSuperAdmin: hasSuperAdminRole(data.userRoles),
+			isModeratorOnly: isModeratorOnly(data.userRoles)
 		})
 	);
 
 	if (!data.user) {
-		loginRedirectServer(page.url.toString(), 'You need to be logged in to access this');
+		loginRedirectServer(pathWithQuery(page.url), 'You need to be logged in to access this');
 	}
 
 	// Writable derived seeded from the server-read cookie: SSR and the live value are one

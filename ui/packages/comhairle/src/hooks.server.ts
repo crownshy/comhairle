@@ -3,11 +3,12 @@ import { LOCALE_COOKIE } from '$lib/utils/locale';
 import type { Handle, HandleFetch } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
-import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
+import { resolveThemeName, DEFAULT_THEME, THEMES, type ThemeConfig } from '$lib/types/theme';
+import { assets } from '$app/paths';
 import { getTextDirection } from '$lib/paraglide/runtime';
-import setCookieParser from 'set-cookie-parser';
 import { createApiClient } from '@crownshy/api-client/client';
 import { previewGrantCookies } from '$lib/utils/previewAccess';
+import { copySetCookies } from '$lib/server/cookies';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -27,13 +28,28 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 const handleTheme: Handle = async ({ event, resolve }) => {
 	const themeName = resolveThemeName(env.PUBLIC_THEME);
 	const themeAttr = themeName !== DEFAULT_THEME ? `data-theme="${themeName}"` : '';
-	const { favicon } = THEMES[themeName];
+	const icons = faviconTags(THEMES[themeName]);
 
 	return resolve(event, {
 		transformPageChunk: ({ html }) =>
-			html.replace('%comhairle.theme%', themeAttr).replace('%comhairle.favicon%', favicon)
+			html.replace('%comhairle.theme%', themeAttr).replace('%comhairle.icons%', icons)
 	});
 };
+
+/// The PNG is listed first with an explicit size so browsers that support SVG
+/// favicons pick the SVG, and the rest fall back to the PNG.
+function faviconTags(theme: ThemeConfig): string {
+	const tags = [
+		`<link rel="icon" href="${assets}/${theme.favicon}" sizes="32x32" type="image/png" />`
+	];
+	if (theme.faviconSvg) {
+		tags.push(`<link rel="icon" href="${assets}/${theme.faviconSvg}" type="image/svg+xml" />`);
+	}
+	if (theme.appleTouchIcon) {
+		tags.push(`<link rel="apple-touch-icon" href="${assets}/${theme.appleTouchIcon}" />`);
+	}
+	return tags.join('\n\t\t');
+}
 
 /// Sets up security headers for the app
 /// Allow some paths to be embded but not others
@@ -131,17 +147,7 @@ export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
 		if (refreshResponse.ok) {
 			// Update cookie jar to those from `/refresh` request to get new
 			// `auth-token` cookie.
-			const refreshSetCookieHeader = refreshResponse.headers.getSetCookie();
-			const parsedSetCookies = setCookieParser(refreshSetCookieHeader);
-			for (const cookie of parsedSetCookies) {
-				event.cookies.set(cookie.name, cookie.value, {
-					path: cookie.path ?? '/',
-					maxAge: cookie.maxAge,
-					httpOnly: cookie.httpOnly,
-					secure: cookie.secure,
-					sameSite: cookie.sameSite as SameSite
-				});
-			}
+			copySetCookies(event.cookies, refreshResponse);
 
 			const retryRequest = request.clone();
 			// Delete cookie header from request after cloning to force updated
@@ -154,5 +160,3 @@ export const handleFetch: HandleFetch = async ({ event, request, fetch }) => {
 
 	return response;
 };
-
-type SameSite = boolean | 'lax' | 'strict' | 'none' | undefined;

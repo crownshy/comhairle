@@ -9,19 +9,17 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import {
-		Menu,
-		Home,
-		Info,
-		MessageSquare,
-		Shield,
-		Settings,
-		Bell,
-		LogOut,
-		Briefcase,
-		LayoutGrid,
-		CircleHelp
-	} from 'lucide-svelte';
+	import Menu from '@lucide/svelte/icons/menu';
+	import Home from '@lucide/svelte/icons/house';
+	import Info from '@lucide/svelte/icons/info';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Shield from '@lucide/svelte/icons/shield';
+	import Settings from '@lucide/svelte/icons/settings';
+	import Bell from '@lucide/svelte/icons/bell';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import Briefcase from '@lucide/svelte/icons/briefcase';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
@@ -62,9 +60,14 @@
 	let hasSupportDrawer = $derived(page.data.hasSupportDrawer === true);
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
+
+	function isCurrentLink(href: string) {
+		return page.url.pathname === href || (href !== '/' && page.url.pathname.startsWith(href));
+	}
 </script>
 
 <nav
+	aria-label={m.nav_main_label()}
 	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6 shadow-md"
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
@@ -81,8 +84,8 @@
 				<Button
 					href={link.href}
 					variant="nav"
-					class="h-10 text-base font-normal {page.url.pathname === link.href ||
-					(link.href !== '/' && page.url.pathname.startsWith(link.href))
+					aria-current={isCurrentLink(link.href) ? 'page' : undefined}
+					class="h-10 text-base font-normal {isCurrentLink(link.href)
 						? 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary shadow-xs'
 						: ''}">{link.name}</Button
 				>
@@ -112,10 +115,12 @@
 				<Button
 					variant="nav"
 					class="gap-2 rounded-full text-base font-normal"
+					aria-label={m.support_find_out_more()}
 					onclick={() => (supportDrawer.open = true)}
 				>
 					<CircleHelp class="size-5" aria-hidden="true" />
-					{m.support_find_out_more()}
+					<span class="max-sm:hidden" aria-hidden="true">{m.support_find_out_more()}</span
+					>
 				</Button>
 			{/if}
 
@@ -130,6 +135,7 @@
 						{/snippet}
 					</Drawer.Trigger>
 					<Drawer.Content>
+						<Drawer.Title class="sr-only">{m.nav_drawer_title()}</Drawer.Title>
 						<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
 							<!-- User section -->
 							{#if user}
@@ -160,12 +166,13 @@
 							{/if}
 
 							<!-- Navigation links -->
-							<nav class="flex flex-col gap-0.5">
+							<nav aria-label={m.nav_menu_label()} class="flex flex-col gap-0.5">
 								{#each links as link, i (link.href)}
 									{@const Icon = linkIcons[i]}
 									<Button
 										href={link.href}
 										variant="ghost"
+										aria-current={isCurrentLink(link.href) ? 'page' : undefined}
 										class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 									>
 										<Icon class="text-muted-foreground size-5" />

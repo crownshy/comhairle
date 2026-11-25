@@ -88,7 +88,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Some(users) = &fixtures.users {
         info!("Creating users");
         for user in users {
-            let password = user.password.clone().map(|p| hash_pw(&p).unwrap());
+            let password = user.password.clone().map(|p| hash_pw(p.expose()).unwrap());
             let (sql, values) = Query::insert()
                 .into_table(UserIden::Table)
                 .columns([

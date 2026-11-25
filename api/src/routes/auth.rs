@@ -264,7 +264,7 @@ where
     exp: usize,
     id: String,
     #[serde(flatten)]
-    details: T,
+    pub details: T,
 }
 
 /// Generate JWT
@@ -440,6 +440,7 @@ async fn login(
     let password = user
         .password
         .as_ref()
+        .map(|p| p.expose())
         .ok_or_else(|| ComhairleError::WrongUserType)?;
 
     let hash = PasswordHash::new(password).map_err(|_| ComhairleError::PasswordHash)?;
@@ -603,7 +604,9 @@ struct VerifyOtpTokenRequest {
 #[instrument(err(Debug), skip(state))]
 async fn login_otp_token(
     State(state): State<Arc<ComhairleState>>,
-    cookies: CookieJar,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
     Json(payload): Json<VerifyOtpTokenRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let token_data = match decode_jwt::<OtpClaims>(&payload.token, &state.config.jwt_secret) {
@@ -625,9 +628,16 @@ async fn login_otp_token(
 
     let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
-    let cookie = create_session_cookie(&user, &state)?;
+    let session_cookie = create_session_cookie(&user, &state)?;
+    let refresh_cookie = issue_refresh_token(&state, &user, &client_ip, &user_agent).await;
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
+
+    let user: UserDto = user.into();
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -656,7 +666,9 @@ async fn resend_verification_email(
 #[instrument(err(Debug), skip(state, payload))]
 async fn verify_email_token(
     State(state): State<Arc<ComhairleState>>,
-    cookies: CookieJar,
+    Extension(client_ip): Extension<ClientIp>,
+    Extension(user_agent): Extension<ClientUserAgent>,
+    jar: CookieJar,
     Json(payload): Json<VerifyEmailTokenRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
@@ -676,26 +688,16 @@ async fn verify_email_token(
 
     let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
 
-    let claims = SessionClaims {
-        username: updated_user.username.clone(),
-        sudo_user: None,
-        email_verified: updated_user.email_verified,
-        roles: Vec::new(),
-    };
-    let session_token = generate_jwt()
-        .user(&updated_user.clone())
-        .secret(&state.config.jwt_secret)
-        .custom_claims(claims)
-        .call()?;
-    let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::days(7));
+    let session_cookie = create_session_cookie(&updated_user, &state)?;
+    let refresh_cookie = issue_refresh_token(&state, &updated_user, &client_ip, &user_agent).await;
+
+    let mut jar = jar.add(session_cookie);
+    if let Some(refresh_cookie) = refresh_cookie {
+        jar = jar.add(refresh_cookie);
+    }
 
     let user: UserDto = updated_user.into();
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
+    Ok((jar, (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -1113,12 +1115,12 @@ fn build_refresh_token_cookie<'a>(
         .path("/") // TODO: can this be more tightly scoped
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::Lax)
         .max_age(Duration::days(7))
         .build())
 }
 
-async fn issue_refresh_token<'a>(
+pub async fn issue_refresh_token<'a>(
     state: &Arc<ComhairleState>,
     user: &User,
     ip_addr: &ClientIp,
@@ -1334,6 +1336,7 @@ mod tests {
     use crate::models::model_test_helpers::setup_default_app_and_session;
     use crate::models::otp;
     use crate::models::users::{self, UpdateUserRequest, User, UserAuthType, get_user_by_email};
+    use crate::pii::Pii;
     use crate::routes::auth::{EmailLinkClaims, SessionClaims, generate_jwt};
     use crate::routes::user::dto::UserDto;
     use crate::setup_server;
@@ -1558,7 +1561,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             guest_code: None,
             auth_type: UserAuthType::EmailPassword,
@@ -1611,7 +1614,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             guest_code: None,
             auth_type: UserAuthType::Guest,
@@ -1668,7 +1671,7 @@ mod tests {
         let user = User {
             id: user.id,
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
@@ -1988,7 +1991,7 @@ mod tests {
         let user = User {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             username: Some(username.to_string()),
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
@@ -2016,7 +2019,8 @@ mod tests {
         let (login_status, _, _) = session.login(&app, email, updated_password).await?;
 
         let user = get_user_by_email(email, db).await?;
-        let hashed_user_password = PasswordHash::new(user.password.as_ref().unwrap()).unwrap();
+        let hashed_user_password =
+            PasswordHash::new(user.password.as_ref().unwrap().expose()).unwrap();
 
         assert_eq!(
             reset_status,
@@ -2056,7 +2060,7 @@ mod tests {
             id: Uuid::parse_str(id).unwrap(),
             email: Some(email.to_string()),
             username: Some(username.to_string()),
-            password: Some(password.to_string()),
+            password: Some(Pii::new(password.to_string())),
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
             guest_code: None,
@@ -2565,7 +2569,7 @@ mod tests {
         assert_eq!(token_cookie.path().unwrap(), "/", "incorrect path");
         assert_eq!(
             token_cookie.same_site(),
-            Some(SameSite::Strict),
+            Some(SameSite::Lax),
             "incorrect same_site"
         );
         assert!(token_cookie.http_only().unwrap(), "incorrect http_only");

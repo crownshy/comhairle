@@ -4,7 +4,9 @@
 	import { shareable_conversation_url } from '$lib/urls';
 	import { copyToClipboard } from '$lib/utils/copyToClipboard.svelte';
 	import { type ConversationDto } from '@crownshy/api-client/api';
-	import { ArrowUpRight, Check, Copy } from 'lucide-svelte';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Check from '@lucide/svelte/icons/check';
+	import Copy from '@lucide/svelte/icons/copy';
 
 	interface Props {
 		conversationId: ConversationDto['id'];

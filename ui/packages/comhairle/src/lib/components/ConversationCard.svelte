@@ -3,191 +3,141 @@
 </script>
 
 <script lang="ts">
-	import type { ConversationDto, LocalizedConversationDto } from '@crownshy/api-client/api';
-	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import {
-		conversationStatus,
-		CONVERSATION_STATUS_BADGE_VARIANTS,
-		CONVERSATION_STATUS_LABELS
-	} from '$lib/utils/conversationStatus';
-	import { ArrowRight, MessageCircle, MessageSquareText } from 'lucide-svelte';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { Snippet } from 'svelte';
+	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
+	import { ChevronRight, MessageSquareText } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
+	import { resolve } from '$app/paths';
+	import Conversation from '$lib/interfaces/Conversation';
 
 	type Props = {
-		conversation: ConversationDto | LocalizedConversationDto;
-		variant?: 'admin' | 'public';
-		organizationName?: string;
-		isShared?: boolean;
+		conversation: LocalizedConversationDto;
+		for: 'admin' | 'public';
 		layout?: ConversationCardLayout;
+		// Small facts under the description, e.g. "Shared", or later "Closes in 5 days".
+		Meta?: Snippet;
+		Actions?: Snippet;
 	};
 
-	let {
-		conversation,
-		variant = 'admin',
-		organizationName,
-		isShared = false,
-		layout = 'card'
-	}: Props = $props();
+	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
 
-	let status = $derived(conversationStatus(conversation));
-	let openHref = $derived(conversationLandingUrl(conversation));
+	let status = $derived(Conversation.getStatus(conversation));
+	let href = $derived.by(() => {
+		if (_for === 'admin') {
+			return conversationLandingUrl(conversation);
+		}
+		if (conversation.isComplete) {
+			return resolve('/(public)/conversations/[conversation_id]/[[preview]]/report', {
+				conversation_id: conversation.slug || conversation.id
+			});
+		}
+		return resolve('/(public)/conversations/[conversation_id]', {
+			conversation_id: conversation.slug || conversation.id
+		});
+	});
+
 	// The title's link stretches over the whole card, so the card opens the conversation.
 	const CARD_CLASS =
-		'bg-card border-border group hover:border-primary/40 has-[a:focus-visible]:ring-ring relative overflow-hidden border transition duration-200 hover:-translate-y-0.5 hover:shadow-md has-[a:focus-visible]:ring-2';
+		'bg-card border-border group hover:border-primary/40 has-[a:focus-visible]:ring-ring relative border transition duration-200 hover:-translate-y-0.5 hover:shadow-md has-[a:focus-visible]:ring-2';
 	const TITLE_LINK_CLASS =
 		'group-hover:text-primary transition-colors after:absolute after:inset-0 focus-visible:outline-none';
-	const BANNER_TONE: Record<typeof status, string> = {
-		live: 'bg-primary/15 text-primary',
-		draft: 'bg-muted text-muted-foreground',
-		completed: 'bg-foreground/10 text-foreground/60'
-	};
 </script>
 
-<!-- Image snippet -->
-{#snippet image(heightClass: string)}
-	<div class="w-full min-w-0 lg:flex-1">
-		<div
-			class={cn(
-				'bg-primary/10 relative w-full overflow-hidden rounded-xl transition-all duration-300 ease-out group-hover:rounded-2xl group-hover:shadow-lg lg:rounded-3xl lg:group-hover:rounded-[2rem]',
-				heightClass
-			)}
-		>
-			{#if conversation.imageUrl}
-				<img
-					class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-					src={conversation.imageUrl}
-					alt={conversation.title}
-				/>
-			{:else}
-				<div class="bg-primary/10 absolute inset-0 flex items-center justify-center">
-					<MessageSquareText
-						class="text-primary/30 group-hover:text-primary/50 h-32 w-32 transition-all duration-300 group-hover:scale-110"
-					/>
-				</div>
-			{/if}
-		</div>
-	</div>
-{/snippet}
-
 {#if conversation}
-	<!-- Public variant -->
-	{#if variant === 'public'}
-		<div
-			class="group hover:bg-accent/50 flex w-full flex-col items-stretch gap-6 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md lg:flex-row lg:items-start lg:gap-16 lg:p-6"
-		>
-			{@render image('h-48 sm:h-64 lg:h-80')}
-
-			<!-- Text content -->
-			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
-				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-					{#if conversation.isLive}
-						<Badge variant="default" class="h-7 text-sm">Live</Badge>
-					{/if}
-
-					{#if organizationName}
-						<p
-							class="text-primary self-stretch text-sm leading-5 font-medium transition-colors duration-300"
-						>
-							{organizationName}
-						</p>
-					{/if}
-
-					<h2
-						class="text-foreground self-stretch text-2xl leading-8 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-3xl lg:leading-9"
-					>
-						{conversation.title}
-					</h2>
-
-					<p
-						class="text-muted-foreground self-stretch text-base leading-7 font-medium lg:text-lg"
-					>
-						{conversation.shortDescription}
-					</p>
-				</div>
-			</div>
-		</div>
-	{:else}
-		<!-- Admin variant -->
-		{#snippet banner(sizeClass: string)}
-			<div class={cn('relative shrink-0', sizeClass, BANNER_TONE[status])}>
+	<!-- Pages pass `href` already built with resolve(), which this rule can't see. -->
+	<!-- eslint-disable svelte/no-navigation-without-resolve -->
+	{#if layout === 'list'}
+		<article class={cn(CARD_CLASS, 'flex items-center gap-4 rounded-2xl p-3')}>
+			<div
+				class="bg-primary/10 relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-36"
+			>
 				{#if conversation.imageUrl}
 					<img
-						class="absolute inset-0 h-full w-full object-cover"
 						src={conversation.imageUrl}
-						alt=""
+						alt="Image for {conversation.title}"
+						class="absolute inset-0 size-full object-cover"
 					/>
 				{:else}
-					<div class="flex h-full items-center justify-center">
-						<MessageCircle class="size-6" />
+					<MessageSquareText class="text-primary/40 absolute inset-0 m-auto size-8" />
+				{/if}
+			</div>
+
+			<div class="flex min-w-0 grow flex-col items-start gap-1.5">
+				<ConversationStatusBadge {status} />
+				<svelte:element
+					this={_for === 'admin' ? 'h2' : 'h3'}
+					class="text-foreground line-clamp-2 text-base leading-snug font-semibold sm:text-lg"
+				>
+					<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+				</svelte:element>
+				{#if conversation.shortDescription}
+					<p class="text-muted-foreground line-clamp-1 text-sm sm:text-base">
+						{conversation.shortDescription}
+					</p>
+				{/if}
+				{#if Meta}
+					<div class="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+						{@render Meta()}
 					</div>
 				{/if}
 			</div>
-		{/snippet}
 
-		{#snippet badges()}
-			<div class="flex flex-wrap gap-2">
-				<Badge variant={CONVERSATION_STATUS_BADGE_VARIANTS[status]}>
-					{CONVERSATION_STATUS_LABELS[status]}
-				</Badge>
-				{#if isShared}
-					<Badge variant="outline">Shared</Badge>
+			{#if Actions}
+				<div class="hidden shrink-0 sm:flex">{@render Actions()}</div>
+			{/if}
+			<ChevronRight
+				class={cn('text-muted-foreground size-5 shrink-0', Actions && 'sm:hidden')}
+				aria-hidden="true"
+			/>
+		</article>
+	{:else}
+		<article
+			class={cn(
+				CARD_CLASS,
+				'grid grid-rows-[auto_auto_auto_auto_auto] gap-4 rounded-2xl p-3'
+			)}
+		>
+			<div class="bg-primary/10 relative aspect-video w-full rounded-xl">
+				{#if conversation.imageUrl}
+					<img
+						src={conversation.imageUrl}
+						alt="Image for {conversation.title}"
+						class="inset-0 h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
+					/>
+				{:else}
+					<MessageSquareText
+						class="text-primary/30 absolute inset-0 m-auto size-16 rounded-xl"
+					/>
 				{/if}
+				<ConversationStatusBadge
+					{status}
+					class="absolute top-3 left-3 border-transparent shadow-md backdrop-blur"
+				/>
 			</div>
-		{/snippet}
 
-		{#snippet openButton()}
-			<Button variant="primaryDark" class="relative z-10 rounded-full" href={openHref}>
-				Open conversation
-				<ArrowRight class="size-4" />
-			</Button>
-		{/snippet}
-
-		<!-- conversationLandingUrl builds openHref with resolve(). -->
-		<!-- eslint-disable svelte/no-navigation-without-resolve -->
-		{#if layout === 'list'}
-			<article
-				class={cn(
-					CARD_CLASS,
-					'flex flex-col-reverse gap-6 rounded-2xl p-4 lg:flex-row lg:items-stretch lg:gap-12 lg:p-6'
-				)}
+			<svelte:element
+				this={_for === 'admin' ? 'h2' : 'h3'}
+				class="text-foreground text-xl leading-7 font-semibold"
 			>
-				<div class="flex flex-1 flex-col gap-4">
-					{@render badges()}
-					<h2
-						class="text-foreground text-xl leading-7 font-semibold lg:text-2xl lg:leading-8"
-					>
-						<a href={openHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
-					</h2>
-					{#if conversation.shortDescription}
-						<p class="text-muted-foreground text-base">
-							{conversation.shortDescription}
-						</p>
-					{/if}
-					<div class="mt-auto pt-2">{@render openButton()}</div>
+				<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+			</svelte:element>
+			{#if conversation.shortDescription}
+				<p class="text-muted-foreground line-clamp-2 text-base">
+					{conversation.shortDescription}
+				</p>
+			{/if}
+			{#if Meta}
+				<div class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base">
+					{@render Meta()}
 				</div>
-				{@render banner(
-					'h-40 w-full overflow-hidden rounded-xl sm:h-56 lg:h-72 lg:w-auto lg:flex-1'
-				)}
-			</article>
-		{:else}
-			<article class={cn(CARD_CLASS, 'flex h-full flex-col rounded-xl')}>
-				{@render banner('h-22')}
-				<div class="flex grow flex-col gap-3 p-5">
-					{@render badges()}
-					<h2 class="text-foreground text-lg leading-snug font-semibold">
-						<a href={openHref} class={TITLE_LINK_CLASS}>{conversation.title}</a>
-					</h2>
-					{#if conversation.shortDescription}
-						<p class="text-muted-foreground line-clamp-2 text-base">
-							{conversation.shortDescription}
-						</p>
-					{/if}
-					<div class="mt-auto pt-2">{@render openButton()}</div>
+			{/if}
+			{#if Actions}
+				<div class="mt-auto flex flex-wrap items-center gap-3 pt-2">
+					{@render Actions()}
 				</div>
-			</article>
-		{/if}
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+		</article>
 	{/if}
 {/if}

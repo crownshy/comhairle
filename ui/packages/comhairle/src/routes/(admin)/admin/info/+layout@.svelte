@@ -6,7 +6,12 @@
 	import * as Select from '$lib/components/ui/select';
 	import { GUIDE_NAV } from '$lib/tool_guides';
 	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { BookA, BookOpen, Blocks, ChevronDown, Folder, FolderOpen } from 'lucide-svelte';
+	import BookA from '@lucide/svelte/icons/book-a';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Blocks from '@lucide/svelte/icons/blocks';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Folder from '@lucide/svelte/icons/folder';
+	import FolderOpen from '@lucide/svelte/icons/folder-open';
 	import Logo from '$lib/components/Logo.svelte';
 	import { toolIcon } from '$lib/components/AdminGuide/toolIcons';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';

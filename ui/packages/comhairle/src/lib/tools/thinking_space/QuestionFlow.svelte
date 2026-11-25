@@ -3,20 +3,21 @@
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import {
-		CornerDownRight,
-		Shuffle,
-		Check,
-		RotateCcw,
-		ChevronLeft,
-		ChevronRight
-	} from 'lucide-svelte';
+	import CornerDownRight from '@lucide/svelte/icons/corner-down-right';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
+	import Check from '@lucide/svelte/icons/check';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { cn } from '$lib/utils';
+	import { focusOnScreenChange } from '$lib/utils/focusOnScreenChange';
 	import { MAX_ANSWER_WORDS } from './wordLimit';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 
 	type Props = {
 		workflowStepId: string;
@@ -74,9 +75,9 @@
 	async function scrollToFocus() {
 		await tick();
 		if (flow.minReached && flow.currentState.phase !== 'answering') {
-			continueEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			continueEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
 		} else {
-			bottomEl?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+			bottomEl?.scrollIntoView({ behavior: scrollBehavior(), block: 'end' });
 		}
 	}
 
@@ -111,20 +112,6 @@
 	let inExtensionChain = $derived(
 		flow.mode === 'extension' && flow.extensionPhase === 'in-chain'
 	);
-
-	function handleRootKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			flow.submitRootAnswer();
-		}
-	}
-
-	function handleFollowUpKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			flow.submitFollowUp();
-		}
-	}
 </script>
 
 <div class="flex h-full flex-col">
@@ -153,10 +140,14 @@
 		{#if inExtensionPicker}
 			<div class="mx-auto max-w-2xl space-y-6">
 				<header>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="text-foreground text-2xl leading-snug font-semibold outline-none"
+					>
 						{m.thinking_space_explore_further()}
 					</h2>
-					<p class="text-muted-foreground mt-2 text-sm leading-relaxed">
+					<p class="text-muted-foreground mt-2 text-base leading-relaxed">
 						{m.thinking_space_add_more()}
 					</p>
 				</header>
@@ -170,7 +161,7 @@
 							class="border-border bg-card hover:border-primary hover:bg-primary/5 flex w-full items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
 						>
 							<div class="min-w-0">
-								<p class="text-foreground text-sm leading-snug font-medium">
+								<p class="text-foreground text-base leading-snug font-medium">
 									{q.text || '(unnamed question)'}
 								</p>
 								<p class="text-muted-foreground mt-1 text-xs">
@@ -182,14 +173,17 @@
 									{/if}
 								</p>
 							</div>
-							<ChevronRight class="text-muted-foreground size-4 shrink-0" />
+							<ChevronRight
+								aria-hidden="true"
+								class="text-muted-foreground size-4 shrink-0"
+							/>
 						</button>
 					{/each}
 				</div>
 
 				<div class="border-border flex justify-end border-t pt-6">
 					<Button size="lg" onclick={() => flow.finishExtension()}>
-						<Check class="size-4" />
+						<Check aria-hidden="true" class="size-4" />
 						{m.thinking_space_finish()}
 					</Button>
 				</div>
@@ -202,7 +196,10 @@
 						{m.question()}
 						{flow.currentQuestionIndex + 1}
 					</p>
-					<h2 class="text-foreground text-2xl leading-snug font-semibold">
+					<h2
+						id="thinking-space-root-question"
+						class="text-foreground text-2xl leading-snug font-semibold"
+					>
 						{flow.currentQuestion.text || '(unnamed question)'}
 					</h2>
 				</section>
@@ -211,9 +208,9 @@
 					<section class="space-y-3">
 						<Textarea
 							bind:ref={rootTextareaEl}
+							aria-labelledby="thinking-space-root-question"
 							value={flow.currentState.rootAnswer}
 							oninput={(e) => flow.updateRootAnswerDraft(e.currentTarget.value)}
-							onkeydown={handleRootKeydown}
 							placeholder={m.thinking_space_write_thoughts()}
 							rows={4}
 							class="text-base"
@@ -237,7 +234,7 @@
 						<p class="text-primary mb-1 text-xs font-semibold tracking-wide uppercase">
 							{m.thinking_space_you_answered()}
 						</p>
-						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+						<p class="text-foreground text-base leading-relaxed whitespace-pre-wrap">
 							{flow.currentState.rootAnswer}
 						</p>
 					</section>
@@ -249,7 +246,7 @@
 						<p
 							class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 						>
-							<CornerDownRight class="size-3.5" />
+							<CornerDownRight aria-hidden="true" class="size-3.5" />
 							{m.follow_up()}
 							{followUpIndex + 1}
 						</p>
@@ -257,7 +254,9 @@
 							{followUp.question}
 						</p>
 						<div class="border-primary/20 bg-primary/5 rounded-lg border p-3">
-							<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+							<p
+								class="text-foreground text-base leading-relaxed whitespace-pre-wrap"
+							>
 								{followUp.answer}
 							</p>
 						</div>
@@ -269,7 +268,12 @@
 			     participant opts in. Initial mode only — extension mode has a
 			     single "Done with this question" exit instead. -->
 				{#if !inExtensionChain && flow.minReached && flow.currentState.phase !== 'answering' && flow.followUpCount > 0 && !flow.currentState.wantsMore}
-					<section bind:this={continueEl} class="border-border border-t pt-8">
+					<section
+						bind:this={continueEl}
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="border-border border-t pt-8 outline-none"
+					>
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-start">
 							<div class="flex flex-1 flex-col items-stretch gap-2">
 								<Button
@@ -281,7 +285,7 @@
 									{m.thinking_space_continue()}
 								</Button>
 								<p
-									class="text-muted-foreground text-center text-xs leading-relaxed"
+									class="text-muted-foreground text-center text-base leading-relaxed"
 								>
 									{m.thinking_space_keep_going()}
 								</p>
@@ -292,11 +296,11 @@
 									class="h-12 w-full text-base"
 									onclick={() => flow.continueNow()}
 								>
-									<Check class="size-4" />
+									<Check aria-hidden="true" class="size-4" />
 									{flow.isLastQuestion ? m.finish() : m.move_on()}
 								</Button>
 								<p
-									class="text-muted-foreground text-center text-xs leading-relaxed"
+									class="text-muted-foreground text-center text-base leading-relaxed"
 								>
 									{flow.isLastQuestion
 										? m.thinking_space_happy_finish()
@@ -310,13 +314,18 @@
 				<!-- Continue alone — when there are no optional follow-ups to offer.
 			     Initial mode only. -->
 				{#if !inExtensionChain && flow.minReached && flow.currentState.phase !== 'answering' && flow.followUpCount === 0}
-					<section bind:this={continueEl} class="border-border border-t pt-8">
+					<section
+						bind:this={continueEl}
+						tabindex="-1"
+						{@attach focusOnScreenChange}
+						class="border-border border-t pt-8 outline-none"
+					>
 						<Button
 							size="lg"
 							class="h-12 w-full text-base"
 							onclick={() => flow.continueNow()}
 						>
-							<Check class="size-4" />
+							<Check aria-hidden="true" class="size-4" />
 							{flow.isLastQuestion ? m.finish() : m.move_on()}
 						</Button>
 					</section>
@@ -336,7 +345,7 @@
 									size="sm"
 									onclick={() => flow.doneWithRoot()}
 								>
-									<Check class="size-3.5" />
+									<Check aria-hidden="true" class="size-3.5" />
 									{m.thinking_space_question_done()}
 								</Button>
 							</div>
@@ -346,16 +355,18 @@
 					<!-- Picker: failed to load -->
 					{#if flow.currentState.pickerError && !flow.currentState.pickerLoading}
 						<section class="border-border space-y-3 border-t pt-6">
-							<p class="text-muted-foreground text-sm">
-								Couldn't load follow-up questions.
-							</p>
+							<LiveRegion kind="alert">
+								<p class="text-muted-foreground text-base">
+									{m.thinking_space_follow_ups_load_failure()}
+								</p>
+							</LiveRegion>
 							<div class="flex flex-wrap gap-2">
 								<Button
 									variant="outline"
 									size="sm"
 									onclick={() => flow.retryPicker()}
 								>
-									<RotateCcw class="size-3.5" />
+									<RotateCcw aria-hidden="true" class="size-3.5" />
 									{m.try_again()}
 								</Button>
 								{#if inExtensionChain}
@@ -376,7 +387,11 @@
 						<section class="border-border space-y-3 border-t pt-6">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<p class="text-foreground text-sm font-semibold">
+									<p
+										tabindex="-1"
+										{@attach focusOnScreenChange}
+										class="text-foreground text-base font-semibold outline-none"
+									>
 										{inExtensionChain
 											? m.thinking_space_pick_deeper()
 											: flow.minReached
@@ -384,7 +399,7 @@
 												: m.thinking_space_pick_follow_up()}
 									</p>
 									{#if inExtensionChain}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{m.or()}
 											<button
 												type="button"
@@ -396,14 +411,14 @@
 											.
 										</p>
 									{:else if !flow.minReached}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{flow.followUpsRemaining}
 											{flow.followUpsRemaining === 1
 												? m.thinking_space_follow_to_go()
 												: m.thinking_space_follows_to_go()}
 										</p>
 									{:else}
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground text-base">
 											{m.or()}
 											<button
 												type="button"
@@ -422,7 +437,7 @@
 									class="shrink-0"
 									onclick={() => flow.pickRandom()}
 								>
-									<Shuffle class="size-3.5" />
+									<Shuffle aria-hidden="true" class="size-3.5" />
 									{m.thinking_space_pick_for_me()}
 								</Button>
 							</div>
@@ -431,7 +446,7 @@
 									<button
 										type="button"
 										onclick={() => flow.pickFollowUp(followUpQuestion)}
-										class="border-primary/20 bg-primary/5 hover:border-primary hover:bg-primary/10 w-full rounded-lg border px-4 py-3 text-left text-sm leading-relaxed transition-colors"
+										class="border-primary/20 bg-primary/5 hover:border-primary hover:bg-primary/10 w-full rounded-lg border px-4 py-3 text-left text-base leading-relaxed transition-colors"
 									>
 										{followUpQuestion}
 									</button>
@@ -444,7 +459,7 @@
 										size="sm"
 										onclick={() => flow.doneWithRoot()}
 									>
-										<Check class="size-3.5" />
+										<Check aria-hidden="true" class="size-3.5" />
 										{m.thinking_space_question_done()}
 									</Button>
 								</div>
@@ -460,7 +475,7 @@
 							<p
 								class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 							>
-								<CornerDownRight class="size-3.5" />
+								<CornerDownRight aria-hidden="true" class="size-3.5" />
 								{m.follow_up()}
 								{flow.followUpsDone + 1}
 							</p>
@@ -470,18 +485,21 @@
 								class="text-muted-foreground -my-1"
 								onclick={() => flow.backToPicker()}
 							>
-								<ChevronLeft class="size-3.5" />
+								<ChevronLeft aria-hidden="true" class="size-3.5" />
 								{m.thinking_space_pick_different()}
 							</Button>
 						</div>
-						<p class="text-foreground text-lg leading-snug italic">
+						<p
+							id="thinking-space-follow-up-pick"
+							class="text-foreground text-lg leading-snug italic"
+						>
 							{flow.currentState.currentPick}
 						</p>
 						<Textarea
 							bind:ref={followUpTextareaEl}
+							aria-labelledby="thinking-space-follow-up-pick"
 							value={flow.currentState.currentPickAnswer}
 							oninput={(e) => flow.updateFollowUpDraft(e.currentTarget.value)}
-							onkeydown={handleFollowUpKeydown}
 							placeholder={m.thinking_space_write_thoughts()}
 							rows={4}
 							class="text-base"

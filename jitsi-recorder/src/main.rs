@@ -15,10 +15,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::os::unix::process::ExitStatusExt;
 use std::sync::Arc;
+use tokio::io::AsyncBufReadExt;
 use tokio::sync::RwLock;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 use uuid::Uuid;
+
+mod xmpp_admin;
 
 // ============================================================================
 // Data Structures
@@ -85,6 +88,37 @@ struct StartRecordingRequest {
     /// Optional JWT token for Jitsi authentication. If not provided, uses anonymous auth.
     #[serde(default)]
     jwt_token: Option<String>,
+    /// Password-authenticated XMPP login, used instead of jwt_token for breakout-room
+    /// joins (mod_muc_breakout_rooms.lua rejects anonymous/JWT sessions that didn't
+    /// already join the main room first; the recorder's admin-listed recorder@hidden
+    /// account is exempt from that check). xmpp_username/xmpp_password/focus_jid must
+    /// all be set together, and take priority over jwt_token when present.
+    #[serde(default)]
+    xmpp_username: Option<String>,
+    #[serde(default)]
+    xmpp_password: Option<String>,
+    /// Overrides gst-meet's default focus-jid (focus@auth.<xmpp-domain>), which would
+    /// otherwise wrongly resolve against the recorder account's own auth domain
+    /// (hidden.meet.jitsi) instead of the real focus component (auth.meet.jitsi).
+    #[serde(default)]
+    focus_jid: Option<String>,
+    /// The recorder account's own auth domain (e.g. "hidden.meet.jitsi"), used as
+    /// gst-meet's --xmpp-domain instead of the deployment's default "meet.jitsi"
+    /// when xmpp_username/xmpp_password are set - that account isn't registered on
+    /// "meet.jitsi" (which is token-auth only anyway), so SASL PLAIN there fails.
+    #[serde(default)]
+    xmpp_auth_domain: Option<String>,
+    /// Full JID of the breakout room's main room (e.g. "abc123@muc.meet.jitsi").
+    /// Required alongside xmpp_username/xmpp_password: before joining, the
+    /// recorder grants itself "member" affiliation on this room, since
+    /// mod_muc_breakout_rooms.lua proxies a breakout room's affiliation lookups
+    /// straight to the main room's affiliation table, and jicofo won't send a
+    /// Jingle invite to an occupant with affiliation "none" - being a Prosody
+    /// admin is only enough to get past the join check, not to get real media
+    /// (confirmed live: without this, the join succeeds but recording captures
+    /// no audio because jicofo never invites the bot into the Jingle session).
+    #[serde(default)]
+    main_room_jid: Option<String>,
 }
 
 fn default_nickname() -> String {
@@ -299,7 +333,7 @@ async fn list_all_sessions(mut con: redis::aio::MultiplexedConnection) -> Result
         }
     }
 
-    sessions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    sessions.sort_by_key(|s| std::cmp::Reverse(s.started_at));
     Ok(sessions)
 }
 
@@ -424,6 +458,16 @@ async fn send_webhook(
 // Recording Management
 // ============================================================================
 
+/// Password-authenticated XMPP login for gst-meet, used instead of a JWT for
+/// breakout-room joins - see `StartRecordingRequest::xmpp_username` for why.
+struct XmppPasswordAuth<'a> {
+    username: &'a str,
+    password: &'a str,
+    focus_jid: &'a str,
+    /// Overrides --xmpp-domain (see `StartRecordingRequest::xmpp_auth_domain`).
+    auth_domain: &'a str,
+}
+
 async fn start_gst_meet_process(
     config: &Config,
     room_name: &str,
@@ -431,6 +475,7 @@ async fn start_gst_meet_process(
     nickname: &str,
     output_file: &str,
     jwt_token: Option<&str>,
+    password_auth: Option<XmppPasswordAuth<'_>>,
 ) -> Result<tokio::process::Child> {
     // Opus in an Ogg container, not WAV - comhairle-api's transcription
     // pipeline already maps AudioFormat::Ogg to AWS Transcribe's OGG_OPUS
@@ -439,7 +484,7 @@ async fn start_gst_meet_process(
     // clear for speech and ~20-40x smaller than the raw PCM wavenc produced -
     // what was filling the pod's ephemeral-storage limit and bloating S3.
     let recv_pipeline = format!(
-        "audiomixer name=audio ! audioconvert ! audioresample ! opusenc bitrate=32000 audio-type=voip ! oggmux ! filesink location={}",
+        "audiomixer name=audio ! audioconvert ! audioresample ! opusenc bitrate=32000 audio-type=voice ! oggmux ! filesink location={}",
         output_file
     );
 
@@ -450,7 +495,12 @@ async fn start_gst_meet_process(
     cmd.arg("--web-socket-url")
         .arg(&config.jitsi_websocket_url)
         .arg("--xmpp-domain")
-        .arg(&config.xmpp_domain)
+        .arg(
+            password_auth
+                .as_ref()
+                .map(|auth| auth.auth_domain)
+                .unwrap_or(&config.xmpp_domain),
+        )
         .arg("--muc-domain")
         .arg(muc_domain.unwrap_or(&config.muc_domain))
         .arg("--room-name")
@@ -460,22 +510,48 @@ async fn start_gst_meet_process(
         .arg("--recv-pipeline")
         .arg(&recv_pipeline);
 
-    if let Some(token) = jwt_token {
+    if let Some(auth) = password_auth {
+        cmd.arg("--xmpp-username")
+            .arg(auth.username)
+            .arg("--xmpp-password")
+            .arg(auth.password)
+            .arg("--focus-jid")
+            .arg(auth.focus_jid);
+    } else if let Some(token) = jwt_token {
         cmd.arg("--xmpp-jwt").arg(token);
     }
 
-    // stdout/stderr are never read anywhere in this process. With Stdio::piped()
-    // (and --verbose, now dropped) gst-meet fills the kernel pipe buffer and
-    // blocks on its next write - freezing the whole process, XMPP pings
-    // included, until the server kicks it for inactivity ~60-70s later. This
-    // was silently killing every recording a short way in.
-    let child = cmd
+    // stdout is never read anywhere in this process. With Stdio::piped() (and
+    // --verbose, now dropped) gst-meet fills the kernel pipe buffer and blocks
+    // on its next write - freezing the whole process, XMPP pings included,
+    // until the server kicks it for inactivity ~60-70s later. This was
+    // silently killing every recording a short way in. stderr is low-volume
+    // (errors only) and is drained continuously below, so piping it doesn't
+    // reintroduce that deadlock.
+    let mut child = cmd
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .context("Failed to spawn gst-meet process")?;
 
     info!("gst-meet process started with PID: {:?}", child.id());
+
+    if let Some(stderr) = child.stderr.take() {
+        let room_name = room_name.to_string();
+        tokio::spawn(async move {
+            let mut lines = tokio::io::BufReader::new(stderr).lines();
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => warn!("gst-meet[{}]: {}", room_name, line),
+                    Ok(None) => break,
+                    Err(e) => {
+                        error!("gst-meet[{}]: error reading stderr: {}", room_name, e);
+                        break;
+                    }
+                }
+            }
+        });
+    }
 
     Ok(child)
 }
@@ -627,6 +703,16 @@ async fn monitor_recording_process(
 // API Handlers
 // ============================================================================
 
+/// Where a recording's output goes once gst-meet exits - bundled into one
+/// param (rather than 4 separate ones) to keep `start_recording_for_room`
+/// under clippy's too-many-arguments limit.
+struct RecordingDestination {
+    s3_bucket: Option<String>,
+    s3_path: Option<String>,
+    webhook_url: String,
+    webhook_secret: Option<String>,
+}
+
 /// Shared recording-start logic used by both the manual `/recordings` API and the
 /// Prosody `room/created` webhook.
 async fn start_recording_for_room(
@@ -635,10 +721,8 @@ async fn start_recording_for_room(
     muc_domain: Option<String>,
     nickname: String,
     jwt_token: Option<String>,
-    s3_bucket: Option<String>,
-    s3_path: Option<String>,
-    webhook_url: String,
-    webhook_secret: Option<String>,
+    password_auth: Option<(String, String, String, String, String)>,
+    destination: RecordingDestination,
 ) -> Result<RecordingSession> {
     let session_id = Uuid::new_v4();
 
@@ -654,8 +738,14 @@ async fn start_recording_for_room(
     // comhairle-api's trigger_recording doesn't set these - this bucket/path is
     // just this recorder's own scratch space, re-uploaded elsewhere via the
     // completion webhook's presigned download_url, not the final destination.
-    let s3_bucket = s3_bucket.unwrap_or_else(|| state.config.default_s3_bucket.clone());
-    let s3_path = s3_path.unwrap_or_else(|| format!("recordings/{}/{}.ogg", room_name, timestamp));
+    let s3_bucket = destination
+        .s3_bucket
+        .unwrap_or_else(|| state.config.default_s3_bucket.clone());
+    let s3_path = destination
+        .s3_path
+        .unwrap_or_else(|| format!("recordings/{}/{}.ogg", room_name, timestamp));
+    let webhook_url = destination.webhook_url;
+    let webhook_secret = destination.webhook_secret;
 
     let session = RecordingSession {
         session_id,
@@ -678,6 +768,20 @@ async fn start_recording_for_room(
         .await
         .context("Failed to save session")?;
 
+    if let Some((username, password, _, auth_domain, main_room_jid)) = &password_auth {
+        xmpp_admin::grant_muc_affiliation(
+            &state.config.jitsi_websocket_url,
+            auth_domain,
+            username,
+            password,
+            main_room_jid,
+            &format!("{username}@{auth_domain}"),
+            "member",
+        )
+        .await
+        .context("Failed to grant breakout recorder MUC affiliation")?;
+    }
+
     let child = start_gst_meet_process(
         &state.config,
         &room_name,
@@ -685,6 +789,14 @@ async fn start_recording_for_room(
         &nickname,
         &local_file_path,
         jwt_token.as_deref(),
+        password_auth
+            .as_ref()
+            .map(|(username, password, focus_jid, auth_domain, _)| XmppPasswordAuth {
+                username,
+                password,
+                focus_jid,
+                auth_domain,
+            }),
     )
     .await
     .context("Failed to start recording")?;
@@ -708,16 +820,36 @@ async fn start_recording(
     State(state): State<AppState>,
     Json(req): Json<StartRecordingRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let password_auth = match (
+        req.xmpp_username,
+        req.xmpp_password,
+        req.focus_jid,
+        req.xmpp_auth_domain,
+        req.main_room_jid,
+    ) {
+        (Some(u), Some(p), Some(f), Some(d), Some(m)) => Some((u, p, f, d, m)),
+        (None, None, None, None, None) => None,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                "xmpp_username, xmpp_password, focus_jid, xmpp_auth_domain and main_room_jid must all be set together".to_string(),
+            ));
+        }
+    };
+
     let session = start_recording_for_room(
         &state,
         req.room_name,
         req.muc_domain,
         req.nickname,
         req.jwt_token,
-        req.s3_bucket,
-        req.s3_path,
-        req.webhook_url,
-        req.webhook_secret,
+        password_auth,
+        RecordingDestination {
+            s3_bucket: req.s3_bucket,
+            s3_path: req.s3_path,
+            webhook_url: req.webhook_url,
+            webhook_secret: req.webhook_secret,
+        },
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -794,10 +926,13 @@ async fn room_created_webhook(
         None,
         nickname,
         jwt_token,
-        Some(state.config.default_s3_bucket.clone()),
-        Some(s3_path),
-        state.config.default_webhook_url.clone(),
         None,
+        RecordingDestination {
+            s3_bucket: Some(state.config.default_s3_bucket.clone()),
+            s3_path: Some(s3_path),
+            webhook_url: state.config.default_webhook_url.clone(),
+            webhook_secret: None,
+        },
     )
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;

@@ -51,7 +51,9 @@
 			</BreadcrumbItem>
 			<BreadcrumbSeparator />
 			<BreadcrumbItem>
-				<BreadcrumbPage>How is Scotland doing on the things that matter most?</BreadcrumbPage>
+				<BreadcrumbPage
+					>How is Scotland doing on the things that matter most?</BreadcrumbPage
+				>
 			</BreadcrumbItem>
 		</BreadcrumbList>
 	</Breadcrumb>

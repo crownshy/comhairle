@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
-	import { TriangleAlert } from 'lucide-svelte';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 
 	type Props = { title: string; consequences: string[] };
 	let { title, consequences }: Props = $props();

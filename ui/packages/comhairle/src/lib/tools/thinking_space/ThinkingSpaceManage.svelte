@@ -8,7 +8,11 @@
 		CardTitle,
 		CardDescription
 	} from '$lib/components/ui/card';
-	import { Plus, Trash2, GripVertical, Pencil, Minus } from 'lucide-svelte';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Minus from '@lucide/svelte/icons/minus';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import DraggableList from '$lib/components/DraggableList.svelte';
@@ -167,7 +171,8 @@
 			const payloadWithNewlyCreatedTranslations =
 				await traverseTranslatableJsonAndCreateTranslations(
 					payload,
-					conversation.primaryLocale
+					conversation.primaryLocale,
+					{ type: 'conversation', id: conversation.id }
 				);
 			const resolvedToolConfig = resolveTranslatableJsonToTextContentIds(
 				payloadWithNewlyCreatedTranslations

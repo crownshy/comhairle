@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { SquarePen, Trash2, X } from 'lucide-svelte';
+	import SquarePen from '@lucide/svelte/icons/square-pen';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import X from '@lucide/svelte/icons/x';
 	import DeleteDialog from './DeleteDialog.svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
-	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { MediaDto } from '@crownshy/api-client/api';
@@ -17,16 +17,22 @@
 	import TabContent from '$lib/components/TabContent.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { mediaLibraryTour } from './tour';
+	import { invalidate } from '$app/navigation';
+	import { key } from '$lib/utils/invalidationKey';
+	import { Form, type OnSubmit } from '$lib/components/EasyForm';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { notifications } from '$lib/notifications.svelte';
 
 	useTour(() => mediaLibraryTour);
 
 	const { data } = $props();
 
-	let deleteForm: HTMLFormElement | undefined;
 	let bulkEdit = $state<boolean>(false);
-	let selected = $state([]);
-	let details = $state<MediaDto | null>(null);
+	let selected = $state.raw([]);
+	let details = $state.raw<MediaDto | null>(null);
 	let filter = $state<HTMLMediaElement | null>(null);
+	let detailsDialogOpen = $state<boolean>(false);
 
 	let items = $derived.by(() => {
 		if (!data.media) {
@@ -37,6 +43,27 @@
 		}
 		return data.media.filter((m) => htmlFromMediaType(m.contentType) === filter);
 	});
+
+	const deleteMedia: OnSubmit = async (formData) => {
+		const media = formData.getAll('media') as string[];
+
+		const results = await tryCatchAsync(async () => {
+			for (const id of media) {
+				await apiClient.DeleteMedia(undefined, { params: { media_id: id } });
+			}
+		});
+
+		if (results.err !== null) {
+			notifications.addFlash({
+				message: 'Failed to delete some media, please try again',
+				priority: 'ERROR'
+			});
+		}
+
+		bulkEdit = false;
+		selected = [];
+		await invalidate(key('admin/media-library/media'));
+	};
 </script>
 
 <svelte:head>
@@ -59,9 +86,9 @@
 				filter = type;
 			}}
 		/>
-		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
-			>{capitalise(type)}</Badge
-		>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs">
+			{capitalise(type)}
+		</Badge>
 	</label>
 {/snippet}
 <SectionHeader
@@ -74,18 +101,25 @@
 	{#snippet actions()}
 		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
-				<MediaUpload />
-				<Button variant="outline" onclick={() => (bulkEdit = true)}>
-					<SquarePen class="h-4 w-4" />{m.edit()}
+				<MediaUpload oncomplete={() => void invalidate(key('admin/media-library/media'))} />
+				<Button variant="outline" onclick={() => (bulkEdit = true)} icon={SquarePen}>
+					{m.edit()}
 				</Button>
 			{:else}
-				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
-					<Button variant="destructive" disabled={selected.length === 0}>
-						<Trash2 class="h-4 w-4" />{m.delete()}
+				<DeleteDialog count={selected.length}>
+					<Button variant="destructive" disabled={selected.length === 0} icon={Trash2}>
+						{m.delete()}
 					</Button>
 				</DeleteDialog>
-				<Button variant="outline" onclick={() => (bulkEdit = false)}>
-					<X class="h-4 w-4" />{m.cancel()}
+				<Button
+					variant="outline"
+					onclick={() => {
+						bulkEdit = false;
+						selected = [];
+					}}
+					icon={X}
+				>
+					{m.cancel()}
 				</Button>
 			{/if}
 		</div>
@@ -100,39 +134,27 @@
 	</div>
 	<div class="mt-5">
 		<Dialog.Root
+			bind:open={detailsDialogOpen}
 			onOpenChange={(open) => {
 				if (!open) {
 					details = null;
 				}
 			}}
 		>
-			<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-				<MediaLibrary data={items}>
-					{#snippet media(type, media)}
-						{#if bulkEdit}
-							<label>
-								<input
-									type="checkbox"
-									name="media"
-									value={media.id.toString()}
-									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-									bind:group={selected}
-								/>
-								<span class="block w-full">
-									<MediaItem {type} {...media} />
-								</span>
-							</label>
-						{:else}
-							<Dialog.Trigger
-								class="block aspect-video h-full w-full"
-								onclick={() => (details = media)}
-							>
-								<MediaItem {type} {...media} alt="" />
-							</Dialog.Trigger>
-						{/if}
-					{/snippet}
-				</MediaLibrary>
-			</form>
+			{#if bulkEdit}
+				<Form id="bulk-delete-media" onsubmit={deleteMedia}>
+					<MediaLibrary media={items} mode="multi-select" bind:selected />
+				</Form>
+			{:else}
+				<MediaLibrary
+					media={items}
+					mode="view"
+					onDetailsOpen={(media) => {
+						details = media;
+						detailsDialogOpen = true;
+					}}
+				/>
+			{/if}
 			{#if details !== null}
 				<DetailsDialog
 					{...details}
@@ -143,9 +165,3 @@
 		</Dialog.Root>
 	</div>
 </TabContent>
-
-<style>
-	input:checked + * {
-		filter: opacity(50%);
-	}
-</style>

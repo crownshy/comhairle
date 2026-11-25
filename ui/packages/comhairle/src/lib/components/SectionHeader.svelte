@@ -16,7 +16,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { ArrowLeft, ArrowUpRight, BookOpen } from 'lucide-svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import { cn } from '$lib/utils';
 	import { helpStore } from '$lib/help/helpStore.svelte';
 

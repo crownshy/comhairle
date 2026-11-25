@@ -58,6 +58,8 @@ impl ToolImpl for StoriesTool {
     async fn setup(
         setup: &Self::Setup,
         _state: &Arc<ComhairleState>,
+        _db: &mut sqlx::PgConnection,
+        _scope: crate::models::translations::TranslationScope,
         _locale: &str,
     ) -> Result<Self::Config, ComhairleError> {
         stories_setup(setup).await

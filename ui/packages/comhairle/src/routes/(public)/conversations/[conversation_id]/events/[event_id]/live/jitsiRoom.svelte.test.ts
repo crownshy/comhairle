@@ -62,6 +62,48 @@ describe('JitsiRoom', () => {
 		expect(sent).toEqual([]);
 	});
 
+	it('reports the jid of the nth breakout room, skipping the main room', () => {
+		const room = new JitsiRoom();
+		room.setRooms(breakouts);
+
+		expect(room.jidForIndex(0)).toBe('one@breakout');
+		expect(room.jidForIndex(1)).toBe('two@breakout');
+		expect(room.jidForIndex(2)).toBeNull();
+	});
+
+	it('does not report a jid for a room from a session that has ended', () => {
+		const room = new JitsiRoom();
+		room.setRooms(breakouts);
+		room.reset();
+		room.setRooms(breakouts);
+
+		expect(room.jidForIndex(0)).toBeNull();
+	});
+
+	it('waits for the next iframe to report rooms after detaching, then rejoins them', () => {
+		const first = fakeApi();
+		const second = fakeApi();
+		const room = new JitsiRoom();
+		room.attach(first.api);
+		room.setRooms(breakouts);
+		room.syncReady(2);
+
+		room.detach();
+		expect(room.ready).toBe(false);
+		expect(room.connected).toBe(false);
+
+		room.attach(second.api);
+		room.syncReady(2);
+		expect(room.ready).toBe(false);
+
+		room.setRooms(breakouts);
+		room.syncReady(2);
+		expect(room.ready).toBe(true);
+		expect(room.joinBreakout(1)).toBe(true);
+		expect(first.sent).toEqual([]);
+		expect(second.sent).toEqual([['joinBreakoutRoom', 'two@breakout']]);
+	});
+
 	it('returns to the main room by joining no room at all', () => {
 		const { api, sent } = fakeApi();
 		const room = new JitsiRoom();

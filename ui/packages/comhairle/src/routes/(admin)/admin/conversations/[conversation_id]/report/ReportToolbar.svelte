@@ -1,18 +1,18 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import type { ComponentType } from 'svelte';
-	import type { Icon as LucideIcon } from 'lucide-svelte';
-	import ImageIcon from 'lucide-svelte/icons/image';
-	import Video from 'lucide-svelte/icons/video';
-	import Music from 'lucide-svelte/icons/music';
-	import TableIcon from 'lucide-svelte/icons/table';
-	import LinkIcon from 'lucide-svelte/icons/link';
-	import Unlink from 'lucide-svelte/icons/unlink';
-	import ChartNoAxesColumn from 'lucide-svelte/icons/chart-no-axes-column';
+	import type { Component } from 'svelte';
+	import type { IconProps } from '@lucide/svelte';
+	import ImageIcon from '@lucide/svelte/icons/image';
+	import Video from '@lucide/svelte/icons/video';
+	import Music from '@lucide/svelte/icons/music';
+	import TableIcon from '@lucide/svelte/icons/table';
+	import LinkIcon from '@lucide/svelte/icons/link';
+	import Unlink from '@lucide/svelte/icons/unlink';
+	import ChartNoAxesColumn from '@lucide/svelte/icons/chart-no-axes-column';
 	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import TableControlsPopover from '$lib/components/RichTextEditor/TableControlsPopover.svelte';
 	import { insertDefaultTable } from '$lib/components/RichTextEditor/tableActions';
-	import { isVideoFileUrl } from '$lib/utils/videoUrl';
+	import { insertVideo } from '$lib/components/RichTextEditor/insertMedia';
 	import { cn } from '$lib/utils';
 	import { trackEditorTransactions } from './editorTransactions.svelte';
 	import { HISTORY_TOOLS, PAGE_BREAK_TOOL, TEXT_TOOL_GROUPS, type Tool } from './toolbarTools';
@@ -34,14 +34,6 @@
 	const transactions = trackEditorTransactions(() => editor);
 	const inTable = $derived(transactions.isActive((current) => current.isActive('table')));
 	const inLink = $derived(transactions.isActive((current) => current.isActive('link')));
-
-	function insertVideo(from: 'library' | 'external-url', url: string) {
-		if (from === 'library' || isVideoFileUrl(url)) {
-			editor?.chain().focus().setVideo({ src: url }).run();
-		} else {
-			editor?.chain().focus().setIframe({ src: url }).run();
-		}
-	}
 </script>
 
 {#snippet divider()}
@@ -65,7 +57,7 @@
 {/snippet}
 
 <!-- The popovers wrap this in their own button, which takes its name from the hidden text. -->
-{#snippet popoverTrigger(label: string, Icon: ComponentType<LucideIcon>, active = false)}
+{#snippet popoverTrigger(label: string, Icon: Component<IconProps>, active = false)}
 	<span class={cn(BUTTON_CLASS, active && ACTIVE_CLASS)} title={label}
 		><Icon class="size-5" aria-hidden="true" /><span class="sr-only">{label}</span></span
 	>
@@ -129,14 +121,14 @@
 	<UrlInputPopover
 		type="image"
 		allowLocalSelection
-		onSubmit={({ url }) => editor?.chain().focus().setImage({ src: url }).run()}
+		onSubmit={({ url, alt }) => editor?.chain().focus().setImage({ src: url, alt }).run()}
 	>
 		{@render popoverTrigger('Image', ImageIcon)}
 	</UrlInputPopover>
 	<UrlInputPopover
 		type="video"
 		allowLocalSelection
-		onSubmit={({ from, url }) => insertVideo(from, url)}
+		onSubmit={(video) => insertVideo(editor, video)}
 	>
 		{@render popoverTrigger('Video', Video)}
 	</UrlInputPopover>

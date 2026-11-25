@@ -6,10 +6,11 @@ use chrono::{DateTime, Utc};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::ComhairleState;
+use crate::models::event::{self, EventAgendaItem, PartialEvent};
 use crate::websockets::messages::WebSocketMessage;
 use crate::websockets::{WebSocketConnection, WebSocketMessageHandler};
 
@@ -99,6 +100,9 @@ pub struct VideoCallState {
 pub struct VideoCallMessageHandler {
     /// Thread-safe map of event IDs to their video call states
     pub video_calls: RwLock<HashMap<Uuid, VideoCallState>>,
+    /// Held while a live agenda edit reads and saves the agenda, and while the step
+    /// changes, so the step can't move between an edit's check and its save.
+    agenda_step_guard: tokio::sync::Mutex<()>,
 }
 
 /// Status of a video call.
@@ -243,6 +247,29 @@ struct SetAgendaItemData {
     pub agenda_item: u32,
 }
 
+/// Data structure for a host replacing the agenda items after the current one.
+#[derive(Serialize, Deserialize)]
+struct UpdateUpcomingAgendaData {
+    pub event_id: Uuid,
+    /// Chosen by the client and echoed in the reply, so a host can tell the answer to their
+    /// own edit apart from another host's.
+    pub edit_id: String,
+    /// The agenda step the host saw while editing. If the call has moved on since, the
+    /// edit is rejected so it can't rewrite an item that has already started.
+    pub current_step: u32,
+    pub upcoming: Vec<EventAgendaItem>,
+}
+
+/// How a host's live agenda edit ended. Sent back to that host only.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum AgendaUpdateOutcome {
+    Saved,
+    StepMoved,
+    SaveFailed,
+    NotHost,
+}
+
 /// Data structure for broadcasting messages to call participants.
 #[derive(Serialize, Deserialize, Debug)]
 struct BroadcastMessageData {
@@ -302,6 +329,7 @@ impl VideoCallMessageHandler {
     pub fn new() -> Self {
         Self {
             video_calls: RwLock::new(HashMap::new()),
+            agenda_step_guard: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -392,13 +420,92 @@ impl VideoCallMessageHandler {
     ) -> Result<(), VideoCallWSError> {
         let agenda_update: SetAgendaItemData = serde_json::from_value(data.clone())?;
 
-        self.with_video_call_state_mut(event_id, |call_state| {
-            call_state.current_agenda_step = agenda_update.agenda_item
-        })?;
+        {
+            let _step_guard = self.agenda_step_guard.lock().await;
+            self.with_video_call_state_mut(event_id, |call_state| {
+                call_state.current_agenda_step = agenda_update.agenda_item
+            })?;
+        }
 
         self.broadcast_state(event_id, state).await?;
 
         Ok(())
+    }
+
+    /// Replaces the agenda items after the current step and pushes the new agenda to
+    /// everyone on the call.
+    ///
+    /// Only hosts (moderators and facilitators) can edit. Items up to and including the
+    /// current step are kept as they are in the database, so a running or finished item
+    /// (including an active breakout) can't be changed or removed. The sending host always
+    /// gets a `video_call:agenda_update_result` reply carrying their `edit_id`.
+    pub async fn update_upcoming_agenda(
+        &self,
+        event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let update: UpdateUpcomingAgendaData = serde_json::from_value(data.clone())?;
+        let user_id = connection.user.id;
+        let _step_guard = self.agenda_step_guard.lock().await;
+
+        let current_step = self
+            .with_video_call_state(event_id, |call| {
+                let is_host = call
+                    .participants
+                    .get(&user_id)
+                    .is_some_and(VideoCallParticipant::is_host);
+                is_host.then_some(call.current_agenda_step)
+            })?
+            .flatten();
+
+        let Some(current_step) = current_step else {
+            reply_to_agenda_update(
+                connection,
+                &update.edit_id,
+                AgendaUpdateOutcome::NotHost,
+                None,
+            )
+            .await;
+            return Ok(());
+        };
+
+        if current_step != update.current_step {
+            reply_to_agenda_update(
+                connection,
+                &update.edit_id,
+                AgendaUpdateOutcome::StepMoved,
+                None,
+            )
+            .await;
+            return Ok(());
+        }
+
+        let agenda =
+            match save_upcoming_agenda(state, event_id, current_step, update.upcoming).await {
+                Ok(agenda) => serde_json::to_value(&agenda)?,
+                Err(save_error) => {
+                    error!("Failed to save live agenda edit for event {event_id}: {save_error}");
+                    reply_to_agenda_update(
+                        connection,
+                        &update.edit_id,
+                        AgendaUpdateOutcome::SaveFailed,
+                        None,
+                    )
+                    .await;
+                    return Ok(());
+                }
+            };
+
+        reply_to_agenda_update(
+            connection,
+            &update.edit_id,
+            AgendaUpdateOutcome::Saved,
+            Some(agenda.clone()),
+        )
+        .await;
+        self.broadcast_agenda_update(event_id, agenda, state).await
     }
 
     /// Broadcasts a custom message to all participants in a video call.
@@ -1367,6 +1474,37 @@ impl VideoCallMessageHandler {
     }
 }
 
+/// Writes the edited agenda to the event, keeping everything up to `current_step`.
+async fn save_upcoming_agenda(
+    state: &Arc<ComhairleState>,
+    event_id: &Uuid,
+    current_step: u32,
+    upcoming: Vec<EventAgendaItem>,
+) -> Result<event::EventAgenda, crate::error::ComhairleError> {
+    let saved = event::get_by_id(&state.db, event_id).await?;
+    let agenda = saved.agenda.with_upcoming(current_step as usize, upcoming);
+    let update = PartialEvent {
+        agenda: Some(agenda),
+        ..Default::default()
+    };
+    Ok(event::update(&state.db, event_id, &update).await?.agenda)
+}
+
+/// Answers the host who sent a live agenda edit. A saved edit carries the new agenda so the
+/// host doesn't depend on the room broadcast arriving first.
+async fn reply_to_agenda_update(
+    connection: &WebSocketConnection,
+    edit_id: &str,
+    outcome: AgendaUpdateOutcome,
+    agenda: Option<serde_json::Value>,
+) {
+    let message = WebSocketMessage::Custom {
+        event: "video_call:agenda_update_result".into(),
+        data: serde_json::json!({ "edit_id": edit_id, "outcome": outcome, "agenda": agenda }),
+    };
+    let _ = connection.send_message(&message).await;
+}
+
 /// Looks up the event and starts a jitsi-recorder session for its main room.
 /// Called once, from a spawned task, the first time a real participant joins
 /// an empty main room (see `VideoCallMessageHandler::handle_video_joined`).
@@ -1387,6 +1525,7 @@ async fn trigger_main_room_recording(
         &video_meeting_id.to_string(),
         Some(&recorder_config.main_muc_domain),
         "Main room",
+        None,
     )
     .await
 }
@@ -1407,6 +1546,11 @@ async fn trigger_breakout_room_recording(
             "breakout room jid {room_jid} is not a full JID"
         ))
     })?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(crate::error::ComhairleError::NoVideoMeetingId)?;
+    let recorder_config = state.required_jitsi_recorder_config()?;
+    let main_room_jid = format!("{video_meeting_id}@{}", recorder_config.main_muc_domain);
 
     crate::jitsi_recorder::trigger_recording(
         state,
@@ -1415,6 +1559,7 @@ async fn trigger_breakout_room_recording(
         room_name,
         Some(muc_domain),
         &format!("Breakout room #{}", room_index + 1),
+        Some(&main_room_jid),
     )
     .await
 }
@@ -1536,6 +1681,10 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     }
                     "video_call:set_agenda_item" => {
                         self.set_agenda_item(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:update_upcoming_agenda" => {
+                        self.update_upcoming_agenda(&event_id, data, connection, state)
                             .await?
                     }
                     "video_call:send_message" => {
@@ -1662,5 +1811,166 @@ mod tests {
         );
 
         assert_eq!(call.breakout_candidates(), vec![participant]);
+    }
+
+    mod upcoming_agenda {
+        use std::error::Error;
+
+        use sqlx::PgPool;
+        use tokio::sync::mpsc;
+
+        use super::*;
+        use crate::models::event::{
+            BasicEventAgendaItem, CreateEvent, EventAgenda, EventAgendaItem,
+        };
+        use crate::models::model_test_helpers::{
+            get_random_conversation_id, setup_default_app_and_session,
+        };
+        use crate::test_helpers::{test_state, test_user};
+
+        fn basic_item(title: &str) -> EventAgendaItem {
+            EventAgendaItem::Basic(BasicEventAgendaItem {
+                title: title.to_string(),
+                description: String::new(),
+                estimated_time: 0,
+            })
+        }
+
+        fn agenda_of(titles: &[&str]) -> EventAgenda {
+            EventAgenda(titles.iter().map(|title| basic_item(title)).collect())
+        }
+
+        struct LiveCall {
+            state: Arc<ComhairleState>,
+            event_id: Uuid,
+            connection: WebSocketConnection,
+            receiver: mpsc::UnboundedReceiver<axum::extract::ws::Message>,
+        }
+
+        /// An event with a four-item agenda, on its second item, with one user on the call.
+        async fn live_call(pool: &PgPool, role: &str) -> Result<LiveCall, Box<dyn Error>> {
+            let (app, mut session) = setup_default_app_and_session(pool).await?;
+            let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+            let event = event::create(
+                pool,
+                &conversation_id,
+                &CreateEvent {
+                    name: "Live agenda".to_string(),
+                    agenda: Some(agenda_of(&["Welcome", "Intro", "Old next", "Old last"])),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+            let state = Arc::new(test_state().db(pool.clone()).call()?);
+            let user_id = Uuid::new_v4();
+            let mut call = VideoCallState::new(event.id);
+            call.current_agenda_step = 1;
+            call.participants.insert(
+                user_id,
+                VideoCallParticipant {
+                    user_id,
+                    username: None,
+                    role: role.to_string(),
+                },
+            );
+            state
+                .video_call_handler
+                .video_calls
+                .write()
+                .unwrap()
+                .insert(event.id, call);
+
+            let (connection, receiver) =
+                WebSocketConnection::new(test_user(user_id), "127.0.0.1:9999".parse()?);
+            Ok(LiveCall {
+                state,
+                event_id: event.id,
+                connection,
+                receiver,
+            })
+        }
+
+        async fn send_edit(
+            call: &LiveCall,
+            current_step: u32,
+            upcoming: &[&str],
+        ) -> Result<(), VideoCallWSError> {
+            let upcoming: Vec<EventAgendaItem> =
+                upcoming.iter().map(|title| basic_item(title)).collect();
+            let data = serde_json::json!({
+                "event_id": call.event_id,
+                "edit_id": "edit-1",
+                "current_step": current_step,
+                "upcoming": upcoming,
+            });
+            call.state
+                .video_call_handler
+                .update_upcoming_agenda(&call.event_id, &data, &call.connection, &call.state)
+                .await
+        }
+
+        fn agenda_update_reply(call: &mut LiveCall) -> Result<serde_json::Value, Box<dyn Error>> {
+            let reply = call.receiver.try_recv()?;
+            let reply: WebSocketMessage = serde_json::from_str(reply.to_text()?)?;
+            let WebSocketMessage::Custom { event, data } = reply else {
+                panic!("expected a custom message, got {reply:?}");
+            };
+            assert_eq!(event, "video_call:agenda_update_result");
+            assert_eq!(data["edit_id"], "edit-1");
+            Ok(data)
+        }
+
+        async fn saved_agenda(call: &LiveCall) -> Result<EventAgenda, Box<dyn Error>> {
+            Ok(event::get_by_id(&call.state.db, &call.event_id)
+                .await?
+                .agenda)
+        }
+
+        #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+        async fn a_host_replaces_only_the_items_after_the_current_one(
+            pool: PgPool,
+        ) -> Result<(), Box<dyn Error>> {
+            let mut call = live_call(&pool, "facilitator").await?;
+
+            send_edit(&call, 1, &["New breakout", "Wrap up"]).await?;
+
+            let expected = agenda_of(&["Welcome", "Intro", "New breakout", "Wrap up"]);
+            assert_eq!(saved_agenda(&call).await?, expected);
+            let reply = agenda_update_reply(&mut call)?;
+            assert_eq!(reply["outcome"], "saved");
+            assert_eq!(reply["agenda"], serde_json::to_value(&expected)?);
+            Ok(())
+        }
+
+        #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+        async fn an_edit_made_before_the_step_moved_is_rejected(
+            pool: PgPool,
+        ) -> Result<(), Box<dyn Error>> {
+            let mut call = live_call(&pool, "moderator").await?;
+
+            send_edit(&call, 0, &["Would overwrite Intro"]).await?;
+
+            assert_eq!(
+                saved_agenda(&call).await?,
+                agenda_of(&["Welcome", "Intro", "Old next", "Old last"])
+            );
+            assert_eq!(agenda_update_reply(&mut call)?["outcome"], "step_moved");
+            Ok(())
+        }
+
+        #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+        async fn a_participant_cannot_edit_the_agenda(pool: PgPool) -> Result<(), Box<dyn Error>> {
+            let mut call = live_call(&pool, "participant").await?;
+
+            send_edit(&call, 1, &[]).await?;
+
+            assert_eq!(agenda_update_reply(&mut call)?["outcome"], "not_host");
+            assert_eq!(
+                saved_agenda(&call).await?,
+                agenda_of(&["Welcome", "Intro", "Old next", "Old last"])
+            );
+            Ok(())
+        }
     }
 }

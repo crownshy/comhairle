@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { DatePrecision } from '@crownshy/api-client/api';
-	import { GripVertical, Plus, Trash2, TriangleAlert, X } from 'lucide-svelte';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import X from '@lucide/svelte/icons/x';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import TagBadge from './TagBadge.svelte';
 	import ConsentCheck from './ConsentCheck.svelte';

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
 	import { NodeSelection } from '@tiptap/pm/state';
-	import AlignLeft from 'lucide-svelte/icons/align-left';
-	import AlignCenter from 'lucide-svelte/icons/align-center';
-	import AlignRight from 'lucide-svelte/icons/align-right';
+	import AlignLeft from '@lucide/svelte/icons/text-align-start';
+	import AlignCenter from '@lucide/svelte/icons/text-align-center';
+	import AlignRight from '@lucide/svelte/icons/text-align-end';
 	import { cn } from '$lib/utils';
 	import {
 		IMAGE_ALIGN_OPTIONS,

@@ -129,6 +129,7 @@
 						<Form.Label>{m.otp_placeholder()}</Form.Label>
 						<Input
 							{...props}
+							autocomplete="one-time-code"
 							placeholder={m.otp_placeholder()}
 							bind:value={$formData.code}
 							required

@@ -44,6 +44,24 @@ use crate::worker_service::{MockWorkerService, WorkerService};
 /// - Good complexity score
 pub const TEST_PASSWORD: &str = "TestPassword123!";
 
+pub fn test_user(id: Uuid) -> crate::models::users::User {
+    crate::models::users::User {
+        id,
+        email: Some("test@example.com".to_string()),
+        username: Some("test_user".to_string()),
+        password: None,
+        guest_code: None,
+        avatar_url: None,
+        email_verified: true,
+        auth_type: crate::models::users::UserAuthType::EmailPassword,
+        organization_id: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+        signup_ip: None,
+        signup_user_agent: None,
+    }
+}
+
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
     let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
@@ -257,18 +275,6 @@ impl MultipartBodyBuilder {
             boundary,
             body: String::new(),
         }
-    }
-
-    pub fn add_field(mut self, field_name: &str, content: &str) -> Self {
-        self.body.push_str(&format!(
-            "--{}\r\n\
-		Content-Disposition: form-data; name=\"{}\"\r\n\
-		\r\n\
-		{}\r\n",
-            self.boundary, field_name, content
-        ));
-
-        self
     }
 
     pub fn add_file(mut self, filename: &str, content_type: Option<&str>, content: &str) -> Self {

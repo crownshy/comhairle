@@ -5,22 +5,23 @@ export const stepModerationTour: Tour = {
 	steps: [
 		{
 			element: '[data-tour="moderation-actions"]',
-			title: 'Sync and export',
+			title: 'Download the report',
 			description:
-				"Sync from Polis pulls in new participant statements; the list does not update on its own. Download CSV exports the statements. Seed statements live in the step's Setup tab.",
+				'Every statement and decision, with reasons and notes, as a CSV. New statements arrive on their own when you open or return to this page.',
 			side: 'bottom'
 		},
 		{
 			element: '[data-tour="moderation-filters"]',
-			title: 'Filter by status',
-			description: 'Switch between pending, accepted, rejected, seeded and all statements.',
+			title: 'Work through the queue',
+			description:
+				'The page opens on statements waiting for a decision. Switch to accepted, rejected or all statements, or search them.',
 			side: 'bottom'
 		},
 		{
 			element: '[data-tour="moderation-statements"]',
 			title: 'Accept, reject or split',
 			description:
-				'Accept a statement to publish it as written, reject it with a reason, or split it if it makes more than one point.',
+				'Accept a statement to publish it as written, split or reword it if it makes more than one point, or reject it with a reason. To undo a decision, use Move back to waiting in the statement’s more menu.',
 			side: 'top'
 		}
 	]

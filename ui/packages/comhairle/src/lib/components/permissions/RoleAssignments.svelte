@@ -3,7 +3,11 @@
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { ApiError, Snapshot } from '@crownshy/api-client/api';
-	import { Building2, UserRound, Plus, Search, Pencil } from 'lucide-svelte';
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import UserRound from '@lucide/svelte/icons/user-round';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';

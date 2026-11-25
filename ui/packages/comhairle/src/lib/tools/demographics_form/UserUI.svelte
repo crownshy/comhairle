@@ -11,7 +11,14 @@
 	import { onMount } from 'svelte';
 	import type { OnSequenceChange, ToolSequence } from '../toolSequence';
 	import Callout from '$lib/components/Callout.svelte';
-	import { Form, Input, SelectList, Submit, type Option } from '$lib/components/EasyForm';
+	import {
+		Form,
+		Input,
+		SelectList,
+		Submit,
+		type OnSubmit,
+		type Option
+	} from '$lib/components/EasyForm';
 	import Formatter from './Formatter';
 	import Demographics from '$lib/interfaces/Demographics';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
@@ -36,7 +43,7 @@
 	let submit = $state<HTMLButtonElement | null>(null);
 	let forwards: boolean = true;
 
-	async function handleSubmission(formData: FormData) {
+	const onsubmit: OnSubmit = async (formData) => {
 		const question = questions[questionNumber - 1];
 		if (!question) {
 			return;
@@ -116,7 +123,7 @@
 		if (questionNumber > questions.length) {
 			onDone();
 		}
-	}
+	};
 
 	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
 		const options: Option[] = question.options.map((o) => ({
@@ -211,7 +218,7 @@
 	{@const question = questions[questionNumber - 1]}
 	{@const q = question.latest_published!}
 	{#key question.id}
-		<Form {handleSubmission}>
+		<Form {onsubmit}>
 			{@const defaultValue = Formatter.to(
 				q.question_type,
 				cache.get(question.id) ??

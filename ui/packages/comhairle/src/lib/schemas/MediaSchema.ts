@@ -1,7 +1,7 @@
 import { typed } from '$lib/utils/types';
 import { MB } from '$lib/utils/units';
 import { type FileAttr, type InputAttr } from '$lib/components/EasyForm';
-import Media from '$lib/interfaces/Media';
+import Media from '$lib/interfaces/Media.svelte';
 
 export const MediaSchema = {
 	media: typed<FileAttr>({

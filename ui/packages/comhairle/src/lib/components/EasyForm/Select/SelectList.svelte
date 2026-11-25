@@ -28,15 +28,17 @@
 	}
 </script>
 
-<div class="mb-5 text-sm font-semibold">{title}</div>
-<section class="flex flex-col gap-y-2">
-	{#each options as option (option.value)}
-		<SelectItem
-			{name}
-			onselect={handleSelect}
-			multi={multiple}
-			{...option}
-			defaultSelected={defaultSelected?.includes(option.value) ?? false}
-		/>
-	{/each}
-</section>
+<fieldset>
+	<legend class="mb-5 text-sm font-semibold">{title}</legend>
+	<div class="flex flex-col gap-y-2">
+		{#each options as option (option.value)}
+			<SelectItem
+				{name}
+				onselect={handleSelect}
+				multi={multiple}
+				{...option}
+				defaultSelected={defaultSelected?.includes(option.value) ?? false}
+			/>
+		{/each}
+	</div>
+</fieldset>

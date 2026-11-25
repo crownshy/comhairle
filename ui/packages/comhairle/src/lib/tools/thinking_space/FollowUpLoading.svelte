@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles } from 'lucide-svelte';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { m } from '$lib/paraglide/messages';
 
 	const messages = [
@@ -36,7 +36,7 @@
 
 <section class="border-border space-y-4 border-t pt-6">
 	<div class="flex items-start gap-2">
-		<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
+		<Sparkles aria-hidden="true" class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
 		<p
 			class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
 			class:opacity-0={fading}
