@@ -109,13 +109,30 @@ describe('renderRichTextToHtml', () => {
 		expect(renderRichTextToHtml('{"type":"doc","content":[{"type":"nope"}]}')).toBe('');
 	});
 
-	it('wraps glossary terms in a tooltip span when a glossary is passed', () => {
+	it('wraps glossary terms in a tooltip button when a glossary is passed', () => {
 		const html = renderRichTextToHtml(paragraph('Take the bus home'), {
 			glossary: [{ text: ['bus'], tooltip: 'A vehicle that carries people' }]
 		});
+		expect(html).toContain('<button ');
+		expect(html).toContain('type="button"');
 		expect(html).toContain('data-glossary-term');
 		expect(html).toContain('data-glossary-tooltip="A vehicle that carries people"');
-		expect(html).toContain('>bus</span>');
+		expect(html).toContain('>bus</button>');
+	});
+
+	it('renders images as named, focusable lightbox buttons', () => {
+		const image = (alt: string) =>
+			JSON.stringify({
+				type: 'doc',
+				content: [{ type: 'image', attrs: { src: '/a.png', alt } }]
+			});
+
+		const named = renderRichTextToHtml(image('A map of the area'));
+		expect(named).toContain('role="button"');
+		expect(named).toContain('tabindex="0"');
+		expect(named).toContain('aria-label="Open image full screen: A map of the area"');
+
+		expect(renderRichTextToHtml(image(''))).toContain('aria-label="Open image full screen"');
 	});
 
 	it('leaves content unchanged when no glossary is passed', () => {

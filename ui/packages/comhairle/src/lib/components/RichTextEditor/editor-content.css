@@ -558,6 +558,14 @@
  * renders a position:fixed .glossary-tooltip and positions it by JS, so it escapes the
  * article's overflow clipping (a z-index bump alone can't). See ContentRenderer. */
 .glossary-term {
+	/* The term is a <button>; drop the button chrome so it reads as part of the sentence. */
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+	text-align: inherit;
+	background: none;
+	border: 0;
+	padding: 0;
 	cursor: help;
 	border-radius: 3px;
 	text-decoration-line: underline;
@@ -588,7 +596,7 @@
 	color: var(--color-popover-foreground);
 	border: 1px solid var(--color-border);
 	box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
-	font-size: 0.875rem;
+	font-size: 1rem;
 	line-height: 1.4;
 	text-align: left;
 	/* Anchored at the term's top-centre by JS (left/top); lift it above and centre it. */
@@ -598,8 +606,10 @@
 	transition: opacity 120ms ease;
 }
 
+/* Takes the pointer while shown so it stays open when hovered (WCAG 1.4.13). */
 .glossary-tooltip[data-visible='true'] {
 	opacity: 1;
+	pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
