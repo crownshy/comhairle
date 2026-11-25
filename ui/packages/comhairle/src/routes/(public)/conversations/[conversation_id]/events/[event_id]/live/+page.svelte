@@ -874,6 +874,7 @@
 									'microphone',
 									'camera',
 									'chat',
+									'desktop',
 									'raisehand',
 									'tileview',
 									'fullscreen',

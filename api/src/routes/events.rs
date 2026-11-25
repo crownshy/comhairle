@@ -188,6 +188,7 @@ struct VideoEventJwtClaims<'a> {
 #[derive(Serialize, Debug)]
 struct VideoEventJwtContext<'a> {
     user: VideoEventJwtUser<'a>,
+    features: VideoEventJwtFeatures,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -196,6 +197,14 @@ struct VideoEventJwtUser<'a> {
     name: Option<&'a str>,
     id: &'a str,
     moderator: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct VideoEventJwtFeatures {
+    #[serde(rename = "send-groupchat")]
+    send_groupchat: bool,
+    #[serde(rename = "screen-sharing")]
+    screen_sharing: bool,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -228,6 +237,10 @@ async fn get_jwt(
                 name: user.username.as_deref(),
                 id: &user.id.to_string(),
                 moderator: is_moderator,
+            },
+            features: VideoEventJwtFeatures {
+                send_groupchat: is_moderator,
+                screen_sharing: is_moderator,
             },
         },
     };
