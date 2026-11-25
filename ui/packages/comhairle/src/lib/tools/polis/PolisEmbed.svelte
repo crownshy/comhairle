@@ -28,6 +28,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import StatementSourceLabel from './StatementSourceLabel.svelte';
 	import ModerationPolicy from './ModerationPolicy.svelte';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
 	import { statementSourceOf } from './statementSource';
 	import { cn } from '$lib/utils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -756,11 +757,12 @@
 
 {#snippet opinionBoxAndStatus()}
 	{#if opinionError}
-		<div
+		<LiveRegion
+			kind="alert"
 			class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
 		>
 			{m.polis_opinion_not_submitted()}
-		</div>
+		</LiveRegion>
 	{/if}
 
 	<div class="w-full">
@@ -991,13 +993,15 @@
 							class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
 							in:fade={{ duration: 300 }}
 						>
-							<AlertTriangle aria-hidden="true" class="text-destructive h-8 w-8" />
-							<p class="text-foreground text-lg font-medium">
-								{m.something_went_wrong()}
-							</p>
-							<p class="text-muted-foreground text-base">
-								{m.polis_error_description()}
-							</p>
+							<AlertTriangle class="text-destructive h-8 w-8" aria-hidden="true" />
+							<LiveRegion kind="alert" class="flex flex-col items-center gap-4">
+								<p class="text-foreground text-lg font-medium">
+									{m.something_went_wrong()}
+								</p>
+								<p class="text-muted-foreground text-base">
+									{m.polis_error_description()}
+								</p>
+							</LiveRegion>
 						</div>
 					{:else if !polisReady || waitingForNext || polisLoading || !shownStatement}
 						<!-- Loading, between statements, or briefly empty before the screen

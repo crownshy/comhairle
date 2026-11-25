@@ -493,6 +493,7 @@
 	"thinking_space_question_done": "Done with this question",
 	"thinking_space_pick_deeper": "Pick one to go deeper",
 	"thinking_space_pick_follow_up": "Pick a follow-up to continue",
+	"thinking_space_follow_ups_load_failure": "Couldn't load follow-up questions.",
 	"thinking_space_pick_back": "go back to pick a different question",
 	"thinking_space_pick_for_me": "go back to pick a different question",
 	"thinking_space_pick_different": "Pick a different question",

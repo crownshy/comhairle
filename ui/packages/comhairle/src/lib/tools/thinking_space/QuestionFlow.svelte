@@ -15,6 +15,7 @@
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
 	import { cn } from '$lib/utils';
 	import { MAX_ANSWER_WORDS } from './wordLimit';
+	import LiveRegion from '$lib/components/LiveRegion.svelte';
 
 	type Props = {
 		workflowStepId: string;
@@ -336,9 +337,11 @@
 					<!-- Picker: failed to load -->
 					{#if flow.currentState.pickerError && !flow.currentState.pickerLoading}
 						<section class="border-border space-y-3 border-t pt-6">
-							<p class="text-muted-foreground text-sm">
-								Couldn't load follow-up questions.
-							</p>
+							<LiveRegion kind="alert">
+								<p class="text-muted-foreground text-base">
+									{m.thinking_space_follow_ups_load_failure()}
+								</p>
+							</LiveRegion>
 							<div class="flex flex-wrap gap-2">
 								<Button
 									variant="outline"
