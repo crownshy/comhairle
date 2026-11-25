@@ -114,7 +114,7 @@
 						: 'dynamic-grid w-full gap-6',
 					'transition-opacity'
 				]}
-				style="--grid-item-width: 18rem;"
+				style="--grid-item-width: 19rem;"
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="admin">
