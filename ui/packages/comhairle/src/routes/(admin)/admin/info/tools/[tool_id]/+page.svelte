@@ -37,7 +37,7 @@
 	<title>{guide?.title ?? 'Engagement tools'} - Comhairle Handbook</title>
 </svelte:head>
 
-<main class="w-full max-w-6xl min-w-0 rounded-xl p-6 md:p-10">
+<div class="w-full max-w-6xl min-w-0 rounded-xl p-6 md:p-10">
 	{#if guide}
 		<article class="max-w-3xl">
 			<a
@@ -151,4 +151,4 @@
 	{:else}
 		<p class="text-muted-foreground">Guide not found.</p>
 	{/if}
-</main>
+</div>

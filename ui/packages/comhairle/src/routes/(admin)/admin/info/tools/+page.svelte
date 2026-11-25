@@ -30,7 +30,7 @@
 	<title>Engagement tools - Comhairle Handbook</title>
 </svelte:head>
 
-<main class="w-full max-w-6xl min-w-0 rounded-xl p-6 md:p-10">
+<div class="w-full max-w-6xl min-w-0 rounded-xl p-6 md:p-10">
 	<article class="max-w-4xl">
 		<p class="text-muted-foreground text-sm font-medium">Reference</p>
 		<h1 class="text-foreground mt-1 text-2xl font-bold">Engagement tools</h1>
@@ -240,4 +240,4 @@
 			</div>
 		</section>
 	</article>
-</main>
+</div>
