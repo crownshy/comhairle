@@ -40,6 +40,7 @@ pub struct EventDto {
     pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
     pub custom_event_link: Option<String>,
+    pub email_link_login: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -73,6 +74,7 @@ pub struct LocalizedEventDto {
     pub metadata: Option<serde_json::Value>,
     pub format: EventFormat,
     pub custom_event_link: Option<String>,
+    pub email_link_login: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -93,6 +95,7 @@ impl From<Event> for EventDto {
             metadata: e.metadata,
             format: e.format,
             custom_event_link: e.custom_event_link,
+            email_link_login: e.email_link_login,
             created_at: e.created_at,
         }
     }
@@ -116,6 +119,7 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
             metadata: e.event.metadata,
             format: e.event.format,
             custom_event_link: e.event.custom_event_link,
+            email_link_login: e.event.email_link_login,
             current_attendance: Some(e.current_attendance),
         }
     }
@@ -139,6 +143,7 @@ impl From<LocalizedEvent> for LocalizedEventDto {
             metadata: e.metadata,
             format: e.format,
             custom_event_link: e.custom_event_link,
+            email_link_login: e.email_link_login,
             current_attendance: None,
         }
     }

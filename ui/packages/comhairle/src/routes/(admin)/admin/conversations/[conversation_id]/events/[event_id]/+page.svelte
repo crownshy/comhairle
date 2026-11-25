@@ -5,6 +5,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Select from '$lib/components/ui/select';
+	import { Switch } from '$lib/components/ui/switch';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { createTextContentSource } from '$lib/components/Translation/translationSource.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
@@ -113,7 +114,8 @@
 			end_time: utcTimeToLocal(event.endTime, timeZone),
 			signup_mode: event.signupMode,
 			format: event.format,
-			custom_event_link: event.customEventLink ?? ''
+			custom_event_link: event.customEventLink ?? '',
+			email_link_login: event.emailLinkLogin
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -574,6 +576,34 @@
 					</div>
 				</RadioGroup.Root>
 			</Form.Fieldset>
+		</div>
+
+		<div
+			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+		>
+			<Form.Field form={eventForm} name="email_link_login" class="contents">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label
+							class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>
+							<span>Allow email link login</span>
+							<span class="font-normal"
+								>Allow logged-out users to access event directly without any
+								additional login challenge. Disable for events with sensitive
+								topics.
+							</span>
+						</Form.Label>
+						<div class="flex items-center space-y-0 space-x-3">
+							<Switch
+								{...props}
+								bind:checked={$form.email_link_login}
+								disabled={!canEdit}
+							/>
+						</div>
+					{/snippet}
+				</Form.Control>
+			</Form.Field>
 		</div>
 
 		{#if canEdit}
