@@ -51,7 +51,7 @@
 	{#if layout === 'list'}
 		<article class={cn(CARD_CLASS, 'flex items-center gap-4 rounded-2xl p-3')}>
 			<div
-				class="bg-primary/10 relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-36"
+				class="bg-primary/10 relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-24"
 			>
 				{#if conversation.imageUrl}
 					<img
@@ -99,15 +99,15 @@
 				'relative grid grid-rows-[1fr_auto_auto_auto_auto] gap-4 rounded-2xl p-3'
 			)}
 		>
-			<div class="bg-primary/10 w-full rounded-xl">
+			<div class="bg-primary/10 relative aspect-video w-full overflow-hidden rounded-xl">
 				{#if conversation.imageUrl}
 					<img
 						src={conversation.imageUrl}
 						alt="Image for {conversation.title}"
-						class="aspect-video h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
+						class="absolute inset-0 size-full object-cover transition-transform duration-500 ease-out group-hover:scale-102"
 					/>
 				{:else}
-					<MessageSquareText class="text-primary/30 inset-0 m-auto size-16 rounded-xl" />
+					<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-16" />
 				{/if}
 				<ConversationStatusBadge
 					{status}

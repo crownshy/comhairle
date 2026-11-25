@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { ArrowRight } from '@lucide/svelte';
-	import ConversationCard from '$lib/components/ConversationCard.svelte';
+	import ConversationCard, {
+		type ConversationCardLayout
+	} from '$lib/components/ConversationCard.svelte';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import NewConversationButton from '$lib/components/NewConversationButton.svelte';
 	import SectionHeader from '$lib/components/SectionHeader.svelte';
@@ -32,6 +34,9 @@
 	// edit rights through it, so their card opens as usual and the conversation layout decides.
 	let moderatorOnlyIds = $derived(
 		new Set(isModeratorOnly(data.userRoles) ? moderatorOnlyConversationIds(data.userRoles) : [])
+	);
+	let view = $derived(
+		QueryParams.get<ConversationsParams>('view') as ConversationCardLayout | undefined
 	);
 	let pageTop: HTMLElement | undefined = $state();
 
@@ -80,6 +85,7 @@
 							capitalise(filter)
 						])}
 						label="Filter conversations"
+						allLabel="All"
 					/>
 				</div>
 				<div class="flex items-center gap-3">
@@ -109,15 +115,13 @@
 			<div
 				data-tour="conversation-list"
 				class={[
-					QueryParams.get<ConversationsParams>('view') === 'list'
-						? 'flex w-full flex-col gap-3'
-						: 'dynamic-grid w-full gap-6',
+					view === 'list' ? 'flex w-full flex-col gap-3' : 'dynamic-grid w-full gap-6',
 					'transition-opacity'
 				]}
 				style="--grid-item-width: 19rem;"
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
-					<ConversationCard {conversation} for="admin">
+					<ConversationCard {conversation} for="admin" layout={view}>
 						{#snippet Meta()}
 							{#if conversation.isShared}
 								<Badge variant="outline">Shared</Badge>
