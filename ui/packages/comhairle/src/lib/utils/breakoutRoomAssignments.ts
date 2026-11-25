@@ -32,21 +32,49 @@ export function groupParticipantsByRoom(
 	return roomAssignments;
 }
 
+/** People who are not in any of the given rooms, so they stay in the main call. */
+export function peopleOutsideRooms(
+	participants: VideoCallParticipant[],
+	rooms: VideoCallParticipant[][]
+): VideoCallParticipant[] {
+	const inARoom = new Set(rooms.flat().map((p) => p.user_id));
+	return participants.filter((p) => !inARoom.has(p.user_id));
+}
+
+/** Where someone is during a breakout session: a room index, or the main call. */
+export type BreakoutPlacement = number | 'plenary';
+
+/**
+ * Where a user has been put, or null when they have no placement at all (a host who was
+ * never assigned, for example).
+ */
+export function placementOf(
+	userId: string,
+	rooms: BreakoutRoomAssignments[],
+	plenaryIds: Set<string>
+): BreakoutPlacement | null {
+	const roomIndex = rooms.findIndex((room) => room.participants.includes(userId));
+	if (roomIndex !== -1) return roomIndex;
+	return plenaryIds.has(userId) ? 'plenary' : null;
+}
+
 /**
  * Turn a facilitator's edited room layout into the assignments to send mid-session.
  *
  * The edit dialog works from a snapshot taken when it opened. Anyone placed in a room after
  * that (a late joiner, for example) is missing from the edit, so they keep the room they are
- * in now rather than ending up with no room at all. The room count never drops below the
- * current one, because each index maps to a Jitsi room that already exists.
+ * in now rather than ending up with no room at all. People moved to plenary are left out of
+ * every room. The room count never drops below the current one, because each index maps to
+ * a Jitsi room that already exists.
  */
 export function applyRoomEdits(
 	editedRooms: string[][],
-	currentRooms: BreakoutRoomAssignments[]
+	currentRooms: BreakoutRoomAssignments[],
+	plenary: string[] = []
 ): string[][] {
 	const roomCount = Math.max(editedRooms.length, currentRooms.length);
 	const result = Array.from({ length: roomCount }, (_, index) => [...(editedRooms[index] ?? [])]);
-	const placed = new Set(editedRooms.flat());
+	const placed = new Set([...editedRooms.flat(), ...plenary]);
 
 	currentRooms.forEach((room, index) => {
 		room.participants
@@ -58,6 +86,36 @@ export function applyRoomEdits(
 	});
 
 	return result;
+}
+
+/**
+ * Who stays in plenary after a mid-session edit. The dialog only lists people in the call,
+ * so anyone already kept in plenary who is offline right now stays there unless the edit
+ * put them in a room.
+ */
+export function plenaryAfterEdit(
+	dialogPlenary: string[],
+	editedRooms: string[][],
+	currentPlenary: Set<string>
+): string[] {
+	const listed = new Set([...dialogPlenary, ...editedRooms.flat()]);
+	const offlineInPlenary = [...currentPlenary].filter((userId) => !listed.has(userId));
+	return [...dialogPlenary, ...offlineInPlenary];
+}
+
+/**
+ * The rooms with one person moved to where they actually are: a room index, or null for
+ * the main call. Used for the person assigning, whose own client knows where they are even
+ * when that differs from their assignment.
+ */
+export function withPersonAt(
+	rooms: VideoCallParticipant[][],
+	person: VideoCallParticipant,
+	roomIndex: number | null
+): VideoCallParticipant[][] {
+	const moved = rooms.map((room) => room.filter((p) => p.user_id !== person.user_id));
+	if (roomIndex !== null && roomIndex < moved.length) moved[roomIndex].push(person);
+	return moved;
 }
 
 /** Whether an event role can run a breakout room (moderators and facilitators). */

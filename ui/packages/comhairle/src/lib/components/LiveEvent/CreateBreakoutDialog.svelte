@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-	import { isFacilitatorRole } from '$lib/utils/breakoutRoomAssignments';
+	import { isFacilitatorRole, peopleOutsideRooms } from '$lib/utils/breakoutRoomAssignments';
 	import X from '@lucide/svelte/icons/x';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Clock from '@lucide/svelte/icons/clock';
@@ -36,11 +36,19 @@
 		 * stays in the list. Used to edit rooms that are already open in the call.
 		 */
 		fixedRooms?: boolean;
+		/**
+		 * Show a Plenary row above the rooms for people who stay in the main call. Anyone not
+		 * placed in a room starts there.
+		 */
+		showPlenary?: boolean;
+		/** The person assigning. Shown as "You", starting in Plenary, so they can place themselves. */
+		currentUser?: VideoCallParticipant;
 		onClose: () => void;
 		onCreate: (config: {
 			maxPerRoom: number;
 			durationMinutes: number;
 			roomAssignments: VideoCallParticipant[][];
+			plenary: VideoCallParticipant[];
 			moderatorIds: string[];
 		}) => void;
 	}
@@ -58,6 +66,8 @@
 		confirmLabel = 'Create',
 		title = 'Create breakout rooms',
 		fixedRooms = false,
+		showPlenary = false,
+		currentUser,
 		onClose,
 		onCreate
 	}: Props = $props();
@@ -68,6 +78,12 @@
 	/** Mutable room assignments for drag and drop */
 	let roomAssignments = $state<VideoCallParticipant[][]>([]);
 
+	/** People staying in the main call. Only used when showPlenary is on. */
+	let plenary = $state<VideoCallParticipant[]>([]);
+
+	/** Row index the drag handlers use for the Plenary row, so room indices stay as they are. */
+	const PLENARY_ROW = -1;
+
 	/** Pinned participants stay in their room on reshuffle */
 	let pinnedUsers = $state<Set<string>>(new Set());
 
@@ -76,13 +92,17 @@
 
 	let wasOpen = $state(false);
 
+	/** Everyone the dialog can place, the person assigning included. */
+	let everyone = $derived(currentUser ? [currentUser, ...participants] : participants);
+
 	$effect(() => {
 		if (open && !wasOpen) {
-			// Dialog just opened — sync defaults and lay out participants
+			// Dialog just opened: sync defaults and lay out participants
 			maxPerRoom = defaultMaxPerRoom;
 			durationMinutes = defaultDuration;
 			pinnedUsers = new Set();
 			moderators = new Set(moderatorIds ?? []);
+			plenary = showPlenary && currentUser ? [currentUser] : [];
 			// A planned room whose people are not on the call would only be created empty,
 			// unless the rooms are already open and their numbering has to stay.
 			const plannedRooms = fixedRooms
@@ -95,9 +115,13 @@
 			} else {
 				roomAssignments = [];
 			}
+			if (showPlenary) {
+				plenary = peopleOutsideRooms(everyone, roomAssignments);
+			}
 		} else if (!open && wasOpen) {
-			// Dialog just closed — reset
+			// Dialog just closed: reset
 			roomAssignments = [];
+			plenary = [];
 			pinnedUsers = new Set();
 			moderators = new Set();
 			maxPerRoom = defaultMaxPerRoom;
@@ -137,8 +161,10 @@
 	}
 
 	function distributeParticipants() {
-		const shuffled = shuffle(participants);
-		const count = Math.ceil(shuffled.length / maxPerRoom);
+		const keptInPlenary = new Set(plenary.map((p) => p.user_id));
+		const shuffled = shuffle(everyone.filter((p) => !keptInPlenary.has(p.user_id)));
+		// At least one room, so there is somewhere to drag people back to from Plenary.
+		const count = Math.max(1, Math.ceil(shuffled.length / maxPerRoom));
 		roomAssignments = Array.from({ length: count }, (_, i) =>
 			shuffled.slice(i * maxPerRoom, (i + 1) * maxPerRoom)
 		);
@@ -184,7 +210,13 @@
 			idx += remaining.length;
 		}
 
-		roomAssignments = newAssignments.filter((room) => room.length > 0);
+		roomAssignments = withoutEmptyRooms(newAssignments);
+	}
+
+	/** Drops empty rooms but keeps one, so there is always a room to drag someone into. */
+	function withoutEmptyRooms(rooms: VideoCallParticipant[][]): VideoCallParticipant[][] {
+		const filled = rooms.filter((room) => room.length > 0);
+		return filled.length > 0 ? filled : [[]];
 	}
 
 	function handleMaxPerRoomChange(e: Event) {
@@ -199,14 +231,23 @@
 		pinnedUsers = withToggled(pinnedUsers, userId);
 	}
 
+	let nobodyInARoom = $derived(roomAssignments.every((room) => room.length === 0));
+
 	function handleCreate() {
 		onCreate({
 			maxPerRoom,
 			durationMinutes,
-			roomAssignments,
+			roomAssignments: fixedRooms
+				? roomAssignments
+				: roomAssignments.filter((room) => room.length > 0),
+			plenary,
 			moderatorIds: [...moderators]
 		});
 		open = false;
+	}
+
+	function peopleInRow(rowIndex: number): VideoCallParticipant[] {
+		return rowIndex === PLENARY_ROW ? plenary : roomAssignments[rowIndex];
 	}
 
 	let dragSource: { roomIdx: number; pIdx: number } | null = $state(null);
@@ -256,15 +297,16 @@
 			return;
 		}
 
-		// Move participant
-		const participant = roomAssignments[srcRoom][srcIdx];
+		const participant = peopleInRow(srcRoom)[srcIdx];
 		const newAssignments = roomAssignments.map((room) => [...room]);
-		newAssignments[srcRoom].splice(srcIdx, 1);
-		newAssignments[targetRoomIdx].push(participant);
+		const newPlenary = [...plenary];
+		const rowOf = (rowIndex: number) =>
+			rowIndex === PLENARY_ROW ? newPlenary : newAssignments[rowIndex];
+		rowOf(srcRoom).splice(srcIdx, 1);
+		rowOf(targetRoomIdx).push(participant);
 
-		roomAssignments = fixedRooms
-			? newAssignments
-			: newAssignments.filter((room) => room.length > 0);
+		plenary = newPlenary;
+		roomAssignments = fixedRooms ? newAssignments : withoutEmptyRooms(newAssignments);
 		dragSource = null;
 	}
 
@@ -297,6 +339,10 @@
 
 	function isDragging(roomIdx: number, pIdx: number): boolean {
 		return dragSource?.roomIdx === roomIdx && dragSource?.pIdx === pIdx;
+	}
+
+	function isCurrentUser(p: VideoCallParticipant): boolean {
+		return p.user_id === currentUser?.user_id;
 	}
 </script>
 
@@ -377,96 +423,16 @@
 				<div
 					class="bg-sidebar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl p-3 sm:p-4"
 				>
+					{#if showPlenary}
+						{@render row(
+							'Plenary',
+							plenary,
+							PLENARY_ROW,
+							'Drag someone here to keep them in the main call'
+						)}
+					{/if}
 					{#each roomAssignments as room, roomIdx (roomIdx)}
-						<div
-							class="flex items-center gap-2 rounded-lg border p-5 transition-colors {dropTargetRoom ===
-							roomIdx
-								? 'bg-accent border-ring ring-ring ring-2'
-								: 'bg-muted'}"
-							role="group"
-							ondragover={(e) => handleDragOver(e, roomIdx)}
-							ondragleave={(e) => handleDragLeave(e, roomIdx)}
-							ondrop={(e) => handleDrop(e, roomIdx)}
-						>
-							<!-- Room name -->
-							<div
-								class="text-foreground line-clamp-1 w-24 shrink-0 text-base leading-6 font-semibold"
-							>
-								Room #{roomIdx + 1}
-							</div>
-
-							<!-- Participant pills -->
-							<div class="flex flex-1 flex-wrap gap-3">
-								{#each room as p, pIdx (p.user_id)}
-									<div
-										class="bg-background inline-flex cursor-grab items-center gap-1.5 rounded-full px-2 py-1 shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10),0px_1px_3px_0px_rgba(0,0,0,0.10)] transition-opacity active:cursor-grabbing {isDragging(
-											roomIdx,
-											pIdx
-										)
-											? 'opacity-30'
-											: 'opacity-100'}"
-										draggable="true"
-										ondragstart={(e) => handleDragStart(e, roomIdx, pIdx)}
-										ondragend={handleDragEnd}
-									>
-										<div
-											class="{getColorForParticipant(
-												p
-											)} flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium text-white uppercase"
-										>
-											{getInitial(p)}
-										</div>
-										<span class="text-foreground text-sm font-medium">
-											{getName(p)}
-										</span>
-										{#if enableModerators}
-											<button
-												class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {moderators.has(
-													p.user_id
-												)
-													? 'bg-amber-100 text-amber-600'
-													: 'text-muted-foreground hover:text-foreground'}"
-												onclick={(e) => {
-													e.stopPropagation();
-													toggleModerator(p.user_id);
-												}}
-												title={moderators.has(p.user_id)
-													? 'Room moderator — click to unset'
-													: 'Make room moderator'}
-											>
-												<Crown class="h-3.5 w-3.5" />
-											</button>
-										{:else if leadsRoom(p)}
-											<span class="text-muted-foreground text-xs"
-												>Facilitator</span
-											>
-										{/if}
-										{#if !fixedRooms}
-											<button
-												class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
-													p.user_id
-												)
-													? 'text-primary bg-primary/10'
-													: 'text-muted-foreground hover:text-foreground'}"
-												onclick={(e) => {
-													e.stopPropagation();
-													togglePin(p.user_id);
-												}}
-												title={pinnedUsers.has(p.user_id)
-													? 'Unpin (will move on reshuffle)'
-													: 'Pin to this room'}
-											>
-												<Pin class="h-3.5 w-3.5" />
-											</button>
-										{/if}
-									</div>
-								{:else}
-									<span class="text-muted-foreground text-sm"
-										>Drag someone here</span
-									>
-								{/each}
-							</div>
-						</div>
+						{@render row(`Room #${roomIdx + 1}`, room, roomIdx, 'Drag someone here')}
 					{/each}
 
 					{#if !fixedRooms}
@@ -490,7 +456,7 @@
 				<Button
 					variant="primaryDark"
 					class="h-10 min-w-32 px-5 text-base font-medium"
-					disabled={roomAssignments.length === 0}
+					disabled={roomAssignments.length === 0 || (!fixedRooms && nobodyInARoom)}
 					onclick={handleCreate}
 				>
 					{confirmLabel}
@@ -499,3 +465,94 @@
 		</div>
 	</Dialog.Content>
 </Dialog.Root>
+
+{#snippet row(label: string, people: VideoCallParticipant[], rowIndex: number, emptyText: string)}
+	<div
+		class="flex items-center gap-2 rounded-lg border p-5 transition-colors {dropTargetRoom ===
+		rowIndex
+			? 'bg-accent border-ring ring-ring ring-2'
+			: 'bg-muted'}"
+		role="group"
+		aria-label={label}
+		ondragover={(e) => handleDragOver(e, rowIndex)}
+		ondragleave={(e) => handleDragLeave(e, rowIndex)}
+		ondrop={(e) => handleDrop(e, rowIndex)}
+	>
+		<div class="text-foreground line-clamp-1 w-24 shrink-0 text-base leading-6 font-semibold">
+			{label}
+		</div>
+
+		<div class="flex flex-1 flex-wrap gap-3">
+			{#each people as participant, participantIndex (participant.user_id)}
+				{@render pill(participant, rowIndex, participantIndex)}
+			{:else}
+				<span class="text-muted-foreground text-sm">{emptyText}</span>
+			{/each}
+		</div>
+	</div>
+{/snippet}
+
+{#snippet pill(participant: VideoCallParticipant, rowIndex: number, participantIndex: number)}
+	<div
+		class="bg-background inline-flex cursor-grab items-center gap-1.5 rounded-full px-2 py-1 shadow-[0px_1px_2px_-1px_rgba(0,0,0,0.10),0px_1px_3px_0px_rgba(0,0,0,0.10)] transition-opacity active:cursor-grabbing {isDragging(
+			rowIndex,
+			participantIndex
+		)
+			? 'opacity-30'
+			: 'opacity-100'}"
+		draggable="true"
+		ondragstart={(e) => handleDragStart(e, rowIndex, participantIndex)}
+		ondragend={handleDragEnd}
+	>
+		<div
+			class="{getColorForParticipant(
+				participant
+			)} flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium text-white uppercase"
+		>
+			{getInitial(participant)}
+		</div>
+		<span class="text-foreground text-sm font-medium">
+			{getName(participant)}
+		</span>
+		{#if isCurrentUser(participant)}
+			<span class="text-muted-foreground text-xs">You</span>
+		{:else if enableModerators}
+			<button
+				class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {moderators.has(
+					participant.user_id
+				)
+					? 'bg-amber-100 text-amber-600'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					toggleModerator(participant.user_id);
+				}}
+				title={moderators.has(participant.user_id)
+					? 'Room moderator, click to unset'
+					: 'Make room moderator'}
+			>
+				<Crown class="h-3.5 w-3.5" />
+			</button>
+		{:else if leadsRoom(participant)}
+			<span class="text-muted-foreground text-xs">Facilitator</span>
+		{/if}
+		{#if !fixedRooms && rowIndex !== PLENARY_ROW}
+			<button
+				class="flex h-5 w-5 items-center justify-center rounded-full transition-colors {pinnedUsers.has(
+					participant.user_id
+				)
+					? 'text-primary bg-primary/10'
+					: 'text-muted-foreground hover:text-foreground'}"
+				onclick={(e) => {
+					e.stopPropagation();
+					togglePin(participant.user_id);
+				}}
+				title={pinnedUsers.has(participant.user_id)
+					? 'Unpin (will move on reshuffle)'
+					: 'Pin to this room'}
+			>
+				<Pin class="h-3.5 w-3.5" />
+			</button>
+		{/if}
+	</div>
+{/snippet}
