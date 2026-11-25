@@ -2,8 +2,9 @@
 	import { m } from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { cn } from '$lib/utils';
-	import { countWords, MAX_ANSWER_WORDS } from './wordLimit';
+	import { countWords, MAX_ANSWER_WORDS, wordLimitDescribedBy, wordLimitIds } from './wordLimit';
+	import WordCount from './WordCount.svelte';
+	import OverWordLimitMessage from './OverWordLimitMessage.svelte';
 
 	type Props = {
 		value: string;
@@ -25,12 +26,10 @@
 	}: Props = $props();
 
 	const fieldId = $props.id();
-	const wordCountId = `${fieldId}-word-count`;
-	const overLimitId = `${fieldId}-over-limit`;
+	const ids = wordLimitIds(fieldId);
 
 	let wordCount = $derived(countWords(value));
 	let overLimit = $derived(wordCount > MAX_ANSWER_WORDS);
-	let describedBy = $derived(overLimit ? `${wordCountId} ${overLimitId}` : wordCountId);
 
 	// Continue stays enabled over the limit so a press can send focus back to the field,
 	// where the invalid state and the reason are read out.
@@ -46,7 +45,7 @@
 <Textarea
 	bind:ref
 	aria-labelledby={labelledBy}
-	aria-describedby={describedBy}
+	aria-describedby={wordLimitDescribedBy(fieldId, { countShown: true, overLimit })}
 	aria-invalid={overLimit || undefined}
 	{value}
 	oninput={(e) => onInput(e.currentTarget.value)}
@@ -55,14 +54,10 @@
 	class="text-base"
 />
 {#if overLimit}
-	<p id={overLimitId} role="alert" class="text-destructive text-base">
-		{m.thinking_space_over_word_limit({ max: MAX_ANSWER_WORDS })}
-	</p>
+	<OverWordLimitMessage id={ids.overLimit} max={MAX_ANSWER_WORDS} />
 {/if}
 <div class="flex items-center justify-between gap-3">
-	<span id={wordCountId} class={cn('text-base', overLimit && 'text-destructive font-semibold')}>
-		{m.thinking_space_word_count({ count: wordCount, max: MAX_ANSWER_WORDS })}
-	</span>
+	<WordCount id={ids.wordCount} count={wordCount} max={MAX_ANSWER_WORDS} />
 	<Button onclick={handleContinue} disabled={!value.trim() || submitting}>
 		{submitting ? `${m.saving()}…` : m.continue_()}
 	</Button>

@@ -20,9 +20,13 @@
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 	import type { ProgressStatus } from '@crownshy/api-client/api';
 	import type { OnSequenceChange } from '$lib/tools/toolSequence';
-	import { countWords, MAX_SUMMARY_WORDS } from './wordLimit';
-	import { cn } from '$lib/utils';
+	import { countWords, MAX_SUMMARY_WORDS, wordLimitDescribedBy, wordLimitIds } from './wordLimit';
+	import WordCount from './WordCount.svelte';
+	import OverWordLimitMessage from './OverWordLimitMessage.svelte';
 	import LiveRegion from '$lib/components/LiveRegion.svelte';
+
+	const LATEST_SUMMARY_FIELD_ID = 'thinking-space-latest-summary';
+	const MANUAL_SUMMARY_FIELD_ID = 'thinking-space-manual-summary';
 
 	type Props = {
 		topic: string;
@@ -333,9 +337,20 @@
 	// A failed generation must not trap the participant: their answers are already saved.
 	let summaryFailed = $derived(loadError && rounds.length === 0 && !pendingNextRound);
 	let manualWordCount = $derived(countWords(manualDraft));
-	let manualOverLimit = $derived(
-		manualDraft.trim().length > 0 && manualWordCount > MAX_SUMMARY_WORDS
-	);
+	let manualCountShown = $derived(manualDraft.trim().length > 0);
+	let manualOverLimit = $derived(manualCountShown && manualWordCount > MAX_SUMMARY_WORDS);
+
+	// The buttons stay enabled over the limit so a press can send focus back to the summary,
+	// where the invalid state and the reason are read out.
+	function unlessLatestOverLimit(action: () => void) {
+		return () => {
+			if (latestOverLimit) {
+				document.getElementById(wordLimitIds(LATEST_SUMMARY_FIELD_ID).field)?.focus();
+				return;
+			}
+			action();
+		};
+	}
 	let canSubmit = $derived(
 		(latestHasText || summaryFailed) &&
 			!pendingNextRound &&
@@ -345,6 +360,8 @@
 	);
 	let blockedReason = $derived.by(() => {
 		if (canSubmit) return undefined;
+		if (latestOverLimit || manualOverLimit)
+			return m.thinking_space_over_word_limit({ max: MAX_SUMMARY_WORDS });
 		if (pendingNextRound || rounds.length === 0)
 			return m.thinking_space_summary_still_writing();
 		if (!latestHasText) return m.thinking_space_summary_needs_text();
@@ -434,6 +451,9 @@
 			onblur: (() => void) | undefined,
 			readonly: boolean,
 			placeholder: string,
+			fieldId: string,
+			wordCountShown: boolean,
+			invalid: boolean,
 			status?: Snippet
 		)}
 			<div class="bg-primary/10 space-y-3 rounded-lg p-4">
@@ -451,6 +471,12 @@
 					<p class="text-foreground text-base leading-relaxed">{description}</p>
 				{/if}
 				<Textarea
+					id={wordLimitIds(fieldId).field}
+					aria-describedby={wordLimitDescribedBy(fieldId, {
+						countShown: wordCountShown,
+						overLimit: invalid
+					})}
+					aria-invalid={invalid || undefined}
 					{value}
 					oninput={(e) => oninput(e.currentTarget.value)}
 					{onblur}
@@ -474,12 +500,24 @@
 				(v) => (manualDraft = v),
 				undefined,
 				false,
-				m.thinking_space_latest_thinking()
+				m.thinking_space_latest_thinking(),
+				MANUAL_SUMMARY_FIELD_ID,
+				manualCountShown,
+				manualOverLimit
 			)}
-			{#if manualDraft.trim().length > 0}
-				<p class={cn('text-right text-xs', manualOverLimit && 'text-destructive')}>
-					{manualWordCount} / {MAX_SUMMARY_WORDS}
-				</p>
+			{#if manualOverLimit}
+				<OverWordLimitMessage
+					id={wordLimitIds(MANUAL_SUMMARY_FIELD_ID).overLimit}
+					max={MAX_SUMMARY_WORDS}
+				/>
+			{/if}
+			{#if manualCountShown}
+				<WordCount
+					id={wordLimitIds(MANUAL_SUMMARY_FIELD_ID).wordCount}
+					count={manualWordCount}
+					max={MAX_SUMMARY_WORDS}
+					class="block text-right"
+				/>
 			{/if}
 		{/snippet}
 
@@ -520,6 +558,9 @@
 					() => persistEdit(round.id),
 					pendingNextRound,
 					m.thinking_space_latest_thinking(),
+					LATEST_SUMMARY_FIELD_ID,
+					isLatestEdited,
+					latestOverLimit,
 					saveStatus
 				)}
 			{:else}
@@ -642,16 +683,22 @@
 				</div>
 			{/if}
 			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<span class={cn(latestOverLimit && 'text-destructive')}
-					>{#if isLatestEdited}{latestWordCount} / {MAX_SUMMARY_WORDS}{/if}</span
-				>
+				<span>
+					{#if isLatestEdited}
+						<WordCount
+							id={wordLimitIds(LATEST_SUMMARY_FIELD_ID).wordCount}
+							count={latestWordCount}
+							max={MAX_SUMMARY_WORDS}
+						/>
+					{/if}
+				</span>
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<Button
 						variant="outline"
 						size="lg"
 						class="w-full sm:w-auto"
-						onclick={onAnswerMore}
-						disabled={latestOverLimit || !onAnswerMore}
+						onclick={unlessLatestOverLimit(() => onAnswerMore?.())}
+						disabled={!onAnswerMore}
 					>
 						<PlusCircle aria-hidden="true" class="size-4" />
 						{m.thinking_space_answer_more()}
@@ -659,8 +706,8 @@
 					<Button
 						size="lg"
 						class="w-full sm:w-auto"
-						onclick={submit}
-						disabled={!latestHasText || submitting || latestOverLimit}
+						onclick={unlessLatestOverLimit(submit)}
+						disabled={!latestHasText || submitting}
 					>
 						<Check aria-hidden="true" class="size-4" />
 						{submitting ? `${m.saving()}...` : m.confirm_and_save()}
@@ -668,10 +715,10 @@
 				</div>
 			</div>
 			{#if latestOverLimit}
-				<p>
-					Your summary is {latestWordCount}. Trim it to {MAX_SUMMARY_WORDS} words or fewer to
-					save your changes.
-				</p>
+				<OverWordLimitMessage
+					id={wordLimitIds(LATEST_SUMMARY_FIELD_ID).overLimit}
+					max={MAX_SUMMARY_WORDS}
+				/>
 			{/if}
 		{/if}
 	</section>
