@@ -748,5 +748,8 @@
 	"live_event_reset_call": "Reset call",
 	"live_event_left_title": "You left the meeting",
 	"live_event_left_body": "{title} is still going. You can rejoin until it ends.",
-	"live_event_rejoin": "Rejoin"
+	"live_event_rejoin": "Rejoin",
+	"jitsi_meeting_iframe_title": "Video meeting",
+	"events_view_event": "View event",
+	"events_all_events": "All events"
 }

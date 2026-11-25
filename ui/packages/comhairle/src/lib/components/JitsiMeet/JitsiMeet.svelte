@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { env } from '$env/dynamic/public';
+	import { m } from '$lib/paraglide/messages';
 	import type { JitsiBreakoutRoom } from '$lib/utils/jitsiBreakoutRooms';
 	import type {
 		JitsiConferenceEvent,
@@ -165,6 +166,8 @@
 			});
 
 			onApiReady?.(api);
+			const iframe: HTMLIFrameElement | undefined = api.getIFrame?.();
+			if (iframe) iframe.title = m.jitsi_meeting_iframe_title();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to initialize Jitsi';
 			loading = false;
