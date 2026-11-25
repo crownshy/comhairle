@@ -1,6 +1,6 @@
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import type { Tour } from './types';
+import type { Tour, TourOptions } from './types';
 
 const SEEN_KEY_PREFIX = 'comhairle-tour-seen:';
 
@@ -15,8 +15,12 @@ function markSeen(id: string) {
 }
 
 function runDriver(tour: Tour) {
+	// A one-step pointer with its own button label needs only that button, no back or close.
+	const pointerOnly = tour.steps.length === 1 && tour.doneLabel !== undefined;
 	driver({
 		showProgress: tour.steps.length > 1,
+		...(tour.doneLabel !== undefined && { doneBtnText: tour.doneLabel }),
+		...(pointerOnly && { showButtons: ['next' as const] }),
 		allowClose: true,
 		overlayColor: 'black',
 		steps: tour.steps.map((step) => ({
@@ -43,10 +47,11 @@ class TourStore {
 		return this._active;
 	}
 
-	/** Called once from a page's `useTour(tour)`. Auto-plays the first time this browser sees it. */
-	activate(tour: Tour) {
+	/** Called once from a page's `useTour(tour)`. Auto-plays the first time this browser sees it,
+	 * unless the page has its own first-visit welcome and passes `autoplay: false`. */
+	activate(tour: Tour, { autoplay = true }: TourOptions = {}) {
 		this._active = tour;
-		if (!hasSeen(tour.id)) {
+		if (autoplay && !hasSeen(tour.id)) {
 			markSeen(tour.id);
 			// Wait a tick so the page has finished rendering before driver.js measures elements.
 			requestAnimationFrame(() => runDriver(tour));
@@ -60,6 +65,11 @@ class TourStore {
 
 	replay() {
 		if (this._active) runDriver(this._active);
+	}
+
+	/** Plays a tour that isn't the page's own, such as a one-off pointer to a control. */
+	play(tour: Tour) {
+		requestAnimationFrame(() => runDriver(tour));
 	}
 }
 

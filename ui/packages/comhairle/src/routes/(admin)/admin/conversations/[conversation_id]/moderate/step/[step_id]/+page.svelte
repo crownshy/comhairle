@@ -4,11 +4,20 @@
 	import PolisModeration from '$lib/tools/polis/PolisModeration.svelte';
 	import { rejectReasonsForStep } from '$lib/moderation/moderationPolicy';
 	import { useTour } from '$lib/tours/useTour.svelte';
+	import { permissions } from '$lib/permissions.svelte';
 	import { stepModerationTour } from './tour';
 
-	useTour(() => stepModerationTour);
-
 	let { data } = $props();
+
+	const canModerate = $derived(
+		permissions.can('conversation', 'conversation_moderate', data.conversation.id)
+	);
+
+	// Moderators get the rules dialog as their first-visit welcome, so their tour waits for a replay.
+	useTour(
+		() => stepModerationTour(canModerate),
+		() => ({ autoplay: !canModerate })
+	);
 
 	let rejectReasons = $derived(
 		rejectReasonsForStep(data.toolConfig, data.moderationPolicies, data.defaultRejectReasons)

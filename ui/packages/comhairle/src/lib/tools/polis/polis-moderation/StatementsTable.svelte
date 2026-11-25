@@ -11,8 +11,7 @@
 	import StatementModerationRow from './StatementModerationRow.svelte';
 	import RejectDialog from './RejectDialog.svelte';
 	import type { Snippet } from 'svelte';
-
-	type ModerationStatus = PolisStatementAux['moderation_status'];
+	import type { ModerationStatus } from './moderationStatus';
 
 	type Props = {
 		editable?: boolean;
@@ -39,8 +38,9 @@
 		/** Stored translations, keyed by aux row id. */
 		translationsByStatement: Record<string, PolisStatementTranslation[]>;
 		onTranslationChange: (translation: PolisStatementTranslation) => void;
-		onSplit: (row: PolisStatementAux) => void;
-		onUndoSplit: (row: PolisStatementAux) => void;
+		/** Without it, rows have no Edit button. */
+		onSplit?: (row: PolisStatementAux) => void;
+		onUndoSplit?: (row: PolisStatementAux) => void;
 		/** Shown in place of the rows when there are none to show. */
 		empty: Snippet;
 	};
@@ -189,8 +189,8 @@
 					{onTranslationChange}
 					onToggle={(checked, range) => onToggleSelect(row.id, checked, range)}
 					onModerate={(status, reason) => onModerate(row, status, reason)}
-					onSplit={() => onSplit(row)}
-					onUndoSplit={() => onUndoSplit(row)}
+					onSplit={onSplit && (() => onSplit(row))}
+					onUndoSplit={onUndoSplit && (() => onUndoSplit(row))}
 				/>
 			{/each}
 		{/if}

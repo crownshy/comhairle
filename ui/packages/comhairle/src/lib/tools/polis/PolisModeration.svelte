@@ -8,11 +8,16 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { downloadCsv } from '$lib/utils/csv';
+	import { readStorage, writeStorage } from '$lib/utils/browserStorage';
+	import { tourStore } from '$lib/tours/tourStore.svelte';
 	import { splitReason, type RejectReason } from '$lib/moderation/moderationPolicy';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux, PolisStatementTranslation } from '@crownshy/api-client/api';
 	import Download from '@lucide/svelte/icons/download';
 	import Search from '@lucide/svelte/icons/search';
+	import ShieldAlert from '@lucide/svelte/icons/shield-alert';
+	import ModerationRulesDialog from './polis-moderation/ModerationRulesDialog.svelte';
+	import { MODERATION_RULES_POINTER } from './polis-moderation/moderationGuidance';
 	import ModeratorEmailStatus from './polis-moderation/ModeratorEmailStatus.svelte';
 	import type { PolisStepTarget } from './savePolisSetting';
 	import SplitStatementDialog from './polis-moderation/SplitStatementDialog.svelte';
@@ -24,6 +29,7 @@
 	import { buildStatementsCsv, moderationReportFilename } from './polis-moderation/statementsCsv';
 	import { permissions } from '$lib/permissions.svelte';
 	import { pluralise } from '$lib/utils/pluralise';
+	import type { ModerationStatus } from './polis-moderation/moderationStatus';
 
 	type Props = {
 		conversationId: string;
@@ -51,7 +57,6 @@
 		defaultRejectReasons,
 		step
 	}: Props = $props();
-	type ModerationStatus = PolisStatementAux['moderation_status'];
 	const DECISIONS = { accepted: 'accept', rejected: 'reject', pending: 'pending' } as const;
 	const DONE_LABELS: Record<ModerationStatus, string> = {
 		accepted: 'accepted',
@@ -93,6 +98,28 @@
 	const statementSync = new StatementSync(() => workflowStepId);
 
 	onMount(() => (canSync ? statementSync.start() : undefined));
+
+	// --- Moderation rules ---
+	// The rules open by themselves on a moderator's first visit. Closing them the first time points
+	// at the button that reopens them. Remembered per browser; private windows show them again.
+	const RULES_SEEN_KEY = 'comhairle:moderation-rules-seen';
+	let rulesOpen = $state(false);
+	// Held in memory too, so blocked storage can't replay the pointer on every close.
+	let firstRulesVisit = false;
+
+	onMount(() => {
+		if (!canModerate || readStorage(RULES_SEEN_KEY) === 'true') return;
+		// Marked seen on open, so leaving through a link inside the dialog still counts.
+		writeStorage(RULES_SEEN_KEY, 'true');
+		firstRulesVisit = true;
+		rulesOpen = true;
+	});
+
+	function rulesClosed() {
+		if (!firstRulesVisit) return;
+		firstRulesVisit = false;
+		tourStore.play(MODERATION_RULES_POINTER);
+	}
 
 	// --- Status views + search ---
 	// Opens on the waiting queue, since clearing it is why moderators come here.
@@ -491,6 +518,27 @@
 				</Tabs.List>
 			</div>
 		</Tabs.Root>
+		{#if canModerate}
+			<ModerationRulesDialog
+				bind:open={rulesOpen}
+				{rejectReasons}
+				{conversationId}
+				canEditPolicy={canEdit}
+				onClosed={rulesClosed}
+			>
+				{#snippet trigger({ props })}
+					<Button
+						{...props}
+						data-tour="moderation-rules"
+						variant="ghost"
+						class="text-primary self-start text-base font-medium underline underline-offset-4 md:self-auto"
+					>
+						<ShieldAlert class="size-4" />
+						Moderation rules
+					</Button>
+				{/snippet}
+			</ModerationRulesDialog>
+		{/if}
 		<div class="relative w-full md:ml-auto md:w-72">
 			<Search
 				class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
