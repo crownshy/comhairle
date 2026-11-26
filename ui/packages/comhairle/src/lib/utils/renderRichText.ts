@@ -1,8 +1,12 @@
 import type { AnyExtension, JSONContent } from '@tiptap/core';
 import { MarkdownManager } from '@tiptap/markdown';
 import { renderToHTMLString } from '@tiptap/static-renderer/pm/html-string';
-import { getBaseExtensions } from '$lib/components/RichTextEditor/editorConfig';
+import {
+	EDITOR_HTML_ATTRIBUTES,
+	getBaseExtensions
+} from '$lib/components/RichTextEditor/editorConfig';
 import { SourceDocument } from '$lib/components/RichTextEditor/extensions/sourceDocument';
+import { ZoomableImage } from '$lib/components/RichTextEditor/extensions/image';
 import { CONTENT_TYPES } from '$lib/components/RichTextEditor/types';
 import { detectContentType } from './contentDetection';
 import { applyGlossary } from '$lib/glossary/applyGlossary';
@@ -32,8 +36,11 @@ function buildExtensions(documents: ComhairleDocument[], conversationId: string)
 	// SourceDocument reads its options inside renderHTML, so it has to be reconfigured
 	// (not just re-run) whenever the document set changes.
 	return [
-		...getBaseExtensions({ mode: 'renderer' }).filter((ext) => ext.name !== 'sourceDocument'),
-		SourceDocument.configure({ documents: documentsById, conversationId })
+		...getBaseExtensions({ mode: 'renderer' }).filter(
+			(ext) => ext.name !== 'sourceDocument' && ext.name !== 'image'
+		),
+		SourceDocument.configure({ documents: documentsById, conversationId }),
+		ZoomableImage.configure({ HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image })
 	];
 }
 

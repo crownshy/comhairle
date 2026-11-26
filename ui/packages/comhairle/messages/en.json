@@ -542,6 +542,8 @@
 	"image_lightbox_close": "Close",
 	"image_lightbox_zoom": "Zoom",
 	"image_lightbox_load_failed": "Couldn't open the image. Please try again.",
+	"image_lightbox_open": "Open image full screen",
+	"image_lightbox_open_named": "Open image full screen: {alt}",
 	"thank_you_page_title": "Thank you",
 	"thank_you_heading": "Thank you for taking part.",
 	"thank_you_conversation_label": "Conversation",

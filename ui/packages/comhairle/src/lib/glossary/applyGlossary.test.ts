@@ -93,4 +93,28 @@ describe('applyGlossary', () => {
 			{ type: 'glossaryTerm', attrs: { tooltip: 'A vehicle that carries multiple people' } }
 		]);
 	});
+
+	it('skips linked text and marks the next unlinked occurrence instead', () => {
+		const linked: JSONContent = {
+			type: 'doc',
+			content: [
+				{
+					type: 'paragraph',
+					content: [
+						{
+							type: 'text',
+							text: 'bus',
+							marks: [{ type: 'link', attrs: { href: '/x' } }]
+						},
+						{ type: 'text', text: ' then another bus' }
+					]
+				}
+			]
+		};
+		const result = applyGlossary(linked, glossary);
+		const para = result.content?.[0].content ?? [];
+		expect(para[0].marks).toEqual([{ type: 'link', attrs: { href: '/x' } }]);
+		expect(markedTerms(result)).toEqual(['bus']);
+		expect(para.at(-1)?.marks?.[0].type).toBe('glossaryTerm');
+	});
 });
