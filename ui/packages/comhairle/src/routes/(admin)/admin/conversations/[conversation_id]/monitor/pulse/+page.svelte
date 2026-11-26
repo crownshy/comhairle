@@ -5,12 +5,12 @@
 	import ActivityHeatmap from '../ActivityHeatmap.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as sample from '../sampleMonitorData';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 
 	// TODO: make util
 	function scrollToCard(id: string) {
 		const card = document.getElementById(id);
-		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		card?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+		card?.scrollIntoView({ behavior: scrollBehavior() ? 'auto' : 'smooth', block: 'start' });
 		card?.focus({ preventScroll: true });
 	}
 

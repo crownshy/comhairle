@@ -1,5 +1,6 @@
 import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
+import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 export const load: PageLoad = async ({ parent, params, depends }) => {
 	depends(key('admin/conversation/monitor'));
@@ -11,9 +12,13 @@ export const load: PageLoad = async ({ parent, params, depends }) => {
 
 	if (!workflow) return { workflowStats: null };
 
-	const workflowStats = await api.GetConversationWorkflowStats({
-		params: { conversation_id: conversation_id, workflow_id: workflow.id }
-	});
+	const result = await tryCatchAsync(() =>
+		api.GetConversationWorkflowStats({
+			params: { conversation_id: conversation_id, workflow_id: workflow.id }
+		})
+	);
 
-	return { workflowSteps, workflowStats, conversationId: params.conversation_id };
+	if (result.err !== null) return { workflowStats: null };
+
+	return { workflowSteps, workflowStats: result.ok, conversationId: params.conversation_id };
 };

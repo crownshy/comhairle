@@ -8,14 +8,13 @@
 	import FollowUpActions from './FollowUpActions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { monitorTour } from './tour';
-	import { MONITOR_PAGES, type MonitorRoute } from './sub-routes';
+	import { type MonitorRoute } from './sub-routes';
+	import type { PageProps } from './$types';
 	// import TargetSparkline from '../TargetSparkline.svelte';
 	// import ReachMini from '../ReachMini.svelte';
 	// import * as sample from '../sampleMonitorData';
 
 	useTour(() => monitorTour);
-
-	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 

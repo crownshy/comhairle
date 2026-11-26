@@ -8,12 +8,13 @@
 	import { useInterval, IsDocumentVisible } from 'runed';
 	import { formatDistance } from 'date-fns';
 	import { MONITOR_PAGES, type MonitorRoute } from './sub-routes';
+	import { Minute, Second } from '$lib/utils/units';
 
-	let { children, data }: LayoutProps = $props();
+	let { children, params }: LayoutProps = $props();
 
 	const isActivePage = (route: MonitorRoute) => page.route.id === route;
 
-	const REFRESH_INTERVAL_MS = 3 * 60_000;
+	const REFRESH_INTERVAL_MS = 3 * Minute;
 
 	let lastUpdated = $state(new Date());
 	let now = $state(new Date());
@@ -31,7 +32,7 @@
 			lastUpdated = new Date();
 		}
 	});
-	useInterval(30_000, { callback: () => (now = new Date()) });
+	useInterval(30 * Second, { callback: () => (now = new Date()) });
 
 	let updatedLabel = $derived(formatDistance(lastUpdated, now, { addSuffix: true }));
 </script>
@@ -45,7 +46,7 @@
 		<ul class="bg-muted w-fit max-w-full rounded-lg p-0.5" aria-label="Monitor sections">
 			{#each MONITOR_PAGES as tab (tab.route)}
 				<a
-					href={resolve(tab.route, { conversation_id: data.conversationId })}
+					href={resolve(tab.route, { conversation_id: params.conversation_id })}
 					aria-current={isActivePage(tab.route) ? 'page' : undefined}
 					class={cn(
 						'text-muted-foreground inline-block rounded-md px-4 py-0.5 text-base',
