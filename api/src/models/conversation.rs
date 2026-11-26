@@ -91,13 +91,17 @@ pub struct Conversation {
     /// *before* they finish. See ADR-0016.
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
+    #[partially(transparent)]
+    pub launch_date: Option<DateTime<Utc>>,
+    #[partially(transparent)]
+    pub close_date: Option<DateTime<Utc>>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 33] = [
+const DEFAULT_COLUMNS: [ConversationIden; 35] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -131,6 +135,8 @@ const DEFAULT_COLUMNS: [ConversationIden; 33] = [
     ConversationIden::ShowThankyouPageFeedbackButton,
     ConversationIden::AllowRevisitAfterFinishing,
     ConversationIden::Metadata,
+    ConversationIden::LaunchDate,
+    ConversationIden::CloseDate,
 ];
 
 impl PartialConversation {
@@ -232,6 +238,12 @@ impl PartialConversation {
         };
         if let Some(value) = &self.metadata {
             values.push((ConversationIden::Metadata, value.clone().into()))
+        };
+        if let Some(value) = self.launch_date {
+            values.push((ConversationIden::LaunchDate, value.into()))
+        };
+        if let Some(value) = self.close_date {
+            values.push((ConversationIden::CloseDate, value.into()))
         };
 
         if let Some(value) = &self.supported_languages {

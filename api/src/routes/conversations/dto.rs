@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -68,6 +69,8 @@ pub struct ConversationDto {
     pub show_thankyou_page_feedback_button: bool,
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
+    pub launch_date: Option<DateTime<Utc>>,
+    pub close_date: Option<DateTime<Utc>>,
 }
 
 /// Data transfer object (public API representation) for a LocalizedConversation.
@@ -130,6 +133,8 @@ pub struct LocalizedConversationDto {
     pub show_thankyou_page_feedback_button: bool,
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
+    pub launch_date: Option<DateTime<Utc>>,
+    pub close_date: Option<DateTime<Utc>>,
 }
 
 /// A conversation from the signed-in user's permitted list. `is_shared` is true when
@@ -174,6 +179,8 @@ impl From<Conversation> for ConversationDto {
             show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
             allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
+            launch_date: c.launch_date,
+            close_date: c.close_date,
         }
     }
 }
@@ -213,6 +220,8 @@ impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
             show_thankyou_page_feedback_button: c.show_thankyou_page_feedback_button,
             allow_revisit_after_finishing: c.allow_revisit_after_finishing,
             metadata: c.metadata,
+            launch_date: c.launch_date,
+            close_date: c.close_date,
         }
     }
 }
