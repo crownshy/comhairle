@@ -18,11 +18,12 @@ export const load: PageLoad = async ({ parent, depends, url }) => {
 			p.api
 				.ListMedia()
 				.then((res) =>
-					res.records.filter((record) =>
-						!filter
-							? true
-							: Media.mediaTypeFromContentType(record.contentType) === filter
-					)
+					!filter
+						? res.records
+						: res.records.filter(
+								(record) =>
+									Media.mediaTypeFromContentType(record.contentType) === filter
+							)
 				)
 		)
 	};
