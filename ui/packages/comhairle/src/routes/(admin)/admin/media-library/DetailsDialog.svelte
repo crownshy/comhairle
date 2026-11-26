@@ -1,6 +1,5 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import type { HTMLMediaElement } from '$lib/utils/types';
 	import '$lib/components/Media/MediaBackground.css';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Edit from '@lucide/svelte/icons/square-pen';
@@ -14,11 +13,11 @@
 	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
-	import Media from '$lib/interfaces/Media.svelte';
+	import Media, { type MediaType } from '$lib/interfaces/Media.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props extends MediaDto {
-		type: HTMLMediaElement | undefined;
+		type: MediaType | undefined;
 		close: () => void;
 	}
 

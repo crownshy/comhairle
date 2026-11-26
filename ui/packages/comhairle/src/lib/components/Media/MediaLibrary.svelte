@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import type { Component } from 'svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { Music, Video, type IconProps } from '@lucide/svelte';
@@ -34,9 +33,9 @@
 </script>
 
 {#snippet MediaItem(media: MediaDto)}
-	{@const type: HTMLMediaElement | undefined = htmlFromMediaType(media.contentType) }
+	{@const type = Media.mediaTypeFromContentType(media.contentType)}
 	<div
-		class="chequered-background border-muted media-item hover:border-accent focus-visible:border-accent grid aspect-video min-h-48 w-full cursor-pointer grid-cols-1 grid-rows-[4fr_1fr] items-center overflow-hidden rounded-lg border-2"
+		class="chequered-background border-muted media-item hover:border-accent focus-visible:border-accent grid aspect-video w-full cursor-pointer grid-cols-1 grid-rows-[1fr_auto] items-center overflow-hidden rounded-lg border-2"
 	>
 		<div class="justify-self-center overflow-hidden select-none">
 			{#snippet placeholder(Icon: Component<IconProps>)}
@@ -77,7 +76,7 @@
 	</div>
 {/snippet}
 
-<ul class="dynamic-grid gap-5">
+<ul class="dynamic-grid w-full gap-5">
 	{#if media.err !== null}
 		{console.error(media.err)}
 		<ErrorMessage>Could not load media please try again</ErrorMessage>

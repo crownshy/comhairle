@@ -1,7 +1,8 @@
 <script lang="ts">
 	import * as Select from '$lib/components/ui/select';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+	import QueryParams from '$lib/interfaces/QueryParams.svelte';
+	import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 	import { X } from '@lucide/svelte';
 	import Badge from './ui/badge/badge.svelte';
 	import Button from './ui/button/button.svelte';

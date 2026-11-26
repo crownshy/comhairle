@@ -30,6 +30,18 @@ describe('Media interface', () => {
 		expect(Media.formatBytes(21_357_712, { dp: 0 })).toEqual('21MB');
 	});
 
+	it('Should get extensions correctly', () => {
+		expect(Media.extensionFromContentType('audio/webm')).toEqual('.weba');
+		expect(Media.extensionFromContentType('image/jpeg')).toEqual('.jpg,.jpeg');
+		expect(Media.extensionFromContentType('video/mp4')).toEqual('.mp4');
+	});
+
+	it('Should get the media type correctly', () => {
+		expect(Media.mediaTypeFromContentType('audio/mpeg')).toEqual('audio');
+		expect(Media.mediaTypeFromContentType('image/jpeg')).toEqual('image');
+		expect(Media.mediaTypeFromContentType('video/mp4')).toEqual('video');
+	});
+
 	it.each(['image/png', 'video/mp4', 'audio/mpeg'] as const)(
 		'uploads %s with the headers required by the presigned request',
 		async (contentType) => {
