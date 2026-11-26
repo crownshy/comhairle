@@ -41,10 +41,6 @@
 		{
 			href: '/conversations',
 			name: m.participate()
-		},
-		{
-			href: '/rights',
-			name: m.your_rights()
 		}
 	];
 	// The logo already goes home, and the home page is the conversation list, so the bar
