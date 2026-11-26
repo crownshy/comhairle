@@ -73,7 +73,8 @@ class Uploader {
 				filename: data.media.name,
 				name: data.name,
 				alt: data.alt,
-				contentType: data.media.type
+				contentType: data.media.type,
+				size: data.media.size
 			})
 		);
 
@@ -194,15 +195,30 @@ function getFilename(filename: string): string {
 	return filename.slice(0, index);
 }
 
-function formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
-	const denominations = ['B', 'KB', 'MB', 'GB'];
+const denominations = ['B', 'KB', 'MB', 'GB'] as const;
+
+type FormatBytesOptions = {
+	size?: (typeof denominations)[number];
+	dp?: number;
+};
+/**
+ * Format bytes into a condensed string, automatically picks the size for best readability
+ * @param bytes - value in bytes
+ * @param options -
+ * - size?: forces a fixed size, e.g. "GB"
+ * - dp?: decimal points to round to, defaults to 2
+ * @example
+ * formatBytes(3_000) = "3KB"
+ * formatBytes(21_123_223) = "21.12MB"
+ */
+function formatBytes(bytes: number, options: FormatBytesOptions = { dp: 2 }): string {
 	const factor = 1_000; // 1_024 for kibibytes
 
 	const calcBytes = (bytes: number, index: number): number =>
 		Math.round((bytes / Math.pow(factor, index)) * 100) / 100;
 
-	if (size) {
-		const index = denominations.indexOf(size);
+	if (options?.size) {
+		const index = denominations.indexOf(options.size);
 		return `${calcBytes(bytes, index)}${denominations[index]}`;
 	}
 
@@ -211,11 +227,11 @@ function formatBytes(bytes: number, size?: 'B' | 'KB' | 'MB' | 'GB'): string {
 
 		if (value <= 0.7) {
 			const previousSafeIndex = Math.max(i - 1, 0);
-			return `${calcBytes(bytes, previousSafeIndex)}${denominations[previousSafeIndex]}`;
+			return `${calcBytes(bytes, previousSafeIndex).toFixed(options.dp)}${denominations[previousSafeIndex]}`;
 		}
 
 		if (i === denominations.length - 1) {
-			return `${calcBytes(bytes, i)}${denominations[i]}`;
+			return `${calcBytes(bytes, i).toFixed(options.dp)}${denominations[i]}`;
 		}
 	}
 
@@ -228,7 +244,7 @@ function acceptedExtensions(type: 'all' | 'audio' | 'video' | 'image' = 'all'): 
 	for (const mediaContentType of MediaContentType.options) {
 		// mediaContentType.match =  'audio' | 'video' | 'image'
 		if (type === 'all' || mediaContentType.match(/.*(?=\/)/)?.[0] === type) {
-			acceptedExtensions.push(contentTypeToAcceptedExtension(mediaContentType));
+			acceptedExtensions.push(extensionFromContentType(mediaContentType));
 		}
 	}
 
@@ -236,12 +252,13 @@ function acceptedExtensions(type: 'all' | 'audio' | 'video' | 'image' = 'all'): 
 }
 
 /**
- * Function to convert content-type into a file extension e.g.
- * contentTypeToExtension("image/png") = ".png"
- * contentTypeToExtension("video/webm") = ".webm"
- * contentTypeToExtension("audio/mpeg") = ".mp3"
+ * Function to convert content type into file extension(s)
+ * @example
+ * extensionFromContentType("image/jpeg") = ".jpg,.jpeg"
+ * extensionFromContentType("video/webm") = ".webm"
+ * extensionFromContentType("audio/mpeg") = ".mp3"
  */
-function contentTypeToAcceptedExtension(contentType: MediaContentType) {
+function extensionFromContentType(contentType: MediaContentType) {
 	switch (contentType) {
 		case 'image/jpeg':
 			return '.jpg,.jpeg';
@@ -270,9 +287,21 @@ function contentTypeToAcceptedExtension(contentType: MediaContentType) {
 	}
 }
 
-export type AcceptedExtensions = ReturnType<typeof contentTypeToAcceptedExtension>;
+export type MediaType = 'audio' | 'image' | 'video';
+/**
+ * Function to convert from content type to media type
+ * @example
+ * mediaTypeFromContentType("audio/mpeg") = "audio"
+ * mediaTypeFromContentType("image/jpeg") = "image"
+ * mediaTypeFromContentType("video/mp4") = "video"
+ */
+export function mediaTypeFromContentType(content: MediaContentType): MediaType {
+	return content.split('/')[0] as MediaType;
+}
 
-export default {
+export type AcceptedExtensions = ReturnType<typeof extensionFromContentType>;
+
+const Media = {
 	uploader: Uploader,
 	uploadAsForm,
 	normalise,
@@ -280,5 +309,8 @@ export default {
 	getFilename,
 	formatBytes,
 	acceptedExtensions,
-	contentTypeToAcceptedExtension
-};
+	extensionFromContentType,
+	mediaTypeFromContentType
+} as const;
+
+export default Media;

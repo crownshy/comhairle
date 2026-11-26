@@ -6,7 +6,8 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
-	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+	import QueryParams from '$lib/interfaces/QueryParams.svelte';
+	import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 	import { useDebounce } from 'runed';
 	import { Button } from '$lib/components/ui/button';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';

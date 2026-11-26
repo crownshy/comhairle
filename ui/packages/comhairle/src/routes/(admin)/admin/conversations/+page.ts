@@ -2,7 +2,8 @@ import type { PageLoad } from './$types';
 import { key } from '$lib/utils/invalidationKey';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { calcOffset, getPage } from '$lib/pagination';
-import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+import QueryParams from '$lib/interfaces/QueryParams.svelte';
+import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 import AdminConversation from './AdminConversation';
 
 const PAGE_SIZE = 10;

@@ -1,15 +1,7 @@
 import { goto } from '$app/navigation';
 import { page } from '$app/state';
-import type { ConversationCardLayout } from '$lib/components/ConversationCard.svelte';
 
 type DefaultParams = Record<string, string | number>;
-
-export type ConversationsParams = {
-	page: number;
-	search: string;
-	filter: 'open' | 'ended';
-	view: ConversationCardLayout;
-};
 
 function refresh(href: string = new URL(page.url).href) {
 	// eslint-disable-next-line svelte/no-navigation-without-resolve

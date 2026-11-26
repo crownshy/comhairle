@@ -24,14 +24,28 @@ describe('Media interface', () => {
 	});
 
 	it('Should format bytes correctly', () => {
-		expect(Media.formatBytes(2_000_012, 'MB')).toEqual('2MB');
+		expect(Media.formatBytes(2_000_012, { size: 'MB' })).toEqual('2MB');
 		expect(Media.formatBytes(1_312_424)).toEqual('1.31MB');
 		expect(Media.formatBytes(5_712)).toEqual('5.71KB');
+		expect(Media.formatBytes(21_357_712, { dp: 0 })).toEqual('21MB');
+	});
+
+	it('Should get extensions correctly', () => {
+		expect(Media.extensionFromContentType('audio/webm')).toEqual('.weba');
+		expect(Media.extensionFromContentType('image/jpeg')).toEqual('.jpg,.jpeg');
+		expect(Media.extensionFromContentType('video/mp4')).toEqual('.mp4');
+	});
+
+	it('Should get the media type correctly', () => {
+		expect(Media.mediaTypeFromContentType('audio/mpeg')).toEqual('audio');
+		expect(Media.mediaTypeFromContentType('image/jpeg')).toEqual('image');
+		expect(Media.mediaTypeFromContentType('video/mp4')).toEqual('video');
 	});
 
 	it.each(['image/png', 'video/mp4', 'audio/mpeg'] as const)(
 		'uploads %s with the headers required by the presigned request',
 		async (contentType) => {
+			// Size is 5 because content is the string "media" which is 5 characters
 			const file = new File(['media'], 'upload', { type: contentType });
 			const response: UploadMediaResponseDto = {
 				presignedUploadUrl: 'https://storage.example.com/upload',
@@ -42,6 +56,7 @@ describe('Media interface', () => {
 					filename: file.name,
 					name: 'Uploaded media',
 					alt: 'Description',
+					size: 5,
 					contentType,
 					storageKey: 'upload',
 					storeName: 'media',
@@ -77,6 +92,7 @@ describe('Media interface', () => {
 				filename: file.name,
 				name: response.media.name,
 				alt: response.media.alt,
+				size: 5,
 				contentType
 			});
 			expect(request.open).toHaveBeenCalledWith('PUT', response.presignedUploadUrl, true);

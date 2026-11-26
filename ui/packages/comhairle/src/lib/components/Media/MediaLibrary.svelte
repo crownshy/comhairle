@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import type { Component } from 'svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import Music from '@lucide/svelte/icons/music';
-	import Video from '@lucide/svelte/icons/video';
-	import type { IconProps } from '@lucide/svelte';
+	import { Music, Video, type IconProps } from '@lucide/svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import './MediaBackground.css';
 	import ErrorMessage from '../ErrorMessage.svelte';
 	import type { ErrorType, Result } from '$lib/utils/errorHandling';
+	import Media from '$lib/interfaces/Media.svelte';
 
 	type BaseProps = {
 		media: Result<MediaDto[], ErrorType>;
@@ -35,9 +33,9 @@
 </script>
 
 {#snippet MediaItem(media: MediaDto)}
-	{@const type: HTMLMediaElement | undefined = htmlFromMediaType(media.contentType) }
+	{@const type = Media.mediaTypeFromContentType(media.contentType)}
 	<div
-		class="chequered-background border-muted media-item hover:border-accent focus-visible:border-accent grid aspect-video min-h-48 w-full cursor-pointer grid-cols-1 grid-rows-[4fr_1fr] items-center overflow-hidden rounded-lg border-2"
+		class="chequered-background border-muted media-item hover:border-accent focus-visible:border-accent grid aspect-video w-full cursor-pointer grid-cols-1 grid-rows-[1fr_auto] items-center overflow-hidden rounded-lg border-2"
 	>
 		<div class="justify-self-center overflow-hidden select-none">
 			{#snippet placeholder(Icon: Component<IconProps>)}
@@ -56,25 +54,29 @@
 			{/if}
 		</div>
 		<div
-			class="bg-card text-card-foreground flex flex-col items-start self-stretch px-5 py-2 text-xs"
+			class="bg-card text-card-foreground grid grid-cols-[auto_auto] items-start justify-between gap-1 self-stretch px-5 py-2 text-xs"
 			title={media.name}
 		>
-			<div class="grid grid-cols-[auto_auto] items-center justify-between self-stretch">
-				<div class="truncate font-bold">
-					{media.name}
-				</div>
-				<Badge variant="secondary" class="justify-self-end">
-					{capitalise(type ?? '')}
-				</Badge>
+			<div class="truncate font-bold">
+				{media.name}
 			</div>
-			<span class="text-muted-foreground">
+			<Badge variant="secondary" class="justify-self-end">
+				{capitalise(type ?? '')}
+			</Badge>
+			<span class="text-muted-foreground justify-self-start font-semibold">
 				{media.contentType.split('/')[1].toUpperCase()}
 			</span>
+			<!-- For old media the size wasn't provided on creation, so it defaults to 0, in this case just hide the file size -->
+			{#if media.size > 0}
+				<span class="text-muted-foreground font-mono font-semibold">
+					{Media.formatBytes(media.size, { dp: 0 })}
+				</span>
+			{/if}
 		</div>
 	</div>
 {/snippet}
 
-<ul class="dynamic-grid gap-5">
+<ul class="dynamic-grid w-full gap-5">
 	{#if media.err !== null}
 		{console.error(media.err)}
 		<ErrorMessage>Could not load media please try again</ErrorMessage>

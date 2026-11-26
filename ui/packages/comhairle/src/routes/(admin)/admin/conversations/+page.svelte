@@ -16,7 +16,8 @@
 	import LayoutToggle from '$lib/components/LayoutToggle.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { conversationsListTour } from './tour';
-	import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+	import QueryParams from '$lib/interfaces/QueryParams.svelte';
+	import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { useDebounce } from 'runed';
 	import { m } from '$lib/paraglide/messages';

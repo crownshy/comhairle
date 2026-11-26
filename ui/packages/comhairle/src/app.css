@@ -119,8 +119,7 @@ a {
  */
 .dynamic-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(var(--grid-item-width, 19rem), 1fr));
-	align-items: stretch;
+	grid-template-columns: repeat(auto-fill, minmax(var(--grid-item-width, 19rem), 1fr));
 }
 
 /* sonner's default close button is a bordered circle translated over the toast corner */

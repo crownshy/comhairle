@@ -1,6 +1,11 @@
 import { resolve } from '$app/paths';
 import type { UserRoles } from '@crownshy/api-client/api';
 import { isModeratorOnly, moderatorOnlyConversationIds } from '$lib/utils/permissions';
+import { pathWithQuery } from '$lib/utils/backTo';
+
+export function adminLoginPath(currentUrl: URL): string {
+	return `${resolve('/auth/login')}?backTo=${encodeURIComponent(pathWithQuery(currentUrl))}`;
+}
 
 export function adminReturnPath(referer: string | null, currentUrl: URL): string {
 	if (!referer || !URL.canParse(referer)) return '/';

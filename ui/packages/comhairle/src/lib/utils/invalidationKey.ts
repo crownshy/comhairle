@@ -9,6 +9,7 @@ export type InputKey =
 	| 'admin/conversation/preview-password'
 	| 'admin/conversation/report'
 	| 'admin/conversation/workflow'
+	| 'admin/conversation/monitor'
 	| 'admin/conversation/design/workflow'
 	| 'admin/conversations'
 	| 'admin/demographic-forms'

@@ -2382,9 +2382,9 @@ export const WorkflowStepStats = z
   .object({
     completed: z.number().int(),
     id: z.string().uuid(),
+    inProgress: z.number().int(),
     maxActiveSeconds: z.union([z.number(), z.null()]).optional(),
     medianActiveSeconds: z.union([z.number(), z.null()]).optional(),
-    started: z.number().int(),
   })
   .passthrough();
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
@@ -2392,6 +2392,7 @@ export const WorkflowStats = z
   .object({
     activeUsers: z.number().int(),
     finishedUsers: z.number().int(),
+    recruitedUsers: z.number().int(),
     signupStats: z.array(DailySignupStats),
     stepStats: z.array(WorkflowStepStats),
     totalActiveSeconds: z.number().int(),
@@ -4075,6 +4076,7 @@ export const MediaDto = z
     id: z.string().uuid(),
     name: z.string(),
     ownerId: z.string().uuid(),
+    size: z.number().int(),
     storageKey: z.string(),
     storeName: z.string(),
     url: z.string(),
@@ -4093,6 +4095,7 @@ export const UploadMediaDto = z
     contentType: z.string(),
     filename: z.string(),
     name: z.string(),
+    size: z.number().int(),
   })
   .passthrough();
 export type UploadMediaDto = z.infer<typeof UploadMediaDto>;

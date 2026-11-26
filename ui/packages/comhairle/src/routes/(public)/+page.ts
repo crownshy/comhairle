@@ -1,7 +1,8 @@
 import type { PageLoad } from './$types';
 import { getPage, calcOffset } from '$lib/pagination';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
-import QueryParams, { type ConversationsParams } from '$lib/interfaces/QueryParams.svelte';
+import QueryParams from '$lib/interfaces/QueryParams.svelte';
+import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 import { key } from '$lib/utils/invalidationKey';
 import Conversation, { type ConversationStatus } from '$lib/interfaces/Conversation';
 

@@ -1,156 +1,223 @@
 <script lang="ts">
-	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
-	import StatsBar from '$lib/components/StatsBar.svelte';
-	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import Download from '@lucide/svelte/icons/download';
-	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { permissions } from '$lib/permissions.svelte';
+	import FirstVisitHint from './FirstVisitHint.svelte';
+	import ParticipationFlow from './ParticipationFlow.svelte';
+	import QuestionCard from './QuestionCard.svelte';
+	import FollowUpActions from './FollowUpActions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { monitorTour } from './tour';
+	import { type MonitorRoute } from './sub-routes';
 	import type { PageProps } from './$types';
+	// import TargetSparkline from '../TargetSparkline.svelte';
+	// import ReachMini from '../ReachMini.svelte';
+	// import * as sample from '../sampleMonitorData';
 
 	useTour(() => monitorTour);
 
 	let { data }: PageProps = $props();
-	let { workflowSteps, workflowStats } = $derived(data);
-	const canExport = $derived(
+
+	let workflowStats = $derived(data.workflowStats);
+
+	let stepsWithStats = $derived(
+		data.workflowSteps?.map((step) => {
+			const matchingStats = workflowStats?.stepStats.find((stat) => stat.id === step.id);
+			const completed = matchingStats?.completed ?? 0;
+			const reached = completed + (matchingStats?.inProgress ?? 0);
+			return {
+				name: step.name,
+				reached,
+				completed
+			};
+		}) ?? []
+	);
+
+	let worstStep = $derived(
+		stepsWithStats.reduce((worst, step) =>
+			step.reached - step.completed > worst.reached - worst.completed ? step : worst
+		)
+	);
+
+	let medianActiveSecs = $derived(
+		workflowStats?.stepStats.reduce((acc, step) => acc + (step.medianActiveSeconds ?? 0), 0) ??
+			0
+	);
+	let medianTimeLabel = $derived.by(() => {
+		if (medianActiveSecs < 60) {
+			return `${medianActiveSecs} sec`;
+		} else {
+			return `${Math.round(medianActiveSecs / 60)}`;
+		}
+	});
+
+	async function showTab(route: MonitorRoute) {
+		await goto(
+			resolve(route, {
+				conversation_id: data.conversationId
+			})
+		);
+	}
+
+	let base = $derived(`/admin/conversations/${data.conversation.id}`);
+	let canExport = $derived(
 		permissions.can('conversation', 'conversation_export', data.conversation.id)
 	);
 
-	let stats = $derived([
-		{
-			name: 'Total Users',
-			amount: workflowStats.totalUsers,
-			unit: null
-		},
+	// The Recruitment hint opens Demographic analysis on the demographic it names.
+	// let representationTab = $state(sample.SAMPLE_REPRESENTATION[0]?.name ?? '');
+	// function scrollToCard(id: string) {
+	// 	const card = document.getElementById(id);
+	// 	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	// 	card?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+	// 	card?.focus({ preventScroll: true });
+	// }
+	//
+	// function viewRepresentation(dimensionName: string) {
+	// 	representationTab = dimensionName;
+	// 	scrollToCard('demographic-analysis');
+	// }
 
-		{
-			name: 'Active Now',
-			amount: workflowStats.activeUsers,
-			unit: null
-		},
-
-		{
-			name: 'Time Spent',
-			amount: Math.round(workflowStats.totalActiveSeconds / 60),
-			unit: ' minutes'
-		},
-		{
-			name: 'Completed',
-			amount: workflowStats.finishedUsers,
-			unit: null
-		}
-	]);
-
-	let formatElapsedTime = (seconds: number) => {
-		const rounded = Math.round(seconds);
-		const mins = Math.floor(rounded / 60);
-		const secs = rounded % 60;
-		if (mins > 0) {
-			return `${mins}m ${secs}s`;
-		}
-		return `${secs}s`;
-	};
+	// TODO(backend): load and save the target with the conversation (page state only for now).
+	// let target = $state(sample.SAMPLE_TARGET);
+	// let targetPace = $derived([
+	// 	sample.SAMPLE_TARGET_PACE[0],
+	// 	{ day: sample.SAMPLE_CLOSING_DATE, total: target }
+	// ]);
+	// let evenPaceToday = $derived(
+	// 	Math.round(
+	// 		(target * sample.SAMPLE_DAY_OF_CONVERSATION) / sample.SAMPLE_CONVERSATION_LENGTH_DAYS
+	// 	)
+	// );
+	// let closingLabel = $derived(
+	// 	sample.SAMPLE_CLOSING_DATE.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+	// );
+	// // At a glance Reach card: which demographic is selected.
+	// let reachDimensionName = $state(sample.SAMPLE_REPRESENTATION[0].name);
+	// let reachDimension = $derived(
+	// 	sample.SAMPLE_REPRESENTATION.find((dimension) => dimension.name === reachDimensionName) ??
+	// 		sample.SAMPLE_REPRESENTATION[0]
+	// );
+	// let underRepresentedCount = $derived(
+	// 	reachDimension.rows.filter((row) => sample.isUnderRepresented(row)).length
+	// );
 </script>
 
 <svelte:head>
-	<title>Monitor Conversation - Comhairle Admin</title>
+	<title>Monitor prototype - Comhairle Admin</title>
 </svelte:head>
 
-<h2 class="my-10 text-2xl">Overview</h2>
-<StatsBar {stats} />
-
-<DailyStatsChart stats={workflowStats.signupStats} />
-
-<h2 class="my-10 text-2xl">Progress</h2>
-
-<p class="text-mutted text-sm">
-	See how users are making progress through the engagment. Indetify any sticking points
-</p>
-
-{#each workflowSteps as step (step.id)}
-	{@const stepStats = workflowStats.stepStats.find((stats) => stats.id === step.id)}
-	<h3 class="my-5 text-xl font-bold">{step.name}</h3>
-	<div class="grid grid-cols-3 gap-10 overflow-x-auto">
-		<StatProgressIndicator
-			title="Started"
-			currentValue={stepStats?.started ?? 0}
-			description="participants who have started but not completed this step"
-			total={workflowStats.totalUsers}
-			varName="started"
-			entityType="participants"
-			message="have started this workflow step"
+{#if workflowStats}
+	<div class="flex flex-col gap-12">
+		<section aria-label="Overview" class="flex flex-col gap-6">
+			<FirstVisitHint tourHref="/admin/info/tools" />
+			<!-- TODO: removed from ParticipationFlow component below as closing date not currently supported -->
+			<!-- caption="Day {sample.SAMPLE_DAY_OF_CONVERSATION} of {sample.SAMPLE_CONVERSATION_LENGTH_DAYS} · closes {closingLabel}" -->
+			<ParticipationFlow
+				recruited={workflowStats.recruitedUsers}
+				joined={workflowStats.totalUsers}
+				completed={workflowStats.finishedUsers}
+			/>
+			<div class="flex gap-5">
+				<QuestionCard
+					eyebrow="Working"
+					question="Are people completing?"
+					value="{Math.round(
+						(workflowStats.finishedUsers / workflowStats.totalUsers) * 100
+					)}%"
+					unit="of joiners completed"
+					extraValue={medianTimeLabel}
+					extraUnit="typical time to complete"
+					trendLabel="Completion rate per step"
+					bars={stepsWithStats.map((step) => ({
+						label: step.name,
+						fullLabel: step.name,
+						percent:
+							step.reached === 0
+								? 0
+								: Math.round((step.completed / step.reached) * 100),
+						flagged: step.name === worstStep.name
+					}))}
+					actionLabel="Review {worstStep.name}"
+					actionHref="{base}/design"
+					onShowDetails={() =>
+						showTab('/(admin)/admin/conversations/[conversation_id]/monitor/journey')}
+					detailsTab="Journey"
+				/>
+				<!-- TODO: commented out as dependent on recruitment target and closing date -->
+				<!-- <QuestionCard -->
+				<!-- 	eyebrow="Recruitment" -->
+				<!-- 	question="Are enough people joining?" -->
+				<!-- 	value={String(sample.SAMPLE_JOINED)} -->
+				<!-- 	unit="of {target} target" -->
+				<!-- 	trendLabel="Running total of signups against the target" -->
+				<!-- 	actionLabel="Open Recruit" -->
+				<!-- 	actionHref="{base}/invites" -->
+				<!-- 	onShowDetails={() => showTab('recruitment')} -->
+				<!-- 	detailsTab="Recruitment" -->
+				<!-- > -->
+				<!-- 	{#snippet visual()} -->
+				<!-- 		<TargetSparkline -->
+				<!-- 			signups={sample.SAMPLE_SIGNUPS} -->
+				<!-- 			{target} -->
+				<!-- 			launchDate={sample.SAMPLE_LAUNCH_DATE} -->
+				<!-- 			closingDate={sample.SAMPLE_CLOSING_DATE} -->
+				<!-- 		/> -->
+				<!-- 	{/snippet} -->
+				<!-- </QuestionCard> -->
+				<!-- <QuestionCard -->
+				<!-- 	eyebrow="Reach" -->
+				<!-- 	question="Are we hearing from everyone?" -->
+				<!-- 	value="{reachDimension.rows.length - underRepresentedCount} of {reachDimension -->
+				<!-- 		.rows.length}" -->
+				<!-- 	unit="{reachDimension.groupNoun} well covered" -->
+				<!-- 	trendLabel="Share of participants compared with the local population" -->
+				<!-- 	actionLabel="Open Recruit" -->
+				<!-- 	actionHref="{base}/invites" -->
+				<!-- 	onShowDetails={() => showTab('recruitment')} -->
+				<!-- 	detailsTab="Recruitment" -->
+				<!-- > -->
+				<!-- 	{#snippet visual()} -->
+				<!-- 		<ReachMini -->
+				<!-- 			dimensions={sample.SAMPLE_REPRESENTATION} -->
+				<!-- 			bind:selected={reachDimensionName} -->
+				<!-- 		/> -->
+				<!-- 	{/snippet} -->
+				<!-- </QuestionCard> -->
+			</div>
+		</section>
+		<FollowUpActions
+			exports={[
+				// TODO: commented out as dependent on data export for each tool type
+				// {
+				// 	count: sample.USED_THINKING_SPACE,
+				// 	title: 'Thinking space summaries',
+				// 	description: 'Get a sense of how people think.',
+				// 	label: 'Download summaries',
+				// 	// TODO(backend): no summaries export yet; this points at the demographics export.
+				// 	href: `/api/conversation/${data.conversation.id}/demographics/export`,
+				// 	disabled: !canExport,
+				// 	primary: true
+				// },
+				{
+					title: 'Contacts',
+					description:
+						'A list of users who have opted in to being contacted on this engagement.',
+					label: 'Download contacts',
+					href: `/api/conversation/${data.conversation.id}/contacts/export`,
+					disabled: !canExport
+				},
+				{
+					title: 'Demographics',
+					description:
+						'Demographic data from user profiles for participants in this conversation.',
+					label: 'Download demographics',
+					href: `/api/conversation/${data.conversation.id}/demographics/export`,
+					disabled: !canExport
+				}
+			]}
 		/>
-		<StatProgressIndicator
-			title="Completed"
-			currentValue={stepStats?.completed ?? 0}
-			description="participants who have completed this step"
-			total={workflowStats.totalUsers}
-			varName="completed"
-			entityType="participants"
-			message="have completed this workflow step"
-		/>
-
-		<Card.Root class="flex-inline flex">
-			<Card.Header class="items-center">
-				<Card.Title>Time to complete</Card.Title>
-				<Card.Description>Median user time to complete</Card.Description>
-			</Card.Header>
-			<Card.Content class="h-full">
-				<div class="flex flex-col items-center justify-center">
-					{#if stepStats?.medianActiveSeconds != null}
-						<p class="pt-[70px] text-3xl">
-							{formatElapsedTime(stepStats.medianActiveSeconds)}
-						</p>
-						<p>median</p>
-					{:else}
-						<p class="pt-[70px] text-center text-2xl">
-							{(stepStats?.completed ?? 0) > 0
-								? 'No timing data available for completed participants'
-								: 'No users have completed this step yet'}
-						</p>
-					{/if}
-				</div>
-			</Card.Content>
-			<Card.Footer class="flex-col gap-2 text-sm">
-				{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
-					Most users completed this step in {formatElapsedTime(
-						stepStats?.medianActiveSeconds ?? 0
-					)}. The longest it took someone was {formatElapsedTime(
-						stepStats?.maxActiveSeconds ?? 0
-					)}.
-				{/if}
-			</Card.Footer>
-		</Card.Root>
 	</div>
-{/each}
-
-<h2 class="my-10 text-2xl">Follow up</h2>
-
-<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
-	<div class="flex flex-col gap-4">
-		<p>Download a list of users who have opted in to being contacted on this engagment</p>
-		<Button
-			href={`/api/conversation/${data.conversation.id}/contacts/export`}
-			disabled={!canExport}
-			download
-			variant="outline"
-		>
-			<Download class="mr-2 h-4 w-4" />
-			Download Contacts
-		</Button>
-	</div>
-	<div class="flex flex-col gap-4">
-		<p>Download demographic data from user profiles for participants in this conversation</p>
-		<Button
-			href={`/api/conversation/${data.conversation.id}/demographics/export`}
-			disabled={!canExport}
-			download
-			variant="outline"
-		>
-			<Download class="mr-2 h-4 w-4" />
-			Download Demographics
-		</Button>
-	</div>
-</div>
+{:else}
+	<h2>Could not collect statistics for this conversation at this time.</h2>
+{/if}

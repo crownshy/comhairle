@@ -15,6 +15,7 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import { toolIcon } from '$lib/components/AdminGuide/toolIcons';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
+	import GuideLearnMoreDialog from '$lib/components/AdminGuide/GuideLearnMoreDialog.svelte';
 
 	type MobileGroup = {
 		label: string;
@@ -356,6 +357,8 @@
 			<div class="bg-card min-w-0 flex-1 rounded-xl">
 				{@render children()}
 			</div>
+			<!-- Opened from a glossary tooltip's "learn more" link. -->
+			<GuideLearnMoreDialog />
 		</div>
 	</div>
 </div>
