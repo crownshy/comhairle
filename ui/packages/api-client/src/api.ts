@@ -4075,6 +4075,7 @@ export const MediaDto = z
     id: z.string().uuid(),
     name: z.string(),
     ownerId: z.string().uuid(),
+    size: z.number().int(),
     storageKey: z.string(),
     storeName: z.string(),
     url: z.string(),
@@ -4093,6 +4094,7 @@ export const UploadMediaDto = z
     contentType: z.string(),
     filename: z.string(),
     name: z.string(),
+    size: z.number().int(),
   })
   .passthrough();
 export type UploadMediaDto = z.infer<typeof UploadMediaDto>;

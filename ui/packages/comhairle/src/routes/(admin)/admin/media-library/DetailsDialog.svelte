@@ -28,6 +28,7 @@
 		filename,
 		name: initialName,
 		alt: initialAlt,
+		size,
 		url: src,
 		createdAt,
 		close
@@ -180,7 +181,7 @@
 								field="alt"
 								readOnlyField={ReadOnlyField}
 							/>
-							<section class="grid grid-cols-2">
+							<section class="grid grid-cols-2 {editable && 'mt-3'}">
 								<div>
 									{@render ReadOnlyField('Type', capitalise(type ?? ''))}
 								</div>
@@ -189,6 +190,9 @@
 										'Format',
 										Media.getExtension(filename)?.toUpperCase().slice(1) ?? ''
 									)}
+								</div>
+								<div>
+									{@render ReadOnlyField('File size', Media.formatBytes(size))}
 								</div>
 								<div>
 									{@render ReadOnlyField(

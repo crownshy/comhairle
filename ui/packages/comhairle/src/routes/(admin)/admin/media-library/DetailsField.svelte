@@ -14,7 +14,7 @@
 	let { editable, field, initialValue, label, readOnlyField }: Props = $props();
 </script>
 
-<div class="flex flex-col">
+<div class="mb-2 flex flex-col">
 	{#if !editable}
 		{@render readOnlyField(label, initialValue)}
 	{:else}
@@ -23,7 +23,7 @@
 			{label}
 			defaultValue={initialValue}
 			type="text"
-			class="mb-5 flex flex-row items-center"
+			class="flex flex-row items-center"
 		/>
 	{/if}
 </div>
