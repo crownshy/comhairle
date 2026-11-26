@@ -5,7 +5,6 @@ import { HttpStatus } from '$lib/utils/constants';
 import type {
 	ConversationWithTranslations,
 	MediaDto,
-	WorkflowStats,
 	WorkflowStepsListResponse
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
@@ -62,14 +61,6 @@ export const load: LayoutLoad = async ({ params, parent, depends, url, untrack }
 		]);
 		// ListEvents returns a paginated `{ records }` wrapper; expose the flat array.
 		const events = eventsResponse.records;
-		let stats: WorkflowStats = {
-			signupStats: [],
-			stepStats: [],
-			totalUsers: 0,
-			activeUsers: 0,
-			finishedUsers: 0,
-			totalActiveSeconds: 0
-		};
 		let workflowSteps: WorkflowStepsListResponse = [];
 
 		let media: MediaDto | null = null;
@@ -78,9 +69,6 @@ export const load: LayoutLoad = async ({ params, parent, depends, url, untrack }
 		}
 
 		if (workflows.length > 0) {
-			stats = await api.GetConversationWorkflowStats({
-				params: { conversation_id, workflow_id: workflows[0].id }
-			});
 			workflowSteps = await api.ListConversationWorkflowSteps({
 				params: { conversation_id, workflow_id: workflows[0].id },
 				queries: { withTranslations: true }
@@ -91,7 +79,6 @@ export const load: LayoutLoad = async ({ params, parent, depends, url, untrack }
 			conversation,
 			conversationActions,
 			workflows,
-			stats,
 			workflowSteps,
 			// Moderation is for Polis steps, whether they are live or still in preview.
 			hasPolisStep: workflowSteps.some(
