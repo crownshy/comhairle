@@ -3,7 +3,7 @@ import { parseWidthCookie, WIDTH_COOKIE_NAME } from '$lib/components/sidebarWidt
 import { error, redirect } from '@sveltejs/kit';
 import { tryCatchAsync } from '$lib/utils/errorHandling';
 import { canAccessAdminPortal, hasSuperAdminRole } from '$lib/utils/permissions';
-import { adminLandingPath, adminReturnPath } from './adminAccess';
+import { adminLandingPath, adminLoginPath, adminReturnPath } from './adminAccess';
 import { HttpStatus } from '$lib/utils/constants';
 
 /**
@@ -13,8 +13,8 @@ import { HttpStatus } from '$lib/utils/constants';
  */
 export const load: LayoutServerLoad = async ({ cookies, parent, locals, request, url }) => {
 	const { user } = await parent();
+	if (!user) redirect(HttpStatus.SeeOther, adminLoginPath(url));
 	const returnPath = adminReturnPath(request.headers.get('referer'), url);
-	if (!user) redirect(HttpStatus.SeeOther, returnPath);
 
 	const roles = await tryCatchAsync(() => locals.api.GetUserRoles());
 	if (roles.err !== null) {

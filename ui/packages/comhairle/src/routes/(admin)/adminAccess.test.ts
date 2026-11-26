@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UserRoles } from '@crownshy/api-client/api';
-import { adminLandingPath, adminReturnPath } from './adminAccess';
+import { adminLandingPath, adminLoginPath, adminReturnPath } from './adminAccess';
 import { canAccessAdminPortal } from '$lib/utils/permissions';
 
 describe('admin portal access', () => {
@@ -42,6 +42,14 @@ describe('admin portal access', () => {
 		'https://example.com//another.example'
 	])('uses the home page for unsafe or missing referrers: %s', (referer) => {
 		expect(adminReturnPath(referer, new URL('https://example.com/admin'))).toBe('/');
+	});
+});
+
+describe('adminLoginPath', () => {
+	it('sends to login with a backTo for the requested admin page and query', () => {
+		expect(
+			adminLoginPath(new URL('https://example.com/admin/conversations/c1?tab=steps'))
+		).toBe('/auth/login?backTo=%2Fadmin%2Fconversations%2Fc1%3Ftab%3Dsteps');
 	});
 });
 
