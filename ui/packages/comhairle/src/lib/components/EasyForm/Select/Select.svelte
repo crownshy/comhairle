@@ -16,18 +16,15 @@
 		options: Option[];
 		defaultSelected?: Value;
 		placeholder?: Label;
+		onValueChange?: (value: Value) => void;
 	};
 
-	let { id, name, question, options, defaultSelected, placeholder }: Props = $props();
+	let { id, name, question, options, defaultSelected, placeholder, onValueChange }: Props =
+		$props();
 
-	// svelte-ignore state_referenced_locally
-	let selected = $state<Value | undefined>(defaultSelected);
-	let label = $derived.by(() => {
-		if (selected) {
-			return options.find((o) => o.value === selected)?.label;
-		}
-		return defaultSelected ?? placeholder ?? '';
-	});
+	let selected = $derived<Value | undefined>(defaultSelected);
+	let label = $derived(options.find((o) => o.value === selected)?.label ?? placeholder ?? '');
+	let drawerOpen = $state(false);
 	let isPlaceholder = $derived<boolean>(
 		!selected && defaultSelected === undefined && placeholder !== undefined
 	);
@@ -37,7 +34,7 @@
 </script>
 
 {#if !isMobile.current}
-	<Select.Root {name} type="single" bind:value={selected}>
+	<Select.Root {name} type="single" bind:value={selected} {onValueChange}>
 		<Select.Trigger {id} class={cn(INPUT_STYLE)} {placeholder}>
 			<span
 				class="flex w-full flex-row items-center justify-between"
@@ -55,9 +52,9 @@
 		</Select.Content>
 	</Select.Root>
 {:else}
-	<Drawer.Root>
+	<Drawer.Root bind:open={drawerOpen}>
 		<Drawer.Trigger {id} class={cn(INPUT_STYLE)}>
-			<span class="my-auto text-sm" class:text-muted-foreground={isPlaceholder}>
+			<span class="my-auto text-base" class:text-muted-foreground={isPlaceholder}>
 				{label}
 			</span>
 		</Drawer.Trigger>
@@ -67,7 +64,16 @@
 			</Drawer.Header>
 			<fieldset aria-labelledby={titleId} class="mx-5 flex flex-col gap-5 overflow-y-auto">
 				{#each options as option (option.value)}
-					<SelectItem {name} onselect={(value) => void (selected = value)} {...option} />
+					<SelectItem
+						{name}
+						defaultSelected={option.value === selected}
+						onselect={(value) => {
+							selected = value;
+							drawerOpen = false;
+							onValueChange?.(value);
+						}}
+						{...option}
+					/>
 				{/each}
 			</fieldset>
 		</Drawer.Content>

@@ -54,7 +54,7 @@
 	{#if layout === 'list'}
 		<article class={cn(CARD_CLASS, 'flex items-center gap-4 rounded-2xl p-3')}>
 			<div
-				class="bg-primary/10 relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-24"
+				class="bg-primary/10 relative size-20 shrink-0 overflow-hidden rounded-xl sm:size-36"
 			>
 				{#if conversation.imageUrl}
 					<img
@@ -96,58 +96,50 @@
 			/>
 		</article>
 	{:else}
-		<!-- Cards in a row stretch to the same height. The image is a fixed height, the title
-			and description are clamped, and the footer sits at the bottom, so footers line up
-			across a row however long the text is. -->
-		<article class={cn(CARD_CLASS, 'flex h-full flex-col gap-4 rounded-2xl p-3')}>
-			<div
-				class="bg-primary/10 relative h-48 w-full shrink-0 overflow-hidden rounded-xl sm:h-52"
-			>
+		<article
+			class={cn(
+				CARD_CLASS,
+				'relative grid grid-rows-[1fr_auto_auto_auto_auto] gap-4 rounded-2xl p-3'
+			)}
+		>
+			<div class="bg-primary/10 w-full rounded-xl">
 				{#if conversation.imageUrl}
 					<img
 						src={conversation.imageUrl}
 						alt="Image for {conversation.title}"
-						class="absolute inset-0 size-full object-cover transition-transform duration-500 ease-out group-hover:scale-102"
+						class="aspect-video h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
 					/>
 				{:else}
-					<MessageSquareText class="text-primary/30 absolute inset-0 m-auto size-16" />
+					<MessageSquareText class="text-primary/30 inset-0 m-auto size-16 rounded-xl" />
 				{/if}
 				<ConversationStatusBadge
 					{status}
 					label={statusLabel}
-					class="absolute top-3 left-3 border-transparent px-3.5 py-1.5 text-base shadow-md backdrop-blur"
+					class="absolute top-4 left-4 border-transparent px-3.5 py-1.5 text-base shadow-md backdrop-blur"
 				/>
 			</div>
 
-			<div class="flex grow flex-col items-start gap-3 px-2 pb-2">
-				<svelte:element
-					this={_for === 'admin' ? 'h2' : 'h3'}
-					class="text-foreground line-clamp-3 text-xl leading-7 font-semibold"
-				>
-					<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
-				</svelte:element>
-				{#if conversation.shortDescription}
-					<p class="text-muted-foreground line-clamp-2 text-base leading-7">
-						{conversation.shortDescription}
-					</p>
-				{/if}
-				{#if Meta || Actions}
-					<div class="mt-auto flex w-full flex-col items-start gap-3 pt-2">
-						{#if Meta}
-							<div
-								class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base"
-							>
-								{@render Meta()}
-							</div>
-						{/if}
-						{#if Actions}
-							<div class="flex flex-wrap items-center gap-3">
-								{@render Actions()}
-							</div>
-						{/if}
-					</div>
-				{/if}
-			</div>
+			<svelte:element
+				this={_for === 'admin' ? 'h2' : 'h3'}
+				class="text-foreground line-clamp-3 text-xl leading-7 font-semibold"
+			>
+				<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+			</svelte:element>
+			{#if conversation.shortDescription}
+				<p class="text-muted-foreground line-clamp-2 text-base">
+					{conversation.shortDescription}
+				</p>
+			{/if}
+			{#if Meta}
+				<div class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base">
+					{@render Meta()}
+				</div>
+			{/if}
+			{#if Actions}
+				<div class="flex flex-wrap items-center gap-3 pt-2">
+					{@render Actions()}
+				</div>
+			{/if}
 		</article>
 	{/if}
 {/if}

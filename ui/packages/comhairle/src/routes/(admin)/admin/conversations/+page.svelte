@@ -80,12 +80,14 @@
 				<div data-tour="status-filters">
 					<FilterBadges
 						param="filter"
-						options={AdminConversation.filters.map((filter) => [
-							filter,
-							capitalise(filter)
-						])}
+						options={[
+							['', 'All'],
+							...AdminConversation.filters.map((filter): [string, string] => [
+								filter,
+								capitalise(filter)
+							])
+						]}
 						label="Filter conversations"
-						allLabel="All"
 					/>
 				</div>
 				<div class="flex items-center gap-3">

@@ -1,43 +1,54 @@
 <script lang="ts">
+	import { Select } from '$lib/components/EasyForm';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import QueryParams from '$lib/interfaces/QueryParams.svelte';
-	import { cn } from '$lib/utils';
+	import Badge from './ui/badge/badge.svelte';
 
 	type Props = {
 		param: string;
+		/** Use an empty value for an "All" badge, which clears the filter. */
 		options: [value: string, label: string][];
 		label: string;
-		allLabel: string;
 	};
 
-	let { param, options, label, allLabel }: Props = $props();
+	let { param, options, label }: Props = $props();
 
-	let chips = $derived<[value: string, label: string][]>([['', allLabel], ...options]);
-
-	function select(value: string) {
-		QueryParams.set(param, value).set('page', '1').update();
-	}
+	const isMobile = new IsMobile();
 </script>
 
-<!-- One row that scrolls sideways on narrow screens, so every chip stays one tap away. -->
-<nav aria-label={label} class="-mx-4 min-w-0 overflow-x-auto px-4 py-1 sm:mx-0 sm:px-0">
-	<ul class="flex w-max gap-2">
-		{#each chips as [value, chipLabel] (value)}
-			{@const isActive = value === (QueryParams.get(param) ?? '')}
-			<li>
-				<button
-					type="button"
-					onclick={() => select(value)}
-					aria-current={isActive ? 'page' : undefined}
-					class={cn(
-						'focus-visible:ring-ring flex h-9 items-center rounded-full border px-3.5 text-base whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none',
-						isActive
-							? 'bg-primary text-primary-foreground border-primary'
-							: 'border-border bg-card hover:bg-muted'
-					)}
-				>
-					{chipLabel}
-				</button>
-			</li>
-		{/each}
-	</ul>
-</nav>
+<!-- Badges wrap awkwardly in a narrow column, so on phones they become a select that opens a sheet. -->
+{#if !isMobile.current}
+	<nav aria-label={label}>
+		<ul class="flex flex-wrap gap-2">
+			{#each options as [value, badgeLabel] (value)}
+				{@const isActive = value === (QueryParams.get(param) ?? '')}
+				<li>
+					<button
+						type="button"
+						onclick={() =>
+							QueryParams.set(param, isActive ? '' : value)
+								.set('page', '1')
+								.update()}
+						aria-current={isActive ? 'page' : undefined}
+					>
+						<Badge
+							variant={isActive ? 'primary' : 'outline'}
+							class="h-9 px-3.5 text-base"
+						>
+							{badgeLabel}
+						</Badge>
+					</button>
+				</li>
+			{/each}
+		</ul>
+	</nav>
+{:else}
+	<Select
+		id="{param}-filter"
+		name={param}
+		question={label}
+		options={options.map(([value, optionLabel]) => ({ value, label: optionLabel }))}
+		defaultSelected={(QueryParams.get(param) as string | undefined) ?? ''}
+		onValueChange={(value) => QueryParams.set(param, value).set('page', '1').update()}
+	/>
+{/if}

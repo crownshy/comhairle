@@ -35,14 +35,6 @@
 		return undefined;
 	}
 
-	function clearSearch() {
-		QueryParams.remove<ConversationsParams>('search').remove('page').update();
-	}
-
-	function clearSearchAndFilters() {
-		QueryParams.remove<ConversationsParams>('search').remove('filter').remove('page').update();
-	}
-
 	// Glide down to the list rather than jump; people who ask for reduced motion jump straight
 	// there. Focus moves to the list heading so keyboard and screen reader users land there too.
 	function scrollToList(event: MouseEvent) {
@@ -133,7 +125,10 @@
 						{#if search}
 							<button
 								type="button"
-								onclick={clearSearch}
+								onclick={() =>
+									QueryParams.remove<ConversationsParams>('search')
+										.remove('page')
+										.update()}
 								class="text-primary text-base font-semibold underline"
 							>
 								{m.conversations_clear_search()}
@@ -162,8 +157,8 @@
 						<FilterBadges
 							param="filter"
 							label={m.conversations_filter_label()}
-							allLabel={m.conversations_filter_all()}
 							options={[
+								['', m.conversations_filter_all()],
 								['open', m.conversations_filter_open()],
 								['ended', m.conversations_filter_ended()]
 							]}
@@ -189,13 +184,17 @@
 							<Button
 								variant="outline"
 								class="mt-2 rounded-full text-base"
-								onclick={clearSearchAndFilters}
+								onclick={() =>
+									QueryParams.remove<ConversationsParams>('search')
+										.remove('filter')
+										.remove('page')
+										.update()}
 							>
 								{m.conversations_clear_filters()}
 							</Button>
 						</div>
 					{:else if data.conversations.ok}
-						<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-10">
+						<div class="dynamic-grid gap-8 lg:gap-y-10">
 							{#each data.conversations.ok.records as conversation (conversation.id)}
 								<ConversationCard
 									{conversation}
