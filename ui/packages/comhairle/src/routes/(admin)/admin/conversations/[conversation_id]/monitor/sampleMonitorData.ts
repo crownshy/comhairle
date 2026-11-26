@@ -22,7 +22,7 @@ export type SignupPoint = { day: Date; total: number };
 
 /** New: needs the signup source (invite, open link, QR) stored per participant. */
 export type RecruitmentChannel = {
-	type: 'Email' | 'Open link' | 'Physical';
+	type: string;
 	name: string;
 	joined: number;
 	conversion: string | null;

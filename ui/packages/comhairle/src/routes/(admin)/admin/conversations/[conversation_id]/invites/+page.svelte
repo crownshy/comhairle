@@ -129,7 +129,6 @@
 								<Table.Head class="w-[72px]">Link</Table.Head>
 								<Table.Head class="w-[130px]">Created</Table.Head>
 								<Table.Head class="w-[130px]">Expires</Table.Head>
-								<Table.Head class="min-w-[260px]">Stats</Table.Head>
 								<Table.Head class="w-[90px] text-center">Accepted</Table.Head>
 								<Table.Head class="w-[150px] text-center">QR code</Table.Head>
 								<Table.Head class="w-[150px] text-center">Embed QR code</Table.Head>
@@ -169,13 +168,6 @@
 											: 'Never'}
 									</Table.Cell>
 
-									<Table.Cell>
-										<OpenInviteStatsBarChart
-											conversation_id={conversation.id}
-											invite_id={invite.id}
-										/>
-									</Table.Cell>
-
 									<Table.Cell class="text-center font-medium tabular-nums">
 										{invite.acceptCount}
 									</Table.Cell>
@@ -210,8 +202,6 @@
 			{/if}
 		</div>
 	</div>
-{:else if activeTab === 'physical'}
-	<h2>Generate physical QR Codes for an inperson event</h2>
 {/if}
 
 {#if canEdit}
