@@ -1,4 +1,6 @@
+import { mergeAttributes } from '@tiptap/core';
 import { Image as BaseImage } from '@tiptap/extension-image';
+import { m } from '$lib/paraglide/messages';
 
 export type ImageAlign = 'left' | 'center' | 'right';
 export type ImageWidth = '25' | '50' | '75' | '100';
@@ -70,5 +72,23 @@ export const Image = BaseImage.extend({
 			align: layoutAttribute('align', ALIGN_KEYS),
 			width: layoutAttribute('width', WIDTH_KEYS)
 		};
+	}
+});
+
+/**
+ * The read-only renderer's image. ContentRenderer opens it in a lightbox on click, Enter or
+ * Space, so it is rendered as a focusable, named button. The editor keeps the plain `Image`.
+ */
+export const ZoomableImage = Image.extend({
+	renderHTML({ HTMLAttributes }) {
+		const alt = typeof HTMLAttributes.alt === 'string' ? HTMLAttributes.alt : '';
+		return [
+			'img',
+			mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+				role: 'button',
+				tabindex: '0',
+				'aria-label': alt ? m.image_lightbox_open_named({ alt }) : m.image_lightbox_open()
+			})
+		];
 	}
 });

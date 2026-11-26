@@ -13,6 +13,7 @@
 	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import { getPreviewKind, type PreviewKind } from '$lib/utils/previewKind';
 	import { openImageLightbox } from './imageLightbox';
+	import { attachGlossaryTooltip } from './glossaryTooltip';
 	import '../editor-content.css';
 
 	type Props = {
@@ -57,18 +58,23 @@
 		downloadHref: string | null;
 	}>({ open: false, kind: 'pdf', src: null, name: '', downloadHref: null });
 
+	function zoomableImage(target: EventTarget | null): HTMLImageElement | null {
+		return target instanceof HTMLImageElement && !target.closest('a') ? target : null;
+	}
+
 	/* Intercept source-document badge clicks: open PDFs, images, and Word
 	 * documents in an in-page viewer instead of downloading. Other file types
 	 * keep default download. Images outside a link open in a zoomable lightbox. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 
-		const target = event.target as HTMLElement | null;
-		if (target instanceof HTMLImageElement && !target.closest('a')) {
-			openImageLightbox(target);
+		const image = zoomableImage(event.target);
+		if (image) {
+			openImageLightbox(image);
 			return;
 		}
 
+		const target = event.target as HTMLElement | null;
 		const badge = target?.closest<HTMLAnchorElement>('a.source-document-badge');
 		if (!badge) return;
 
@@ -87,82 +93,33 @@
 		previewDialog = { open: true, kind, src: href, name: doc.name, downloadHref: href };
 	}
 
+	// Rendered images carry role="button" (see ZoomableImage), so they open like a button does.
+	function handleContentKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Enter' && event.key !== ' ') return;
+		const image = zoomableImage(event.target);
+		if (!image) return;
+		event.preventDefault();
+		openImageLightbox(image);
+	}
+
 	// Delegated rather than an inline onclick: the badges come from {@html}, and putting a
 	// handler on the static wrapper would trip the a11y interactive-element rules.
 	$effect(() => {
 		const el = contentElement;
 		if (!el) return;
 		el.addEventListener('click', handleContentClick);
-		return () => el.removeEventListener('click', handleContentClick);
+		el.addEventListener('keydown', handleContentKeydown);
+		return () => {
+			el.removeEventListener('click', handleContentClick);
+			el.removeEventListener('keydown', handleContentKeydown);
+		};
 	});
 
-	function showGlossaryTooltip(trigger: HTMLElement) {
-		const el = glossaryTooltipEl;
-		if (!el) return;
-		const text = trigger.getAttribute('data-glossary-tooltip');
-		if (!text) return;
-
-		el.textContent = text;
-		el.setAttribute('data-visible', 'true');
-		el.setAttribute('aria-hidden', 'false');
-		trigger.setAttribute('aria-describedby', glossaryTooltipId);
-
-		// Anchor at the term's top-centre; the CSS transform lifts and centres the box. Clamp
-		// horizontally so a term near an edge doesn't push the tooltip off-screen.
-		const rect = trigger.getBoundingClientRect();
-		const margin = 8;
-		const halfWidth = el.offsetWidth / 2;
-		const centre = rect.left + rect.width / 2;
-		const left = Math.min(
-			Math.max(centre, halfWidth + margin),
-			window.innerWidth - halfWidth - margin
-		);
-		el.style.left = `${left}px`;
-		el.style.top = `${rect.top}px`;
-	}
-
-	function hideGlossaryTooltip(trigger?: HTMLElement | null) {
-		const el = glossaryTooltipEl;
-		if (!el) return;
-		el.setAttribute('data-visible', 'false');
-		el.setAttribute('aria-hidden', 'true');
-		trigger?.removeAttribute('aria-describedby');
-	}
-
-	// Glossary terms come from {@html}, so the tooltip is driven by delegated hover/focus
-	// listeners on the wrapper rather than per-element handlers.
 	$effect(() => {
-		const el = contentElement;
-		if (!el) return;
-
-		const closestTerm = (event: Event) =>
-			(event.target as HTMLElement | null)?.closest<HTMLElement>('.glossary-term') ?? null;
-		const onOver = (event: Event) => {
-			const term = closestTerm(event);
-			if (term) showGlossaryTooltip(term);
-		};
-		const onOut = (event: Event) => {
-			const term = closestTerm(event);
-			if (term) hideGlossaryTooltip(term);
-		};
-		const onScrollResize = () => hideGlossaryTooltip();
-
-		el.addEventListener('mouseover', onOver);
-		el.addEventListener('mouseout', onOut);
-		el.addEventListener('focusin', onOver);
-		el.addEventListener('focusout', onOut);
-		// Capture so a scroll in any ancestor (the article scroll container) dismisses it.
-		window.addEventListener('scroll', onScrollResize, true);
-		window.addEventListener('resize', onScrollResize);
-
-		return () => {
-			el.removeEventListener('mouseover', onOver);
-			el.removeEventListener('mouseout', onOut);
-			el.removeEventListener('focusin', onOver);
-			el.removeEventListener('focusout', onOut);
-			window.removeEventListener('scroll', onScrollResize, true);
-			window.removeEventListener('resize', onScrollResize);
-		};
+		const container = contentElement;
+		const tooltip = glossaryTooltipEl;
+		if (!container || !tooltip) return;
+		return attachGlossaryTooltip(container, tooltip);
 	});
 </script>
 

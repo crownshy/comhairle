@@ -11,6 +11,8 @@ export interface ApplyGlossaryOptions {
 
 /** The mark name applied to matched terms; must match the GlossaryTerm extension. */
 const GLOSSARY_MARK = 'glossaryTerm';
+/** Terms render as buttons, and a button can't sit inside a link, so linked text is skipped. */
+const LINK_MARK = 'link';
 
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -65,7 +67,9 @@ function splitTextNode(
 
 	const existingMarks = node.marks ?? [];
 	// Never nest a glossary mark inside another (e.g. content that already carries one).
-	if (existingMarks.some((mark) => mark.type === GLOSSARY_MARK)) return [node];
+	if (existingMarks.some((mark) => mark.type === GLOSSARY_MARK || mark.type === LINK_MARK)) {
+		return [node];
+	}
 
 	const { regex, lookup } = matcher;
 	regex.lastIndex = 0;

@@ -118,7 +118,6 @@
 					view === 'list' ? 'flex w-full flex-col gap-3' : 'dynamic-grid w-full gap-6',
 					'transition-opacity'
 				]}
-				style="--grid-item-width: 19rem;"
 			>
 				{#each data.conversations.ok.records as conversation (conversation.id)}
 					<ConversationCard {conversation} for="admin" layout={view}>

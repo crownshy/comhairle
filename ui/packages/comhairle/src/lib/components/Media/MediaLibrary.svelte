@@ -48,7 +48,11 @@
 			{:else if type === 'video'}
 				{@render placeholder(Video)}
 			{:else}
-				<img src={media.url} alt={media.alt} class="aspect-video max-h-32 object-contain" />
+				<img
+					src={media.url}
+					alt={media.alt}
+					class="aspect-video max-h-48 object-contain md:max-h-32"
+				/>
 			{/if}
 		</div>
 		<div
@@ -70,17 +74,17 @@
 	</div>
 {/snippet}
 
-<ul class="flex flex-row flex-wrap gap-5">
+<ul class="dynamic-grid gap-5">
 	{#if media.err !== null}
 		{console.error(media.err)}
 		<ErrorMessage>Could not load media please try again</ErrorMessage>
 	{:else}
 		{#each media.ok as m (m.id)}
-			<li class="relative max-w-75">
+			<li class="relative">
 				{#if mode === 'view'}
 					<button
 						type="button"
-						class="block aspect-video h-full w-full"
+						class="h-full w-full"
 						onclick={() => {
 							onDetailsOpen?.(m);
 						}}
