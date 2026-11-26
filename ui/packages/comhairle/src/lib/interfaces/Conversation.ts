@@ -32,7 +32,7 @@ export function getParams(status: ConversationStatus): Params {
 		case 'draft':
 			return { is_live: false, is_complete: false };
 		case 'completed':
-			return { is_live: undefined, is_complete: false };
+			return { is_live: undefined, is_complete: true };
 	}
 }
 

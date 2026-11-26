@@ -32,7 +32,7 @@ describe('Get the params correctly', () => {
 	it('should return correctly from completed', () => {
 		expect(Conversation.getParams('completed')).toStrictEqual({
 			is_live: undefined,
-			is_complete: false
+			is_complete: true
 		});
 	});
 });
