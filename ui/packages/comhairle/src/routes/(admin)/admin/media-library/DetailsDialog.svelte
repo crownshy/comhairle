@@ -13,28 +13,28 @@
 	import { Form, Submit, type OnSubmit } from '$lib/components/EasyForm';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { capitalise } from '$lib/utils/casingUtils';
-	import Media, { type MediaType } from '$lib/interfaces/Media.svelte';
+	import Media from '$lib/interfaces/Media.svelte';
 	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props extends MediaDto {
-		type: MediaType | undefined;
 		close: () => void;
 	}
 
 	let {
 		id,
-		type,
 		filename,
 		name: initialName,
 		alt: initialAlt,
 		size,
 		url: src,
+		contentType,
 		createdAt,
 		close
 	}: Props = $props();
 
 	let editable = $state<boolean>(false);
 	let deleteDialogOpen = $state<boolean>(false);
+	let mediaType = $derived(Media.mediaTypeFromContentType(contentType));
 
 	async function deleteMedia() {
 		const response = await tryCatchAsync(() =>
@@ -151,11 +151,9 @@
 				<div
 					class="chequered-background flex flex-col justify-center rounded p-1 lg:min-h-[50vh] lg:p-6"
 				>
-					{#if type === undefined}
-						<p>Error reading file type</p>
-					{:else if type === 'audio'}
+					{#if mediaType === 'audio'}
 						<audio {src} controls autoplay={false}></audio>
-					{:else if type === 'video'}
+					{:else if mediaType === 'video'}
 						<video {src} controls autoplay={false} class="max-h-[60vh]">
 							<track kind="captions" />
 						</video>
@@ -182,7 +180,7 @@
 							/>
 							<section class="grid grid-cols-2 {editable && 'mt-3'}">
 								<div>
-									{@render ReadOnlyField('Type', capitalise(type ?? ''))}
+									{@render ReadOnlyField('Type', capitalise(mediaType ?? ''))}
 								</div>
 								<div>
 									{@render ReadOnlyField(

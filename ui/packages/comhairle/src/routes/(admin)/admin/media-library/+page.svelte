@@ -135,11 +135,7 @@
 				/>
 			{/if}
 			{#if details !== null}
-				<DetailsDialog
-					{...details}
-					type={Media.mediaTypeFromContentType(details.contentType)}
-					close={() => (details = null)}
-				/>
+				<DetailsDialog {...details} close={() => (details = null)} />
 			{/if}
 		</Dialog.Root>
 	</div>
