@@ -9,6 +9,7 @@
 	import ConversationIntro from '$lib/components/ConversationIntro.svelte';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
@@ -37,7 +38,9 @@
 	);
 
 	function scrollToJoin() {
-		document.getElementById('join')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		document
+			.getElementById('join')
+			?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 	}
 
 	let privacyPolicyOpen = $state(false);

@@ -16,6 +16,7 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import HomeEmptyState from './HomeEmptyState.svelte';
 	import PageHero from '$lib/components/PageHero.svelte';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 
 	let { data } = $props();
 
@@ -47,8 +48,7 @@
 		const list = document.getElementById('conversations');
 		if (!list) return;
 		event.preventDefault();
-		const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		list.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+		list.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
 		list.focus({ preventScroll: true });
 	}
 </script>
