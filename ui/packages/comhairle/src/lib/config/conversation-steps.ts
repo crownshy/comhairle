@@ -139,7 +139,7 @@ export const conversationSections: ConversationSection[] = [
 	},
 	{
 		name: 'Monitor',
-		path: 'monitor',
+		path: 'monitor/overview',
 		icon: Binoculars,
 		stage: 'engage',
 		requiresLive: true,
