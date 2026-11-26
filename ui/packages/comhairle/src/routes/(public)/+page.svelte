@@ -26,6 +26,7 @@
 	// No conversations at all, as opposed to a search or filter that matched none.
 	let isEmpty = $derived(total === 0 && !search && !filter);
 	let nothingMatches = $derived(total === 0 && !isEmpty);
+	let hasList = $derived(data.conversations.err === null && !isEmpty);
 
 	function statusLabel(conversation: LocalizedConversationDto) {
 		const status = Conversation.getStatus(conversation);
@@ -99,7 +100,7 @@
 				</p>
 			{/if}
 		</div>
-		{#if !isEmpty}
+		{#if hasList}
 			<Button
 				href="#conversations"
 				onclick={scrollToList}
