@@ -1,6 +1,5 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import type { HTMLMediaElement } from '$lib/utils/types';
 	import '$lib/components/Media/MediaBackground.css';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Edit from '@lucide/svelte/icons/square-pen';
@@ -18,24 +17,24 @@
 	import { key } from '$lib/utils/invalidationKey';
 
 	interface Props extends MediaDto {
-		type: HTMLMediaElement | undefined;
 		close: () => void;
 	}
 
 	let {
 		id,
-		type,
 		filename,
 		name: initialName,
 		alt: initialAlt,
 		size,
 		url: src,
+		contentType,
 		createdAt,
 		close
 	}: Props = $props();
 
 	let editable = $state<boolean>(false);
 	let deleteDialogOpen = $state<boolean>(false);
+	let mediaType = $derived(Media.mediaTypeFromContentType(contentType));
 
 	async function deleteMedia() {
 		const response = await tryCatchAsync(() =>
@@ -152,11 +151,9 @@
 				<div
 					class="chequered-background flex flex-col justify-center rounded p-1 lg:min-h-[50vh] lg:p-6"
 				>
-					{#if type === undefined}
-						<p>Error reading file type</p>
-					{:else if type === 'audio'}
+					{#if mediaType === 'audio'}
 						<audio {src} controls autoplay={false}></audio>
-					{:else if type === 'video'}
+					{:else if mediaType === 'video'}
 						<video {src} controls autoplay={false} class="max-h-[60vh]">
 							<track kind="captions" />
 						</video>
@@ -183,7 +180,7 @@
 							/>
 							<section class="grid grid-cols-2 {editable && 'mt-3'}">
 								<div>
-									{@render ReadOnlyField('Type', capitalise(type ?? ''))}
+									{@render ReadOnlyField('Type', capitalise(mediaType ?? ''))}
 								</div>
 								<div>
 									{@render ReadOnlyField(
