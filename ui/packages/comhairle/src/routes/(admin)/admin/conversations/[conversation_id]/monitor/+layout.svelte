@@ -24,11 +24,10 @@
 <div class="flex flex-col gap-8 pb-16">
 	<div class="flex flex-wrap items-center gap-4">
 		<ul class="bg-muted w-fit max-w-full rounded-lg p-0.5" aria-label="Monitor sections">
-			<!-- TODO: remove prototype segment -->
 			{#each MONITOR_PAGES as tab (tab.value)}
 				<a
 					href={resolve(
-						`/(admin)/admin/conversations/[conversation_id]/monitor/prototype/${tab.value}`,
+						`/(admin)/admin/conversations/[conversation_id]/monitor/${tab.value}`,
 						{ conversation_id: data.conversationId }
 					)}
 					class={cn(

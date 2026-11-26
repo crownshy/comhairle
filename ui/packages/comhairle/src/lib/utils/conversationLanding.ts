@@ -10,7 +10,7 @@ const FALLBACK_SECTION_PATH = 'configure';
 
 const LANDING_SECTION_PATH: Record<ConversationStatus, string> = {
 	draft: 'configure',
-	live: 'monitor',
+	live: 'monitor/overview',
 	completed: 'report'
 };
 

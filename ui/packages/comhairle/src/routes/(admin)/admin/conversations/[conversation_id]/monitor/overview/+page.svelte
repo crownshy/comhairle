@@ -6,9 +6,13 @@
 	import ParticipationFlow from '../ParticipationFlow.svelte';
 	import QuestionCard from '../QuestionCard.svelte';
 	import FollowUpActions from '../FollowUpActions.svelte';
+	import { useTour } from '$lib/tours/useTour.svelte';
+	import { monitorTour } from '../tour';
 	// import TargetSparkline from '../TargetSparkline.svelte';
 	// import ReachMini from '../ReachMini.svelte';
 	// import * as sample from '../sampleMonitorData';
+
+	useTour(() => monitorTour);
 
 	import type { PageProps } from './$types';
 
@@ -50,7 +54,7 @@
 	type MonitorTab = 'overview' | 'pulse' | 'journey' | 'recruitment';
 	async function showTab(value: MonitorTab) {
 		await goto(
-			resolve(`/(admin)/admin/conversations/[conversation_id]/monitor/prototype/${value}`, {
+			resolve(`/(admin)/admin/conversations/[conversation_id]/monitor/${value}`, {
 				conversation_id: data.conversationId
 			})
 		);

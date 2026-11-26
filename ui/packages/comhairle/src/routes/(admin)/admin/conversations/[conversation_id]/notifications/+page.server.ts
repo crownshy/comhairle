@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, parent, locals }) => {
 	}
 
 	if (!canPerformAction(actions.ok, 'conversation_admin')) {
-		redirect(HttpStatus.SeeOther, `/admin/conversations/${conversationId}/monitor`);
+		redirect(HttpStatus.SeeOther, `/admin/conversations/${conversationId}/monitor/overview`);
 	}
 
 	return {};
