@@ -26,6 +26,8 @@ use super::workflow_step::{self, WorkflowStepIden};
 use super::{SqlxResultExt, user_conversation_preferences};
 use crate::ComhairleState;
 use crate::error::ComhairleError;
+use crate::models::invite_response::{self, InviteResponseIden};
+use crate::models::invites::InviteIden;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
@@ -339,6 +341,7 @@ pub struct WorkflowStats {
     pub total_users: i32,
     pub active_users: i32,
     pub finished_users: i32,
+    pub recruited_users: i32,
     pub total_active_seconds: i64,
     pub step_stats: Vec<WorkflowStepStats>,
     pub signup_stats: Vec<DailySignupStats>,
@@ -349,7 +352,7 @@ pub struct WorkflowStats {
 pub struct WorkflowStepStats {
     id: Uuid,
     pub completed: i32,
-    pub started: i32,
+    pub in_progress: i32,
     /// Active time for participants with done progress, including return visits.
     pub median_active_seconds: Option<f64>,
     pub max_active_seconds: Option<i64>,
@@ -384,7 +387,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .expr_as(status_count(ProgressStatus::Done), Alias::new("completed"))
         .expr_as(
             status_count(ProgressStatus::InProgress),
-            Alias::new("started"),
+            Alias::new("in_progress"),
         )
         .join(
             JoinType::LeftJoin,
@@ -446,6 +449,33 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
     let (total_users, finished_users): (i32, i32) =
         sqlx::query_as_with(&sql, values).fetch_one(db).await?;
     let finished_users = if rows.is_empty() { 0 } else { finished_users };
+
+    let (sql, values) = Query::select()
+        .from(InviteResponseIden::Table)
+        .expr(as_integer(Func::count_distinct(Expr::col((
+            InviteResponseIden::Table,
+            InviteResponseIden::UserId,
+        )))))
+        .join(
+            JoinType::LeftJoin,
+            InviteIden::Table,
+            Expr::col((InviteIden::Table, InviteIden::Id))
+                .equals((InviteResponseIden::Table, InviteResponseIden::InviteId)),
+        )
+        .join(
+            JoinType::LeftJoin,
+            WorkflowIden::Table,
+            Expr::col((WorkflowIden::Table, WorkflowIden::ConversationId))
+                .equals((InviteIden::Table, InviteIden::ConversationId)),
+        )
+        .and_where(Expr::col((WorkflowIden::Table, WorkflowIden::Id)).eq(workflow_id))
+        .and_where(Expr::col((InviteIden::Table, InviteIden::EventId)).is_null())
+        .and_where(
+            Expr::col((InviteResponseIden::Table, InviteResponseIden::Response))
+                .eq(invite_response::Response::Accept),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+    let recruited_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
 
     let (sql, values) = Query::select()
         .from(UserActivityIden::Table)
@@ -521,7 +551,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
     }
     let step_stats = rows
         .into_iter()
-        .map(|(id, completed, started)| {
+        .map(|(id, completed, in_progress)| {
             let times = completed_times.entry(id).or_default();
             times.sort_unstable();
             let median_active_seconds = if times.is_empty() {
@@ -532,7 +562,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
             WorkflowStepStats {
                 id,
                 completed,
-                started,
+                in_progress,
                 median_active_seconds,
                 max_active_seconds: times.last().copied(),
             }
@@ -547,6 +577,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
             ComhairleError::BadRequest(format!("Too many active users: {error}"))
         })?,
         finished_users,
+        recruited_users,
         total_active_seconds,
         signup_stats,
     })
