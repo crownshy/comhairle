@@ -5,6 +5,5 @@
  */
 export const INVITE_SUBTABS: { label: string; value: string }[] = [
 	{ label: 'Email', value: 'email' },
-	{ label: 'Open Links', value: 'open-links' },
-	{ label: 'Physical', value: 'physical' }
+	{ label: 'Open Links', value: 'open-links' }
 ];
