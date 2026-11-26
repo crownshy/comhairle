@@ -2,12 +2,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { permissions } from '$lib/permissions.svelte';
-	import FirstVisitHint from '../FirstVisitHint.svelte';
-	import ParticipationFlow from '../ParticipationFlow.svelte';
-	import QuestionCard from '../QuestionCard.svelte';
-	import FollowUpActions from '../FollowUpActions.svelte';
+	import FirstVisitHint from './FirstVisitHint.svelte';
+	import ParticipationFlow from './ParticipationFlow.svelte';
+	import QuestionCard from './QuestionCard.svelte';
+	import FollowUpActions from './FollowUpActions.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
-	import { monitorTour } from '../tour';
+	import { monitorTour } from './tour';
+	import { MONITOR_PAGES, type MonitorRoute } from './sub-routes';
 	// import TargetSparkline from '../TargetSparkline.svelte';
 	// import ReachMini from '../ReachMini.svelte';
 	// import * as sample from '../sampleMonitorData';
@@ -51,10 +52,9 @@
 		}
 	});
 
-	type MonitorTab = 'overview' | 'pulse' | 'journey' | 'recruitment';
-	async function showTab(value: MonitorTab) {
+	async function showTab(route: MonitorRoute) {
 		await goto(
-			resolve(`/(admin)/admin/conversations/[conversation_id]/monitor/${value}`, {
+			resolve(route, {
 				conversation_id: data.conversationId
 			})
 		);
@@ -141,7 +141,8 @@
 					}))}
 					actionLabel="Review {worstStep.name}"
 					actionHref="{base}/design"
-					onShowDetails={() => showTab('journey')}
+					onShowDetails={() =>
+						showTab('/(admin)/admin/conversations/[conversation_id]/monitor/journey')}
 					detailsTab="Journey"
 				/>
 				<!-- TODO: commented out as dependent on recruitment target and closing date -->

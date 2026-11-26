@@ -32,7 +32,7 @@ describe('Notify Admin access', () => {
 
 		await expect(load(event)).rejects.toMatchObject({
 			status: 303,
-			location: `/admin/conversations/${conversationId}/monitor/overview`
+			location: `/admin/conversations/${conversationId}/monitor`
 		});
 	});
 
@@ -41,7 +41,7 @@ describe('Notify Admin access', () => {
 
 		await expect(load(event)).rejects.toMatchObject({
 			status: 303,
-			location: `/admin/conversations/${conversationId}/monitor/overview`
+			location: `/admin/conversations/${conversationId}/monitor`
 		});
 	});
 

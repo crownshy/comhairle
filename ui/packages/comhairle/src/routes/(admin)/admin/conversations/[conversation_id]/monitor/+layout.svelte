@@ -7,18 +7,11 @@
 	import { afterNavigate, invalidate } from '$app/navigation';
 	import { useInterval, IsDocumentVisible } from 'runed';
 	import { formatDistance } from 'date-fns';
+	import { MONITOR_PAGES, type MonitorRoute } from './sub-routes';
 
 	let { children, data }: LayoutProps = $props();
 
-	const MONITOR_PAGES = [
-		{ value: 'overview', label: 'At a glance' },
-		{ value: 'pulse', label: 'Live pulse' },
-		{ value: 'journey', label: 'Journey' },
-		{ value: 'recruitment', label: 'Recruitment' }
-	] as const;
-	type MonitorTab = (typeof MONITOR_PAGES)[number]['value'];
-
-	const isActivePage = (segment: MonitorTab) => page.url.pathname.endsWith('/' + segment);
+	const isActivePage = (route: MonitorRoute) => page.route.id === route;
 
 	const REFRESH_INTERVAL_MS = 3 * 60_000;
 
@@ -50,15 +43,13 @@
 <div class="flex flex-col gap-8 pb-16">
 	<div class="flex flex-wrap items-center gap-4">
 		<ul class="bg-muted w-fit max-w-full rounded-lg p-0.5" aria-label="Monitor sections">
-			{#each MONITOR_PAGES as tab (tab.value)}
+			{#each MONITOR_PAGES as tab (tab.route)}
 				<a
-					href={resolve(
-						`/(admin)/admin/conversations/[conversation_id]/monitor/${tab.value}`,
-						{ conversation_id: data.conversationId }
-					)}
+					href={resolve(tab.route, { conversation_id: data.conversationId })}
+					aria-current={isActivePage(tab.route) ? 'page' : undefined}
 					class={cn(
 						'text-muted-foreground inline-block rounded-md px-4 py-0.5 text-base',
-						isActivePage(tab.value) &&
+						isActivePage(tab.route) &&
 							'border-input bg-background text-foreground dark:bg-input/30 border'
 					)}>{tab.label}</a
 				>

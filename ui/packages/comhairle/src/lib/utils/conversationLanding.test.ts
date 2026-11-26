@@ -12,7 +12,7 @@ describe('conversationLandingUrl', () => {
 
 	it('opens a live conversation on Monitor', () => {
 		expect(conversationLandingUrl({ id: 'c1', isLive: true, isComplete: false })).toBe(
-			`${BASE}/monitor/overview`
+			`${BASE}/monitor`
 		);
 	});
 
