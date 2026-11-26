@@ -12,6 +12,8 @@
 	import type { ConversationStatus } from '$lib/interfaces/Conversation';
 	import { capitalise } from '$lib/utils/casingUtils';
 	import Conversation from '$lib/interfaces/Conversation';
+	import { permissions } from '$lib/permissions.svelte';
+	import { conversationSurface } from '$lib/utils/conversationSurface';
 
 	interface Props {
 		conversation: ConversationWithTranslations;
@@ -20,6 +22,12 @@
 	let { conversation }: Props = $props();
 
 	let status = $derived(Conversation.getStatus(conversation));
+	// Moderators only work the queue, so they don't get links to open or share the conversation.
+	let showLinks = $derived(
+		conversationSurface((action) =>
+			permissions.can('conversation', action, conversation.id)
+		) === 'full'
+	);
 
 	const STATUS_DOT_CLASS: Record<ConversationStatus, string> = {
 		draft: 'bg-orange-400',
@@ -56,31 +64,33 @@
 		></span>
 		{capitalise(status)}
 	</span>
-	<div class="flex items-center gap-2">
-		<Button
-			href={openLinkHref}
-			target="_blank"
-			variant="secondary"
-			class={cn(PILL_CLASS, 'h-8 px-3 text-sm')}
-		>
-			{OPEN_LINK_LABELS[status]}
-			<ArrowUpRight class="size-4" />
-		</Button>
-		{#if status === 'live'}
+	{#if showLinks}
+		<div class="flex items-center gap-2">
 			<Button
+				href={openLinkHref}
+				target="_blank"
 				variant="secondary"
-				size="icon"
-				class={cn(PILL_CLASS, 'size-8')}
-				title={copyLabel}
-				onclick={copyLink}
+				class={cn(PILL_CLASS, 'h-8 px-3 text-sm')}
 			>
-				{#if clipboard.copied}
-					<Check class="size-4" />
-				{:else}
-					<Copy class="size-4" />
-				{/if}
-				<span class="sr-only">{copyLabel}</span>
+				{OPEN_LINK_LABELS[status]}
+				<ArrowUpRight class="size-4" />
 			</Button>
-		{/if}
-	</div>
+			{#if status === 'live'}
+				<Button
+					variant="secondary"
+					size="icon"
+					class={cn(PILL_CLASS, 'size-8')}
+					title={copyLabel}
+					onclick={copyLink}
+				>
+					{#if clipboard.copied}
+						<Check class="size-4" />
+					{:else}
+						<Copy class="size-4" />
+					{/if}
+					<span class="sr-only">{copyLabel}</span>
+				</Button>
+			{/if}
+		</div>
+	{/if}
 </div>
