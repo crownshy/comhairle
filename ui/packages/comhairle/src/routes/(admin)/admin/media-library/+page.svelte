@@ -21,7 +21,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import FilterBadges from '$lib/components/FilterBadges.svelte';
-	import Media from '$lib/interfaces/Media.svelte';
 
 	useTour(() => mediaLibraryTour);
 
@@ -105,6 +104,7 @@
 			label="Media library filters"
 			param="filter"
 			options={[
+				['', 'All'],
 				['audio', 'Audio'],
 				['image', 'Image'],
 				['video', 'Video']

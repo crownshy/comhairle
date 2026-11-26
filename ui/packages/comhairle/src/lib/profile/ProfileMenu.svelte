@@ -17,7 +17,7 @@
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		user: UserDto;
+		user: UserDto | null | undefined;
 		triggerVariant?: 'outline' | 'nav';
 	};
 	const { user, triggerVariant = 'outline' }: Props = $props();

@@ -4,6 +4,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { LayoutProps } from './$types';
+	import PageHero from '$lib/components/PageHero.svelte';
 
 	let { children }: LayoutProps = $props();
 
@@ -18,17 +19,17 @@
 		page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 </script>
 
-<div
-	class="mx-auto flex w-full max-w-[1280px] flex-col gap-12 pt-10 pb-16 md:gap-20 md:pt-20 md:pb-28"
->
-	<h1 class="text-foreground text-4xl font-bold">
+<PageHero compact>
+	<h1 class="text-[1.75rem] leading-tight font-bold sm:text-4xl lg:text-[2.625rem]">
 		{m.your_rights()}
 	</h1>
+</PageHero>
 
-	<div class="flex flex-col gap-10 md:flex-row md:items-start md:gap-20">
+<div class="mx-auto w-full max-w-[1300px] px-4 pt-12 pb-16 md:px-8 md:pt-16 md:pb-28">
+	<div class="mx-auto flex w-full max-w-6xl flex-col gap-10 md:flex-row md:items-start md:gap-20">
 		<nav
 			aria-label={m.your_rights()}
-			class="flex w-full flex-col items-start gap-2 md:w-auto md:shrink-0"
+			class="flex w-full flex-col items-start gap-2 md:sticky md:top-32 md:w-auto md:shrink-0"
 		>
 			{#each sections as section (section.href)}
 				<Button
@@ -36,7 +37,7 @@
 					size="sm"
 					href={section.href}
 					class={cn(
-						'px-4 font-medium',
+						'px-4 text-base font-medium',
 						isActive(section.href) && 'bg-accent text-accent-foreground'
 					)}
 				>

@@ -9,10 +9,15 @@
 	import ConversationIntro from '$lib/components/ConversationIntro.svelte';
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 	import { key } from '$lib/utils/invalidationKey.js';
+	import { scrollBehavior } from '$lib/utils/reducedMotion';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { HttpStatus } from '$lib/utils/constants';
 	import type { ApiError } from '@crownshy/api-client/api';
 	import { pendingWork } from '$lib/stores/pendingWork.svelte';
+	import { resolve } from '$app/paths';
+	import * as Accordion from '$lib/components/ui/accordion';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -21,6 +26,22 @@
 	let preview = $derived(data.preview);
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
+
+	// The main action is the biggest thing on the page, so people see straight away how to start.
+	const MAIN_ACTION_CLASS = 'h-14 w-full gap-2 rounded-full px-8 text-lg font-bold md:w-auto';
+	const SECONDARY_ACTION_CLASS = 'h-14 w-full rounded-full px-8 text-lg md:w-auto';
+
+	let reportHref = $derived(
+		resolve('/(public)/conversations/[conversation_id]/[[preview]]/report', {
+			conversation_id: conversation.slug || conversation.id
+		})
+	);
+
+	function scrollToJoin() {
+		document
+			.getElementById('join')
+			?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+	}
 
 	let privacyPolicyOpen = $state(false);
 	let isSubmitting = $state(false);
@@ -270,6 +291,30 @@
 	}
 </script>
 
+<!-- Phones get the main action again in a bar at the bottom once the join bar scrolls away.
+	One-step actions run from there; the email and guest steps need the join bar, so it scrolls back. -->
+{#snippet StickyAction()}
+	{#if user && participation}
+		<Button
+			class="h-12 grow rounded-full text-lg font-bold"
+			variant="primaryDark"
+			href={returnPath}>{conversation.callToAction || m.jump_back_in()}</Button
+		>
+	{:else if user || joinsAnonymously}
+		<Button
+			class="h-12 grow rounded-full text-lg font-bold"
+			onclick={handleJoin}
+			disabled={isSubmitting}
+		>
+			{conversation.callToAction || m.join_the_conversation()}
+		</Button>
+	{:else}
+		<Button class="h-12 grow rounded-full text-lg font-bold" onclick={scrollToJoin}>
+			{m.join_the_conversation()}
+		</Button>
+	{/if}
+{/snippet}
+
 <svelte:head>
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
@@ -277,21 +322,22 @@
 <div class="pb-10">
 	{#if conversation}
 		{#if conversation.isComplete}
-			<div class="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-10 md:pt-20">
-				<h1 class="text-xl font-bold">{m.conversation_closed_title()}</h1>
-				<p>{m.conversation_closed_description()}</p>
-				<Button href="/conversations">{m.conversation_closed_link()}</Button>
-			</div>
-		{:else}
 			<ConversationIntro {conversation}>
+				<Button class={MAIN_ACTION_CLASS} href={reportHref}>
+					{m.conversation_read_report()}
+					<ArrowRight class="size-5" />
+				</Button>
+			</ConversationIntro>
+		{:else}
+			<ConversationIntro {conversation} {StickyAction}>
 				{#if user}
 					{#if participation}
-						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
+						<Button class={MAIN_ACTION_CLASS} variant="primaryDark" href={returnPath}
 							>{conversation.callToAction || m.jump_back_in()}</Button
 						>
 					{:else}
 						<Button
-							class="mt-5 w-full md:w-fit"
+							class={MAIN_ACTION_CLASS}
 							onclick={handleJoin}
 							disabled={isSubmitting}
 						>
@@ -302,11 +348,7 @@
 						</Button>
 					{/if}
 				{:else if joinsAnonymously}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={handleJoin}
-						disabled={isSubmitting}
-					>
+					<Button class={MAIN_ACTION_CLASS} onclick={handleJoin} disabled={isSubmitting}>
 						{#if isSubmitting}
 							<Spinner class="mr-2 size-4" />
 						{/if}
@@ -429,14 +471,14 @@
 					</form>
 				{:else}
 					<Button
-						class="mt-5 w-full md:w-fit"
+						class={MAIN_ACTION_CLASS}
 						onclick={openEmailStep}
 						disabled={isSubmitting}
 					>
 						{m.continue_with_email()}
 					</Button>
 					<Button
-						class="mt-5 w-full md:w-fit"
+						class={SECONDARY_ACTION_CLASS}
 						variant="outline"
 						onclick={openGuestChoice}
 						disabled={isSubmitting}
@@ -445,6 +487,25 @@
 					</Button>
 				{/if}
 			</ConversationIntro>
+
+			{#if conversation.faqs}
+				<div class="mx-auto w-full max-w-3xl px-4 pt-10 md:px-0">
+					<Accordion.Root type="multiple" class="border-border border-t">
+						<Accordion.Item value="faqs">
+							<Accordion.Trigger class="text-lg font-bold">
+								{m.conversation_questions_and_answers()}
+							</Accordion.Trigger>
+							<Accordion.Content class="text-base">
+								<ContentRenderer
+									content={conversation.faqs}
+									availableDocuments={data.availableDocuments}
+									conversationId={conversation.id}
+								/>
+							</Accordion.Content>
+						</Accordion.Item>
+					</Accordion.Root>
+				</div>
+			{/if}
 
 			<PrivacyPolicyDialog
 				{conversation}

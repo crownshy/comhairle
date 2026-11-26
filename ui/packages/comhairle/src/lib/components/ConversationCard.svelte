@@ -6,7 +6,8 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
-	import { ChevronRight, MessageSquareText } from '@lucide/svelte';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import { cn } from '$lib/utils';
 	import { conversationLandingUrl } from '$lib/utils/conversationLanding';
 	import { resolve } from '$app/paths';
@@ -16,12 +17,14 @@
 		conversation: LocalizedConversationDto;
 		for: 'admin' | 'public';
 		layout?: ConversationCardLayout;
+		/** Overrides the status badge text, e.g. "Live now" on the public home page. */
+		statusLabel?: string;
 		// Small facts under the description, e.g. "Shared", or later "Closes in 5 days".
 		Meta?: Snippet;
 		Actions?: Snippet;
 	};
 
-	let { conversation, for: _for, layout = 'card', Meta, Actions }: Props = $props();
+	let { conversation, for: _for, layout = 'card', statusLabel, Meta, Actions }: Props = $props();
 
 	let status = $derived(Conversation.getStatus(conversation));
 	let href = $derived.by(() => {
@@ -65,7 +68,7 @@
 			</div>
 
 			<div class="flex min-w-0 grow flex-col items-start gap-1.5">
-				<ConversationStatusBadge {status} />
+				<ConversationStatusBadge {status} label={statusLabel} />
 				<svelte:element
 					this={_for === 'admin' ? 'h2' : 'h3'}
 					class="text-foreground line-clamp-2 text-base leading-snug font-semibold sm:text-lg"
@@ -93,44 +96,52 @@
 			/>
 		</article>
 	{:else}
+		<!-- The image is a fixed height and the actions sit in the last row, so cards in a grid
+			row match however long their text is. -->
 		<article
 			class={cn(
 				CARD_CLASS,
-				'relative grid grid-rows-[1fr_auto_auto_auto_auto] gap-4 rounded-2xl p-3'
+				'relative grid gap-4 rounded-2xl p-3',
+				Actions ? 'grid-rows-[auto_1fr_auto]' : 'grid-rows-[auto_1fr]'
 			)}
 		>
-			<div class="bg-primary/10 w-full rounded-xl">
+			<div
+				class="bg-primary/10 flex h-40 w-full items-center justify-center overflow-hidden rounded-xl"
+			>
 				{#if conversation.imageUrl}
 					<img
 						src={conversation.imageUrl}
 						alt="Image for {conversation.title}"
-						class="aspect-video h-full w-full rounded-xl object-cover transition-transform duration-500 ease-out group-hover:scale-102"
+						class="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-102"
 					/>
 				{:else}
-					<MessageSquareText class="text-primary/30 inset-0 m-auto size-16 rounded-xl" />
+					<MessageSquareText class="text-primary/30 size-12" />
 				{/if}
 				<ConversationStatusBadge
 					{status}
-					class="absolute top-4 left-4 border-transparent shadow-md backdrop-blur"
+					label={statusLabel}
+					class="absolute top-4 left-4 border-transparent px-3.5 py-1.5 text-base shadow-md backdrop-blur"
 				/>
 			</div>
 
-			<svelte:element
-				this={_for === 'admin' ? 'h2' : 'h3'}
-				class="text-foreground text-xl leading-7 font-semibold"
-			>
-				<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
-			</svelte:element>
-			{#if conversation.shortDescription}
-				<p class="text-muted-foreground line-clamp-2 text-base">
-					{conversation.shortDescription}
-				</p>
-			{/if}
-			{#if Meta}
-				<div class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base">
-					{@render Meta()}
-				</div>
-			{/if}
+			<div class="flex flex-col gap-3">
+				<svelte:element
+					this={_for === 'admin' ? 'h2' : 'h3'}
+					class="text-foreground line-clamp-3 text-xl leading-7 font-semibold"
+				>
+					<a {href} class={TITLE_LINK_CLASS}>{conversation.title}</a>
+				</svelte:element>
+				{#if conversation.shortDescription}
+					<p class="text-muted-foreground line-clamp-2 text-base">
+						{conversation.shortDescription}
+					</p>
+				{/if}
+				{#if Meta}
+					<div class="text-muted-foreground flex flex-wrap gap-x-5 gap-y-2 text-base">
+						{@render Meta()}
+					</div>
+				{/if}
+			</div>
 			{#if Actions}
 				<div class="flex flex-wrap items-center gap-3 pt-2">
 					{@render Actions()}

@@ -2,7 +2,8 @@
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { ChevronLeft, MessageSquareText } from '@lucide/svelte';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import MessageSquareText from '@lucide/svelte/icons/message-square-text';
 	import ConversationStatusBadge from '$lib/components/ConversationStatusBadge.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import Conversation from '$lib/interfaces/Conversation';
@@ -11,12 +12,26 @@
 		conversation: LocalizedConversationDto;
 		/** The join controls: a button, or the email and guest steps. */
 		children: Snippet;
+		/** The main action again, in a bar along the bottom of phones once the join bar scrolls away. */
+		StickyAction?: Snippet;
 	};
-	let { conversation, children }: Props = $props();
+	let { conversation, children, StickyAction }: Props = $props();
 
 	const statusLabel = $derived(
-		conversation.isComplete ? m.conversation_status_ended() : m.conversation_status_open()
+		conversation.isComplete ? m.conversations_filter_ended() : m.conversations_filter_open()
 	);
+
+	let joinBar = $state<HTMLElement>();
+	let joinBarVisible = $state(true);
+
+	$effect(() => {
+		if (!joinBar) return;
+		const observer = new IntersectionObserver(([entry]) => {
+			joinBarVisible = entry.isIntersecting;
+		});
+		observer.observe(joinBar);
+		return () => observer.disconnect();
+	});
 </script>
 
 <!-- Top band on white: back link, status, title and a short description, then a white bar
@@ -42,13 +57,15 @@
 				{conversation.title}
 			</h1>
 			{#if conversation.shortDescription}
-				<p class="line-clamp-3 max-w-3xl text-lg">{conversation.shortDescription}</p>
+				<p class="max-w-3xl text-lg text-pretty">{conversation.shortDescription}</p>
 			{/if}
 		</div>
 
 		<!-- Pulled down over the image. -->
 		<div
-			class="bg-card ring-border/60 relative z-10 -mb-24 flex flex-col gap-4 rounded-3xl p-5 shadow-lg ring-1 sm:-mb-20 md:flex-row md:items-center md:justify-between md:gap-6 md:p-6"
+			bind:this={joinBar}
+			id="join"
+			class="bg-card ring-border/60 relative z-10 -mb-24 flex scroll-mt-28 flex-col gap-4 rounded-3xl p-5 shadow-lg ring-1 sm:-mb-20 md:flex-row md:items-center md:justify-between md:gap-6 md:p-6"
 		>
 			<div
 				class="flex items-baseline justify-between gap-4 md:flex-col md:justify-start md:gap-1 md:pl-2"
@@ -77,5 +94,13 @@
 {#if conversation.description}
 	<div class="mx-auto w-full max-w-3xl px-4 pt-10 md:px-0 md:pt-14">
 		<p class="text-foreground text-lg whitespace-pre-line">{conversation.description}</p>
+	</div>
+{/if}
+
+{#if StickyAction && !joinBarVisible}
+	<div
+		class="bg-background/95 border-border fixed inset-x-0 bottom-0 z-40 flex border-t p-3 backdrop-blur sm:hidden"
+	>
+		{@render StickyAction()}
 	</div>
 {/if}

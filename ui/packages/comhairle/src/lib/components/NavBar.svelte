@@ -26,6 +26,8 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { notificationService } from '$lib/services/notifications.svelte';
 	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
+	import { cn } from '$lib/utils';
+	import type { UserDto } from '@crownshy/api-client/api';
 
 	let links = [
 		{
@@ -39,12 +41,11 @@
 		{
 			href: '/conversations',
 			name: m.participate()
-		},
-		{
-			href: '/rights',
-			name: m.your_rights()
 		}
 	];
+	// The logo already goes home, and the home page is the conversation list, so the bar
+	// leaves out Home and Participate. The menu drawer keeps them.
+	const barLinks = links.filter((link) => link.href !== '/' && link.href !== '/conversations');
 	let isOpen = $state(false);
 
 	// Close the menu on navigate
@@ -52,7 +53,17 @@
 		isOpen = false;
 	});
 
-	let { user, isAdmin } = $props();
+	type Props = {
+		user: UserDto | null | undefined;
+		isAdmin: boolean;
+		/** The page opens with a light hero, which the bar sits on, see-through, until scrolled. */
+		overHero?: boolean;
+	};
+	let { user, isAdmin, overHero = false }: Props = $props();
+
+	let scrollY = $state(0);
+	let scrolled = $derived(scrollY > 8);
+	let light = $derived(overHero && !scrolled);
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
@@ -66,33 +77,45 @@
 	}
 </script>
 
+<svelte:window bind:scrollY />
+
+<!-- The bar stays at the top as the page scrolls, slightly see-through once it does.
+	Over the light hero the bar's text colour (primary-foreground) becomes the page's dark
+	text, and the Sign up pill turns dark, so everything in it reads on the light gradient. -->
 <nav
 	aria-label={m.nav_main_label()}
-	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6 shadow-md"
+	class={cn(
+		'text-muted-foreground sticky top-0 z-30 flex w-full flex-col items-center justify-center py-6 transition-[background-color,box-shadow] duration-300',
+		light
+			? 'bg-transparent [--nav-pill-text:var(--background)] [--primary-foreground:var(--foreground)]'
+			: 'shadow-md',
+		!light && (scrolled ? 'bg-primary/90 backdrop-blur-xl backdrop-saturate-150' : 'bg-primary')
+	)}
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
 		<div class="lg:hidden">
-			<ComhairleLogo logoSize="md" showText={false} />
+			<ComhairleLogo logoSize="md" showText={false} surface={light ? 'page' : 'dark'} />
 		</div>
 		<div class="hidden lg:block">
-			<ComhairleLogo logoSize="md" />
+			<ComhairleLogo logoSize="md" surface={light ? 'page' : 'dark'} />
 		</div>
 
-		<!-- Desktop Navigation -->
-		<div class="navbar:flex hidden gap-3">
-			{#each links as link (link.href)}
+		<!-- Desktop: the links sit on the right with the language picker and account buttons. -->
+		<div class="navbar:flex ml-auto hidden items-center gap-x-2">
+			{#each barLinks as link (link.href)}
 				<Button
 					href={link.href}
 					variant="nav"
 					aria-current={isCurrentLink(link.href) ? 'page' : undefined}
-					class="h-10 text-base font-normal {isCurrentLink(link.href)
-						? 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary shadow-xs'
-						: ''}">{link.name}</Button
+					class={cn(
+						'h-10 px-4 text-base font-medium shadow-none',
+						isCurrentLink(link.href) &&
+							(light
+								? 'bg-foreground/10'
+								: 'bg-sidebar/50 dark:bg-primary-foreground dark:text-primary')
+					)}>{link.name}</Button
 				>
 			{/each}
-		</div>
-
-		<div class="navbar:flex hidden items-center gap-x-4">
 			<LocaleSwitcher
 				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
