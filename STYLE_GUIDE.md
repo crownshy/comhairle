@@ -96,6 +96,17 @@ house style, and use rustdoc (`///` on items, `//!` for module-level docs).
 
 _This section is a work in progress. Add conventions as they are agreed._
 
+### Model database tables and state machines directly
+
+Represent state machines with enums or typestate rather than scattered flag checks.
+Database table structs derive `FromRow` and use sea-query's `enum_def` macro to generate
+their identifiers. When the API has the same structure, derive `JsonSchema` and transmit
+the database struct directly; introduce a DTO only when the API structure differs.
+
+Build application queries with sea-query by default, composing reusable query and
+subquery components. Prefer function expressions for database functions, including
+PostGIS, over raw SQL fragments. SQL migration files remain schema SQL.
+
 ### Name the update-payload method `to_values`
 
 In a model, the method that turns an update/insert struct into the

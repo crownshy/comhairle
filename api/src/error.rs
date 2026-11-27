@@ -352,6 +352,9 @@ pub enum ComhairleError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    #[error("Managed by a pipeline. Delete the geographic area instead.")]
+    PipelineManagedRegion,
+
     #[error("Unprocessable: {0}")]
     Unprocessable(String),
 
@@ -433,6 +436,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
             | ComhairleError::Conflict(_)
+            | ComhairleError::PipelineManagedRegion
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
             ComhairleError::InviteExpired => StatusCode::GONE,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,

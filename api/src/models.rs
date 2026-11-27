@@ -36,6 +36,7 @@ pub mod recruitment_target;
 pub mod refresh_token;
 pub mod region;
 pub mod region_area;
+pub mod region_area_pipeline;
 pub mod report;
 pub mod report_impact;
 pub mod resource;

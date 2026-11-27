@@ -4060,6 +4060,116 @@ export const PartialRegionArea = z
   .partial()
   .passthrough();
 export type PartialRegionArea = z.infer<typeof PartialRegionArea>;
+export const PipelineSource = z.union([
+  z.object({ type: z.literal("https"), url: z.string() }),
+  z.object({ type: z.literal("uploaded_file"), upload_id: z.string().uuid() }),
+]);
+export type PipelineSource = z.infer<typeof PipelineSource>;
+export const TagCondition = z.union([
+  z.object({
+    field: z.string(),
+    operator: z.literal("equals"),
+    value: z.unknown(),
+  }),
+  z.object({
+    field: z.string(),
+    operator: z.literal("in"),
+    values: z.array(z.unknown()),
+  }),
+  z.object({ field: z.string(), operator: z.literal("present") }),
+]);
+export type TagCondition = z.infer<typeof TagCondition>;
+export const TagRule = z.object({
+  add: z.array(z.string()),
+  conditions: z.array(TagCondition),
+});
+export type TagRule = z.infer<typeof TagRule>;
+export const TagRules = z
+  .object({
+    fixed: z.array(z.string()).default([]),
+    rules: z.array(TagRule).default([]),
+  })
+  .partial();
+export type TagRules = z.infer<typeof TagRules>;
+export const PipelineDefinition = z.object({
+  area_name_field: z.string(),
+  attribution: z.string(),
+  external_id_field: z.string(),
+  interval_minutes: z.number().int().gte(0),
+  name: z.string(),
+  primary_locale: z.string(),
+  region_name_fields: z.record(z.string()),
+  repair_invalid_geometry: z.boolean().optional().default(false),
+  source: PipelineSource,
+  tags: TagRules,
+});
+export type PipelineDefinition = z.infer<typeof PipelineDefinition>;
+export const RunStatus = z.enum([
+  "unscheduled",
+  "waiting",
+  "running",
+  "retry_pending",
+]);
+export type RunStatus = z.infer<typeof RunStatus>;
+export const PipelineStatus = z.enum([
+  "draft",
+  "active",
+  "staged",
+  "deactivated",
+]);
+export type PipelineStatus = z.infer<typeof PipelineStatus>;
+export const Pipeline = z
+  .object({
+    active_definition: z.union([PipelineDefinition, z.null()]).optional(),
+    created_at: z.string().datetime({ offset: true }),
+    draft_definition: PipelineDefinition,
+    generation: z.number().int(),
+    id: z.string().uuid(),
+    last_error: z.union([z.string(), z.null()]).optional(),
+    last_success_at: z.union([z.string(), z.null()]).optional(),
+    lease_expires_at: z.union([z.string(), z.null()]).optional(),
+    lease_id: z.union([z.string(), z.null()]).optional(),
+    next_run_at: z.union([z.string(), z.null()]).optional(),
+    run_started_at: z.union([z.string(), z.null()]).optional(),
+    run_status: RunStatus,
+    status: PipelineStatus,
+    updated_at: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type Pipeline = z.infer<typeof Pipeline>;
+export const DeletePipelineResponse = z
+  .object({ deleted_areas: z.number().int().gte(0) })
+  .passthrough();
+export type DeletePipelineResponse = z.infer<typeof DeletePipelineResponse>;
+export const ManagedTagChange = z
+  .object({
+    added: z.array(z.string()),
+    external_id: z.string(),
+    removed: z.array(z.string()),
+  })
+  .passthrough();
+export type ManagedTagChange = z.infer<typeof ManagedTagChange>;
+export const ReconciliationCounts = z
+  .object({
+    created: z.number().int().gte(0),
+    created_ids: z.array(z.string()),
+    repaired: z.array(z.string()),
+    restored: z.number().int().gte(0),
+    restored_ids: z.array(z.string()),
+    retired: z.number().int().gte(0),
+    retired_ids: z.array(z.string()),
+    tag_changes: z.array(ManagedTagChange),
+    unchanged: z.number().int().gte(0),
+    unmatched_ids: z.array(z.string()),
+    updated: z.number().int().gte(0),
+    updated_ids: z.array(z.string()),
+  })
+  .passthrough();
+export type ReconciliationCounts = z.infer<typeof ReconciliationCounts>;
+export const UploadSourceResponse = z
+  .object({ upload_id: z.string().uuid() })
+  .passthrough();
+export type UploadSourceResponse = z.infer<typeof UploadSourceResponse>;
 export const MediaContentType = z.enum([
   "image/jpeg",
   "image/png",
@@ -4793,6 +4903,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegionArea,
   ImportRegionAreasRequest,
   PartialRegionArea,
+  PipelineSource,
+  TagCondition,
+  TagRule,
+  TagRules,
+  PipelineDefinition,
+  RunStatus,
+  PipelineStatus,
+  Pipeline,
+  DeletePipelineResponse,
+  ManagedTagChange,
+  ReconciliationCounts,
+  UploadSourceResponse,
   MediaContentType,
   content_type,
   MediaDto,
@@ -7503,6 +7625,100 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
+    path: "/region_area_pipelines",
+    alias: "ListRegionAreaPipelines",
+    requestFormat: "json",
+    response: z.array(Pipeline),
+  },
+  {
+    method: "post",
+    path: "/region_area_pipelines",
+    alias: "CreateRegionAreaPipeline",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PipelineDefinition,
+      },
+    ],
+    response: Pipeline,
+  },
+  {
+    method: "put",
+    path: "/region_area_pipelines/:pipeline_id",
+    alias: "ReplaceRegionAreaPipelineDraft",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PipelineDefinition,
+      },
+    ],
+    response: Pipeline,
+  },
+  {
+    method: "delete",
+    path: "/region_area_pipelines/:pipeline_id",
+    alias: "DeleteRegionAreaPipeline",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "delete_areas",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+    ],
+    response: z
+      .object({ deleted_areas: z.number().int().gte(0) })
+      .passthrough(),
+  },
+  {
+    method: "post",
+    path: "/region_area_pipelines/:pipeline_id/activate",
+    alias: "ActivateRegionAreaPipeline",
+    requestFormat: "json",
+    response: Pipeline,
+  },
+  {
+    method: "post",
+    path: "/region_area_pipelines/:pipeline_id/deactivate",
+    alias: "DeactivateRegionAreaPipeline",
+    requestFormat: "json",
+    response: Pipeline,
+  },
+  {
+    method: "get",
+    path: "/region_area_pipelines/:pipeline_id/preview",
+    alias: "GetRegionAreaPipelinePreview",
+    requestFormat: "json",
+    response: z.union([ReconciliationCounts, z.null()]),
+  },
+  {
+    method: "post",
+    path: "/region_area_pipelines/:pipeline_id/preview",
+    alias: "PreviewRegionAreaPipeline",
+    requestFormat: "json",
+    response: ReconciliationCounts,
+  },
+  {
+    method: "post",
+    path: "/region_area_pipelines/uploads",
+    alias: "UploadRegionAreaPipelineSource",
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: z.object({ upload_id: z.string().uuid() }).passthrough(),
+  },
+  {
+    method: "get",
     path: "/region_areas",
     alias: "ListRegionAreas",
     requestFormat: "json",
@@ -7533,22 +7749,22 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: created_after,
       },
       {
-        name: "viewport_max_lat",
+        name: "viewport_center_lat",
         type: "Query",
         schema: limit,
       },
       {
-        name: "viewport_max_lng",
+        name: "viewport_center_lng",
         type: "Query",
         schema: limit,
       },
       {
-        name: "viewport_min_lat",
+        name: "viewport_lat_span",
         type: "Query",
         schema: limit,
       },
       {
-        name: "viewport_min_lng",
+        name: "viewport_lng_span",
         type: "Query",
         schema: limit,
       },

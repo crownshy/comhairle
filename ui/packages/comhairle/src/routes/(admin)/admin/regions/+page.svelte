@@ -13,6 +13,7 @@
 	import MapIcon from '@lucide/svelte/icons/map';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Save from '@lucide/svelte/icons/save';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { useDebounce } from 'runed';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -22,11 +23,13 @@
 	import BinaryTree from '$lib/data-structures/BinaryTree';
 	import { Pager } from '$lib/pagination';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { apiErrorMessage } from '$lib/utils/apiErrorMessage';
 	import { key } from '$lib/utils/invalidationKey';
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import AreaMap from './AreaMap.svelte';
 	import ImportAreas from './ImportAreas.svelte';
 	import RegionsEditor from './RegionsEditor.svelte';
+	import Pipelines from './Pipelines.svelte';
 	import { boundarySchema } from './import';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { regionsTour } from './tour';
@@ -36,6 +39,7 @@
 	let props: PageProps = $props();
 	let activeTab = $state('areas');
 	let regionsVisited = $state(false);
+	let pipelinesVisited = $state(false);
 	let areas = $derived(props.data.areas);
 	let pageSize = $derived(props.data.pageSize);
 	let selectedId = $state<string | null>(null);
@@ -196,6 +200,29 @@
 		editorState = 'saved';
 	}
 
+	async function deleteArea() {
+		if (!selectedArea || editorState === 'saving') return;
+		if (
+			!window.confirm(
+				'Delete this area? It will be removed from every region that uses it, and a region created for it by a pipeline is deleted too.'
+			)
+		)
+			return;
+		const areaId = selectedArea.id;
+		editorState = 'saving';
+		errorMessage = '';
+		const response = await tryCatchAsync(() =>
+			apiClient.DeleteRegionArea(undefined, { params: { region_area_id: areaId } })
+		);
+		if (response.err !== null) {
+			errorMessage = apiErrorMessage(response.err, 'Could not delete this area.');
+			editorState = 'error';
+			return;
+		}
+		editorState = 'idle';
+		await refreshAreas();
+	}
+
 	async function refreshAreas() {
 		const currentRequest = requestId;
 		await invalidate(key('admin/regions'));
@@ -219,6 +246,7 @@
 	bind:value={activeTab}
 	onValueChange={(value) => {
 		if (value === 'regions') regionsVisited = true;
+		if (value === 'pipelines') pipelinesVisited = true;
 	}}
 	class="flex min-h-0 w-full flex-1 flex-col gap-0"
 >
@@ -227,6 +255,7 @@
 		<Tabs.List class="w-fit max-w-full" aria-label="Region management">
 			<Tabs.Trigger value="areas" class="text-base">Geographic areas</Tabs.Trigger>
 			<Tabs.Trigger value="regions" class="text-base">Regions</Tabs.Trigger>
+			<Tabs.Trigger value="pipelines" class="text-base">Pipelines</Tabs.Trigger>
 		</Tabs.List>
 	</div>
 	{#if activeTab === 'areas'}
@@ -329,7 +358,7 @@
 				<section class="flex min-h-[70svh] min-w-0 flex-col" aria-label="Area editor">
 					{#if selectedArea}
 						<div
-							class="bg-background grid gap-4 border-b p-4 sm:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_auto] sm:items-end md:px-6"
+							class="bg-background grid gap-4 border-b p-4 sm:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_auto_auto] sm:items-end md:px-6"
 						>
 							<label class="grid gap-2 font-medium"
 								>Name
@@ -339,6 +368,16 @@
 								>Tags, comma separated
 								<Input bind:value={tagsText} aria-label="Area tags" />
 							</label>
+							<Button
+								variant="outline"
+								size="icon"
+								title="Delete area"
+								aria-label="Delete area"
+								onclick={deleteArea}
+								disabled={editorState === 'saving'}
+							>
+								<Trash2 class="size-4" />
+							</Button>
 							<Button
 								onclick={saveArea}
 								disabled={!isDirty || editorState === 'saving'}
@@ -399,6 +438,14 @@
 			class="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
 		>
 			{#if regionsVisited}<RegionsEditor areas={areas.records} />{/if}
+		</Tabs.Content>
+	{/if}
+	{#if pipelinesVisited}
+		<Tabs.Content
+			value="pipelines"
+			class="flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden"
+		>
+			<Pipelines />
 		</Tabs.Content>
 	{/if}
 </Tabs.Root>

@@ -448,12 +448,14 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let region = query_as_with(&sql, values)
-        .fetch_one(db)
-        .await
-        .resolve_db_err("Region")?;
+    let result = query_as_with(&sql, values).fetch_one(db).await;
+    if let Err(sqlx::Error::Database(ref db_err)) = result
+        && db_err.constraint() == Some("region_area_pipeline_feature_region_id_fkey")
+    {
+        return Err(ComhairleError::PipelineManagedRegion);
+    }
 
-    Ok(region)
+    result.resolve_db_err("Region")
 }
 
 #[cfg(test)]

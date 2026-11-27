@@ -2,7 +2,10 @@ use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::extension::postgres::PgExpr;
-use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, ReturningClause, enum_def};
+use sea_query::{
+    Alias, Cond, Expr, Func, NullOrdering, OnConflict, Order, PostgresQueryBuilder, Query,
+    ReturningClause, SelectStatement, SimpleExpr, enum_def,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -13,6 +16,8 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 use crate::models::SqlxResultExt;
 use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::region::RegionIden;
+use crate::models::region_area_pipeline::tables::FeatureIden;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "region_area")]
@@ -62,54 +67,113 @@ pub struct RegionAreaListOptions {
     /// Comma separated area ids, for loading a known selection.
     pub ids: Option<String>,
 
-    pub viewport_min_lng: Option<f64>,
-    pub viewport_min_lat: Option<f64>,
-    pub viewport_max_lng: Option<f64>,
-    pub viewport_max_lat: Option<f64>,
+    pub viewport_center_lng: Option<f64>,
+    pub viewport_center_lat: Option<f64>,
+    /// Viewport width in degrees of longitude, up to 360. It may cross the antimeridian.
+    pub viewport_lng_span: Option<f64>,
+    /// Viewport height in degrees of latitude, up to 180.
+    pub viewport_lat_span: Option<f64>,
     /// Drop areas smaller than this fraction of the viewport's own area.
     pub min_area_ratio: Option<f64>,
 }
 
-#[derive(Debug, Clone, Copy)]
+/// Radius of a sphere with the same surface area as the WGS84 ellipsoid.
+const EARTH_AUTHALIC_RADIUS_M: f64 = 6_371_007.2;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Viewport {
-    pub min_lng: f64,
-    pub min_lat: f64,
-    pub max_lng: f64,
-    pub max_lat: f64,
+    pub center_lng: f64,
+    pub center_lat: f64,
+    pub lng_span: f64,
+    pub lat_span: f64,
+}
+
+impl Viewport {
+    fn latitudes(&self) -> (f64, f64) {
+        let half = self.lat_span / 2.0;
+        (
+            (self.center_lat - half).max(-90.0),
+            (self.center_lat + half).min(90.0),
+        )
+    }
+
+    /// One longitude range, or two when the viewport crosses the antimeridian.
+    fn longitude_ranges(&self) -> Vec<(f64, f64)> {
+        if self.lng_span >= 360.0 {
+            return vec![(-180.0, 180.0)];
+        }
+        let west = (self.center_lng - self.lng_span / 2.0 + 180.0).rem_euclid(360.0) - 180.0;
+        let east = west + self.lng_span;
+        if east <= 180.0 {
+            vec![(west, east)]
+        } else {
+            vec![(west, 180.0), (-180.0, east - 360.0)]
+        }
+    }
+
+    fn area_sqm(&self) -> f64 {
+        let (south, north) = self.latitudes();
+        EARTH_AUTHALIC_RADIUS_M.powi(2)
+            * self.lng_span.min(360.0).to_radians()
+            * (north.to_radians().sin() - south.to_radians().sin())
+    }
+
+    fn bbox_intersects(&self) -> Cond {
+        let (south, north) = self.latitudes();
+        let longitudes =
+            self.longitude_ranges()
+                .into_iter()
+                .fold(Cond::any(), |any, (west, east)| {
+                    any.add(
+                        Cond::all()
+                            .add(Expr::col(RegionAreaIden::BboxMinLng).lte(east))
+                            .add(Expr::col(RegionAreaIden::BboxMaxLng).gte(west)),
+                    )
+                });
+        Cond::all()
+            .add(Expr::col(RegionAreaIden::BboxMinLat).lte(north))
+            .add(Expr::col(RegionAreaIden::BboxMaxLat).gte(south))
+            .add(longitudes)
+    }
 }
 
 impl RegionAreaListOptions {
     fn viewport(&self) -> Result<Option<Viewport>, ComhairleError> {
-        let bounds = [
-            self.viewport_min_lng,
-            self.viewport_min_lat,
-            self.viewport_max_lng,
-            self.viewport_max_lat,
+        let fields = [
+            self.viewport_center_lng,
+            self.viewport_center_lat,
+            self.viewport_lng_span,
+            self.viewport_lat_span,
         ];
-        if bounds.iter().all(Option::is_none) {
+        if fields.iter().all(Option::is_none) {
             return Ok(None);
         }
-        let [Some(min_lng), Some(min_lat), Some(max_lng), Some(max_lat)] = bounds else {
+        let [
+            Some(center_lng),
+            Some(center_lat),
+            Some(lng_span),
+            Some(lat_span),
+        ] = fields
+        else {
             return Err(ComhairleError::BadRequest(
-                "Provide all four viewport bounds, or none of them".into(),
+                "Provide the viewport centre and both spans, or none of them".into(),
             ));
         };
-        if !(-180.0..=180.0).contains(&min_lng)
-            || !(-180.0..=180.0).contains(&max_lng)
-            || !(-90.0..=90.0).contains(&min_lat)
-            || !(-90.0..=90.0).contains(&max_lat)
-            || min_lng >= max_lng
-            || min_lat >= max_lat
+        let is_positive_up_to = |span: f64, max: f64| (0.0..=max).contains(&span) && span != 0.0;
+        if !(-180.0..=180.0).contains(&center_lng)
+            || !(-90.0..=90.0).contains(&center_lat)
+            || !is_positive_up_to(lng_span, 360.0)
+            || !is_positive_up_to(lat_span, 180.0)
         {
             return Err(ComhairleError::BadRequest(
-                "Use a WGS84 viewport with min values below max values, longitudes between -180 and 180 and latitudes between -90 and 90".into(),
+                "Use a WGS84 viewport centre, a longitude span up to 360 and a latitude span up to 180".into(),
             ));
         }
         Ok(Some(Viewport {
-            min_lng,
-            min_lat,
-            max_lng,
-            max_lat,
+            center_lng,
+            center_lat,
+            lng_span,
+            lat_span,
         }))
     }
 
@@ -154,11 +218,32 @@ const DEFAULT_COLUMNS: [RegionAreaIden; 11] = [
     RegionAreaIden::UpdatedAt,
 ];
 
-/// Every scalar column plus the boundary as GeoJSON, for hand written queries.
-const SELECT_COLUMNS_SQL: &str = "id, zip_prefix, name, tags,
-            area_sqm, bbox_min_lng, bbox_min_lat, bbox_max_lng, bbox_max_lat,
-            ST_AsGeoJSON(area_geometry, 15)::jsonb AS area_geometry,
-            created_at, updated_at";
+fn postgis(name: &'static str, arguments: impl IntoIterator<Item = SimpleExpr>) -> SimpleExpr {
+    Func::cust(Alias::new(name)).args(arguments).into()
+}
+
+fn geometry_as_geojson() -> SimpleExpr {
+    postgis(
+        "st_asgeojson",
+        [
+            Expr::col((RegionAreaIden::Table, RegionAreaIden::AreaGeometry)).into(),
+            Expr::val(15).into(),
+        ],
+    )
+    .cast_as(Alias::new("jsonb"))
+}
+
+/// Every column with the boundary as GeoJSON, in the standard display order.
+fn select_with_geometry() -> SelectStatement {
+    Query::select()
+        .columns(DEFAULT_COLUMNS.map(|column| (RegionAreaIden::Table, column)))
+        .expr_as(geometry_as_geojson(), RegionAreaIden::AreaGeometry)
+        .from(RegionAreaIden::Table)
+        .order_by_with_nulls(RegionAreaIden::Name, Order::Asc, NullOrdering::Last)
+        .order_by_with_nulls(RegionAreaIden::ZipPrefix, Order::Asc, NullOrdering::Last)
+        .order_by(RegionAreaIden::Id, Order::Asc)
+        .to_owned()
+}
 
 fn returning_columns() -> ReturningClause {
     Query::returning().exprs(
@@ -245,15 +330,13 @@ pub async fn create_many(
 
 #[instrument(err(Debug), skip(db))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
-    let area = sqlx::query_as::<_, RegionArea>(&format!(
-        "SELECT {SELECT_COLUMNS_SQL}
-         FROM region_area
-         WHERE id = $1"
-    ))
-    .bind(id)
-    .fetch_one(db)
-    .await
-    .resolve_db_err("Region Area")?;
+    let (sql, values) = select_with_geometry()
+        .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
+        .build_sqlx(PostgresQueryBuilder);
+    let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Region Area")?;
 
     Ok(area)
 }
@@ -319,27 +402,10 @@ pub async fn list_with_geometry(
     }
 
     if let Some(viewport) = viewport {
-        query.and_where(Expr::cust_with_values(
-            "bbox_min_lng <= $1 AND bbox_max_lng >= $2 AND bbox_min_lat <= $3 AND bbox_max_lat >= $4",
-            [
-                viewport.max_lng,
-                viewport.min_lng,
-                viewport.max_lat,
-                viewport.min_lat,
-            ],
-        ));
+        query.cond_where(viewport.bbox_intersects());
 
         if let Some(ratio) = min_area_ratio {
-            query.and_where(Expr::cust_with_values(
-                "area_sqm >= ST_Area(ST_Segmentize(ST_MakeEnvelope($1, $2, $3, $4, 4326), 0.1)::geography) * $5",
-                [
-                    viewport.min_lng,
-                    viewport.min_lat,
-                    viewport.max_lng,
-                    viewport.max_lat,
-                    ratio,
-                ],
-            ));
+            query.and_where(Expr::col(RegionAreaIden::AreaSqm).gte(viewport.area_sqm() * ratio));
         }
     }
 
@@ -444,32 +510,69 @@ pub async fn intersecting(
     location: &AreaLocation,
 ) -> Result<Vec<RegionArea>, ComhairleError> {
     location.validate()?;
-    let areas = sqlx::query_as::<_, RegionArea>(&format!(
-        "SELECT {SELECT_COLUMNS_SQL}
-         FROM region_area
-         WHERE ST_Intersects(area_geometry, ST_SetSRID(ST_MakePoint($1, $2), 4326))
-         ORDER BY name NULLS LAST, zip_prefix NULLS LAST, id"
-    ))
-    .bind(location.longitude)
-    .bind(location.latitude)
-    .fetch_all(db)
-    .await?;
+    let point = postgis(
+        "st_setsrid",
+        [
+            postgis(
+                "st_makepoint",
+                [
+                    Expr::val(location.longitude).into(),
+                    Expr::val(location.latitude).into(),
+                ],
+            ),
+            Expr::val(4326).into(),
+        ],
+    );
+    let (sql, values) = select_with_geometry()
+        .and_where(postgis(
+            "st_intersects",
+            [
+                Expr::col((RegionAreaIden::Table, RegionAreaIden::AreaGeometry)).into(),
+                point,
+            ],
+        ))
+        .build_sqlx(PostgresQueryBuilder);
+    let areas = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
     Ok(areas)
 }
 
 #[instrument(err(Debug), skip(db))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RegionArea, ComhairleError> {
+    let mut tx = db.begin().await?;
+
+    let (sql, values) = Query::delete()
+        .from_table(FeatureIden::Table)
+        .and_where(Expr::col(FeatureIden::RegionAreaId).eq(*id))
+        .returning_col(FeatureIden::RegionId)
+        .build_sqlx(PostgresQueryBuilder);
+    let pipeline_region_id: Option<Uuid> = sqlx::query_scalar_with(&sql, values)
+        .fetch_optional(&mut *tx)
+        .await?;
+
     let (sql, values) = Query::delete()
         .from_table(RegionAreaIden::Table)
         .and_where(Expr::col(RegionAreaIden::Id).eq(*id))
         .returning(returning_columns())
         .build_sqlx(PostgresQueryBuilder);
-
     let area = sqlx::query_as_with::<_, RegionArea, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_one(&mut *tx)
         .await
         .resolve_db_err("Region Area")?;
 
+    if let Some(region_id) = pipeline_region_id {
+        let (sql, values) = Query::delete()
+            .from_table(RegionIden::Table)
+            .and_where(Expr::col(RegionIden::Id).eq(region_id))
+            .build_sqlx(PostgresQueryBuilder);
+        sqlx::query_with(&sql, values)
+            .execute(&mut *tx)
+            .await
+            .resolve_db_err("Region")?;
+    }
+
+    tx.commit().await?;
     Ok(area)
 }
 
@@ -523,6 +626,103 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rejects_empty_oversized_and_partial_viewports() {
+        let options = |lng_span, lat_span| RegionAreaListOptions {
+            viewport_center_lng: Some(0.0),
+            viewport_center_lat: Some(0.0),
+            viewport_lng_span: Some(lng_span),
+            viewport_lat_span: Some(lat_span),
+            ..Default::default()
+        };
+        for (lng_span, lat_span) in [(0.0, 10.0), (361.0, 10.0), (f64::NAN, 10.0), (10.0, 181.0)] {
+            assert!(options(lng_span, lat_span).viewport().is_err());
+        }
+        assert!(options(360.0, 180.0).viewport().is_ok());
+        assert!(
+            RegionAreaListOptions {
+                viewport_center_lng: Some(0.0),
+                ..Default::default()
+            }
+            .viewport()
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn splits_viewports_that_cross_the_antimeridian() {
+        let viewport = |center_lng, lng_span| Viewport {
+            center_lng,
+            center_lat: 0.0,
+            lng_span,
+            lat_span: 10.0,
+        };
+        assert_eq!(viewport(0.0, 20.0).longitude_ranges(), [(-10.0, 10.0)]);
+        assert_eq!(
+            viewport(180.0, 10.0).longitude_ranges(),
+            [(175.0, 180.0), (-180.0, -175.0)]
+        );
+        assert_eq!(
+            viewport(-178.0, 10.0).longitude_ranges(),
+            [(177.0, 180.0), (-180.0, -173.0)]
+        );
+        assert_eq!(viewport(30.0, 360.0).longitude_ranges(), [(-180.0, 180.0)]);
+    }
+
+    #[test]
+    fn clamps_polar_viewports_before_measuring_area() {
+        let viewport = |center_lat, lat_span| Viewport {
+            center_lng: 0.0,
+            center_lat,
+            lng_span: 360.0,
+            lat_span,
+        };
+        let globe = 4.0 * std::f64::consts::PI * EARTH_AUTHALIC_RADIUS_M.powi(2);
+        let north_of_60 = viewport(75.0, 30.0).area_sqm();
+        assert!((viewport(0.0, 180.0).area_sqm() - globe).abs() < 1.0);
+        assert!((viewport(80.0, 40.0).area_sqm() - north_of_60).abs() < 1.0);
+        assert!((viewport(-90.0, 180.0).area_sqm() - globe / 2.0).abs() < 1.0);
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn lists_areas_on_both_sides_of_the_antimeridian(
+        pool: PgPool,
+    ) -> Result<(), ComhairleError> {
+        for (name, west) in [("East", 177), ("West", -179), ("Greenwich", 0)] {
+            let east = west + 2;
+            create(
+                &pool,
+                CreateRegionArea {
+                    name: Some(name.into()),
+                    area_geometry: Some(json!({"type":"Polygon", "coordinates":[
+                        [[west,0],[east,0],[east,2],[west,2],[west,0]]
+                    ]})),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+        let names = list_with_geometry(
+            &pool,
+            RegionAreaListOptions {
+                viewport_center_lng: Some(180.0),
+                viewport_center_lat: Some(1.0),
+                viewport_lng_span: Some(10.0),
+                viewport_lat_span: Some(4.0),
+                min_area_ratio: Some(0.01),
+                ..Default::default()
+            },
+            PageOptions::default(),
+        )
+        .await?
+        .records
+        .into_iter()
+        .filter_map(|area| area.name)
+        .collect::<Vec<_>>();
+        assert_eq!(names, ["East", "West"]);
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn intersects_overlaps_holes_edges_and_exclaves(
         pool: PgPool,
@@ -551,6 +751,14 @@ mod tests {
         )
         .await?;
         create(&pool, CreateRegionArea::default()).await?;
+        let fetched = get_by_id(&pool, &outer.id).await?;
+        assert_eq!(
+            fetched
+                .area_geometry
+                .as_ref()
+                .and_then(|geometry| geometry.get("type")),
+            Some(&json!("MultiPolygon"))
+        );
         assert!(
             list(&pool)
                 .await?

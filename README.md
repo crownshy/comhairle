@@ -25,6 +25,20 @@ requests. Requests longer than 60 seconds remain counted in the `+Inf` bucket.
 
 In the future we may wrap the frontend using Tauri to provide a mobile app experience for the platform.
 
+### Region area pipeline administration
+
+Super Administrators can manage boundary imports in **Admin > Regions > Pipelines**.
+Create a draft with an HTTPS GeoJSON source or a private upload (up to 64 MiB),
+map feature properties to stable external identifiers and area/translated Region names,
+and configure tags, attribution and the refresh interval. Conditional tag rules use
+the advanced JSON editor, with an example provided in the form.
+
+Save the draft, generate a reconciliation preview, review identifiers and tag changes,
+then select **Publish and activate**. Draft edits do not change the active configuration.
+**Refresh status** reloads scheduling information and the last error. **Deactivate**
+stops scheduled refreshes without deleting existing Regions or areas.
+Private uploads require bulk storage; activation requires the worker service.
+
 ### Third party OS tools
 Third party OS tools will be forked into the crownshy github organization. Deployment strategies for each will be developed for each and maintained as an “infrastructure as code” repo (see below for more details). 
 

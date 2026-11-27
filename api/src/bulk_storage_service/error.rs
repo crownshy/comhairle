@@ -18,12 +18,18 @@ pub enum BulkStorageError {
     #[error("Failed to get file: {0}")]
     FailedToGetFile(String),
 
+    #[error("File exceeds the {0} byte limit")]
+    FileTooLarge(usize),
+
     #[error("Failed list: {0}")]
     FailedList(String),
 }
 
 impl From<&BulkStorageError> for StatusCode {
-    fn from(_val: &BulkStorageError) -> Self {
-        StatusCode::INTERNAL_SERVER_ERROR
+    fn from(value: &BulkStorageError) -> Self {
+        match value {
+            BulkStorageError::FileTooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
     }
 }

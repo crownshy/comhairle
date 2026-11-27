@@ -182,7 +182,7 @@
 <div class="bg-background relative min-h-[460px] w-full flex-1 overflow-hidden border">
 	<div
 		bind:this={container}
-		class="map-container absolute inset-0"
+		class="absolute! inset-0"
 		aria-label="Area boundary map"
 		inert={disabled}
 	></div>

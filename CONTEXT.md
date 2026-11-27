@@ -4,6 +4,12 @@ Comhairle is a platform for consultation and deliberation at scale. Admins (poli
 
 ## Language
 
+**Region**:
+A named geographic scope that can be composed from Region Areas.
+
+**Region Area**:
+A geographic area that can be linked to one or more Regions.
+
 **Conversation**:
 A single consultation/deliberation instance that participants take part in and admins configure. Created in a draft state (`is_live: false`) and later launched.
 _Avoid_: Topic (used loosely in the UI/design), consultation
