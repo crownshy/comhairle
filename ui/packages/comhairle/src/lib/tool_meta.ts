@@ -10,6 +10,14 @@ import type { Component } from 'svelte';
 import type { IconProps } from '@lucide/svelte';
 import { m } from '$lib/paraglide/messages';
 import type { ResolvedPathname } from '$app/types';
+import learnPreview from './assets/add-step/tools-learnstep.webp';
+import polisPreview from './assets/add-step/tools-polis.webp';
+import prioritisationPreview from './assets/add-step/tools-prioritisation.webp';
+import surveyPreview from './assets/add-step/tools-survey.webp';
+import thinkingSpacePreview from './assets/add-step/tools-thinking-space.webp';
+import livedExperiencePreview from './assets/add-step/tools-lived-experience.webp';
+import demographicQuestionPreview from './assets/add-step/tools-demographic-question.webp';
+import demographicFormPreview from './assets/add-step/tools-demographic-form.webp';
 
 /**
  * The discriminant used on a step's `toolConfig.type` / `previewToolConfig.type`.
@@ -82,7 +90,11 @@ export type ToolMeta = {
 	features: string[];
 	/** "WHAT YOU'D GET" bullets in the AddStepDialog detail panel. */
 	whatYoudGet: string[];
+	/** Example screenshot at the top of the AddStepDialog detail panel. */
+	preview?: ToolPreviewImage;
 };
+
+export type ToolPreviewImage = { src: string; alt: string };
 
 /**
  * Single source of truth for how each engagement tool is presented in the admin UI.
@@ -112,7 +124,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Rich media content support',
 			'Optional Learning Assistant to support participants as they learn'
 		],
-		whatYoudGet: ['Completion rate', 'Time-on-task data']
+		whatYoudGet: ['Completion rate', 'Time-on-task data'],
+		preview: {
+			src: learnPreview,
+			alt: 'A Topic onboarding page titled "Understanding Scotland\'s Space Sector", with a photo of satellites above the Earth, a short "Why Space Matters?" explainer, and a Learning Assistant box where participants can type a question.'
+		}
 	},
 	thinkingspace: {
 		type: 'thinkingspace',
@@ -132,7 +148,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		whatYoudGet: [
 			'Participant reflection responses (depend on consent)',
 			'Participant reflection summaries (depend on consent)'
-		]
+		],
+		preview: {
+			src: thinkingSpacePreview,
+			alt: 'A coaching question asking how often the participant thought about the space sector\'s impact on their life, with their answer shown below and a choice of AI-suggested follow-up questions, plus a "Pick one for me" button.'
+		}
 	},
 	polis: {
 		type: 'polis',
@@ -152,14 +172,18 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Encourage broad participation in early stage discussion'
 		],
 		features: ['Real-time opinion group mapping', 'Participant-submitted statements'],
-		whatYoudGet: ['Voting breakdowns by statement', 'Consensus and divergence insights']
+		whatYoudGet: ['Voting breakdowns by statement', 'Consensus and divergence insights'],
+		preview: {
+			src: polisPreview,
+			alt: 'A statement from a member of the public, "People should be able to bring their pets on buses, trains, and subways", with Agree, Disagree and Pass/Unsure buttons and a link to add your own opinion.'
+		}
 	},
 	heyform: {
 		type: 'heyform',
 		displayName: 'Survey',
 		tagline: 'Ask participants a series of pre-planned questions.',
 		icon: ListChecks,
-		infoSlug: 'heyform',
+		infoSlug: 'survey',
 		creationKey: 'Survey',
 		usesAI: false,
 		revisitable: false,
@@ -168,7 +192,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		description: 'Ask participants a series of pre-planned questions.',
 		bestFor: ['Structured data collection and analysis', 'Pre- and post-engagement feedback'],
 		features: ['Multiple question types', 'Conditional logic'],
-		whatYoudGet: ['Aggregated responses', 'Individual response breakdown']
+		whatYoudGet: ['Aggregated responses', 'Individual response breakdown'],
+		preview: {
+			src: surveyPreview,
+			alt: 'Survey question 1, "How would you describe your current interest in the space sector?", with lettered multiple-choice answers from professional or expert to very little interest.'
+		}
 	},
 	prioritization: {
 		type: 'prioritization',
@@ -186,7 +214,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Collect a set of proposals and have participants score each one against a shared set of questions, producing a ranked, comparable view of what matters most.',
 		bestFor: ['Ranking ideas or options', 'Allocating limited resources'],
 		features: ['Score proposals against shared criteria', 'Participant-submitted proposals'],
-		whatYoudGet: ['Ranked proposals', 'Score breakdown per criterion']
+		whatYoudGet: ['Ranked proposals', 'Score breakdown per criterion'],
+		preview: {
+			src: prioritisationPreview,
+			alt: 'A proposal card for an Urban Community Garden Initiative, asking how strongly you support it on a five-point scale from Strongly disagree to Strongly agree, and how relevant the topic is to you on a slider.'
+		}
 	},
 	elicitationbot: {
 		type: 'elicitationbot',
@@ -214,7 +246,6 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		displayName: 'Lived Experience',
 		tagline: 'Let users record short videos of their lived experience.',
 		icon: Video,
-		infoSlug: 'lived_experience',
 		creationKey: 'Lived Experience',
 		usesAI: false,
 		dataProtocolDefault: m.data_protocol_default_stories,
@@ -224,7 +255,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Let participants record short videos sharing their lived experience, capturing context and emotion that text alone can miss.',
 		bestFor: ['Gathering personal testimony', 'Human-centred, qualitative input'],
 		features: ['Short-form video capture', 'Optional prompts to guide contributions'],
-		whatYoudGet: ['Video contributions', 'Consent-managed testimony']
+		whatYoudGet: ['Video contributions', 'Consent-managed testimony'],
+		preview: {
+			src: livedExperiencePreview,
+			alt: 'A "Record Your Video" panel with an empty video preview, a Start Recording button and a "Pass on this step" button.'
+		}
 	},
 	demographicquestion: {
 		type: 'demographicquestion',
@@ -245,7 +280,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Answers reused from earlier conversations',
 			'Special category questions ask for consent first'
 		],
-		whatYoudGet: ['Answers to the question', 'Consent records for special category questions']
+		whatYoudGet: ['Answers to the question', 'Consent records for special category questions'],
+		preview: {
+			src: demographicQuestionPreview,
+			alt: 'A single demographic question, "What is your age range?", with answer options as cards and "18 to 24" selected.'
+		}
 	},
 	demographicform: {
 		type: 'demographicform',
@@ -266,7 +305,11 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 			'Questions answered earlier are skipped',
 			'Choose which questions to ask and which are required'
 		],
-		whatYoudGet: ['Answers to each question', 'Consent records for special category questions']
+		whatYoudGet: ['Answers to each question', 'Consent records for special category questions'],
+		preview: {
+			src: demographicFormPreview,
+			alt: 'Three overlapping pages of an "About you" form, asking for age range, gender and household size, each with one answer selected.'
+		}
 	}
 };
 
@@ -289,6 +332,7 @@ export type EventPaletteMeta = {
 	bestFor: string[];
 	features: string[];
 	whatYoudGet: string[];
+	preview?: ToolPreviewImage;
 };
 
 /** An entry in the add-step palette: a real tool, or an event stand-in. */
