@@ -5,11 +5,10 @@
 	import { INPUT_STYLE } from '$lib/components/ui/input/styles';
 	import { cn } from '$lib/utils';
 	import SelectItem from './SelectItem.svelte';
+	import type { Option } from './types.ts';
 
 	type Value = string;
 	type Label = string;
-
-	type Option = [value: Value, label: Label];
 
 	type Props = Pick<HTMLSelectElement, 'id' | 'name'> & {
 		question: string;

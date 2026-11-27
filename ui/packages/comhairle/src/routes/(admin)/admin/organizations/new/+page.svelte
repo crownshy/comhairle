@@ -5,7 +5,14 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { newOrganizationTour } from './tour';
-	import { Form, Input, Select, Submit, type OnSubmit } from '$lib/components/EasyForm';
+	import {
+		Form,
+		Input,
+		Select,
+		SelectList,
+		Submit,
+		type OnSubmit
+	} from '$lib/components/EasyForm';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import { resolve } from '$app/paths';
 	import TabContent from '$lib/components/TabContent.svelte';
@@ -96,21 +103,18 @@
 				<Input name="contact-email" label="Contact email" type="email" />
 				<Input name="external-url" label="External URL" type="url" />
 				<div class="flex flex-col gap-2 pt-2">
-					Regions
-					<div class="grid gap-2 rounded-md border p-3 md:grid-cols-2">
-						{#if data.regions.err !== null}
-							<ErrorMessage>Could not load regions please try again</ErrorMessage>
-						{:else}
-							{#each data.regions.ok as region (region.id)}
-								<label class="flex items-center gap-2 text-sm">
-									<input type="checkbox" name="regions" value={region.id} />
-									{region.name}
-								</label>
-							{:else}
-								<p class="text-muted-foreground text-sm">No regions available.</p>
-							{/each}
-						{/if}
-					</div>
+					{#if data.regions.err !== null}
+						<ErrorMessage>Could not load regions please try again</ErrorMessage>
+					{:else if data.regions.ok.length === 0}
+						<p class="text-muted-foreground text-sm">No regions available.</p>
+					{:else}
+						<SelectList
+							multiple
+							title="Regions"
+							name="regions"
+							options={data.regions.ok.map((region) => [region.id, region.name])}
+						/>
+					{/if}
 				</div>
 			</section>
 		</TabContent>
