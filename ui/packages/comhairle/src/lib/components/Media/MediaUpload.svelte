@@ -72,11 +72,10 @@
 	closeHidden={page === 2}
 	--max-width="35rem"
 	--min-width="20rem"
+	class={page === 2 ? 'md:w-75' : 'md:w-138'}
 >
-	<section
-		class="flex flex-col {page === 2 ? 'md:w-75' : 'md:w-138'} rounded-2xl p-8 duration-350"
-	>
-		<section class="flex flex-row justify-center gap-x-3">
+	<section class="flex flex-col rounded-2xl p-5 duration-350">
+		<section class="mb-5 flex flex-row justify-center gap-x-3">
 			{#each { length: 2 }, index}
 				<div
 					data-slot="page {index + 1}"
