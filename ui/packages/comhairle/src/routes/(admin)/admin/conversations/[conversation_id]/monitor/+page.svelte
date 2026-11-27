@@ -10,6 +10,7 @@
 	import { monitorTour } from './tour';
 	import { type MonitorRoute } from './sub-routes';
 	import type { PageProps } from './$types';
+	import type { WorkflowStats } from '@crownshy/api-client/api';
 	// import TargetSparkline from '../TargetSparkline.svelte';
 	// import ReachMini from '../ReachMini.svelte';
 	// import * as sample from '../sampleMonitorData';
@@ -18,7 +19,7 @@
 
 	let { data }: PageProps = $props();
 
-	let workflowStats = $derived(data.workflowStats);
+	let workflowStats: WorkflowStats | null = $derived(data.workflowStats);
 
 	let stepsWithStats = $derived(
 		data.workflowSteps?.map((step) => {
@@ -125,11 +126,13 @@
 				<QuestionCard
 					eyebrow="Working"
 					question="Are people completing?"
-					value="{Math.round(
-						(workflowStats.finishedUsers / workflowStats.totalUsers) * 100
-					)}%"
-					unit="of joiners completed"
-					extraValue={medianTimeLabel}
+					value={workflowStats.totalUsers > 0
+						? `${Math.round(
+								(workflowStats.finishedUsers / workflowStats.totalUsers) * 100
+							)}%`
+						: ''}
+					unit={workflowStats.totalUsers > 0 ? 'of joiners completed' : ''}
+					extraValue={workflowStats.totalUsers > 0 ? medianTimeLabel : ''}
 					extraUnit="typical time to complete"
 					trendLabel="Completion rate per step"
 					bars={stepsWithStats.map((step) => ({

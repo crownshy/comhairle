@@ -70,12 +70,14 @@
 	</Card.Header>
 	<Card.Content class="flex flex-col gap-4">
 		<div class="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-			<p class="flex items-baseline gap-2">
-				<span class="shrink-0 text-4xl leading-none font-bold whitespace-nowrap"
-					>{value}</span
-				>
-				<span class="text-muted-foreground text-base">{unit}</span>
-			</p>
+			{#if value}
+				<p class="flex items-baseline gap-2">
+					<span class="shrink-0 text-4xl leading-none font-bold whitespace-nowrap"
+						>{value}</span
+					>
+					<span class="text-muted-foreground text-base">{unit}</span>
+				</p>
+			{/if}
 			{#if extraValue}
 				<p class="flex items-baseline gap-2">
 					<span class="shrink-0 text-2xl leading-none font-bold whitespace-nowrap"
