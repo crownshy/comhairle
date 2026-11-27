@@ -26,6 +26,7 @@
 			const completed = matchingStats?.completed ?? 0;
 			const reached = completed + (matchingStats?.inProgress ?? 0);
 			return {
+				id: step.id,
 				name: step.name,
 				reached,
 				completed
@@ -34,8 +35,10 @@
 	);
 
 	let worstStep = $derived(
-		stepsWithStats.reduce((worst, step) =>
-			step.reached - step.completed > worst.reached - worst.completed ? step : worst
+		stepsWithStats.reduce(
+			(worst, step) =>
+				step.reached - step.completed > worst.reached - worst.completed ? step : worst,
+			0
 		)
 	);
 
@@ -130,6 +133,7 @@
 					extraUnit="typical time to complete"
 					trendLabel="Completion rate per step"
 					bars={stepsWithStats.map((step) => ({
+						id: step.id,
 						label: step.name,
 						fullLabel: step.name,
 						percent:
