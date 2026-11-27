@@ -50,36 +50,40 @@
 	{id}
 	bind:this={ref}
 	class="bg-background border-border relative m-auto overflow-y-auto rounded-2xl border pt-0"
-	style="max-width: var(--max-width, '100dvw'); min-width: var(--min-width, none); max-height: var(--max-height, '90dvh'); min-height: var(--min-height,  '40vh');"
 	closedby={onlyHardDismiss ? 'closerequest' : 'any'}
 >
-	{#if !closeHidden}
-		<Button
-			class="absolute top-4 right-4 z-99 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
-			plain
-			command={`close-dialog:${id}`}
-			icon={X}
-			title="close"
-			aria-label="Close dialog"
-		/>
-	{/if}
-	<div class={cn('grid grid-rows-[auto_1fr_auto] p-6', classNames)}>
-		{#if title || HeaderActions}
-			<header
-				class="border-border bg-background sticky top-0 z-2 mb-5 flex flex-col-reverse items-center justify-between border-b-2 pt-4 pb-3 md:flex-row"
-			>
-				<span class="shrink-0 grow text-xl font-medium sm:text-2xl lg:text-3xl"
-					>{title}</span
+	<div
+		class={cn('grid grid-rows-[auto_1fr_auto] p-6 pt-0', classNames)}
+		style="max-width: var(--max-width, '95dvw'); min-width: var(--min-width, none); max-height: var(--max-height, none); min-height: var(--min-height,  '40vh');"
+	>
+		<header class="bg-background sticky top-0 z-2 pt-6">
+			{#if !closeHidden}
+				<Button
+					class="absolute top-4 right-0 z-99 h-4 w-4 rounded-sm px-0! py-0 text-sm font-medium hover:opacity-80 focus-visible:opacity-80"
+					plain
+					command={`close-dialog:${id}`}
+					icon={X}
+					title="close"
+					aria-label="Close dialog"
+				/>
+			{/if}
+			{#if title || HeaderActions}
+				<section
+					class="border-border mb-5 flex flex-col-reverse items-center justify-between border-b-2 pt-4 pb-3 md:flex-row"
 				>
-				<span class="mr-6 flex shrink grow-0 flex-row items-center gap-x-2">
-					{#if HeaderActions}
-						{@render HeaderActions()}
-					{/if}
-				</span>
-			</header>
-		{:else}
-			<header></header>
-		{/if}
+					<span
+						class="shrink-0 grow text-xl font-medium text-pretty wrap-anywhere sm:text-2xl lg:text-3xl"
+					>
+						{title}
+					</span>
+					<span class="flex shrink grow-0 flex-row items-center gap-x-2 lg:mr-6">
+						{#if HeaderActions}
+							{@render HeaderActions()}
+						{/if}
+					</span>
+				</section>
+			{/if}
+		</header>
 		<section>
 			{@render children?.()}
 		</section>
