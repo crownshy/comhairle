@@ -57,7 +57,9 @@
 				{conversation.title}
 			</h1>
 			{#if conversation.shortDescription}
-				<p class="max-w-3xl text-lg text-pretty">{conversation.shortDescription}</p>
+				<p class="max-w-3xl text-lg text-pretty whitespace-pre-line">
+					{conversation.shortDescription}
+				</p>
 			{/if}
 		</div>
 
