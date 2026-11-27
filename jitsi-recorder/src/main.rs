@@ -21,8 +21,6 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-mod xmpp_admin;
-
 // ============================================================================
 // Data Structures
 // ============================================================================
@@ -768,20 +766,6 @@ async fn start_recording_for_room(
         .await
         .context("Failed to save session")?;
 
-    if let Some((username, password, _, auth_domain, main_room_jid)) = &password_auth {
-        xmpp_admin::grant_muc_affiliation(
-            &state.config.jitsi_websocket_url,
-            auth_domain,
-            username,
-            password,
-            main_room_jid,
-            &format!("{username}@{auth_domain}"),
-            "member",
-        )
-        .await
-        .context("Failed to grant breakout recorder MUC affiliation")?;
-    }
-
     let child = start_gst_meet_process(
         &state.config,
         &room_name,
@@ -852,7 +836,12 @@ async fn start_recording(
         },
     )
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(|e| {
+        // anyhow's Display only shows the outermost .context() - the actual
+        // cause only shows up in the Debug chain.
+        error!("Failed to start recording: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
     let response: RecordingResponse = session.into();
     Ok((StatusCode::CREATED, Json(response)))

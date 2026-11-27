@@ -43,6 +43,16 @@ pub struct BreakoutRoomAssignments {
     /// Reported by the frontend via `video_call:breakout_room_live`; used to
     /// trigger a jitsi-recorder session for this specific room.
     pub room_jid: Option<String>,
+    /// Which call to `assign_breakout_rooms` produced this room (see
+    /// `VideoCallState::breakout_round`). Stamped on at assignment time so a
+    /// later reassignment reusing the same room index (e.g. "room #1" of a
+    /// second breakout round) still gets a recording name distinct from the
+    /// first - the two are different Jitsi rooms with different JIDs, but
+    /// `trigger_breakout_room_recording` only had the index to name them
+    /// with, so a second round's "Breakout room #1" collided with the
+    /// first's under the DB's per-event name-uniqueness constraint.
+    #[serde(default)]
+    pub round: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -87,6 +97,11 @@ pub struct VideoCallState {
     pub current_agenda_step: u32,
     /// Active breakout session with scheduled end time (None when no session is active)
     pub breakout_session: Option<BreakoutSession>,
+    /// Incremented each time `assign_breakout_rooms` replaces `breakout_rooms`
+    /// with a fresh set. Stamped onto each `BreakoutRoomAssignments` as
+    /// `round` so recording names stay unique across reassignments that
+    /// reuse the same room index - see `BreakoutRoomAssignments::round`.
+    pub breakout_round: u32,
     /// Whether a jitsi-recorder session has already been triggered for the
     /// main room. Set on the first real video join, so a later rejoin by the
     /// same or another participant doesn't start a second recorder for a
@@ -171,6 +186,7 @@ impl VideoCallState {
             breakout_rooms: vec![],
             plenary_participants: HashSet::new(),
             breakout_session: None,
+            breakout_round: 0,
             main_room_recording_started: false,
         }
     }
@@ -207,7 +223,7 @@ impl VideoCallState {
     /// already has a room keeps it, so they go back to it when they reconnect instead of
     /// being placed in the emptiest room. Empty rooms are kept: room numbers are positions
     /// in this list, so dropping one would send people to the wrong Jitsi room.
-    fn rooms_from_layout(&self, layout: &[Vec<Uuid>]) -> Vec<BreakoutRoomAssignments> {
+    fn rooms_from_layout(&self, layout: &[Vec<Uuid>], round: u32) -> Vec<BreakoutRoomAssignments> {
         layout
             .iter()
             .map(|room_ids| BreakoutRoomAssignments {
@@ -217,6 +233,7 @@ impl VideoCallState {
                     .copied()
                     .collect(),
                 room_jid: None,
+                round,
             })
             .collect()
     }
@@ -681,6 +698,7 @@ impl VideoCallMessageHandler {
                             .into_iter()
                             .filter_map(|seat| seat.user_id)
                             .collect(),
+                        round: 0,
                     })
                     .collect::<Vec<_>>()
             })
@@ -1137,9 +1155,11 @@ impl VideoCallMessageHandler {
                         HashSet::new()
                     };
 
+                    call.breakout_round += 1;
+                    let round = call.breakout_round;
                     let breakout_rooms = if let Some(ref layout) = assignment_data.room_assignments
                     {
-                        call.rooms_from_layout(layout)
+                        call.rooms_from_layout(layout, round)
                     } else {
                         let mut participant_ids = call.breakout_candidates();
                         let mut rng = rand::thread_rng();
@@ -1151,6 +1171,7 @@ impl VideoCallMessageHandler {
                             .map(|chunk| BreakoutRoomAssignments {
                                 participants: chunk.to_vec(),
                                 room_jid: None,
+                                round,
                             })
                             .collect()
                     };
@@ -1398,27 +1419,26 @@ impl VideoCallMessageHandler {
     ) -> Result<(), VideoCallWSError> {
         let live_data: BreakoutRoomLiveData = serde_json::from_value(data.clone())?;
 
-        let should_trigger = self
+        let round_to_trigger = self
             .with_video_call_state_mut(event_id, |call| {
-                let Some(room) = call.breakout_rooms.get_mut(live_data.room_index) else {
-                    return false;
-                };
+                let room = call.breakout_rooms.get_mut(live_data.room_index)?;
                 if room.room_jid.is_some() {
-                    return false;
+                    return None;
                 }
                 room.room_jid = Some(live_data.room_jid.clone());
-                true
+                Some(room.round)
             })?
-            .unwrap_or(false);
+            .flatten();
 
-        if should_trigger {
+        if let Some(round) = round_to_trigger {
             let event_id = *event_id;
             let room_jid = live_data.room_jid;
             let room_index = live_data.room_index;
             let state = state.clone();
             tokio::spawn(async move {
                 if let Err(err) =
-                    trigger_breakout_room_recording(&event_id, &room_jid, room_index, &state).await
+                    trigger_breakout_room_recording(&event_id, &room_jid, room_index, round, &state)
+                        .await
                 {
                     tracing::error!(?err, %event_id, room_jid, "failed to trigger jitsi-recorder for breakout room");
                 }
@@ -1553,6 +1573,14 @@ async fn trigger_main_room_recording(
         .video_meeting_id
         .ok_or(crate::error::ComhairleError::NoVideoMeetingId)?;
     let recorder_config = state.required_jitsi_recorder_config()?;
+    // Same password-authenticated recorder account breakout rooms use (see
+    // `trigger_breakout_room_recording`), for consistency rather than
+    // minting a bot JWT here - the main room is also just `self`, but
+    // `trigger_recording` only has an Option<&str> to signal "use the
+    // recorder account", not a separate bool, for historical reasons (it
+    // used to double as the breakout grant target - see
+    // jitsi-recorder-breakout-rooms-working memory/git history).
+    let main_room_jid = format!("{video_meeting_id}@{}", recorder_config.main_muc_domain);
 
     crate::jitsi_recorder::trigger_recording(
         state,
@@ -1561,7 +1589,7 @@ async fn trigger_main_room_recording(
         &video_meeting_id.to_string(),
         Some(&recorder_config.main_muc_domain),
         "Main room",
-        None,
+        Some(&main_room_jid),
     )
     .await
 }
@@ -1574,6 +1602,7 @@ async fn trigger_breakout_room_recording(
     event_id: &Uuid,
     room_jid: &str,
     room_index: usize,
+    round: u32,
     state: &Arc<ComhairleState>,
 ) -> Result<(), crate::error::ComhairleError> {
     let event = crate::models::event::get_by_id(&state.db, event_id).await?;
@@ -1594,7 +1623,7 @@ async fn trigger_breakout_room_recording(
         *event_id,
         room_name,
         Some(muc_domain),
-        &format!("Breakout room #{}", room_index + 1),
+        &format!("Breakout room #{} (round {})", room_index + 1, round + 1),
         Some(&main_room_jid),
     )
     .await
@@ -1775,6 +1804,7 @@ mod tests {
             .map(|participants| BreakoutRoomAssignments {
                 participants,
                 room_jid: None,
+                round: 0,
             })
             .collect();
         call
@@ -1807,7 +1837,7 @@ mod tests {
             vec![vec![offline], vec![online]],
         );
 
-        let rooms = call.rooms_from_layout(&[vec![offline, stranger], vec![online]]);
+        let rooms = call.rooms_from_layout(&[vec![offline, stranger], vec![online]], 1);
 
         assert_eq!(rooms[0].participants, vec![offline]);
         assert_eq!(rooms[1].participants, vec![online]);
@@ -1870,7 +1900,7 @@ mod tests {
         let mut call = call_with(&[(host, "host")], vec![vec![offline]]);
 
         call.plenary_participants = call.plenary_after_assignment(&[offline]);
-        call.breakout_rooms = call.rooms_from_layout(&[vec![]]);
+        call.breakout_rooms = call.rooms_from_layout(&[vec![]], 1);
         call.place_in_breakout_room(offline);
 
         assert!(call.plenary_participants.contains(&offline));

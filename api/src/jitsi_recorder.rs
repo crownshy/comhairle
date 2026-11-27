@@ -117,10 +117,14 @@ pub async fn trigger_recording(
     room_name: &str,
     muc_domain: Option<&str>,
     recording_name: &str,
-    // Some(_) => breakout room: use the password-authenticated recorder
-    // account, granting it this main room's affiliation first (see
-    // `jitsi_recorder::trigger_recording`'s doc comment). None => main room:
-    // mint a bot JWT as before.
+    // Some(_) => use the password-authenticated recorder account rather
+    // than minting a bot JWT (now the case for both the main room and
+    // breakout rooms, for consistency - see jitsi-recorder-breakout-rooms-
+    // working memory/git history for why breakout needed this in the first
+    // place). The JID value itself is no longer read by jitsi-recorder - it
+    // used to be the target for a since-removed custom affiliation grant -
+    // but is still threaded through since `None` is the signal
+    // `start_recording_for_room` uses to fall back to minting a JWT.
     main_room_jid: Option<&str>,
 ) -> Result<(), ComhairleError> {
     let recorder_config = state.required_jitsi_recorder_config()?;
