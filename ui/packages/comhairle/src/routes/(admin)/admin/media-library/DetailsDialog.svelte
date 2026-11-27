@@ -59,9 +59,8 @@
 	}
 
 	const updateMedia: OnSubmit = async (formData) => {
-		const newName = (formData.get('name') ?? undefined) as string | undefined;
-		const newAlt = (formData.get('alt') ?? undefined) as string | undefined;
-
+		const newName = formData.get('name');
+		const newAlt = formData.get('alt');
 		if (!newName || !newAlt) {
 			return;
 		}

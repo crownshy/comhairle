@@ -47,7 +47,7 @@
 		id="{param}-filter"
 		name={param}
 		question={label}
-		options={options.map(([value, optionLabel]) => ({ value, label: optionLabel }))}
+		{options}
 		defaultSelected={(QueryParams.get(param) as string | undefined) ?? ''}
 		onValueChange={(value) => QueryParams.set(param, value).set('page', '1').update()}
 	/>

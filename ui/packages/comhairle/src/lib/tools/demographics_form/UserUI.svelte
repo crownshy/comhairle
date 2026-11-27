@@ -49,9 +49,12 @@
 			return;
 		}
 
-		const type = formData.get('question_type') as QuestionType;
-		const consent = formData.get('consent') as 'accepted' | null;
-		const value = formData.getAll(question.id ?? '') as string[] | null;
+		const type = formData.get<QuestionType>('question_type');
+		if (!type) {
+			return;
+		}
+		const consent = formData.get<'accepted'>('consent');
+		const value = formData.getAll(question.id);
 		if (!value || (value.length === 1 && value[0] === '')) {
 			if (!question.required) {
 				questionNumber += forwards ? 1 : -1;
@@ -126,16 +129,9 @@
 	};
 
 	function getOptions(question: NonNullable<QuestionDto['latest_published']>): Option[] {
-		const options: Option[] = question.options.map((o) => ({
-			label: o.label,
-			value: o.id
-		}));
-
-		if (question.allow_other) options.push({ label: 'Other', value: 'other' });
-
-		if (question.prefer_not_to_say)
-			options.push({ label: 'Prefer not to say', value: 'prefer_not_to_say' });
-
+		const options: Option[] = question.options.map((option) => [option.id, option.label]);
+		if (question.allow_other) options.push(['other', 'Other']);
+		if (question.prefer_not_to_say) options.push(['prefer_not_to_say', 'Prefer not to say']);
 		return options;
 	}
 

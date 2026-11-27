@@ -30,9 +30,9 @@
 	const mediaUploader = new Media.uploader();
 
 	const onsubmit: OnSubmit = async (formData) => {
-		const [media] = Media.normalise(formData.get(MediaSchema.media.name) as File | null);
-		const name = formData.get(MediaSchema.name.name) as string | null;
-		const alt = formData.get(MediaSchema.alt.name) as string | null;
+		const media = formData.getFiles(MediaSchema.media.name)?.[0];
+		const name = formData.get(MediaSchema.name.name);
+		const alt = formData.get(MediaSchema.alt.name);
 
 		if (!media || !name || !alt) {
 			return;
@@ -151,7 +151,7 @@
 							type="text"
 							placeholder="e.g. Company logo"
 						/>
-						<Submit class="mt-7 self-end" text="Upload" />
+						<Submit class="mt-7" text="Upload" />
 					</Form>
 				</div>
 			{:else}

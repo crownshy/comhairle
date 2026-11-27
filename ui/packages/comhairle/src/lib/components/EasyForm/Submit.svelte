@@ -9,7 +9,7 @@
 		isSubmitting?: boolean;
 	}
 
-	let { text, ref = $bindable(), isSubmitting, ...props }: Props = $props();
+	let { text, ref = $bindable(), isSubmitting, class: classes, ...props }: Props = $props();
 
 	let showSpinner = $state<boolean>(false);
 
@@ -31,7 +31,7 @@
 	});
 </script>
 
-<Button type="submit" bind:ref {...props} disabled={isSubmitting}>
+<Button type="submit" bind:ref {...props} class="self-end {classes}" disabled={isSubmitting}>
 	{#if showSpinner}
 		<Spinner />
 	{/if}

@@ -34,7 +34,9 @@
 			</Button>
 		{/if}
 	{/snippet}
-</SectionHeader><TabContent>
+</SectionHeader>
+
+<TabContent>
 	<div data-tour="organizations-list" class="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
 		{#each organizationAccess as access (access.organization.id)}
 			<div class="bg-card border-border flex h-full flex-col gap-4 rounded-2xl border p-6">

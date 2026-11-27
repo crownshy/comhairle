@@ -5,25 +5,35 @@
 	import { INPUT_STYLE } from '$lib/components/ui/input/styles';
 	import { cn } from '$lib/utils';
 	import SelectItem from './SelectItem.svelte';
+	import type { Option } from './types.ts';
 
 	type Value = string;
 	type Label = string;
 
-	type Option = { label: Label; value: Value };
-
 	type Props = Pick<HTMLSelectElement, 'id' | 'name'> & {
 		question: string;
 		options: Option[];
+		required?: boolean;
 		defaultSelected?: Value;
 		placeholder?: Label;
+		preventDeselection?: boolean;
 		onValueChange?: (value: Value) => void;
 	};
 
-	let { id, name, question, options, defaultSelected, placeholder, onValueChange }: Props =
-		$props();
+	let {
+		id,
+		name,
+		question,
+		options,
+		required,
+		defaultSelected,
+		placeholder,
+		preventDeselection,
+		onValueChange
+	}: Props = $props();
 
 	let selected = $derived<Value | undefined>(defaultSelected);
-	let label = $derived(options.find((o) => o.value === selected)?.label ?? placeholder ?? '');
+	let label = $derived(options.find(([value]) => value === selected)?.[1] ?? placeholder ?? '');
 	let drawerOpen = $state(false);
 	let isPlaceholder = $derived<boolean>(
 		!selected && defaultSelected === undefined && placeholder !== undefined
@@ -34,7 +44,14 @@
 </script>
 
 {#if !isMobile.current}
-	<Select.Root {name} type="single" bind:value={selected} {onValueChange}>
+	<Select.Root
+		{name}
+		{required}
+		type="single"
+		bind:value={selected}
+		{onValueChange}
+		allowDeselect={!preventDeselection}
+	>
 		<Select.Trigger {id} class={cn(INPUT_STYLE)} {placeholder}>
 			<span
 				class="flex w-full flex-row items-center justify-between"
@@ -44,9 +61,9 @@
 			</span>
 		</Select.Trigger>
 		<Select.Content>
-			{#each options as option (option.value)}
-				<Select.Item value={option.value}>
-					{option.label}
+			{#each options as [value, label] (value)}
+				<Select.Item {value}>
+					{label}
 				</Select.Item>
 			{/each}
 		</Select.Content>
@@ -63,16 +80,17 @@
 				<Drawer.Title id={titleId}>{question}</Drawer.Title>
 			</Drawer.Header>
 			<fieldset aria-labelledby={titleId} class="mx-5 flex flex-col gap-5 overflow-y-auto">
-				{#each options as option (option.value)}
+				{#each options as [value, label] (value)}
 					<SelectItem
 						{name}
-						defaultSelected={option.value === selected}
+						{label}
+						{value}
+						defaultSelected={value === selected}
 						onselect={(value) => {
 							selected = value;
 							drawerOpen = false;
 							onValueChange?.(value);
 						}}
-						{...option}
 					/>
 				{/each}
 			</fieldset>

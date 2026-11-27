@@ -31,13 +31,14 @@
 <fieldset>
 	<legend class="mb-5 text-sm font-semibold">{title}</legend>
 	<div class="flex flex-col gap-y-2">
-		{#each options as option (option.value)}
+		{#each options as [value, label] (value)}
 			<SelectItem
 				{name}
 				onselect={handleSelect}
 				multi={multiple}
-				{...option}
-				defaultSelected={defaultSelected?.includes(option.value) ?? false}
+				{label}
+				{value}
+				defaultSelected={defaultSelected?.includes(value) ?? false}
 			/>
 		{/each}
 	</div>
