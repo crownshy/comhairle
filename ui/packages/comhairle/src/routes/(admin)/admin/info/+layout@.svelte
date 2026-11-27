@@ -354,9 +354,9 @@
 					</a>
 				</nav>
 			{/if}
-			<div class="bg-card min-w-0 flex-1 rounded-xl">
+			<main class="bg-card min-w-0 flex-1 rounded-xl">
 				{@render children()}
-			</div>
+			</main>
 			<!-- Opened from a glossary tooltip's "learn more" link. -->
 			<GuideLearnMoreDialog />
 		</div>
