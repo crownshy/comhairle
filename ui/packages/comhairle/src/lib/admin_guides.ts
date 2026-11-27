@@ -753,7 +753,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'In a Participant-led poll, participants can write their own statements. Moderate them so that only appropriate statements are shown to others.',
 				image: {
 					src: moderateImage,
-					alt: 'Engage → Moderate for a Participant-led poll step. Statements moderation has Download CSV and Sync from Polis buttons, a search box, the All, Seeded, Accepted, Pending and Rejected filters, and a list of statements. The Reject statement popover is open, with an optional Reason and Note, and Cancel and Reject buttons.'
+					alt: 'The Moderate page as a moderator sees it, with Moderate as the only item in the sidebar. The Statements moderation step opens on the Waiting tab, next to Accepted, Rejected and All, with a Moderation rules link, a search box and a Download report button. One statement about park benches and bins is waiting, with Accept, Edit and Reject buttons.'
 				},
 				steps: [
 					'Before you launch, set your reasons for rejecting statements, such as "Off-topic", under **Configure** → **Moderation policy**.',
@@ -835,7 +835,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 					'Get to know the [moderation](/admin/info/glossary#term-moderation) screen for a Participant-led poll, then work through the decision each new statement needs and how to carry it out.',
 				image: {
 					src: moderationInDepthImage,
-					alt: 'The Moderate page for a Participant-led poll step, filtered to Accepted. Two statements have an Edited badge and Edited from: the original statement about park benches and bins. Each row has translate, pencil, tick and cross icons, and Download CSV and Sync from Polis buttons sit above the search box and filters.',
+					alt: 'The Moderate page as a moderator sees it, on the Accepted tab. Two statements, one about park benches and one about bins, each say Edited from the original statement that made both points. Two seed statements carry a Seed badge. Each row has Edit, Reject and more actions buttons, and the Moderation rules link, search box and Download report button sit above the list.',
 					caption:
 						'The moderation screen for a Participant-led poll step, showing two statements split from one.'
 				},
@@ -902,7 +902,7 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 							result: 'The statement moves to **Rejected** and is hidden from participants. The reason and note are kept in the moderation log for your team; participants are not told why.',
 							image: {
 								src: rejectStatementImage,
-								alt: 'The Reject statement popover open on a statement’s row, with the Reason "Off-topic or unclear" chosen, a Note reading "This statement isn’t about trees", and Cancel and Reject buttons.',
+								alt: 'The Reject statement dialog for the statement "hello". Under Which rule does it break?, "Off-topic or unclear" is chosen from five reasons. The Note for your team reads "This statement isn’t about trees", above Cancel and Reject statement buttons and a reminder that participants don’t see reasons or notes.',
 								caption:
 									'Rejecting an off-topic statement, with a note for the moderation log.'
 							}
@@ -916,10 +916,10 @@ export const ADMIN_GUIDES: Record<string, AdminGuide> = {
 								'Each box starts with the participant’s words. Change only what stops people voting, and keep their words and tone. For a split, cut each box down to one point, and click **+ Add another point** if there are more.',
 								'The dialog shows your changes against what the participant wrote. Click **Replace statement**. If something isn’t ready, the dialog says what to fix next to the button.'
 							],
-							result: 'The new statements are posted and appear in **Accepted** with an **Edited** badge and **Edited from:** the original. The original is rejected. Votes do not carry over to the new statements.',
+							result: 'The new statements are posted and appear in **Accepted**, each with **Edited from** and the original statement under its text. The original is rejected. Votes do not carry over to the new statements.',
 							image: {
 								src: splitStatementImage,
-								alt: 'The Edit statement dialog. The original statement, "The park needs more benches near the playground and the bins should be emptied more often.", is split into two replacement statements, one about benches and one about bins, with Add another statement, Cancel and Split statement buttons.',
+								alt: 'The Edit statement dialog with Split it chosen under What needs fixing?. Statement 1 reads "The park needs more benches near the playground." and Statement 2 reads "The park bins should be emptied more often.", each with the words removed from the original shown struck through. Below are Add another point, Cancel and Replace with 2 statements buttons.',
 								caption:
 									'Splitting a statement that makes two proposals into two separate statements.'
 							}
