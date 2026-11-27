@@ -7,6 +7,7 @@
 	import { cn } from '$lib/utils';
 
 	type Bar = {
+		id: string;
 		label: string;
 		/** Full name for screen readers and the hover title. */
 		fullLabel: string;
@@ -93,7 +94,7 @@
 					class="grid h-28 gap-1.5"
 					style:grid-template-columns="repeat({bars.length}, minmax(0, 1fr))"
 				>
-					{#each bars as bar (bar.fullLabel)}
+					{#each bars as bar (bar.id)}
 						<li
 							class="flex min-w-0 flex-col items-center gap-1"
 							title="{bar.fullLabel}: {bar.percent}%"
