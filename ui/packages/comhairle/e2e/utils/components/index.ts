@@ -2,6 +2,7 @@ import Button from './Button';
 import Calendar from './Calendar';
 import CollapsibleRichField from './inputs/CollapsibleRichField';
 import Combobox from './Combobox';
+import DateTimePicker from './DateTimePicker';
 import DraggableList from './DraggableList';
 import NumericTextbox from './inputs/NumericTextbox';
 import RadioButtons from './RadioButtons';
@@ -16,6 +17,7 @@ export {
 	Calendar,
 	CollapsibleRichField,
 	Combobox,
+	DateTimePicker,
 	DraggableList,
 	NumericTextbox,
 	RadioButtons,

@@ -4,7 +4,7 @@ import { testWithRefresh } from './utils';
 import { login } from './utils/auth';
 import { TEST_CONVERSATION_TITLE } from './utils/constants';
 import Conversation from './utils/navigation/Conversation';
-import { Switch, Textbox } from './utils/components';
+import { DateTimePicker, Switch, Textbox } from './utils/components';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -70,6 +70,40 @@ test('Configure/Details page', async ({ page, cleanup }) => {
 	// await page.getByLabel('Open media library').click();
 	// await expect(page.getByRole('dialog', { name: 'Media library Go to media' })).toBeVisible();
 	// await page.getByRole('button', { name: 'Close', exact: true }).click();
+});
+
+test('Configure/Details schedule', async ({ page, cleanup }) => {
+	const LaunchDate = DateTimePicker('Launch date', { page, cleanup });
+	const CloseDate = DateTimePicker('Close date', { page, cleanup });
+
+	const today = new Date();
+	const day = new Date(today.getFullYear(), today.getMonth() + 1, 15);
+	const launch = { date: day, time: '14:30' } as const;
+	const close = { date: day, time: '18:05' } as const;
+
+	await LaunchDate.set(launch);
+	await LaunchDate.toShow(launch);
+
+	await CloseDate.enter({ date: day, time: '09:00' });
+	await expect(CloseDate.popover().getByRole('alert')).toHaveText(/^Must be after /);
+	await expect(CloseDate.confirmButton()).toBeDisabled();
+	await page.keyboard.press('Escape');
+	await CloseDate.toShow(null);
+
+	await CloseDate.set(close);
+
+	await testWithRefresh(page, async () => {
+		await LaunchDate.toShow(launch);
+		await CloseDate.toShow(close);
+	});
+
+	await LaunchDate.remove();
+	await CloseDate.remove();
+
+	await testWithRefresh(page, async () => {
+		await LaunchDate.toShow(null);
+		await CloseDate.toShow(null);
+	});
 });
 
 test('Configure/Details access settings', async ({ page, cleanup }) => {

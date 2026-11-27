@@ -37,6 +37,7 @@
 	import { guardUnsavedChanges } from '$lib/utils/unsavedChangesGuard.svelte';
 	import { onDestroy } from 'svelte';
 	import AccessSettings from './AccessSettings.svelte';
+	import ScheduleSettings from './ScheduleSettings.svelte';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { detailsConfigTour } from './tour';
 
@@ -489,6 +490,8 @@
 			</div>
 		</div>
 	</div>
+
+	<ScheduleSettings {conversation} />
 
 	<AccessSettings
 		{conversation}
