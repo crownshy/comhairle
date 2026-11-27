@@ -13,6 +13,14 @@ type Fixtures = {
 export const test = base.extend<Fixtures>({
 	forEachTest: [
 		async ({ page }, use) => {
+			// Every test starts a fresh browser, so each page's tour would autoplay and its
+			// overlay would swallow clicks. Report every tour as already seen.
+			await page.addInitScript(() => {
+				const getItem = Storage.prototype.getItem;
+				Storage.prototype.getItem = function (key: string) {
+					return key.startsWith('comhairle-tour-seen:') ? '1' : getItem.call(this, key);
+				};
+			});
 			await gotoComhairle(page);
 			await use();
 		},
