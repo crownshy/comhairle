@@ -19,7 +19,8 @@ use crate::error::ComhairleError;
 use crate::middleware::permissions::{PermissionRequirement, authorize as permission_middleware};
 use crate::models::conversation::{
     self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-    ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
+    ConversationWithTranslations, CreateConversation, IdOrSlug, LocalizedConversation,
+    PartialConversation,
 };
 use crate::models::conversation_email_notification_recipients::{
     self as email_recipients_model, CreateConversationEmailNotificationRecipients,
@@ -45,6 +46,7 @@ use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDt
 use crate::routes::preview_access::{has_preview_grant, preview_denied_error};
 use crate::routes::translations::LocaleExtractor;
 
+mod areas;
 pub mod dto;
 
 /// Create conversation handler
@@ -239,6 +241,14 @@ async fn list_conversations(
     )
     .await?;
 
+    Ok((StatusCode::OK, Json(with_media(&state, results).await?)))
+}
+
+/// Resolve conversation images, falling back to the configured default image.
+async fn with_media(
+    state: &ComhairleState,
+    results: PaginatedResults<LocalizedConversation>,
+) -> Result<PaginatedResults<LocalizedConversationDto>, ComhairleError> {
     let media = MediaResolver::load(
         &state.db,
         &results
@@ -249,14 +259,11 @@ async fn list_conversations(
     )
     .await?;
 
-    let results_with_media: PaginatedResults<LocalizedConversationDto> =
-        FromWithMedia::from_with_media(
-            results,
-            &media,
-            &state.config.default_conversation_image_url,
-        );
-
-    Ok((StatusCode::OK, Json(results_with_media)))
+    Ok(FromWithMedia::from_with_media(
+        results,
+        &media,
+        &state.config.default_conversation_image_url,
+    ))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -1035,6 +1042,7 @@ pub fn router() -> ApiRouter<Arc<ComhairleState>> {
     let requirement = PermissionRequirement::<ConversationResource>::new;
     let system_requirement = PermissionRequirement::<SystemResource>::new;
     ApiRouter::new()
+        .merge(areas::router())
         .api_route(
             "/",
             post_with(create_conversation, |op| {

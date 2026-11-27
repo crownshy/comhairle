@@ -8,6 +8,13 @@ Comhairle is a platform for consultation and deliberation at scale. Admins (poli
 A single consultation/deliberation instance that participants take part in and admins configure. Created in a draft state (`is_live: false`) and later launched.
 _Avoid_: Topic (used loosely in the UI/design), consultation
 
+**Conversation areas**:
+The optional set of existing Region areas in which a Conversation runs, stored as links
+in `conversation_region_area`. Any geometric intersection counts, including a shared
+boundary. No attached areas means no geographic matches; an area without geometry
+cannot match. A Conversation is **active in an area** only when it intersects that
+area, is live, and is not complete.
+
 **Workflow**:
 The ordered sequence of Steps a Conversation routes participants through. Every Conversation has exactly one active Workflow.
 
