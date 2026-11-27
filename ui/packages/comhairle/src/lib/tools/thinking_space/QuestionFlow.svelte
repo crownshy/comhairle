@@ -385,31 +385,21 @@
 					<!-- Picker -->
 					{#if flow.currentState.picker.length > 0 && !flow.currentState.pickerLoading}
 						<section class="border-border space-y-3 border-t pt-6">
-							<div class="flex items-start justify-between gap-3">
+							<div
+								class="flex flex-col items-start gap-3 sm:flex-row sm:justify-between"
+							>
 								<div class="min-w-0">
 									<p
 										tabindex="-1"
 										{@attach focusOnScreenChange}
 										class="text-foreground text-base font-semibold outline-none"
 									>
-										{inExtensionChain
+										{inExtensionChain || flow.minReached
 											? m.thinking_space_pick_deeper()
-											: flow.minReached
-												? m.thinking_space_pick_deeper()
-												: m.thinking_space_pick_follow_up()}
+											: m.thinking_space_pick_follow_up()}
 									</p>
 									{#if inExtensionChain}
-										<p class="text-muted-foreground text-base">
-											{m.or()}
-											<button
-												type="button"
-												class="text-primary underline-offset-2 hover:underline"
-												onclick={() => flow.doneWithRoot()}
-											>
-												{m.thinking_space_pick_back()}
-											</button>
-											.
-										</p>
+										<!-- No subline: "Done with this question" under the list goes back. -->
 									{:else if !flow.minReached}
 										<p class="text-muted-foreground text-base">
 											{flow.followUpsRemaining}
