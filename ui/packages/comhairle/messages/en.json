@@ -523,6 +523,8 @@
 	"thinking_space_follow_to_go": "more follow-up to go",
 	"thinking_space_follows_to_go": "more follow-ups to go",
 	"thinking_space_write_thoughts": "Write your thoughts…",
+	"thinking_space_word_count": "{count} / {max} words",
+	"thinking_space_over_word_limit": "This is over the {max} word limit. Shorten it to continue.",
 	"thinking_space_follow_loading_1": "Your answers are shaping the questions, that’s why this takes a moment.",
 	"thinking_space_follow_loading_2": "How often do you actually pause to reflect on this?",
 	"thinking_space_follow_loading_3": "Taking time to think is important. You don’t get this space often.",
