@@ -13,8 +13,12 @@
 	let { children, actions, tone = 'warning' }: Props = $props();
 
 	const TONES = {
-		warning: { surface: 'bg-orange-50', icon: TriangleAlert, iconClass: 'text-orange-600' },
-		info: { surface: 'bg-accent', icon: Info, iconClass: 'text-primary' }
+		warning: {
+			surface: 'bg-orange-50 text-orange-950',
+			icon: TriangleAlert,
+			iconClass: 'text-orange-600'
+		},
+		info: { surface: 'bg-accent text-accent-foreground', icon: Info, iconClass: 'text-primary' }
 	};
 	let look = $derived(TONES[tone]);
 	let Icon = $derived(look.icon);
@@ -24,7 +28,7 @@
 <div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 {look.surface}">
 	<div class="flex min-w-0 flex-[1_1_28rem] items-center gap-3">
 		<Icon class="size-5 shrink-0 {look.iconClass}" aria-hidden="true" />
-		<p class="text-background text-base">{@render children()}</p>
+		<p class="text-base">{@render children()}</p>
 	</div>
 	{#if actions}
 		<div class="flex flex-wrap gap-2">{@render actions()}</div>
