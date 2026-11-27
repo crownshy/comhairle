@@ -23,7 +23,6 @@
 		const org_type = formData.get<OrganisationType>('org-type');
 		const regions = formData.getAll('regions');
 
-
 		if (!name || !org_type) {
 			return;
 		}
@@ -48,9 +47,9 @@
 			return;
 		}
 
-		await goto(
-			resolve('/(admin)/admin/organizations', { invalidate: [key('admin/organizations')] })
-		);
+		await goto(resolve('/(admin)/admin/organizations'), {
+			invalidate: [key('admin/organizations')]
+		});
 	};
 </script>
 
