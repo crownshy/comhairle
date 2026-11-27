@@ -146,7 +146,7 @@ Feature: Step shell
     Examples:
       | device  | layout                                                                     |
       | desktop | it opens from a tab on the right edge and takes half the screen            |
-      | phone   | it opens from a header button and takes the full width                     |
+      | phone   | it opens from the step menu and takes the full width                       |
 
   Scenario: S-15 Preview markers
     Given the participant is an admin previewing the conversation

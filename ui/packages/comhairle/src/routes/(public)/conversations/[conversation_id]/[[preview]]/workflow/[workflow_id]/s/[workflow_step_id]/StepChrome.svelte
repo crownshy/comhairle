@@ -1,13 +1,10 @@
 <script lang="ts">
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import { useSupportDrawer } from '$lib/components/supportDrawerContext.svelte';
-	import CircleHelp from '@lucide/svelte/icons/circle-question-mark';
 	import { m } from '$lib/paraglide/messages';
 	import StepMenu from './StepMenu.svelte';
 	import StepProgressBar from './StepProgressBar.svelte';
 	import type { StepItem } from './stepItems';
-	import { HEADER_PILL_CLASS, STEP_COLUMN_CLASS } from './styles';
-	import { cn } from '$lib/utils';
+	import { STEP_COLUMN_CLASS } from './styles';
 
 	type Props = {
 		steps: StepItem[];
@@ -22,8 +19,6 @@
 	};
 
 	let { steps, currentIndex, fill, position, introUrl, preview = false }: Props = $props();
-
-	const supportDrawer = useSupportDrawer();
 </script>
 
 <header class="bg-background pb-2">
@@ -43,16 +38,7 @@
 				{m.conversation_preview_badge()}
 			</span>
 		{/if}
-		<div class="flex min-w-0 flex-1 items-center justify-end gap-3">
-			<button
-				type="button"
-				class={cn(HEADER_PILL_CLASS, 'shrink-0')}
-				aria-label={m.support_find_out_more()}
-				onclick={() => (supportDrawer.open = true)}
-			>
-				<CircleHelp class="size-5" aria-hidden="true" />
-				<span class="max-sm:hidden" aria-hidden="true">{m.support_find_out_more()}</span>
-			</button>
+		<div class="flex min-w-0 flex-1 items-center justify-end">
 			<StepMenu {steps} {currentIndex} />
 		</div>
 	</div>

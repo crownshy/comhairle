@@ -15,7 +15,6 @@
 	import { themeStore } from '$lib/stores/theme.svelte';
 	import { cn } from '$lib/utils';
 	import { m } from '$lib/paraglide/messages';
-	import { HEADER_PILL_CLASS } from './styles';
 	import { getLocale, locales, type Locale } from '$lib/paraglide/runtime';
 	import { getLanguageName } from '$lib/config/languages';
 	import { switchLocale } from '$lib/utils/locale';
@@ -56,10 +55,8 @@
 
 	// Both shells share one pill so the dropdown the server paints can become the sheet
 	// on hydration without a visible change (ADR-0049).
-	const TRIGGER_CLASS = cn(
-		HEADER_PILL_CLASS,
-		'group data-[state=open]:bg-primary/10 min-w-0 justify-end'
-	);
+	const TRIGGER_CLASS =
+		'group text-primary hover:bg-primary/10 active:bg-primary/10 data-[state=open]:bg-primary/10 -mx-2 flex min-w-0 cursor-pointer items-center justify-end gap-2 rounded-full px-2 py-1 text-base font-medium transition-colors duration-75';
 
 	// Opened in a new tab so reading them doesn't take the participant out of their step. The
 	// privacy policy is the conversation's own, so it lives in Find out more instead.
