@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export type OnSubmit = (formData: FormData) => Promise<void>;
+	export type OnSubmit = (formData: ReturnType<typeof FormDataParser>) => Promise<void>;
 </script>
 
 <script lang="ts">
@@ -8,6 +8,7 @@
 	import { key, type InputKey } from '$lib/utils/invalidationKey';
 	import type { Snippet } from 'svelte';
 	import type { HTMLFormAttributes } from 'svelte/elements';
+	import FormDataParser from '$lib/interfaces/FormDataParser';
 
 	type SnippetArgs = {
 		isSubmitting: boolean;
@@ -44,7 +45,7 @@
 		isSubmitting = true;
 
 		cancel();
-		await onsubmit(formData);
+		await onsubmit(FormDataParser(formData));
 
 		if (!noReset) {
 			ref?.reset();

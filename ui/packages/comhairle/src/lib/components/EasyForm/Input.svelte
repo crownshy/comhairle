@@ -12,7 +12,9 @@
 		label?: string;
 		files?: undefined;
 	};
-	let { onblur, ref = $bindable(), label, type, ...props }: Props = $props();
+	let { onblur, ref = $bindable(), label, type = 'text', ...props }: Props = $props();
+
+	const id = $props.id();
 
 	let errorMessage = $state<string>('');
 
@@ -41,10 +43,13 @@
 
 <div class="flex w-full flex-col">
 	{#if label}
-		<Label class="mb-1 text-sm font-semibold lg:w-75 lg:shrink-0 lg:pt-2">{label}</Label>
+		<Label class="mb-1 text-sm font-semibold lg:w-75 lg:shrink-0 lg:pt-2" for={id}>
+			{label}
+		</Label>
 	{/if}
 	<span class:pile={type === 'password'}>
 		<Input
+			{id}
 			{...props}
 			bind:ref
 			type={type === 'password' && visible ? 'text' : type}

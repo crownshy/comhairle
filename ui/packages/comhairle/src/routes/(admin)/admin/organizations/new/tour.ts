@@ -4,7 +4,7 @@ export const newOrganizationTour: Tour = {
 	id: 'admin-organization-new',
 	steps: [
 		{
-			element: '[data-tour="page-header"]',
+			element: '[data-tour="section-header"]',
 			title: 'Create an organisation',
 			description:
 				'Set its name, type and regions. You can invite team members and adjust details afterwards.',

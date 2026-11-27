@@ -32,7 +32,10 @@
 	let detailsDialogOpen = $state<boolean>(false);
 
 	const deleteMedia: OnSubmit = async (formData) => {
-		const media = formData.getAll('media') as string[];
+		const media = formData.getAll('media');
+		if (!media) {
+			return;
+		}
 
 		const results = await tryCatchAsync(async () => {
 			for (const id of media) {

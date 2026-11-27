@@ -49,9 +49,12 @@
 			return;
 		}
 
-		const type = formData.get('question_type') as QuestionType;
-		const consent = formData.get('consent') as 'accepted' | null;
-		const value = formData.getAll(question.id ?? '') as string[] | null;
+		const type = formData.get<QuestionType>('question_type');
+		if (!type) {
+			return;
+		}
+		const consent = formData.get<'accepted'>('consent');
+		const value = formData.getAll(question.id);
 		if (!value || (value.length === 1 && value[0] === '')) {
 			if (!question.required) {
 				questionNumber += forwards ? 1 : -1;

@@ -1,192 +1,119 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import Label from '$lib/components/ui/label/label.svelte';
-	import type { LocalizedRegionDto, OrganizationType } from '@crownshy/api-client/api';
-	import { superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
-	import { z } from 'zod';
 	import { useTour } from '$lib/tours/useTour.svelte';
 	import { newOrganizationTour } from './tour';
+	import { Form, Input, Select, Submit, type OnSubmit } from '$lib/components/EasyForm';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import { resolve } from '$app/paths';
+	import TabContent from '$lib/components/TabContent.svelte';
+	import SectionHeader from '$lib/components/SectionHeader.svelte';
+	import { key } from '$lib/utils/invalidationKey';
+
+	const { data } = $props();
 
 	useTour(() => newOrganizationTour);
 
-	const organizationFormSchema = z.object({
-		name: z.string().trim().min(1, 'Name is required'),
-		description: z.string().optional(),
-		mission: z.string().optional(),
-		org_type: z.enum(['non_profit', 'governmental', 'other'] as const),
-		contact_email: z.string().optional(),
-		external_url: z.string().optional(),
-		regions: z.array(z.string().uuid()).default([]),
-		user_emails: z.string().optional()
-	});
+	type OrganisationType = 'non_profit' | 'governmental' | 'other';
 
-	const organizationForm = superForm(
-		{
-			name: '',
-			description: '',
-			mission: '',
-			org_type: 'non_profit' as OrganizationType,
-			contact_email: '',
-			external_url: '',
-			regions: [] as string[],
-			user_emails: ''
-		},
-		{
-			validators: zodClient(organizationFormSchema),
-			taintedMessage: false,
-			onSubmit: async ({ cancel }) => {
-				cancel();
-				submitting = true;
+	const createOrganisation: OnSubmit = async (formData) => {
+		const name = formData.get('name');
+		const org_type = formData.get<OrganisationType>('org-type');
+		const regions = formData.getAll('regions');
 
-				const validation = await validateForm({ update: true });
-				if (!validation.valid) {
-					submitting = false;
-					return;
-				}
 
-				const response = await tryCatchAsync(() =>
-					apiClient.CreateOrganization({
-						name: $form.name,
-						description: $form.description || undefined,
-						mission: $form.mission || undefined,
-						org_type: $form.org_type,
-						contact_email: $form.contact_email || undefined,
-						external_url: $form.external_url || undefined,
-						regions: $form.regions
-					})
-				);
-
-				if (response.err !== null) {
-					notifications.send({
-						priority: 'ERROR',
-						message: 'Failed to create organization'
-					});
-					submitting = false;
-					return;
-				}
-
-				const organization = response.ok;
-				const summary = organization.adminBootstrapSummary;
-				const failedCount = summary.failures.length;
-
-				notifications.send({
-					priority: failedCount > 0 ? 'WARNING' : 'INFO',
-					message:
-						failedCount > 0
-							? `Organization created. ${summary.assigned} of ${summary.attempted} administrators assigned; ${failedCount} need follow-up.`
-							: 'Organization created'
-				});
-
-				submitting = false;
-				goto(`/admin/organizations/${organization.id}`);
-			}
-		}
-	);
-
-	const { form, enhance, validateForm } = organizationForm;
-
-	let allRegions = $state<LocalizedRegionDto[]>([]);
-	let submitting = $state(false);
-
-	onMount(async () => {
-		const response = await apiClient.ListRegions({ queries: { limit: 500 } });
-		allRegions = response.records;
-	});
-
-	function toggleRegion(regionId: string, enabled: boolean) {
-		const selectedRegionIds = new Set($form.regions);
-
-		if (enabled) {
-			if (!selectedRegionIds.has(regionId)) {
-				$form.regions = [...selectedRegionIds, regionId];
-			}
+		if (!name || !org_type) {
 			return;
 		}
 
-		$form.regions = [...selectedRegionIds].filter((id) => id !== regionId);
-	}
+		const createOrganisation = await tryCatchAsync(() =>
+			apiClient.CreateOrganization({
+				name,
+				org_type,
+				description: formData.get('description') ?? '',
+				mission: formData.get('mission') ?? '',
+				contact_email: formData.get('contact-email'),
+				external_url: formData.get('external-url'),
+				regions
+			})
+		);
+
+		if (createOrganisation.err !== null) {
+			notifications.send({
+				message: 'Failed to create organization',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		await goto(
+			resolve('/(admin)/admin/organizations', { invalidate: [key('admin/organizations')] })
+		);
+	};
 </script>
 
 <svelte:head>
-	<title>Create organization - Comhairle Admin</title>
+	<title>Create organisation - Comhairle Admin</title>
 </svelte:head>
 
-<div class="flex flex-col gap-6 p-8">
-	<h1 data-tour="page-header" class="text-3xl font-semibold">Create organization</h1>
+<Form onsubmit={createOrganisation}>
+	{#snippet children({ isSubmitting })}
+		<SectionHeader
+			content={{
+				eyebrow: 'Administration',
+				title: 'Create organisation'
+			}}
+		>
+			{#snippet actions()}
+				<Submit text="Create organisation" {isSubmitting} />
+			{/snippet}
+		</SectionHeader>
 
-	<form class="flex flex-col gap-4" method="POST" use:enhance>
-		<div class="grid gap-4 md:grid-cols-2">
-			<div class="flex flex-col gap-2">
-				<Label for="name">Name</Label>
-				<Input id="name" bind:value={$form.name} required />
-			</div>
-			<div class="flex flex-col gap-2">
-				<Label for="orgType">Type</Label>
-				<select
-					id="orgType"
-					bind:value={$form.org_type}
-					class="border-input bg-background h-10 rounded-md border px-3 py-2 text-sm"
-				>
-					<option value="non_profit">Non-profit</option>
-					<option value="governmental">Governmental</option>
-					<option value="other">Other</option>
-				</select>
-			</div>
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="description">Description</Label>
-			<Input id="description" bind:value={$form.description} />
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="mission">Mission</Label>
-			<Input id="mission" bind:value={$form.mission} />
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="contactEmail">Contact email</Label>
-			<Input id="contactEmail" type="email" bind:value={$form.contact_email} />
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label for="externalUrl">External URL</Label>
-			<Input id="externalUrl" type="url" bind:value={$form.external_url} />
-		</div>
-
-		<div class="flex flex-col gap-2">
-			<Label>Regions</Label>
-			<div class="grid gap-2 rounded-md border p-3 md:grid-cols-2">
-				{#if allRegions.length === 0}
-					<p class="text-muted-foreground text-sm">No regions available.</p>
-				{:else}
-					{#each allRegions as region}
-						<label class="flex items-center gap-2 text-sm">
-							<input
-								type="checkbox"
-								checked={$form.regions.includes(region.id)}
-								onchange={(event) =>
-									toggleRegion(
-										region.id,
-										(event.currentTarget as HTMLInputElement).checked
-									)}
-							/>
-							{region.name}
-						</label>
-					{/each}
-				{/if}
-			</div>
-		</div>
-
-		<div class="flex justify-end">
-			<Button type="submit" disabled={submitting}>Create organization</Button>
-		</div>
-	</form>
-</div>
+		<TabContent>
+			<section class="flex max-w-4xl flex-col gap-y-3">
+				<div class="grid grid-cols-2 items-end gap-x-5">
+					<Input name="name" label="Name" required />
+					<div class="shrink-0 grow pt-5">
+						<Select
+							id="org-type"
+							name="org-type"
+							required
+							question="Type"
+							placeholder="Organisation type"
+							preventDeselection
+							defaultSelected="non_profit"
+							options={[
+								['non_profit', 'Non-profit'],
+								['governmental', 'Governmental'],
+								['other', 'Other']
+							]}
+						/>
+					</div>
+				</div>
+				<Input name="description" label="Description" />
+				<Input name="mission" label="Mission" />
+				<Input name="contact-email" label="Contact email" type="email" />
+				<Input name="external-url" label="External URL" type="url" />
+				<div class="flex flex-col gap-2 pt-2">
+					Regions
+					<div class="grid gap-2 rounded-md border p-3 md:grid-cols-2">
+						{#if data.regions.err !== null}
+							<ErrorMessage>Could not load regions please try again</ErrorMessage>
+						{:else}
+							{#each data.regions.ok as region (region.id)}
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="regions" value={region.id} />
+									{region.name}
+								</label>
+							{:else}
+								<p class="text-muted-foreground text-sm">No regions available.</p>
+							{/each}
+						{/if}
+					</div>
+				</div>
+			</section>
+		</TabContent>
+	{/snippet}
+</Form>
