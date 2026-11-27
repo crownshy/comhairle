@@ -91,9 +91,9 @@ pub struct Conversation {
     /// *before* they finish. See ADR-0016.
     pub allow_revisit_after_finishing: bool,
     pub metadata: serde_json::Value,
-    #[partially(transparent)]
+    #[serde(default, deserialize_with = "crate::models::nullable")]
     pub launch_date: Option<DateTime<Utc>>,
-    #[partially(transparent)]
+    #[serde(default, deserialize_with = "crate::models::nullable")]
     pub close_date: Option<DateTime<Utc>>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,

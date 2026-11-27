@@ -61,6 +61,26 @@ pub mod workflow_step;
 #[cfg(test)]
 pub mod model_test_helpers;
 
+use serde::{Deserialize, Deserializer};
+
+/// Deserializes an `Option<Option<T>>` field so a missing key and an explicit `null` differ:
+/// a missing key gives `None`, `null` gives `Some(None)`, and a value gives `Some(Some(v))`.
+/// Plain serde reads `null` as the outer `None`, so an update could never clear a column.
+///
+/// Use as `#[serde(default, deserialize_with = "crate::models::nullable")]`; `default` covers
+/// the missing key.
+///
+/// With `partially`, put it on the base model's `Option<T>` field without `transparent`.
+/// The attribute is copied to the base model too, where `null` fails to deserialize, so that
+/// model should not derive `Deserialize`. See ADR-0074.
+pub fn nullable<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    T::deserialize(deserializer).map(Some)
+}
+
 /// Extension trait for converting `sqlx` query results into domain-level
 /// [`ComhairleError`]s.
 ///
