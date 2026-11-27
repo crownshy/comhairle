@@ -9,8 +9,9 @@
 	import QueryParams from '$lib/interfaces/QueryParams.svelte';
 	import type { ConversationsParams } from '$lib/interfaces/QueryParams.types';
 	import { useDebounce } from 'runed';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Info from '@lucide/svelte/icons/info';
 	import FilterBadges from '$lib/components/FilterBadges.svelte';
 	import Conversation from '$lib/interfaces/Conversation';
@@ -201,7 +202,25 @@
 									{conversation}
 									for="public"
 									statusLabel={statusLabel(conversation)}
-								/>
+								>
+									{#snippet Actions()}
+										<!-- Looks like a button so people know the card opens, but the
+											card's title link already covers it, so it stays out of
+											the accessibility tree rather than repeat the link. -->
+										<span
+											aria-hidden="true"
+											class={buttonVariants({
+												variant: 'primaryDark',
+												class: 'text-base'
+											})}
+										>
+											{conversation.isComplete
+												? m.conversation_read_report()
+												: m.take_part()}
+											<ArrowRight class="size-4" />
+										</span>
+									{/snippet}
+								</ConversationCard>
 							{/each}
 						</div>
 
