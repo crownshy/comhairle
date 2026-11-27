@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Converts the prerendered Comhairle Handbook pages (src/routes/(admin)/admin/info) to
-// markdown and syncs them into a RAGFlow dataset, replacing any existing document of the
-// same name. Requires `pnpm build` to have produced .svelte-kit/output/prerendered first.
+// Converts the Comhairle Handbook pages (src/routes/(admin)/admin/info) to markdown and
+// syncs them into a RAGFlow dataset, replacing any existing document of the same name.
+// Crawls a running app from the welcome page, e.g. `pnpm build && pnpm preview`.
 //
 // Usage:
 //   RAGFLOW_API_KEY=... RAGFLOW_DATASET_ID=... node scripts/sync-info-docs-to-ragflow.mjs
@@ -10,17 +10,13 @@
 //   RAGFLOW_API_KEY    (required) RAGFlow API key, sent as `Authorization: Bearer <key>`.
 //   RAGFLOW_DATASET_ID (required) Target dataset id.
 //   RAGFLOW_BASE_URL   (optional) Defaults to https://rag.comhairle.scot.
+//   HANDBOOK_APP_URL   (optional) App to crawl. Defaults to http://localhost:4173 (vite preview).
 
-import { readdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import TurndownService from 'turndown';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const INFO_DIR = path.resolve(__dirname, '../.svelte-kit/output/prerendered/pages/admin/info');
-
+const HANDBOOK_PATH = '/admin/info';
+const APP_URL = process.env.HANDBOOK_APP_URL ?? 'http://localhost:4173';
 const BASE_URL = process.env.RAGFLOW_BASE_URL ?? 'https://rag.comhairle.scot';
 const API_KEY = process.env.RAGFLOW_API_KEY;
 const DATASET_ID = process.env.RAGFLOW_DATASET_ID;
@@ -30,23 +26,47 @@ if (!DATASET_ID) throw new Error('RAGFLOW_DATASET_ID is required');
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
 
-async function findHtmlFiles(dir) {
-	const entries = await readdir(dir, { withFileTypes: true });
-	const files = await Promise.all(
-		entries.map(async (entry) => {
-			const full = path.join(dir, entry.name);
-			if (entry.isDirectory()) return findHtmlFiles(full);
-			return entry.name.endsWith('.html') ? [full] : [];
-		})
-	);
-	return files.flat();
+function handbookPathOf(href, pageUrl) {
+	const url = new URL(href, pageUrl);
+	if (url.origin !== new URL(APP_URL).origin) return null;
+	return url.pathname.startsWith(`${HANDBOOK_PATH}/`) ? url.pathname : null;
+}
+
+// Fetches every Handbook page reachable from the welcome page. Keyed by the path after
+// redirects so a guide's index and its first topic aren't synced twice.
+async function crawlHandbook() {
+	const pages = new Map();
+	const queue = [`${HANDBOOK_PATH}/welcome`];
+	const seen = new Set(queue);
+
+	while (queue.length > 0) {
+		const res = await fetch(new URL(queue.shift(), APP_URL));
+		if (!res.ok) throw new Error(`Handbook fetch failed: ${res.url} -> ${res.status}`);
+		const finalPath = new URL(res.url).pathname;
+		if (pages.has(finalPath)) continue;
+
+		const html = await res.text();
+		pages.set(finalPath, html);
+
+		const { document } = new JSDOM(html).window;
+		for (const link of document.querySelectorAll('a[href]')) {
+			const path = handbookPathOf(link.getAttribute('href'), res.url);
+			if (path && !seen.has(path)) {
+				seen.add(path);
+				queue.push(path);
+			}
+		}
+	}
+	return pages;
 }
 
 // Stable, readable document name derived from the route, e.g.
-// how-to/getting-started/sign-up.html -> admin-info-how-to-getting-started-sign-up.md
-function docNameFor(htmlPath) {
-	const relative = path.relative(INFO_DIR, htmlPath).replace(/\.html$/, '');
-	return `admin-info-${relative.split(path.sep).join('-')}.md`;
+// /admin/info/how-to/getting-started/sign-up -> admin-info-how-to-getting-started-sign-up.md
+function docNameFor(pagePath) {
+	return `admin-info-${pagePath
+		.slice(HANDBOOK_PATH.length + 1)
+		.split('/')
+		.join('-')}.md`;
 }
 
 function extractMarkdown(html) {
@@ -116,9 +136,8 @@ async function parseDocument(id) {
 	});
 }
 
-async function syncOne(htmlPath) {
-	const name = docNameFor(htmlPath);
-	const html = await readFile(htmlPath, 'utf8');
+async function syncOne(pagePath, html) {
+	const name = docNameFor(pagePath);
 	const markdown = extractMarkdown(html);
 	if (!markdown) {
 		console.log(`skip (no content): ${name}`);
@@ -134,9 +153,9 @@ async function syncOne(htmlPath) {
 }
 
 async function main() {
-	const htmlFiles = await findHtmlFiles(INFO_DIR);
-	for (const htmlPath of htmlFiles) {
-		await syncOne(htmlPath);
+	const pages = await crawlHandbook();
+	for (const [pagePath, html] of pages) {
+		await syncOne(pagePath, html);
 	}
 }
 
