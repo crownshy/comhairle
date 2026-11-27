@@ -12,7 +12,6 @@
 		type PickerLoad,
 		type PublishedDemographicItem
 	} from '$lib/demographicCatalogue';
-	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Check from '@lucide/svelte/icons/check';
 	import { goto, invalidate } from '$app/navigation';
@@ -22,6 +21,7 @@
 	import type { ConversationDto, WorkflowDto } from '@crownshy/api-client/api';
 	import { notifications } from '$lib/notifications.svelte';
 	import DemographicItemPicker from './DemographicItemPicker.svelte';
+	import NoOrganizationStepRow from './NoOrganizationStepRow.svelte';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
@@ -158,68 +158,64 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="flex min-h-0 flex-1 items-start gap-6 overflow-hidden">
-			<!-- Left: selectable step-type list -->
+		<!-- Phones: one scrolling column, list as a 2-up grid above the detail.
+			Tablet and up: side by side, each column scrolling on its own. -->
+		<div
+			class="-mx-1 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 md:mx-0 md:flex-row md:items-start md:gap-6 md:overflow-hidden md:px-0 md:py-1"
+		>
+			<!-- p-1 leaves room for the focus outline, which the scroll edge would otherwise
+				clip; md:-my-1 cancels it so the first option lines up with the detail panel. -->
 			<div
-				class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-4 [scrollbar-gutter:stable]"
+				class="grid shrink-0 grid-cols-2 gap-2 p-1 md:-my-1 md:flex md:w-60 md:flex-col md:gap-3 md:self-stretch md:overflow-y-auto md:pr-3 md:[scrollbar-gutter:stable] lg:w-72"
 			>
 				{#each PALETTE_TOOLS as tool (tool.type)}
-					<SelectableOptionRow
-						selected={selectedType === tool.type}
-						name={tool.displayName}
-						description={tool.tagline}
-						disabled={missingOrganization && needsOrganization(tool)}
-						onSelect={() => (selectedType = tool.type)}
-					/>
+					{#if missingOrganization && needsOrganization(tool)}
+						<NoOrganizationStepRow name={tool.displayName} {conversationId} />
+					{:else}
+						<SelectableOptionRow
+							selected={selectedType === tool.type}
+							name={tool.displayName}
+							onSelect={() => (selectedType = tool.type)}
+							class="max-md:h-full max-md:p-3"
+						/>
+					{/if}
 				{/each}
-				{#if missingOrganization}
-					<p class="text-muted-foreground text-base">
-						Demographic steps are unavailable because this conversation has no hosting
-						organisation. Questions and forms come from the hosting organisation.
-						<a
-							href={resolve(
-								'/(admin)/admin/conversations/[conversation_id]/configure/team',
-								{ conversation_id: conversationId }
-							)}
-							class="text-primary underline"
-						>
-							Configure one
-						</a>
-					</p>
-				{/if}
 			</div>
 
-			<!-- Right: selected step-type detail -->
 			<div
-				class="bg-card border-border flex min-h-0 flex-1 flex-col gap-4 self-stretch overflow-y-auto rounded-xl border p-6"
+				class="bg-card border-border flex shrink-0 flex-col gap-4 rounded-xl border p-4 md:min-h-0 md:flex-1 md:shrink md:self-stretch md:overflow-y-auto md:p-6"
 			>
-				<div class="flex flex-col gap-2">
-					<h3 class="text-foreground text-base font-bold">{selected.displayName}</h3>
-					<p class="text-muted-foreground text-base">{selected.description}</p>
+				{#if selected.preview}
+					<div class="bg-muted shrink-0 overflow-hidden rounded-lg p-4">
+						<img
+							src={selected.preview.src}
+							alt={selected.preview.alt}
+							class="mx-auto max-h-64 w-auto rounded-md object-contain"
+						/>
+					</div>
+				{/if}
 
-					{#if selected.infoSlug}
-						<!-- Setup guide callout -->
-						<a
-							href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-								tool_id: selected.infoSlug
-							})}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
-						>
-							<BookOpen class="text-primary size-4 shrink-0" />
-							<span class="flex flex-1 flex-col">
-								<span class="text-primary text-xs font-semibold">
-									Introduction & setup guide
-								</span>
-								<span class="text-muted-foreground text-xs">
-									Learn how to configure this step, see examples, and understand
-									best practices.
-								</span>
-							</span>
-							<ExternalLink class="text-primary size-3.5 shrink-0" />
-						</a>
-					{/if}
+				<div class="flex flex-col gap-2">
+					<div class="flex items-baseline justify-between gap-4">
+						<h3 class="text-foreground text-lg font-bold">{selected.displayName}</h3>
+						{#if selected.infoSlug}
+							<a
+								href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+									tool_id: selected.infoSlug
+								})}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="text-primary inline-flex shrink-0 items-center gap-1.5 text-base font-medium hover:underline"
+							>
+								<ExternalLink class="size-4" />
+								Learn more
+								<span class="sr-only"
+									>about {selected.displayName} (opens in a new tab)</span
+								>
+							</a>
+						{/if}
+					</div>
+					<p class="text-muted-foreground text-base">{selected.description}</p>
 				</div>
 
 				{#if demographicNoun}
@@ -229,21 +225,6 @@
 						selectedId={pickedForSelected?.id ?? null}
 						onSelect={(item) => (picked = { type: selected.type, item })}
 					/>
-				{:else}
-					<!-- Example media placeholders (tokenized blocks; no photos) -->
-					<div class="flex gap-2.5">
-						{#each [0, 1, 2] as block (block)}
-							<div
-								class="bg-muted border-border relative flex h-28 flex-1 items-center justify-center overflow-hidden rounded-lg border"
-							>
-								<span
-									class="text-primary/70 border-primary/40 -rotate-30 rounded border px-2 py-0.5 text-xs font-semibold tracking-wide uppercase"
-								>
-									Example
-								</span>
-							</div>
-						{/each}
-					</div>
 				{/if}
 
 				{#if selected.bestFor.length}
@@ -296,22 +277,7 @@
 			</div>
 		</div>
 
-		<Dialog.Footer class="items-center sm:justify-between">
-			{#if selected.infoSlug}
-				<a
-					href={resolve('/(admin)/admin/info/tools/[tool_id]', {
-						tool_id: selected.infoSlug
-					})}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
-				>
-					<BookOpen class="size-3.5" />
-					Learn more in the guidebook
-				</a>
-			{:else}
-				<span></span>
-			{/if}
+		<Dialog.Footer class="items-center sm:justify-end">
 			<div class="flex items-center gap-2">
 				<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}>
 					Cancel

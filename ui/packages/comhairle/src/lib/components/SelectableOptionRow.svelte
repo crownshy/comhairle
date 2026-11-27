@@ -3,15 +3,15 @@
 
 	/**
 	 * A single selectable radio-row for the two-column picker dialogs (choose-a-template
-	 * and add-a-step). Renders a radio dot + name + description, with selected styling.
+	 * and add-a-step). Renders a radio dot + name + optional description, with selected styling.
 	 */
 	type Props = {
 		/** Whether this row is the currently-selected option. */
 		selected?: boolean;
 		/** Option title. */
 		name: string;
-		/** Option supporting line. */
-		description: string;
+		/** Option supporting line. Leave out for a name-only row. */
+		description?: string;
 		/** Greys the row out and stops it being selected. */
 		disabled?: boolean;
 		/** Called when the row is clicked. */
@@ -55,6 +55,8 @@
 		<span class={cn('text-sm', selected ? 'text-primary font-medium' : 'text-foreground')}>
 			{name}
 		</span>
-		<span class="text-muted-foreground text-sm">{description}</span>
+		{#if description}
+			<span class="text-muted-foreground text-sm">{description}</span>
+		{/if}
 	</span>
 </button>
